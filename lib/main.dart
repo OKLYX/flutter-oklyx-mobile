@@ -9,15 +9,16 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'Flutter Oklyn Mobile',
-    theme: ThemeData(
-      colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-      useMaterial3: true,
-    ),
-    home: const Scaffold(
-      body: Center(
-        child: Text('Flutter Oklyn Mobile'),
-      ),
-    ),
-  );
+        debugShowCheckedModeBanner: false,
+        title: 'Flutter Oklyn Mobile',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+          useMaterial3: true,
+        ),
+        home: const Scaffold(
+          body: Center(
+            child: Text('Flutter Oklyn Mobile'),
+          ),
+        ),
+      );
 }
