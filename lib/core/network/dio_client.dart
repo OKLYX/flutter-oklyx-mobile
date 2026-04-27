@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 
 import 'package:flutter_oklyn_mobile/core/constants/app_constants.dart';
 import 'interceptors/error_interceptor.dart';
-import 'interceptors/request_interceptor.dart';
 import 'interceptors/response_interceptor.dart';
 
 class DioClient {
@@ -24,14 +23,15 @@ class DioClient {
             const Duration(seconds: AppConstants.connectionTimeout),
         receiveTimeout: const Duration(seconds: AppConstants.receiveTimeout),
         contentType: 'application/json',
+        validateStatus: (status) => status != null && status < 500,
       ),
     );
 
     _dio.interceptors.addAll([
-      RequestInterceptor(),
       ResponseInterceptor(),
       ErrorInterceptor(),
     ]);
+    // RequestInterceptor will be added by service_locator after initialization
   }
 
   Dio get dio => _dio;

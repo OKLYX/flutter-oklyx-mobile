@@ -1,7 +1,7 @@
 class AppConstants {
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://api.example.com',
+    defaultValue: 'http://100.77.112.35:8083/api',
   );
 
   static const int connectionTimeout = 30;

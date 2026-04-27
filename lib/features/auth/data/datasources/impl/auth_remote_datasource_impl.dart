@@ -34,9 +34,15 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       }
 
       final jsonData = response.data as Map<String, dynamic>;
-      final userData = jsonData['user'] as Map<String, dynamic>;
-      userData['token'] = jsonData['token'];
-      userData['refresh_token'] = jsonData['refresh_token'];
+      final data = jsonData['data'] as Map<String, dynamic>;
+
+      final userData = {
+        'id': data['email'],
+        'email': data['email'],
+        'name': data['name'],
+        'token': data['token'],
+        'refreshToken': null,
+      };
 
       return UserModel.fromJson(userData);
     } on DioException catch (e) {
@@ -61,7 +67,17 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         );
       }
 
-      final userData = response.data as Map<String, dynamic>;
+      final jsonData = response.data as Map<String, dynamic>;
+      final data = jsonData['data'] as Map<String, dynamic>;
+
+      final userData = {
+        'id': data['email'],
+        'email': data['email'],
+        'name': data['name'],
+        'token': data['token'] ?? '',
+        'refreshToken': null,
+      };
+
       return UserModel.fromJson(userData);
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
@@ -95,9 +111,15 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       }
 
       final jsonData = response.data as Map<String, dynamic>;
-      final userData = jsonData['user'] as Map<String, dynamic>;
-      userData['token'] = jsonData['token'];
-      userData['refresh_token'] = jsonData['refresh_token'];
+      final data = jsonData['data'] as Map<String, dynamic>;
+
+      final userData = {
+        'id': data['email'],
+        'email': data['email'],
+        'name': data['name'],
+        'token': data['token'],
+        'refreshToken': null,
+      };
 
       return UserModel.fromJson(userData);
     } on DioException catch (e) {
