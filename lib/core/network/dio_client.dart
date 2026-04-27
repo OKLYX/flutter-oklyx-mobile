@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 
-import '../constants/app_constants.dart';
+import 'package:flutter_oklyn_mobile/core/constants/app_constants.dart';
 import 'interceptors/error_interceptor.dart';
 import 'interceptors/request_interceptor.dart';
 import 'interceptors/response_interceptor.dart';

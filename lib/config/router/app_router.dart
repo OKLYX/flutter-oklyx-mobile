@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/auth/presentation/pages/login_page.dart';
-import '../../shared/pages/home_page.dart';
-import '../../shared/pages/not_found_page.dart';
-import '../../shared/pages/splash_page.dart';
+import 'package:flutter_oklyn_mobile/features/auth/presentation/pages/login_page.dart';
+import 'package:flutter_oklyn_mobile/shared/pages/home_page.dart';
+import 'package:flutter_oklyn_mobile/shared/pages/not_found_page.dart';
+import 'package:flutter_oklyn_mobile/shared/pages/splash_page.dart';
+
 import 'routes.dart';
 
 class AppRouter {

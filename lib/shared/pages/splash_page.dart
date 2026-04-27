@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../config/router/routes.dart';
+import 'package:flutter_oklyn_mobile/config/router/routes.dart';
+
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});

@@ -1,6 +1,7 @@
 import 'package:fpdart/fpdart.dart';
 
-import '../../../../core/error/failure.dart';
+import 'package:flutter_oklyn_mobile/core/error/failure.dart';
+
 import '../entities/user.dart';
 
 abstract class AuthRepository {

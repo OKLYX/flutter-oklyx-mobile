@@ -57,7 +57,7 @@ linter:
     - constant_identifier_names
     - curly_braces_in_flow_control_structures
     - dangling_library_doc_comments
-    - directives_ordering
+    # - directives_ordering  # Disabled: conflicts with package namespace organization
     - empty_catches
     - empty_constructor_bodies
     - file_names

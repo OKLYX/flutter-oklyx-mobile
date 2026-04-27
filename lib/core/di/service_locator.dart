@@ -1,5 +1,7 @@
 import 'package:get_it/get_it.dart';
-import '../network/dio_client.dart';
+
+import 'package:flutter_oklyn_mobile/core/network/dio_client.dart';
+
 
 final getIt = GetIt.instance;
 
