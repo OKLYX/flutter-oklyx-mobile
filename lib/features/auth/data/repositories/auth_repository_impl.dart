@@ -33,6 +33,12 @@ class AuthRepositoryImpl implements AuthRepository {
         await localDataSource.saveRefreshToken(userModel.refreshToken!);
       }
 
+      try {
+        await localDataSource.saveUser(userModel);
+      } catch (_) {
+        // Silently ignore caching errors
+      }
+
       return Right(userModel.toDomain());
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
@@ -50,6 +56,13 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       await localDataSource.deleteToken();
       await localDataSource.deleteRefreshToken();
+
+      try {
+        await localDataSource.deleteUser();
+      } catch (_) {
+        // Silently ignore caching errors
+      }
+
       return const Right(null);
     } on LocalException catch (e) {
       return Left(LocalFailure(e.message));
@@ -64,6 +77,12 @@ class AuthRepositoryImpl implements AuthRepository {
       final userModel = await remoteDataSource.getCurrentUser();
 
       await localDataSource.saveToken(userModel.token);
+
+      try {
+        await localDataSource.saveUser(userModel);
+      } catch (_) {
+        // Silently ignore caching errors
+      }
 
       return Right(userModel.toDomain());
     } on ServerException catch (e) {
@@ -95,6 +114,12 @@ class AuthRepositoryImpl implements AuthRepository {
         await localDataSource.saveRefreshToken(userModel.refreshToken!);
       }
 
+      try {
+        await localDataSource.saveUser(userModel);
+      } catch (_) {
+        // Silently ignore caching errors
+      }
+
       return Right(userModel.toDomain());
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
@@ -109,4 +134,22 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<bool> isAuthenticated() => localDataSource.hasToken();
+
+  @override
+  Future<User?> getCachedUser() async {
+    try {
+      return await localDataSource.getUser();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<void> cacheUser(User user) async {
+    try {
+      await localDataSource.saveUser(user);
+    } catch (_) {
+      // Silently ignore caching errors
+    }
+  }
 }

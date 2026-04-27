@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/auth/domain/repositories/auth_repository.dart';
 import 'package:flutter_oklyn_mobile/features/auth/domain/usecases/get_current_user_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/auth/domain/usecases/login_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/auth/domain/usecases/logout_usecase.dart';
@@ -11,11 +12,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final LoginUseCase loginUseCase;
   final LogoutUseCase logoutUseCase;
   final GetCurrentUserUseCase getCurrentUserUseCase;
+  final AuthRepository authRepository;
 
   AuthBloc({
     required this.loginUseCase,
     required this.logoutUseCase,
     required this.getCurrentUserUseCase,
+    required this.authRepository,
   }) : super(const AuthInitial()) {
     on<LoginRequested>(_onLoginRequested);
     on<LogoutRequested>(_onLogoutRequested);
@@ -48,6 +51,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     CheckAuthStatusRequested event,
     Emitter<AuthState> emit,
   ) async {
+    // Phase 1: Check cached user
+    final cachedUser = await authRepository.getCachedUser();
+    if (cachedUser != null) {
+      emit(AuthAuthenticated(user: cachedUser));
+    }
+
+    // Phase 2: Fetch fresh data
     final result = await getCurrentUserUseCase();
     result.fold(
       (failure) => emit(const AuthUnauthenticated()),

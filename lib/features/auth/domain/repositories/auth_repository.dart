@@ -27,4 +27,13 @@ abstract class AuthRepository {
   /// Check if user is currently authenticated
   /// Returns [bool] indicating authentication status
   Future<bool> isAuthenticated();
+
+  /// Get cached user data from local storage
+  /// Returns [User] if cached, null otherwise
+  /// Never throws - returns null on any error
+  Future<User?> getCachedUser();
+
+  /// Cache user data to local storage
+  /// Never throws - caching errors are silently ignored
+  Future<void> cacheUser(User user);
 }

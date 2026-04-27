@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 
 import 'package:flutter_oklyn_mobile/core/constants/app_constants.dart';
-import 'interceptors/error_interceptor.dart';
 import 'interceptors/response_interceptor.dart';
 
 class DioClient {
@@ -29,9 +28,9 @@ class DioClient {
 
     _dio.interceptors.addAll([
       ResponseInterceptor(),
-      ErrorInterceptor(),
     ]);
-    // RequestInterceptor will be added by service_locator after initialization
+    // RequestInterceptor and ErrorInterceptor will be added by service_locator
+    // after all dependencies are ready
   }
 
   Dio get dio => _dio;

@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:flutter_oklyn_mobile/core/constants/app_constants.dart';
 import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
+import 'package:flutter_oklyn_mobile/features/auth/data/models/user_model.dart';
 
 import '../auth_local_datasource.dart';
 
@@ -81,6 +84,43 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       await secureStorage.delete(key: AppConstants.refreshTokenKey);
     } catch (e) {
       throw LocalException('Failed to delete refresh token: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<void> saveUser(dynamic user) async {
+    try {
+      final userModel = user is UserModel ? user : user as UserModel;
+      final jsonString = jsonEncode(userModel.toJson());
+      await secureStorage.write(
+        key: AppConstants.userKey,
+        value: jsonString,
+      );
+    } catch (e) {
+      throw LocalException('Failed to save user: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<dynamic> getUser() async {
+    try {
+      final jsonString = await secureStorage.read(key: AppConstants.userKey);
+      if (jsonString == null) {
+        return null;
+      }
+      final json = jsonDecode(jsonString) as Map<String, dynamic>;
+      return UserModel.fromJson(json).toDomain();
+    } catch (e) {
+      throw LocalException('Failed to retrieve user: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<void> deleteUser() async {
+    try {
+      await secureStorage.delete(key: AppConstants.userKey);
+    } catch (e) {
+      throw LocalException('Failed to delete user: ${e.toString()}');
     }
   }
 }

@@ -28,4 +28,17 @@ abstract class AuthLocalDataSource {
   /// Delete refresh token from secure storage
   /// Throws exception on storage errors
   Future<void> deleteRefreshToken();
+
+  /// Save user data to secure storage
+  /// Throws exception on storage errors
+  Future<void> saveUser(dynamic user);
+
+  /// Retrieve user data from secure storage
+  /// Returns null if user not found
+  /// Throws exception on storage errors
+  Future<dynamic> getUser();
+
+  /// Delete user data from secure storage
+  /// Throws exception on storage errors
+  Future<void> deleteUser();
 }

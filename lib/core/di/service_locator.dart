@@ -2,6 +2,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:flutter_oklyn_mobile/core/network/dio_client.dart';
+import 'package:flutter_oklyn_mobile/core/network/interceptors/error_interceptor.dart';
 import 'package:flutter_oklyn_mobile/core/network/interceptors/request_interceptor.dart';
 import 'package:flutter_oklyn_mobile/features/auth/data/datasources/auth_local_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/auth/data/datasources/auth_remote_datasource.dart';
@@ -13,6 +14,7 @@ import 'package:flutter_oklyn_mobile/features/auth/domain/usecases/get_current_u
 import 'package:flutter_oklyn_mobile/features/auth/domain/usecases/login_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/auth/domain/usecases/logout_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/auth/presentation/bloc/auth_event.dart';
 
 final getIt = GetIt.instance;
 
@@ -20,6 +22,7 @@ void setupServiceLocator() {
   _registerAuthLocalServices();
   _registerNetworkServices();
   _registerAuthServices();
+  _registerErrorHandling();
 }
 
 void _registerAuthLocalServices() {
@@ -76,6 +79,20 @@ void _registerAuthServices() {
       loginUseCase: getIt<LoginUseCase>(),
       logoutUseCase: getIt<LogoutUseCase>(),
       getCurrentUserUseCase: getIt<GetCurrentUserUseCase>(),
+      authRepository: getIt<AuthRepository>(),
     ),
   );
+}
+
+void _registerErrorHandling() {
+  getIt.registerSingleton<ErrorInterceptor>(
+    ErrorInterceptor(
+      dio: getIt<DioClient>().dio,
+      authRepository: getIt<AuthRepository>(),
+      onLogoutRequired: () =>
+          getIt<AuthBloc>().add(const LogoutRequested()),
+    ),
+  );
+
+  getIt<DioClient>().dio.interceptors.add(getIt<ErrorInterceptor>());
 }
