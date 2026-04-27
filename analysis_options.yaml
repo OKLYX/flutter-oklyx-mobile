@@ -110,7 +110,6 @@ linter:
     - prefer_spread_collections
     - sized_box_for_whitespace
     - sort_child_properties_last
-    - sort_constructors_first
     - unawaited_futures
     - unnecessary_await_in_return
     - unnecessary_const
