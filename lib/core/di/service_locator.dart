@@ -19,8 +19,10 @@ import 'package:flutter_oklyn_mobile/features/product/data/datasources/impl/prod
 import 'package:flutter_oklyn_mobile/features/product/data/datasources/product_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/product/data/repositories/product_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/repositories/product_repository.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/usecases/get_product_detail_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/get_products_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_detail_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -106,10 +108,18 @@ void _registerProductServices() {
   getIt.registerSingleton<GetProductsUseCase>(
     GetProductsUseCase(getIt<ProductRepository>()),
   );
+  getIt.registerSingleton<GetProductDetailUseCase>(
+    GetProductDetailUseCase(getIt<ProductRepository>()),
+  );
 
   // ProductBloc as factory to allow fresh state per page
   getIt.registerFactory<ProductBloc>(
     () => ProductBloc(getProductsUseCase: getIt<GetProductsUseCase>()),
+  );
+
+  // ProductDetailBloc as factory to allow fresh state per page
+  getIt.registerFactory<ProductDetailBloc>(
+    () => ProductDetailBloc(getProductDetailUseCase: getIt<GetProductDetailUseCase>()),
   );
 }
 

@@ -1,5 +1,6 @@
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
+import '../entities/product.dart';
 import '../entities/product_page.dart';
 
 abstract class ProductRepository {
@@ -8,4 +9,6 @@ abstract class ProductRepository {
     int size = 20,
     String? search,
   });
+
+  Future<Either<Failure, Product>> getProduct(int id);
 }

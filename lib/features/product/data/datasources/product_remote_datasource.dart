@@ -1,3 +1,4 @@
+import '../models/product_model.dart';
 import '../models/product_page_model.dart';
 
 abstract class ProductRemoteDataSource {
@@ -6,4 +7,6 @@ abstract class ProductRemoteDataSource {
     required int size,
     String? search,
   });
+
+  Future<ProductModel> getProduct(int id);
 }

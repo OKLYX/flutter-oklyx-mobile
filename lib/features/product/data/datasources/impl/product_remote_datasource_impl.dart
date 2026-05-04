@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
 import 'package:flutter_oklyn_mobile/core/network/dio_client.dart';
+import 'package:flutter_oklyn_mobile/features/product/data/models/product_model.dart';
 import 'package:flutter_oklyn_mobile/features/product/data/models/product_page_model.dart';
 import 'package:flutter_oklyn_mobile/features/product/data/datasources/product_remote_datasource.dart';
 
@@ -39,6 +40,30 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
     } on DioException catch (e) {
       throw ServerException(
         e.message ?? 'Failed to fetch products',
+        statusCode: e.response?.statusCode,
+      );
+    } catch (e) {
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<ProductModel> getProduct(int id) async {
+    try {
+      final response = await dioClient.get('/products/$id');
+
+      if (response.statusCode != 200) {
+        throw ServerException(
+          'Failed to fetch product',
+          statusCode: response.statusCode,
+        );
+      }
+
+      final data = (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
+      return ProductModel.fromJson(data);
+    } on DioException catch (e) {
+      throw ServerException(
+        e.message ?? 'Failed to fetch product',
         statusCode: e.response?.statusCode,
       );
     } catch (e) {

@@ -6,6 +6,7 @@ class Routes {
   static const String notification = 'notification';
   static const String productRegister = 'productRegister';
   static const String productSearch = 'productSearch';
+  static const String productDetail = 'productDetail';
   static const String notFound = 'notFound';
 
   static const String splashPath = '/';
@@ -15,5 +16,6 @@ class Routes {
   static const String notificationPath = '/notification';
   static const String productRegisterPath = '/product-register';
   static const String productSearchPath = '/product-search';
+  static const String productDetailPath = '/product-detail/:productId';
   static const String notFoundPath = '/404';
 }

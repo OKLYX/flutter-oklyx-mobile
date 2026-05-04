@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/entities/product.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_event.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_state.dart';
@@ -201,19 +202,24 @@ class _ProductSearchPageState extends State<ProductSearchPage> {
 }
 
 class _ProductCard extends StatelessWidget {
-  final product;
+  final Product product;
 
   const _ProductCard({required this.product});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return InkWell(
+      onTap: () => context.pushNamed(
+        Routes.productDetail,
+        pathParameters: {'productId': product.id.toString()},
+      ),
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Container(
               width: 60,
               height: 60,
@@ -290,6 +296,7 @@ class _ProductCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

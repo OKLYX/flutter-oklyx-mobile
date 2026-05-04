@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/features/auth/presentation/pages/login_page.dart';
+import 'package:flutter_oklyn_mobile/features/product/presentation/pages/product_detail_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/dashboard_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/list_to_shop_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/not_found_page.dart';
@@ -78,6 +79,16 @@ class AppRouter {
       pageBuilder: (context, state) => const NoTransitionPage(
         child: ProductSearchPage(),
       ),
+    ),
+    GoRoute(
+      name: Routes.productDetail,
+      path: Routes.productDetailPath,
+      pageBuilder: (context, state) {
+        final productId = int.parse(state.pathParameters['productId']!);
+        return NoTransitionPage(
+          child: ProductDetailPage(productId: productId),
+        );
+      },
     ),
     GoRoute(
       name: Routes.notFound,
