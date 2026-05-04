@@ -15,6 +15,12 @@ import 'package:flutter_oklyn_mobile/features/auth/domain/usecases/login_usecase
 import 'package:flutter_oklyn_mobile/features/auth/domain/usecases/logout_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/auth/presentation/bloc/auth_event.dart';
+import 'package:flutter_oklyn_mobile/features/product/data/datasources/impl/product_remote_datasource_impl.dart';
+import 'package:flutter_oklyn_mobile/features/product/data/datasources/product_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/product/data/repositories/product_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/repositories/product_repository.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/usecases/get_products_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -22,6 +28,7 @@ void setupServiceLocator() {
   _registerAuthLocalServices();
   _registerNetworkServices();
   _registerAuthServices();
+  _registerProductServices();
   _registerErrorHandling();
 }
 
@@ -81,6 +88,28 @@ void _registerAuthServices() {
       getCurrentUserUseCase: getIt<GetCurrentUserUseCase>(),
       authRepository: getIt<AuthRepository>(),
     ),
+  );
+}
+
+void _registerProductServices() {
+  // Data Sources
+  getIt.registerSingleton<ProductRemoteDataSource>(
+    ProductRemoteDataSourceImpl(dioClient: getIt<DioClient>()),
+  );
+
+  // Repository
+  getIt.registerSingleton<ProductRepository>(
+    ProductRepositoryImpl(remoteDataSource: getIt<ProductRemoteDataSource>()),
+  );
+
+  // Use Cases
+  getIt.registerSingleton<GetProductsUseCase>(
+    GetProductsUseCase(getIt<ProductRepository>()),
+  );
+
+  // ProductBloc as factory to allow fresh state per page
+  getIt.registerFactory<ProductBloc>(
+    () => ProductBloc(getProductsUseCase: getIt<GetProductsUseCase>()),
   );
 }
 
