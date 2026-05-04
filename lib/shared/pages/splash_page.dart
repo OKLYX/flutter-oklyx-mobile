@@ -31,7 +31,7 @@ class _SplashPageState extends State<SplashPage> {
     body: BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticated) {
-          context.go(Routes.homePath);
+          context.go(Routes.dashboardPath);
         } else if (state is AuthUnauthenticated) {
           context.go(Routes.loginPath);
         }

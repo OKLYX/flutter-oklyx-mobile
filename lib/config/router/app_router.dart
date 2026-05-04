@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/features/auth/presentation/pages/login_page.dart';
-import 'package:flutter_oklyn_mobile/shared/pages/home_page.dart';
+import 'package:flutter_oklyn_mobile/shared/pages/dashboard_page.dart';
+import 'package:flutter_oklyn_mobile/shared/pages/list_to_shop_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/not_found_page.dart';
+import 'package:flutter_oklyn_mobile/shared/pages/notification_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/splash_page.dart';
 
 import 'routes.dart';
@@ -37,9 +39,19 @@ class AppRouter {
       builder: (context, state) => const LoginPage(),
     ),
     GoRoute(
-      name: Routes.home,
-      path: Routes.homePath,
-      builder: (context, state) => const HomePage(),
+      name: Routes.dashboard,
+      path: Routes.dashboardPath,
+      builder: (context, state) => const DashboardPage(),
+    ),
+    GoRoute(
+      name: Routes.listToShop,
+      path: Routes.listToShopPath,
+      builder: (context, state) => const ListToShopPage(),
+    ),
+    GoRoute(
+      name: Routes.notification,
+      path: Routes.notificationPath,
+      builder: (context, state) => const NotificationPage(),
     ),
     GoRoute(
       name: Routes.notFound,

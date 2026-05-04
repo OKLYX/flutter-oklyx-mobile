@@ -39,7 +39,7 @@ class _LoginPageState extends State<LoginPage> {
               SnackBar(content: Text(state.message)),
             );
           } else if (state is AuthAuthenticated) {
-            context.go(Routes.homePath);
+            context.go(Routes.dashboardPath);
           }
         },
         child: SingleChildScrollView(
