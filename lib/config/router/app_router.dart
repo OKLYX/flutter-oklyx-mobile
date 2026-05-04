@@ -3,11 +3,11 @@ import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/features/auth/presentation/pages/login_page.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/pages/product_detail_page.dart';
+import 'package:flutter_oklyn_mobile/features/product/presentation/pages/product_register_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/dashboard_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/list_to_shop_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/not_found_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/notification_page.dart';
-import 'package:flutter_oklyn_mobile/shared/pages/product_register_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/product_search_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/splash_page.dart';
 

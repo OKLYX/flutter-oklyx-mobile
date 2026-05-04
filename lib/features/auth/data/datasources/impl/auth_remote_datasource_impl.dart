@@ -19,7 +19,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }) async {
     try {
       final response = await dioClient.post(
-        '/auth/login',
+        '/api/auth/login',
         data: {
           'email': email,
           'password': password,
@@ -58,7 +58,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<UserModel> getCurrentUser() async {
     try {
-      final response = await dioClient.get('/auth/me');
+      final response = await dioClient.get('/api/auth/me');
 
       if (response.statusCode != 200) {
         throw ServerException(
@@ -99,7 +99,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<UserModel> refreshToken(String refreshToken) async {
     try {
       final response = await dioClient.post(
-        '/auth/refresh',
+        '/api/auth/refresh',
         data: {'refresh_token': refreshToken},
       );
 

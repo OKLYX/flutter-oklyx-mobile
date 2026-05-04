@@ -79,6 +79,7 @@ class ErrorInterceptor extends QueuedInterceptor {
     ErrorInterceptorHandler handler,
   ) async {
     try {
+      await authRepository.cacheUser(user);
       err.requestOptions.headers['Authorization'] = 'Bearer ${user.token}';
       _isRefreshingToken = false;
       _refreshTokenCompleter.complete();

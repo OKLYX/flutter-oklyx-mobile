@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
 import 'package:flutter_oklyn_mobile/core/network/dio_client.dart';
@@ -24,7 +26,7 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
       };
 
       final response = await dioClient.get(
-        '/products',
+        '/api/products',
         queryParameters: queryParams,
       );
 
@@ -50,7 +52,7 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
   @override
   Future<ProductModel> getProduct(int id) async {
     try {
-      final response = await dioClient.get('/products/$id');
+      final response = await dioClient.get('/api/products/$id');
 
       if (response.statusCode != 200) {
         throw ServerException(
@@ -64,6 +66,89 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
     } on DioException catch (e) {
       throw ServerException(
         e.message ?? 'Failed to fetch product',
+        statusCode: e.response?.statusCode,
+      );
+    } catch (e) {
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<ProductModel> registerProduct(dynamic params) async {
+    try {
+      final response = await dioClient.post(
+        '/api/products',
+        data: params.toJson(),
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw ServerException(
+          'Failed to register product',
+          statusCode: response.statusCode,
+        );
+      }
+
+      final data = (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
+      return ProductModel.fromJson(data);
+    } on DioException catch (e) {
+      throw ServerException(
+        e.message ?? 'Failed to register product',
+        statusCode: e.response?.statusCode,
+      );
+    } catch (e) {
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<bool> checkBarcodeAvailable(String barcodeId) async {
+    try {
+      final response = await dioClient.get(
+        '/api/products/check-barcode',
+        queryParameters: {'barcode': barcodeId},
+      );
+
+      if (response.statusCode == 200) {
+        final jsonData = response.data as Map<String, dynamic>;
+        final data = jsonData['data'] as Map<String, dynamic>;
+        final exists = data['exists'] as bool;
+        return !exists;
+      }
+      throw ServerException(
+        'Unexpected status code',
+        statusCode: response.statusCode,
+      );
+    } on DioException catch (e) {
+      throw ServerException(
+        e.message ?? 'Failed to check barcode',
+        statusCode: e.response?.statusCode,
+      );
+    } catch (e) {
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<void> uploadProductImage(int productId, File imageFile) async {
+    try {
+      final formData = FormData.fromMap({
+        'image': await MultipartFile.fromFile(imageFile.path),
+      });
+
+      final response = await dioClient.post(
+        '/api/products/$productId/image',
+        data: formData,
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw ServerException(
+          'Failed to upload image',
+          statusCode: response.statusCode,
+        );
+      }
+    } on DioException catch (e) {
+      throw ServerException(
+        e.message ?? 'Failed to upload image',
         statusCode: e.response?.statusCode,
       );
     } catch (e) {

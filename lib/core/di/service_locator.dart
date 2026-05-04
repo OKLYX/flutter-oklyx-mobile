@@ -19,10 +19,13 @@ import 'package:flutter_oklyn_mobile/features/product/data/datasources/impl/prod
 import 'package:flutter_oklyn_mobile/features/product/data/datasources/product_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/product/data/repositories/product_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/repositories/product_repository.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/usecases/check_barcode_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/get_product_detail_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/get_products_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/usecases/register_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_detail_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_register_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -111,6 +114,12 @@ void _registerProductServices() {
   getIt.registerSingleton<GetProductDetailUseCase>(
     GetProductDetailUseCase(getIt<ProductRepository>()),
   );
+  getIt.registerSingleton<RegisterProductUseCase>(
+    RegisterProductUseCase(getIt<ProductRepository>()),
+  );
+  getIt.registerSingleton<CheckBarcodeUseCase>(
+    CheckBarcodeUseCase(getIt<ProductRepository>()),
+  );
 
   // ProductBloc as factory to allow fresh state per page
   getIt.registerFactory<ProductBloc>(
@@ -120,6 +129,14 @@ void _registerProductServices() {
   // ProductDetailBloc as factory to allow fresh state per page
   getIt.registerFactory<ProductDetailBloc>(
     () => ProductDetailBloc(getProductDetailUseCase: getIt<GetProductDetailUseCase>()),
+  );
+
+  // ProductRegisterBloc as factory to allow fresh state per page
+  getIt.registerFactory<ProductRegisterBloc>(
+    () => ProductRegisterBloc(
+      registerProductUseCase: getIt<RegisterProductUseCase>(),
+      checkBarcodeUseCase: getIt<CheckBarcodeUseCase>(),
+    ),
   );
 }
 

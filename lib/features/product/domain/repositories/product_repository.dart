@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import '../entities/product.dart';
@@ -11,4 +13,10 @@ abstract class ProductRepository {
   });
 
   Future<Either<Failure, Product>> getProduct(int id);
+
+  Future<Either<Failure, Product>> registerProduct(dynamic params);
+
+  Future<Either<Failure, bool>> checkBarcodeAvailable(String barcodeId);
+
+  Future<Either<Failure, void>> uploadProductImage(int productId, File imageFile);
 }
