@@ -6,6 +6,8 @@ import 'package:flutter_oklyn_mobile/shared/pages/dashboard_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/list_to_shop_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/not_found_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/notification_page.dart';
+import 'package:flutter_oklyn_mobile/shared/pages/product_register_page.dart';
+import 'package:flutter_oklyn_mobile/shared/pages/product_search_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/splash_page.dart';
 
 import 'routes.dart';
@@ -31,32 +33,58 @@ class AppRouter {
     GoRoute(
       name: Routes.splash,
       path: Routes.splashPath,
-      builder: (context, state) => const SplashPage(),
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: SplashPage(),
+      ),
     ),
     GoRoute(
       name: Routes.login,
       path: Routes.loginPath,
-      builder: (context, state) => const LoginPage(),
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: LoginPage(),
+      ),
     ),
     GoRoute(
       name: Routes.dashboard,
       path: Routes.dashboardPath,
-      builder: (context, state) => const DashboardPage(),
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: DashboardPage(),
+      ),
     ),
     GoRoute(
       name: Routes.listToShop,
       path: Routes.listToShopPath,
-      builder: (context, state) => const ListToShopPage(),
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: ListToShopPage(),
+      ),
     ),
     GoRoute(
       name: Routes.notification,
       path: Routes.notificationPath,
-      builder: (context, state) => const NotificationPage(),
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: NotificationPage(),
+      ),
+    ),
+    GoRoute(
+      name: Routes.productRegister,
+      path: Routes.productRegisterPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: ProductRegisterPage(),
+      ),
+    ),
+    GoRoute(
+      name: Routes.productSearch,
+      path: Routes.productSearchPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: ProductSearchPage(),
+      ),
     ),
     GoRoute(
       name: Routes.notFound,
       path: Routes.notFoundPath,
-      builder: (context, state) => const NotFoundPage(),
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: NotFoundPage(),
+      ),
     ),
   ];
 }

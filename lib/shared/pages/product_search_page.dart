@@ -3,14 +3,14 @@ import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 
-class NotificationPage extends StatefulWidget {
-  const NotificationPage({super.key});
+class ProductSearchPage extends StatefulWidget {
+  const ProductSearchPage({super.key});
 
   @override
-  State<NotificationPage> createState() => _NotificationPageState();
+  State<ProductSearchPage> createState() => _ProductSearchPageState();
 }
 
-class _NotificationPageState extends State<NotificationPage> {
+class _ProductSearchPageState extends State<ProductSearchPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
@@ -21,13 +21,13 @@ class _NotificationPageState extends State<NotificationPage> {
         drawerScrimColor: Colors.black.withOpacity(0.3),
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          title: const Text('Notifications'),
+          title: const Text('Product Search'),
           backgroundColor: Colors.white,
           elevation: 0,
         ),
         backgroundColor: Colors.grey[100],
         body: const Center(
-          child: Text('Notification Page'),
+          child: Text('Product Search Page'),
         ),
         bottomNavigationBar: SizedBox.shrink(),
         drawer: Drawer(
@@ -82,7 +82,7 @@ class _NotificationPageState extends State<NotificationPage> {
         right: 0,
         child: BottomNavigationBar(
           type: BottomNavigationBarType.fixed,
-          currentIndex: 3,
+          currentIndex: 2,
           items: [
             BottomNavigationBarItem(
               icon: const Icon(Icons.menu),
@@ -114,11 +114,11 @@ class _NotificationPageState extends State<NotificationPage> {
                 context.go(Routes.dashboardPath);
                 break;
               case 2:
-                context.go(Routes.listToShopPath);
+                // Already on product pages
+                setState(() {});
                 break;
               case 3:
-                // Already on notification
-                setState(() {});
+                context.go(Routes.notificationPath);
                 break;
             }
           },
