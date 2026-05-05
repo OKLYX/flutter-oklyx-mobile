@@ -140,10 +140,6 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
       drawerScrimColor: Colors.black.withOpacity(0.3),
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
         title: const Text('상품등록'),
         backgroundColor: Colors.white,
         elevation: 0,
