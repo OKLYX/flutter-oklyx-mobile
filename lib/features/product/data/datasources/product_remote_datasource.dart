@@ -23,4 +23,6 @@ abstract class ProductRemoteDataSource {
   Future<ProductModel> updateProduct(UpdateProductParams params);
 
   Future<void> deleteProduct(int productId);
+
+  Future<void> deleteProductImage(int productId);
 }

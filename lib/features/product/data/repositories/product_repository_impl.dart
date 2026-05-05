@@ -119,4 +119,18 @@ class ProductRepositoryImpl implements ProductRepository {
       return Left(UnknownFailure(e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> deleteProductImage(int productId) async {
+    try {
+      await remoteDataSource.deleteProductImage(productId);
+      return Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on Exception catch (e) {
+      return Left(UnknownFailure(e.toString()));
+    }
+  }
 }

@@ -12,10 +12,12 @@ class RequestInterceptor extends QueuedInterceptor {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    options.headers.addAll({
-      'User-Agent': 'flutter-oklyn-mobile/1.0',
-      'Content-Type': 'application/json',
-    });
+    options.headers['User-Agent'] = 'flutter-oklyn-mobile/1.0';
+
+    // FormData 요청은 Content-Type을 설정하지 않음 (Dio가 자동으로 multipart/form-data 설정)
+    if (options.data is! FormData) {
+      options.headers['Content-Type'] = 'application/json';
+    }
 
     try {
       final hasToken = await authLocalDataSource.hasToken();

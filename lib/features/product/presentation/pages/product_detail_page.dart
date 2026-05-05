@@ -1,9 +1,18 @@
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
+import 'package:flutter_oklyn_mobile/core/constants/app_constants.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
+import 'package:flutter_oklyn_mobile/core/network/dio_client.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/entities/unit.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_detail_event.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_detail_state.dart';
@@ -31,6 +40,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   late TextEditingController _lengthController;
   late TextEditingController _widthController;
   late TextEditingController _weightController;
+
+  Unit? _selectedUnit;
 
   ProductDetailState? _previousState;
 
@@ -76,7 +87,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     _descriptionController.text = product.description ?? '';
     _priceController.text = product.price?.toString() ?? '';
     _storeController.text = product.store ?? '';
-    _unitController.text = product.unit ?? '';
+    _selectedUnit = Unit.fromString(product.unit);
     _heightController.text = product.volumeHeight?.toString() ?? '';
     _lengthController.text = product.volumeLong?.toString() ?? '';
     _widthController.text = product.volumeShort?.toString() ?? '';
@@ -113,7 +124,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
       price: _priceController.text.isEmpty ? null : int.tryParse(_priceController.text),
       store: _storeController.text.trim().isEmpty ? null : _storeController.text.trim(),
-      unit: _unitController.text.trim().isEmpty ? null : _unitController.text.trim(),
+      unit: _selectedUnit,
       volumeHeight: _heightController.text.isEmpty ? null : double.tryParse(_heightController.text),
       volumeLong: _lengthController.text.isEmpty ? null : double.tryParse(_lengthController.text),
       volumeShort: _widthController.text.isEmpty ? null : double.tryParse(_widthController.text),
@@ -133,7 +144,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           current is ProductDetailLoaded ||
           current is ProductDetailEditing ||
           current is ProductDetailDeleteSuccess ||
-          current is ProductDetailDeleteError,
+          current is ProductDetailDeleteError ||
+          current is ProductDetailImageError,
       listener: (context, state) {
         if (state is ProductDetailLoaded) {
           _populateControllers(state.product);
@@ -155,6 +167,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           context.go(Routes.productSearchPath);
         }
         if (state is ProductDetailDeleteError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.message)),
+          );
+        }
+        if (state is ProductDetailImageError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(state.message)),
           );
@@ -250,7 +267,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     child: Column(
                       children: [
                         const SizedBox(height: 16),
-                        _ImageSection(),
+                        _ImageSection(product: product),
                         const SizedBox(height: 12),
                         _EditableBasicInfoCard(
                           product: product,
@@ -263,7 +280,12 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                           isEditing: isEditing,
                           priceController: _priceController,
                           storeController: _storeController,
-                          unitController: _unitController,
+                          selectedUnit: _selectedUnit,
+                          onUnitChanged: (Unit? unit) {
+                            setState(() {
+                              _selectedUnit = unit;
+                            });
+                          },
                         ),
                         if (product.volumeHeight != null ||
                             product.volumeLong != null ||
@@ -299,12 +321,21 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             ),
             BlocBuilder<ProductDetailBloc, ProductDetailState>(
               buildWhen: (previous, current) {
-                final isLoadingOrDeleting = current is ProductDetailUpdating || current is ProductDetailDeleting;
-                final wasLoadingOrDeleting = previous is ProductDetailUpdating || previous is ProductDetailDeleting;
+                final isLoadingOrDeleting = current is ProductDetailUpdating ||
+                    current is ProductDetailDeleting ||
+                    current is ProductDetailImageUploading ||
+                    current is ProductDetailImageDeleting;
+                final wasLoadingOrDeleting = previous is ProductDetailUpdating ||
+                    previous is ProductDetailDeleting ||
+                    previous is ProductDetailImageUploading ||
+                    previous is ProductDetailImageDeleting;
                 return isLoadingOrDeleting || (wasLoadingOrDeleting && !isLoadingOrDeleting);
               },
               builder: (context, state) {
-                if (state is ProductDetailUpdating || state is ProductDetailDeleting) {
+                if (state is ProductDetailUpdating ||
+                    state is ProductDetailDeleting ||
+                    state is ProductDetailImageUploading ||
+                    state is ProductDetailImageDeleting) {
                   return Container(
                     color: Colors.black.withOpacity(0.3),
                     child: const Center(
@@ -397,9 +428,94 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   );
 }
 
-class _ImageSection extends StatelessWidget {
+class _ImageSection extends StatefulWidget {
+  final dynamic product;
+
+  const _ImageSection({required this.product});
+
   @override
-  Widget build(BuildContext context) {
+  State<_ImageSection> createState() => _ImageSectionState();
+}
+
+class _ImageSectionState extends State<_ImageSection> {
+  final _picker = ImagePicker();
+
+  void _showImageDialog(BuildContext context, Uint8List imageBytes) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                width: MediaQuery.of(context).size.width,
+                height: MediaQuery.of(context).size.height,
+                color: Colors.black,
+                child: Image.memory(
+                  imageBytes,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            Positioned(
+              top: 16,
+              right: 16,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  padding: const EdgeInsets.all(8),
+                  child: const Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<Uint8List?> _loadProductImage(int productId) async {
+    try {
+      final response = await getIt<DioClient>().get(
+        '/api/products/$productId/image',
+        options: Options(responseType: ResponseType.bytes),
+      );
+
+      if (response.statusCode == 200) {
+        return response.data as Uint8List;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<void> _pickAndUpload(BuildContext context) async {
+    try {
+      final xFile = await _picker.pickImage(source: ImageSource.gallery);
+      if (xFile == null) return;
+      if (!context.mounted) return;
+      context.read<ProductDetailBloc>().add(UploadImageRequested(File(xFile.path)));
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('이미지 선택 실패: $e')),
+      );
+    }
+  }
+
+  Widget _buildPlaceholder({bool showPlus = false}) {
     return Container(
       width: 200,
       height: 200,
@@ -407,7 +523,123 @@ class _ImageSection extends StatelessWidget {
         color: Colors.grey[300],
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Icon(Icons.image, color: Colors.grey[500], size: 60),
+      child: Icon(
+        showPlus ? Icons.add : Icons.image,
+        color: Colors.grey[500],
+        size: 60,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ProductDetailBloc, ProductDetailState>(
+      buildWhen: (previous, current) =>
+          current is ProductDetailLoaded ||
+          current is ProductDetailEditing ||
+          current is ProductDetailImageUploading ||
+          current is ProductDetailImageDeleting,
+      builder: (context, state) {
+        final product = state is ProductDetailLoaded
+            ? state.product
+            : state is ProductDetailEditing
+                ? state.product
+                : widget.product;
+
+        final isLoading = state is ProductDetailImageUploading ||
+            state is ProductDetailImageDeleting;
+        final hasImage = product?.imageUrl != null &&
+            product!.imageUrl.toString().isNotEmpty &&
+            product.imageUrl != 'null';
+
+        return SizedBox(
+          width: 200,
+          height: 200,
+          child: Stack(
+            children: [
+              if (hasImage)
+                FutureBuilder<Uint8List?>(
+                  future: _loadProductImage(product!.id),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          color: Colors.grey[300],
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        ),
+                      );
+                    }
+
+                    if (snapshot.hasData && snapshot.data != null) {
+                      return GestureDetector(
+                        onTap: () => _showImageDialog(context, snapshot.data!),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.memory(
+                            snapshot.data!,
+                            width: 200,
+                            height: 200,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      );
+                    }
+
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: _buildPlaceholder(),
+                    );
+                  },
+                )
+              else
+                GestureDetector(
+                  onTap: isLoading ? null : () => _pickAndUpload(context),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: _buildPlaceholder(showPlus: true),
+                  ),
+                ),
+              if (hasImage && !isLoading)
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: GestureDetector(
+                    onTap: () => context
+                        .read<ProductDetailBloc>()
+                        .add(const DeleteImageRequested()),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
+                      ),
+                      padding: const EdgeInsets.all(4),
+                      child: const Icon(
+                        Icons.delete,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ),
+              if (isLoading)
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      color: Colors.black38,
+                      child: const Center(
+                        child: CircularProgressIndicator(),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -466,25 +698,36 @@ class _EditableBasicInfoCard extends StatelessWidget {
   }
 }
 
-class _EditablePricingCard extends StatelessWidget {
+class _EditablePricingCard extends StatefulWidget {
   final product;
   final bool isEditing;
   final TextEditingController priceController;
   final TextEditingController storeController;
-  final TextEditingController unitController;
+  final Unit? selectedUnit;
+  final Function(Unit?) onUnitChanged;
 
   const _EditablePricingCard({
     required this.product,
     required this.isEditing,
     required this.priceController,
     required this.storeController,
-    required this.unitController,
+    required this.selectedUnit,
+    required this.onUnitChanged,
   });
 
+  @override
+  State<_EditablePricingCard> createState() => _EditablePricingCardState();
+}
+
+class _EditablePricingCardState extends State<_EditablePricingCard> {
   Widget _buildField(String label, TextEditingController controller) {
-    if (isEditing) {
+    if (widget.isEditing) {
       return TextField(
         controller: controller,
+        keyboardType: label == '가격' ? TextInputType.number : TextInputType.text,
+        inputFormatters: label == '가격'
+            ? [FilteringTextInputFormatter.digitsOnly]
+            : null,
         decoration: InputDecoration(
           labelText: label,
           border: OutlineInputBorder(
@@ -492,7 +735,6 @@ class _EditablePricingCard extends StatelessWidget {
           ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         ),
-        keyboardType: label == '가격' ? TextInputType.number : TextInputType.text,
       );
     } else {
       final value = controller.text;
@@ -509,6 +751,39 @@ class _EditablePricingCard extends StatelessWidget {
     }
   }
 
+  Widget _buildUnitField() {
+    if (widget.isEditing) {
+      return DropdownButtonFormField<Unit>(
+        value: widget.selectedUnit,
+        decoration: InputDecoration(
+          labelText: '단위',
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        ),
+        items: Unit.values
+            .map((unit) => DropdownMenuItem(
+              value: unit,
+              child: Text(unit.displayName),
+            ))
+            .toList(),
+        onChanged: widget.onUnitChanged,
+      );
+    } else {
+      if (widget.product.unit == null) return const SizedBox.shrink();
+      return Row(
+        children: [
+          const Text('단위: '),
+          Text(
+            widget.product.unit,
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
+        ],
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -518,23 +793,24 @@ class _EditablePricingCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildField('가격', priceController),
-            if (isEditing && priceController.text.isNotEmpty)
-              const SizedBox(height: 12),
-            if (isEditing) _buildField('상점', storeController),
-            if (isEditing && storeController.text.isNotEmpty)
-              const SizedBox(height: 12),
-            if (isEditing) _buildField('단위', unitController),
-            if (!isEditing) ...[
-              if (product.price != null) ...[
-                _buildField('가격', priceController),
+            if (widget.isEditing) ...[
+              _buildField('가격', widget.priceController),
+              if (widget.priceController.text.isNotEmpty)
+                const SizedBox(height: 12),
+              _buildField('상점', widget.storeController),
+              if (widget.storeController.text.isNotEmpty)
+                const SizedBox(height: 12),
+              _buildUnitField(),
+            ] else ...[
+              if (widget.product.price != null) ...[
+                _buildField('가격', widget.priceController),
                 const SizedBox(height: 8),
               ],
-              if (product.store != null) ...[
-                _buildField('상점', storeController),
+              if (widget.product.store != null) ...[
+                _buildField('상점', widget.storeController),
                 const SizedBox(height: 8),
               ],
-              if (product.unit != null) _buildField('단위', unitController),
+              if (widget.product.unit != null) _buildUnitField(),
             ],
           ],
         ),

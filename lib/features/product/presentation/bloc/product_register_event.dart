@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import 'package:flutter_oklyn_mobile/features/product/domain/entities/unit.dart';
+
 sealed class ProductRegisterEvent extends Equatable {
   const ProductRegisterEvent();
 }
@@ -11,7 +13,7 @@ class RegisterProductRequested extends ProductRegisterEvent {
   final String? description;
   final int? price;
   final String? store;
-  final String? unit;
+  final Unit? unit;
   final double? volumeHeight;
   final double? volumeLong;
   final double? volumeShort;

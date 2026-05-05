@@ -85,3 +85,24 @@ class ProductDetailDeleteError extends ProductDetailState {
   @override
   List<Object?> get props => [message];
 }
+
+class ProductDetailImageUploading extends ProductDetailState {
+  const ProductDetailImageUploading();
+}
+
+class ProductDetailImageDeleting extends ProductDetailState {
+  const ProductDetailImageDeleting();
+}
+
+class ProductDetailImageError extends ProductDetailState {
+  final String message;
+  final Product product;
+
+  const ProductDetailImageError({
+    required this.message,
+    required this.product,
+  });
+
+  @override
+  List<Object?> get props => [message, product];
+}

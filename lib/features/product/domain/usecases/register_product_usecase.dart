@@ -1,7 +1,8 @@
 import 'package:equatable/equatable.dart';
-import 'package:fpdart/fpdart.dart';
+import 'package:fpdart/fpdart.dart' hide Unit;
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/product.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/entities/unit.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/repositories/product_repository.dart';
 
 class RegisterProductParams extends Equatable {
@@ -11,7 +12,7 @@ class RegisterProductParams extends Equatable {
   final String? description;
   final int? price;
   final String? store;
-  final String? unit;
+  final Unit? unit;
   final double? volumeHeight;
   final double? volumeLong;
   final double? volumeShort;
@@ -56,7 +57,7 @@ class RegisterProductParams extends Equatable {
     if (description != null) 'description': description,
     if (price != null) 'price': price,
     if (store != null) 'store': store,
-    if (unit != null) 'unit': unit,
+    if (unit != null) 'unit': unit!.serverValue,
     if (volumeHeight != null) 'volumeHeight': volumeHeight,
     if (volumeLong != null) 'volumeLong': volumeLong,
     if (volumeShort != null) 'volumeShort': volumeShort,

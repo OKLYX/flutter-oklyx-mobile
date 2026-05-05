@@ -63,7 +63,7 @@ class _ProductSearchViewState extends State<_ProductSearchView> {
         drawerScrimColor: Colors.black.withOpacity(0.3),
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          title: const Text('Product Search'),
+          title: const Text('상품 조회'),
           backgroundColor: Colors.white,
           elevation: 0,
         ),

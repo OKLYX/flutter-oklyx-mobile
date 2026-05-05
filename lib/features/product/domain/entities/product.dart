@@ -5,7 +5,7 @@ class Product extends Equatable {
   final String productName;
   final String barcodeId;
   final String? brand;
-  final double? price;
+  final int? price;
   final String? store;
   final String? unit;
   final String? volumeHeight;

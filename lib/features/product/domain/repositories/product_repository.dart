@@ -24,4 +24,6 @@ abstract class ProductRepository {
   Future<Either<Failure, Product>> updateProduct(UpdateProductParams params);
 
   Future<Either<Failure, void>> deleteProduct(int productId);
+
+  Future<Either<Failure, void>> deleteProductImage(int productId);
 }

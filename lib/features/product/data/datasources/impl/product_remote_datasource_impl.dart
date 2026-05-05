@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:http_parser/http_parser.dart';
 import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
 import 'package:flutter_oklyn_mobile/core/network/dio_client.dart';
 import 'package:flutter_oklyn_mobile/features/product/data/models/product_model.dart';
@@ -132,13 +133,20 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
   @override
   Future<void> uploadProductImage(int productId, File imageFile) async {
     try {
+      final fileName = imageFile.path.split('/').last;
       final formData = FormData.fromMap({
-        'image': await MultipartFile.fromFile(imageFile.path),
+        'file': await MultipartFile.fromFile(
+          imageFile.path,
+          filename: fileName,
+        ),
       });
 
-      final response = await dioClient.post(
+      final response = await dioClient.put(
         '/api/products/$productId/image',
         data: formData,
+        options: Options(
+          contentType: 'multipart/form-data',
+        ),
       );
 
       if (response.statusCode != 200 && response.statusCode != 201) {
@@ -198,6 +206,27 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
     } on DioException catch (e) {
       throw ServerException(
         e.message ?? 'Failed to delete product',
+        statusCode: e.response?.statusCode,
+      );
+    } catch (e) {
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<void> deleteProductImage(int productId) async {
+    try {
+      final response = await dioClient.delete('/api/products/$productId/image');
+
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw ServerException(
+          'Failed to delete image',
+          statusCode: response.statusCode,
+        );
+      }
+    } on DioException catch (e) {
+      throw ServerException(
+        e.message ?? 'Failed to delete image',
         statusCode: e.response?.statusCode,
       );
     } catch (e) {

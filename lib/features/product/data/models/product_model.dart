@@ -27,7 +27,7 @@ class ProductModel extends Product {
       productName: json['productName'] as String,
       barcodeId: json['barcodeId'] as String,
       brand: json['brand'] as String?,
-      price: _toDouble(json['price']),
+      price: _toInt(json['price']),
       store: json['store'] as String?,
       unit: json['unit'] as String?,
       volumeHeight: json['volumeHeight'] as String?,
@@ -63,11 +63,11 @@ class ProductModel extends Product {
     modifiedDate: modifiedDate,
   );
 
-  static double? _toDouble(dynamic value) {
+  static int? _toInt(dynamic value) {
     if (value == null) return null;
-    if (value is double) return value;
-    if (value is int) return value.toDouble();
-    if (value is String) return double.tryParse(value);
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value);
     return null;
   }
 }

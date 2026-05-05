@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:equatable/equatable.dart';
+
+import 'package:flutter_oklyn_mobile/features/product/domain/entities/unit.dart';
 
 sealed class ProductDetailEvent extends Equatable {
   const ProductDetailEvent();
@@ -38,7 +42,7 @@ class UpdateProductRequested extends ProductDetailEvent {
   final String? description;
   final int? price;
   final String? store;
-  final String? unit;
+  final Unit? unit;
   final double? volumeHeight;
   final double? volumeLong;
   final double? volumeShort;
@@ -74,6 +78,22 @@ class UpdateProductRequested extends ProductDetailEvent {
 
 class DeleteProductRequested extends ProductDetailEvent {
   const DeleteProductRequested();
+
+  @override
+  List<Object?> get props => [];
+}
+
+class UploadImageRequested extends ProductDetailEvent {
+  final File imageFile;
+
+  const UploadImageRequested(this.imageFile);
+
+  @override
+  List<Object?> get props => [imageFile];
+}
+
+class DeleteImageRequested extends ProductDetailEvent {
+  const DeleteImageRequested();
 
   @override
   List<Object?> get props => [];

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/entities/unit.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_register_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_register_event.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_register_state.dart';
@@ -25,11 +27,12 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
   late TextEditingController _descriptionController;
   late TextEditingController _priceController;
   late TextEditingController _storeController;
-  late TextEditingController _unitController;
   late TextEditingController _heightController;
   late TextEditingController _lengthController;
   late TextEditingController _widthController;
   late TextEditingController _weightController;
+
+  Unit? _selectedUnit;
 
   bool _barcodeChecked = false;
   bool _barcodeAvailable = false;
@@ -48,7 +51,6 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
     _descriptionController = TextEditingController();
     _priceController = TextEditingController();
     _storeController = TextEditingController();
-    _unitController = TextEditingController();
     _heightController = TextEditingController();
     _lengthController = TextEditingController();
     _widthController = TextEditingController();
@@ -63,7 +65,6 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
     _descriptionController.dispose();
     _priceController.dispose();
     _storeController.dispose();
-    _unitController.dispose();
     _heightController.dispose();
     _lengthController.dispose();
     _widthController.dispose();
@@ -91,7 +92,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
       _descriptionController.clear();
       _priceController.clear();
       _storeController.clear();
-      _unitController.clear();
+      _selectedUnit = null;
       _heightController.clear();
       _lengthController.clear();
       _widthController.clear();
@@ -124,7 +125,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
       description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
       price: _priceController.text.isEmpty ? null : int.tryParse(_priceController.text),
       store: _storeController.text.trim().isEmpty ? null : _storeController.text.trim(),
-      unit: _unitController.text.trim().isEmpty ? null : _unitController.text.trim(),
+      unit: _selectedUnit,
       volumeHeight: _heightController.text.isEmpty ? null : double.tryParse(_heightController.text),
       volumeLong: _lengthController.text.isEmpty ? null : double.tryParse(_lengthController.text),
       volumeShort: _widthController.text.isEmpty ? null : double.tryParse(_widthController.text),
@@ -213,7 +214,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
                       const SizedBox(height: 12),
                       _buildTextField('판매처', _storeController, enabled: _barcodeAvailable),
                       const SizedBox(height: 12),
-                      _buildTextField('단위', _unitController, enabled: _barcodeAvailable),
+                      _buildUnitDropdown(),
                       const SizedBox(height: 24),
                       _buildSectionTitle('치수'),
                       const SizedBox(height: 12),
@@ -341,6 +342,9 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
       textInputAction: TextInputAction.next,
       autocorrect: false,
       enableSuggestions: maxLines == 1,
+      inputFormatters: label == '가격'
+          ? [FilteringTextInputFormatter.digitsOnly]
+          : null,
       decoration: InputDecoration(
         labelText: label,
         border: OutlineInputBorder(
@@ -392,6 +396,32 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildUnitDropdown() {
+    return DropdownButtonFormField<Unit>(
+      value: _selectedUnit,
+      decoration: InputDecoration(
+        labelText: '단위',
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      ),
+      items: Unit.values
+          .map((unit) => DropdownMenuItem(
+            value: unit,
+            child: Text(unit.displayName),
+          ))
+          .toList(),
+      onChanged: _barcodeAvailable
+          ? (Unit? value) {
+            setState(() {
+              _selectedUnit = value;
+            });
+          }
+          : null,
     );
   }
 }

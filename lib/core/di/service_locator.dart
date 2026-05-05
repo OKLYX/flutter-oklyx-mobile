@@ -25,6 +25,8 @@ import 'package:flutter_oklyn_mobile/features/product/domain/usecases/get_produc
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/register_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/update_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/delete_product_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/usecases/upload_product_image_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/usecases/delete_product_image_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_register_bloc.dart';
@@ -128,6 +130,12 @@ void _registerProductServices() {
   getIt.registerSingleton<DeleteProductUseCase>(
     DeleteProductUseCase(getIt<ProductRepository>()),
   );
+  getIt.registerSingleton<UploadProductImageUseCase>(
+    UploadProductImageUseCase(getIt<ProductRepository>()),
+  );
+  getIt.registerSingleton<DeleteProductImageUseCase>(
+    DeleteProductImageUseCase(getIt<ProductRepository>()),
+  );
 
   // ProductBloc as factory to allow fresh state per page
   getIt.registerFactory<ProductBloc>(
@@ -140,6 +148,8 @@ void _registerProductServices() {
       getProductDetailUseCase: getIt<GetProductDetailUseCase>(),
       updateProductUseCase: getIt<UpdateProductUseCase>(),
       deleteProductUseCase: getIt<DeleteProductUseCase>(),
+      uploadProductImageUseCase: getIt<UploadProductImageUseCase>(),
+      deleteProductImageUseCase: getIt<DeleteProductImageUseCase>(),
     ),
   );
 
