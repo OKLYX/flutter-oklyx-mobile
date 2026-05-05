@@ -166,6 +166,7 @@ class _ProductSearchViewState extends State<_ProductSearchView> {
         child: BottomNavigationBar(
           type: BottomNavigationBarType.fixed,
           currentIndex: 2,
+          selectedItemColor: const Color(0xffffc417),
           items: [
             BottomNavigationBarItem(
               icon: const Icon(Icons.menu),

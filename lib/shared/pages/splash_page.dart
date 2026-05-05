@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
@@ -19,6 +20,7 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
+    FlutterNativeSplash.remove();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         getIt<AuthBloc>().add(const CheckAuthStatusRequested());
@@ -28,6 +30,7 @@ class _SplashPageState extends State<SplashPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
+    backgroundColor: Colors.white,
     body: BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticated) {
@@ -37,21 +40,12 @@ class _SplashPageState extends State<SplashPage> {
         }
       },
       child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              'Flutter Oklyn Mobile',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 24),
-            CircularProgressIndicator(
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          ],
+        child: SizedBox(
+          height: 80,
+          child: Image.asset(
+            'assets/images/icon.png',
+            fit: BoxFit.contain,
+          ),
         ),
       ),
     ),

@@ -286,6 +286,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
           ),
           bottomNavigationBar: BottomNavigationBar(
             type: BottomNavigationBarType.fixed,
+            selectedItemColor: const Color(0xffffc417),
             currentIndex: 2,
             items: [
               BottomNavigationBarItem(icon: const Icon(Icons.menu), label: ''),

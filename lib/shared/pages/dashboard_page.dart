@@ -90,6 +90,7 @@ class _DashboardPageState extends State<DashboardPage> {
         child: BottomNavigationBar(
           type: BottomNavigationBarType.fixed,
           currentIndex: 1,
+          selectedItemColor: const Color(0xffffc417),
           items: [
             BottomNavigationBarItem(
               icon: const Icon(Icons.menu),

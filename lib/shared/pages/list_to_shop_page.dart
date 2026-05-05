@@ -82,6 +82,7 @@ class _ListToShopPageState extends State<ListToShopPage> {
         right: 0,
         child: BottomNavigationBar(
           type: BottomNavigationBarType.fixed,
+          selectedItemColor: const Color(0xffffc417),
           currentIndex: 2,
           items: [
             BottomNavigationBarItem(

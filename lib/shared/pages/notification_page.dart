@@ -82,6 +82,7 @@ class _NotificationPageState extends State<NotificationPage> {
         right: 0,
         child: BottomNavigationBar(
           type: BottomNavigationBarType.fixed,
+          selectedItemColor: const Color(0xffffc417),
           currentIndex: 3,
           items: [
             BottomNavigationBarItem(
