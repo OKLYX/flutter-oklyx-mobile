@@ -4,6 +4,7 @@ import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import '../entities/product.dart';
 import '../entities/product_page.dart';
+import '../usecases/update_product_usecase.dart';
 
 abstract class ProductRepository {
   Future<Either<Failure, ProductPage>> getProducts({
@@ -19,4 +20,8 @@ abstract class ProductRepository {
   Future<Either<Failure, bool>> checkBarcodeAvailable(String barcodeId);
 
   Future<Either<Failure, void>> uploadProductImage(int productId, File imageFile);
+
+  Future<Either<Failure, Product>> updateProduct(UpdateProductParams params);
+
+  Future<Either<Failure, void>> deleteProduct(int productId);
 }

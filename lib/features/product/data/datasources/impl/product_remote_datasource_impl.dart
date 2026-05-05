@@ -6,6 +6,7 @@ import 'package:flutter_oklyn_mobile/core/network/dio_client.dart';
 import 'package:flutter_oklyn_mobile/features/product/data/models/product_model.dart';
 import 'package:flutter_oklyn_mobile/features/product/data/models/product_page_model.dart';
 import 'package:flutter_oklyn_mobile/features/product/data/datasources/product_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/usecases/update_product_usecase.dart';
 
 class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
   final DioClient dioClient;
@@ -149,6 +150,54 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
     } on DioException catch (e) {
       throw ServerException(
         e.message ?? 'Failed to upload image',
+        statusCode: e.response?.statusCode,
+      );
+    } catch (e) {
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<ProductModel> updateProduct(UpdateProductParams params) async {
+    try {
+      final response = await dioClient.patch(
+        '/api/products/${params.productId}',
+        data: params.toJson(),
+      );
+
+      if (response.statusCode != 200) {
+        throw ServerException(
+          'Failed to update product',
+          statusCode: response.statusCode,
+        );
+      }
+
+      final data = (response.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
+      return ProductModel.fromJson(data);
+    } on DioException catch (e) {
+      throw ServerException(
+        e.message ?? 'Failed to update product',
+        statusCode: e.response?.statusCode,
+      );
+    } catch (e) {
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<void> deleteProduct(int productId) async {
+    try {
+      final response = await dioClient.delete('/api/products/$productId');
+
+      if (response.statusCode != 204 && response.statusCode != 200) {
+        throw ServerException(
+          'Failed to delete product',
+          statusCode: response.statusCode,
+        );
+      }
+    } on DioException catch (e) {
+      throw ServerException(
+        e.message ?? 'Failed to delete product',
         statusCode: e.response?.statusCode,
       );
     } catch (e) {

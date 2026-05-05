@@ -33,3 +33,55 @@ class ProductDetailError extends ProductDetailState {
   @override
   List<Object?> get props => [message];
 }
+
+class ProductDetailEditing extends ProductDetailState {
+  final Product product;
+  final String? errorMessage;
+
+  const ProductDetailEditing({
+    required this.product,
+    this.errorMessage,
+  });
+
+  @override
+  List<Object?> get props => [product, errorMessage];
+}
+
+class ProductDetailUpdating extends ProductDetailState {
+  const ProductDetailUpdating();
+}
+
+class ProductDetailUpdateSuccess extends ProductDetailState {
+  final Product product;
+
+  const ProductDetailUpdateSuccess({required this.product});
+
+  @override
+  List<Object?> get props => [product];
+}
+
+class ProductDetailUpdateError extends ProductDetailState {
+  final String message;
+
+  const ProductDetailUpdateError({required this.message});
+
+  @override
+  List<Object?> get props => [message];
+}
+
+class ProductDetailDeleting extends ProductDetailState {
+  const ProductDetailDeleting();
+}
+
+class ProductDetailDeleteSuccess extends ProductDetailState {
+  const ProductDetailDeleteSuccess();
+}
+
+class ProductDetailDeleteError extends ProductDetailState {
+  final String message;
+
+  const ProductDetailDeleteError({required this.message});
+
+  @override
+  List<Object?> get props => [message];
+}

@@ -76,7 +76,7 @@ class AppRouter {
     GoRoute(
       name: Routes.productSearch,
       path: Routes.productSearchPath,
-      pageBuilder: (context, state) => const NoTransitionPage(
+      pageBuilder: (context, state) => NoTransitionPage(
         child: ProductSearchPage(),
       ),
     ),
