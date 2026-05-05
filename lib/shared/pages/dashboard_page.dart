@@ -21,12 +21,12 @@ class _DashboardPageState extends State<DashboardPage> {
         drawerScrimColor: Colors.black.withOpacity(0.3),
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          title: const Text(
-            'OKLYX',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 24,
-              color: Colors.black,
+          centerTitle: true,
+          title: SizedBox(
+            height: 30,
+            child: Image.asset(
+              'assets/images/oklyx_letter_logo.png',
+              fit: BoxFit.contain,
             ),
           ),
           backgroundColor: Colors.white,

@@ -1,9 +1,13 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
+import 'package:flutter_oklyn_mobile/core/network/dio_client.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/product.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_event.dart';
@@ -205,16 +209,41 @@ class _ProductSearchViewState extends State<_ProductSearchView> {
   );
 }
 
-class _ProductCard extends StatelessWidget {
+class _ProductCard extends StatefulWidget {
   final Product product;
 
   const _ProductCard({required this.product});
 
   @override
+  State<_ProductCard> createState() => _ProductCardState();
+}
+
+class _ProductCardState extends State<_ProductCard> {
+  Future<Uint8List?> _loadProductImage(int productId) async {
+    try {
+      final response = await getIt<DioClient>().get(
+        '/api/products/$productId/image',
+        options: Options(responseType: ResponseType.bytes),
+      );
+
+      if (response.statusCode == 200) {
+        return response.data as Uint8List;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final hasImage = widget.product.imageUrl != null &&
+        widget.product.imageUrl.toString().isNotEmpty &&
+        widget.product.imageUrl != 'null';
+
     return GestureDetector(
       onTap: () => context.go(
-        '${Routes.productDetailPath.replaceFirst(':productId', product.id.toString())}',
+        '${Routes.productDetailPath.replaceFirst(':productId', widget.product.id.toString())}',
       ),
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -222,22 +251,64 @@ class _ProductCard extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(8),
+              if (hasImage)
+                FutureBuilder<Uint8List?>(
+                  future: _loadProductImage(widget.product.id),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      );
+                    }
+
+                    if (snapshot.hasData && snapshot.data != null) {
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.memory(
+                          snapshot.data!,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                        ),
+                      );
+                    }
+
+                    return Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.image, color: Colors.grey[500]),
+                    );
+                  },
+                )
+              else
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.image, color: Colors.grey[500]),
                 ),
-                child: Icon(Icons.image, color: Colors.grey[500]),
-              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      product.productName,
+                      widget.product.productName,
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -247,7 +318,7 @@ class _ProductCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Barcode: ${product.barcodeId}',
+                      'Barcode: ${widget.product.barcodeId}',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey[600],
@@ -256,9 +327,9 @@ class _ProductCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    if (product.price != null)
+                    if (widget.product.price != null)
                       Text(
-                        '${product.price} 원',
+                        '${widget.product.price} 원',
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
