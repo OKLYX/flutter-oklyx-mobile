@@ -35,11 +35,21 @@ class _ProductSearchView extends StatefulWidget {
 class _ProductSearchViewState extends State<_ProductSearchView> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ScrollController _scrollController = ScrollController();
+  bool _previousDrawerState = false;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    WidgetsBinding.instance.addPersistentFrameCallback((_) {
+      final isOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
+      if (isOpen != _previousDrawerState) {
+        _previousDrawerState = isOpen;
+        if (mounted) {
+          setState(() {});
+        }
+      }
+    });
   }
 
   @override
@@ -114,6 +124,7 @@ class _ProductSearchViewState extends State<_ProductSearchView> {
         ),
         bottomNavigationBar: SizedBox.shrink(),
         drawer: Drawer(
+          backgroundColor: Colors.white,
           child: ListView(
             padding: EdgeInsets.zero,
             children: [
@@ -163,46 +174,59 @@ class _ProductSearchViewState extends State<_ProductSearchView> {
         bottom: 0,
         left: 0,
         right: 0,
-        child: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          currentIndex: 2,
-          selectedItemColor: const Color(0xffffc417),
-          items: [
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.menu),
-              label: '',
-            ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.home),
-              label: '',
-            ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.checklist),
-              label: '',
-            ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.notifications),
-              label: '',
-            ),
-          ],
-          onTap: (index) {
-            switch (index) {
-              case 0:
-                if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
-                  Navigator.pop(context);
-                } else {
-                  _scaffoldKey.currentState?.openDrawer();
+        child: Builder(
+          builder: (context) {
+            final isDrawerOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
+
+            return BottomNavigationBar(
+              type: BottomNavigationBarType.fixed,
+              currentIndex: 2,
+              selectedItemColor: const Color(0xffffc417),
+              items: [
+                BottomNavigationBarItem(
+                  icon: Icon(
+                    Icons.menu,
+                    color: isDrawerOpen ? const Color(0xffffc417) : Colors.black87,
+                  ),
+                  label: '',
+                ),
+                BottomNavigationBarItem(
+                  icon: const Icon(Icons.home),
+                  label: '',
+                ),
+                BottomNavigationBarItem(
+                  icon: const Icon(Icons.checklist),
+                  label: '',
+                ),
+                BottomNavigationBarItem(
+                  icon: const Icon(Icons.notifications),
+                  label: '',
+                ),
+              ],
+              onTap: (index) {
+                switch (index) {
+                  case 0:
+                    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+                      Navigator.pop(context);
+                    } else {
+                      _scaffoldKey.currentState?.openDrawer();
+                    }
+                    setState(() {});
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) setState(() {});
+                    });
+                    break;
+                  case 1:
+                    context.go(Routes.dashboardPath);
+                    break;
+                  case 2:
+                    break;
+                  case 3:
+                    context.go(Routes.notificationPath);
+                    break;
                 }
-                break;
-              case 1:
-                context.go(Routes.dashboardPath);
-                break;
-              case 2:
-                break;
-              case 3:
-                context.go(Routes.notificationPath);
-                break;
-            }
+              },
+            );
           },
         ),
       ),

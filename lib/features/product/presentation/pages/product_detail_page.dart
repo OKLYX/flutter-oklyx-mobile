@@ -380,6 +380,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           },
         ),
         drawer: Drawer(
+          backgroundColor: Colors.white,
           child: ListView(
             padding: EdgeInsets.zero,
             children: [

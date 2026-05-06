@@ -240,6 +240,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
             ),
           ),
           drawer: Drawer(
+            backgroundColor: Colors.white,
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
