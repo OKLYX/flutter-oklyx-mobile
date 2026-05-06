@@ -30,6 +30,13 @@ import 'package:flutter_oklyn_mobile/features/product/domain/usecases/delete_pro
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_register_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/stock/data/datasources/stock_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/stock/data/datasources/stock_remote_datasource_impl.dart';
+import 'package:flutter_oklyn_mobile/features/stock/data/repositories/stock_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/stock/domain/repositories/stock_repository.dart';
+import 'package:flutter_oklyn_mobile/features/stock/domain/usecases/create_stock_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock/domain/usecases/get_stock_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock/presentation/bloc/stock_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -38,6 +45,7 @@ void setupServiceLocator() {
   _registerNetworkServices();
   _registerAuthServices();
   _registerProductServices();
+  _registerStockServices();
   _registerErrorHandling();
 }
 
@@ -158,6 +166,34 @@ void _registerProductServices() {
     () => ProductRegisterBloc(
       registerProductUseCase: getIt<RegisterProductUseCase>(),
       checkBarcodeUseCase: getIt<CheckBarcodeUseCase>(),
+    ),
+  );
+}
+
+void _registerStockServices() {
+  // Datasources
+  getIt.registerSingleton<StockRemoteDatasource>(
+    StockRemoteDatasourceImpl(getIt<DioClient>()),
+  );
+
+  // Repositories
+  getIt.registerSingleton<StockRepository>(
+    StockRepositoryImpl(getIt<StockRemoteDatasource>()),
+  );
+
+  // Use cases
+  getIt.registerSingleton<GetStockUseCase>(
+    GetStockUseCase(getIt<StockRepository>()),
+  );
+  getIt.registerSingleton<CreateStockUseCase>(
+    CreateStockUseCase(getIt<StockRepository>()),
+  );
+
+  // BLoC — registerFactory to create fresh instance per ProductDetailPage
+  getIt.registerFactory<StockBloc>(
+    () => StockBloc(
+      getStockUseCase: getIt<GetStockUseCase>(),
+      createStockUseCase: getIt<CreateStockUseCase>(),
     ),
   );
 }

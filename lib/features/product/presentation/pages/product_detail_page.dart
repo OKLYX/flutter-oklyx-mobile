@@ -16,6 +16,8 @@ import 'package:flutter_oklyn_mobile/features/product/domain/entities/unit.dart'
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_detail_event.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_detail_state.dart';
+import 'package:flutter_oklyn_mobile/features/stock/presentation/bloc/stock_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/stock/presentation/widgets/stock_card.dart';
 
 class ProductDetailPage extends StatefulWidget {
   final int productId;
@@ -310,6 +312,16 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         ),
                         const SizedBox(height: 12),
                         _TimestampsCard(product: product),
+                        if (!isEditing) ...[
+                          const SizedBox(height: 12),
+                          BlocProvider.value(
+                            value: getIt<StockBloc>(),
+                            child: StockCard(
+                              barcodeId: product.barcodeId,
+                              productName: product.productName,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 80),
                       ],
                     ),
