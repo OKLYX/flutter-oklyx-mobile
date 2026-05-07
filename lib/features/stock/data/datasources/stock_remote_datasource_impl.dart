@@ -4,6 +4,10 @@ import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
 import 'package:flutter_oklyn_mobile/core/network/dio_client.dart';
 import 'package:flutter_oklyn_mobile/features/stock/data/datasources/stock_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/stock/data/exceptions/stock_exceptions.dart';
+import 'package:flutter_oklyn_mobile/features/stock/data/models/batch_stock_request_model.dart';
+import 'package:flutter_oklyn_mobile/features/stock/data/models/batch_stock_response_model.dart';
+import 'package:flutter_oklyn_mobile/features/stock/data/models/get_stock_logs_params_model.dart';
+import 'package:flutter_oklyn_mobile/features/stock/data/models/get_stock_logs_response_model.dart';
 import 'package:flutter_oklyn_mobile/features/stock/domain/entities/stock.dart';
 
 class StockRemoteDatasourceImpl implements StockRemoteDatasource {
@@ -18,7 +22,7 @@ class StockRemoteDatasourceImpl implements StockRemoteDatasource {
 
       // Handle 404 as no stock history
       if (response.statusCode == 404) {
-        return GetStockResponse(barcodeId: barcodeId, inStock: 0);
+        return GetStockResponse(barcodeId: barcodeId, productName: '', inStock: 0);
       }
 
       // Check if response has data
@@ -34,7 +38,7 @@ class StockRemoteDatasourceImpl implements StockRemoteDatasource {
       return GetStockResponse.fromJson(data['data'] as Map<String, dynamic>);
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) {
-        return GetStockResponse(barcodeId: barcodeId, inStock: 0);
+        return GetStockResponse(barcodeId: barcodeId, productName: '', inStock: 0);
       }
       throw ServerException('API error: ${e.message}');
     } catch (e) {
@@ -77,6 +81,70 @@ class StockRemoteDatasourceImpl implements StockRemoteDatasource {
       rethrow;
     } catch (e) {
       throw ServerException('Failed to create stock: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<BatchStockResponseModel> createBatchStock(BatchStockRequestModel request) async {
+    try {
+      final response = await dioClient.post(
+        '/api/stock/batch',
+        data: request.toJson(),
+      );
+
+      // Handle 409 as insufficient stock
+      if (response.statusCode == 409) {
+        throw ServerException('재고가 부족합니다');
+      }
+
+      // Check if response has data
+      if (response.data == null) {
+        throw ServerException('Empty response from server');
+      }
+
+      final responseData = response.data as Map<String, dynamic>;
+      if (!responseData.containsKey('data')) {
+        throw ServerException('Invalid response format');
+      }
+
+      return BatchStockResponseModel.fromJson(
+        responseData['data'] as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 409) {
+        throw ServerException('재고가 부족합니다');
+      }
+      throw ServerException('API error: ${e.message}');
+    } catch (e) {
+      throw ServerException('Failed to create batch stock: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<GetStockLogsResponseModel> getStockLogs(GetStockLogsParamsModel params) async {
+    try {
+      final response = await dioClient.get(
+        '/api/stock',
+        queryParameters: params.toQueryMap(),
+      );
+
+      // Check if response has data
+      if (response.data == null) {
+        throw ServerException('Empty response from server');
+      }
+
+      final data = response.data as Map<String, dynamic>;
+      if (!data.containsKey('data')) {
+        throw ServerException('Invalid response format');
+      }
+
+      return GetStockLogsResponseModel.fromJson(
+        data['data'] as Map<String, dynamic>,
+      );
+    } on DioException catch (e) {
+      throw ServerException('API error: ${e.message}');
+    } catch (e) {
+      throw ServerException('Failed to fetch stock logs: ${e.toString()}');
     }
   }
 }

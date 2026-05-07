@@ -91,6 +91,32 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                 ],
               ),
+              ExpansionTile(
+                shape: const Border(),
+                title: const Text('입출고관리'),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16),
+                    child: ListTile(
+                      title: const Text('입출고 관리'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        context.go(Routes.stockInOutPath);
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16),
+                    child: ListTile(
+                      title: const Text('입출고 조회'),
+                      onTap: () {
+                        Navigator.pop(context);
+                        context.go(Routes.stockSearchPath);
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),

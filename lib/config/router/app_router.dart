@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_oklyn_mobile/features/auth/presentation/pages/login_page.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/pages/product_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/pages/product_register_page.dart';
+import 'package:flutter_oklyn_mobile/features/stock/presentation/pages/stock_in_out_page.dart';
+import 'package:flutter_oklyn_mobile/features/stock/presentation/pages/stock_search_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/dashboard_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/list_to_shop_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/not_found_page.dart';
@@ -89,6 +91,20 @@ class AppRouter {
           child: ProductDetailPage(productId: productId),
         );
       },
+    ),
+    GoRoute(
+      name: Routes.stockInOut,
+      path: Routes.stockInOutPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: StockInOutPage(),
+      ),
+    ),
+    GoRoute(
+      name: Routes.stockSearch,
+      path: Routes.stockSearchPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: StockSearchPage(),
+      ),
     ),
     GoRoute(
       name: Routes.notFound,

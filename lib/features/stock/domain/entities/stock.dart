@@ -2,16 +2,19 @@ import 'package:equatable/equatable.dart';
 
 class GetStockResponse extends Equatable {
   final String barcodeId;
+  final String productName;
   final int inStock;
 
   const GetStockResponse({
     required this.barcodeId,
+    required this.productName,
     required this.inStock,
   });
 
   factory GetStockResponse.fromJson(Map<String, dynamic> json) {
     return GetStockResponse(
       barcodeId: json['barcodeId'] as String,
+      productName: json['productName'] as String? ?? '',
       inStock: json['inStock'] as int,
     );
   }
@@ -19,12 +22,13 @@ class GetStockResponse extends Equatable {
   Map<String, dynamic> toJson() {
     return {
       'barcodeId': barcodeId,
+      'productName': productName,
       'inStock': inStock,
     };
   }
 
   @override
-  List<Object?> get props => [barcodeId, inStock];
+  List<Object?> get props => [barcodeId, productName, inStock];
 }
 
 class CreateStockRequest extends Equatable {
@@ -65,8 +69,8 @@ class CreateStockRequest extends Equatable {
 class CreateStockResponse extends Equatable {
   final int stockId;
   final String barcodeId;
+  final String productName;
   final int inStock;
-  final String name;
   final int stockAdd;
   final int stockSub;
   final String createdDate;
@@ -74,8 +78,8 @@ class CreateStockResponse extends Equatable {
   const CreateStockResponse({
     required this.stockId,
     required this.barcodeId,
+    required this.productName,
     required this.inStock,
-    required this.name,
     required this.stockAdd,
     required this.stockSub,
     required this.createdDate,
@@ -85,8 +89,8 @@ class CreateStockResponse extends Equatable {
     return CreateStockResponse(
       stockId: json['stockId'] as int,
       barcodeId: json['barcodeId'] as String,
+      productName: json['productName'] as String,
       inStock: json['inStock'] as int,
-      name: json['name'] as String,
       stockAdd: json['stockAdd'] as int,
       stockSub: json['stockSub'] as int,
       createdDate: json['createdDate'] as String,
@@ -97,8 +101,8 @@ class CreateStockResponse extends Equatable {
     return {
       'stockId': stockId,
       'barcodeId': barcodeId,
+      'productName': productName,
       'inStock': inStock,
-      'name': name,
       'stockAdd': stockAdd,
       'stockSub': stockSub,
       'createdDate': createdDate,
@@ -109,8 +113,8 @@ class CreateStockResponse extends Equatable {
   List<Object?> get props => [
     stockId,
     barcodeId,
+    productName,
     inStock,
-    name,
     stockAdd,
     stockSub,
     createdDate,

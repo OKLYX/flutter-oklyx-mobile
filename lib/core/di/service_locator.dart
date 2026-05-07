@@ -36,7 +36,11 @@ import 'package:flutter_oklyn_mobile/features/stock/data/repositories/stock_repo
 import 'package:flutter_oklyn_mobile/features/stock/domain/repositories/stock_repository.dart';
 import 'package:flutter_oklyn_mobile/features/stock/domain/usecases/create_stock_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock/domain/usecases/get_stock_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock/domain/usecases/create_batch_stock_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock/domain/usecases/get_stock_logs_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock/presentation/bloc/stock_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/stock/presentation/bloc/stock_in_out_bloc/stock_in_out_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/stock/presentation/bloc/stock_search_bloc/stock_search_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -188,12 +192,33 @@ void _registerStockServices() {
   getIt.registerSingleton<CreateStockUseCase>(
     CreateStockUseCase(getIt<StockRepository>()),
   );
+  getIt.registerSingleton<CreateBatchStockUseCase>(
+    CreateBatchStockUseCase(getIt<StockRepository>()),
+  );
+  getIt.registerSingleton<GetStockLogsUseCase>(
+    GetStockLogsUseCase(getIt<StockRepository>()),
+  );
 
   // BLoC — registerFactory to create fresh instance per ProductDetailPage
   getIt.registerFactory<StockBloc>(
     () => StockBloc(
       getStockUseCase: getIt<GetStockUseCase>(),
       createStockUseCase: getIt<CreateStockUseCase>(),
+    ),
+  );
+
+  // StockInOutBloc as factory to allow fresh state per page
+  getIt.registerFactory<StockInOutBloc>(
+    () => StockInOutBloc(
+      getStockUseCase: getIt<GetStockUseCase>(),
+      createBatchStockUseCase: getIt<CreateBatchStockUseCase>(),
+    ),
+  );
+
+  // StockSearchBloc as factory to allow fresh state per page
+  getIt.registerFactory<StockSearchBloc>(
+    () => StockSearchBloc(
+      getStockLogsUseCase: getIt<GetStockLogsUseCase>(),
     ),
   );
 }

@@ -30,7 +30,7 @@ class _StockCardState extends State<StockCard> {
   @override
   void initState() {
     super.initState();
-    _quantityController = TextEditingController(text: '0');
+    _quantityController = TextEditingController(text: '1');
     _quantityController.addListener(_onQuantityChanged);
   }
 
@@ -53,19 +53,19 @@ class _StockCardState extends State<StockCard> {
   void _onQuantityChanged() {
     final value = _quantityController.text;
     if (value.isEmpty) {
-      _quantityController.text = '0';
+      _quantityController.text = '1';
       return;
     }
 
     int? parsed = int.tryParse(value);
     if (parsed == null) {
-      _quantityController.text = '0';
+      _quantityController.text = '1';
       return;
     }
 
-    // 음수면 0으로
-    if (parsed < 0) {
-      _quantityController.text = '0';
+    // 1 미만이면 1로
+    if (parsed < 1) {
+      _quantityController.text = '1';
       return;
     }
 
@@ -76,15 +76,15 @@ class _StockCardState extends State<StockCard> {
   }
 
   void _decreaseQuantity() {
-    int current = int.tryParse(_quantityController.text) ?? 0;
-    int newValue = (current - 1).clamp(0, 999999);
+    int current = int.tryParse(_quantityController.text) ?? 1;
+    int newValue = (current - 1).clamp(1, 999999);
     _quantityController.text = newValue.toString();
   }
 
   void _increaseQuantity() {
-    int current = int.tryParse(_quantityController.text) ?? 0;
+    int current = int.tryParse(_quantityController.text) ?? 1;
     int maxValue = _selectedType == 'OUT' ? _currentInStock : 999999;
-    int newValue = (current + 1).clamp(0, maxValue);
+    int newValue = (current + 1).clamp(1, maxValue);
     _quantityController.text = newValue.toString();
   }
 
