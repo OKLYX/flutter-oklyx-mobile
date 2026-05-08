@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_drawer.dart';
 
 class ListToShopPage extends StatefulWidget {
   const ListToShopPage({super.key});
@@ -45,52 +46,7 @@ class _ListToShopPageState extends State<ListToShopPage> {
           child: Text('List To Shop Page'),
         ),
         bottomNavigationBar: SizedBox.shrink(),
-        drawer: Drawer(
-          backgroundColor: Colors.white,
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              DrawerHeader(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                ),
-                child: const Text(
-                  'Menu',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              ExpansionTile(
-                shape: const Border(),
-                title: const Text('상품관리'),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16),
-                    child: ListTile(
-                      title: const Text('상품등록'),
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.go(Routes.productRegisterPath);
-                      },
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16),
-                    child: ListTile(
-                      title: const Text('상품조회'),
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.go(Routes.productSearchPath);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+        drawer: const AppDrawer(),
       ),
       Positioned(
         bottom: 0,

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_drawer.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/unit.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_register_bloc.dart';
@@ -239,52 +240,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
               },
             ),
           ),
-          drawer: Drawer(
-            backgroundColor: Colors.white,
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                DrawerHeader(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                  ),
-                  child: const Text(
-                    'Menu',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                ExpansionTile(
-                  shape: const Border(),
-                  title: const Text('상품관리'),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(left: 16),
-                      child: ListTile(
-                        title: const Text('상품등록'),
-                        onTap: () {
-                          Navigator.pop(context);
-                          context.go(Routes.productRegisterPath);
-                        },
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 16),
-                      child: ListTile(
-                        title: const Text('상품조회'),
-                        onTap: () {
-                          Navigator.pop(context);
-                          context.go(Routes.productSearchPath);
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          drawer: const AppDrawer(),
           bottomNavigationBar: BottomNavigationBar(
             type: BottomNavigationBarType.fixed,
             selectedItemColor: const Color(0xffffc417),
