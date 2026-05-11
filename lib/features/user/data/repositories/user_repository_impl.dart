@@ -3,6 +3,8 @@ import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/user/data/datasources/user_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/user/domain/entities/get_users_params.dart';
+import 'package:flutter_oklyn_mobile/features/user/domain/entities/get_users_response.dart';
 import 'package:flutter_oklyn_mobile/features/user/domain/entities/user.dart';
 import 'package:flutter_oklyn_mobile/features/user/domain/repositories/user_repository.dart';
 
@@ -40,6 +42,18 @@ class UserRepositoryImpl implements UserRepository {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
     } catch (e) {
       return Left(ServerFailure('Failed to create user: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, GetUsersResponse>> getUsers(GetUsersParams params) async {
+    try {
+      final response = await remoteDataSource.getUsers(params);
+      return Right(response);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } catch (e) {
+      return Left(ServerFailure('Failed to get users: $e'));
     }
   }
 }

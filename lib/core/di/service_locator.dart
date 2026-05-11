@@ -46,7 +46,9 @@ import 'package:flutter_oklyn_mobile/features/user/data/repositories/user_reposi
 import 'package:flutter_oklyn_mobile/features/user/domain/repositories/user_repository.dart';
 import 'package:flutter_oklyn_mobile/features/user/domain/usecases/check_email_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/user/domain/usecases/create_user_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/user/domain/usecases/get_users_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/user/presentation/bloc/user_register_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/user/presentation/bloc/user_manage_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -248,12 +250,22 @@ void _registerUserServices() {
   getIt.registerSingleton<CreateUserUseCase>(
     CreateUserUseCase(getIt<UserRepository>()),
   );
+  getIt.registerSingleton<GetUsersUseCase>(
+    GetUsersUseCase(getIt<UserRepository>()),
+  );
 
   // UserRegisterBloc as factory to allow fresh state per page
   getIt.registerFactory<UserRegisterBloc>(
     () => UserRegisterBloc(
       checkEmailUseCase: getIt<CheckEmailUseCase>(),
       createUserUseCase: getIt<CreateUserUseCase>(),
+    ),
+  );
+
+  // UserManageBloc as factory to allow fresh state per page
+  getIt.registerFactory<UserManageBloc>(
+    () => UserManageBloc(
+      getUsersUseCase: getIt<GetUsersUseCase>(),
     ),
   );
 }
