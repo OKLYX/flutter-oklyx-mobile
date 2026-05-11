@@ -53,3 +53,12 @@ class UnknownException implements Exception {
   @override
   String toString() => 'UnknownException(message: $message)';
 }
+
+class DuplicateEmailException implements Exception {
+  final String message;
+
+  DuplicateEmailException(this.message);
+
+  @override
+  String toString() => 'DuplicateEmailException(message: $message)';
+}

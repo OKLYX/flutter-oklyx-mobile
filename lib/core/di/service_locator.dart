@@ -41,6 +41,12 @@ import 'package:flutter_oklyn_mobile/features/stock/domain/usecases/get_stock_lo
 import 'package:flutter_oklyn_mobile/features/stock/presentation/bloc/stock_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/stock/presentation/bloc/stock_in_out_bloc/stock_in_out_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/stock/presentation/bloc/stock_search_bloc/stock_search_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/user/data/datasources/user_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/user/data/repositories/user_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/user/domain/repositories/user_repository.dart';
+import 'package:flutter_oklyn_mobile/features/user/domain/usecases/check_email_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/user/domain/usecases/create_user_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/user/presentation/bloc/user_register_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -50,6 +56,7 @@ void setupServiceLocator() {
   _registerAuthServices();
   _registerProductServices();
   _registerStockServices();
+  _registerUserServices();
   _registerErrorHandling();
 }
 
@@ -219,6 +226,34 @@ void _registerStockServices() {
   getIt.registerFactory<StockSearchBloc>(
     () => StockSearchBloc(
       getStockLogsUseCase: getIt<GetStockLogsUseCase>(),
+    ),
+  );
+}
+
+void _registerUserServices() {
+  // Data Sources
+  getIt.registerSingleton<UserRemoteDataSource>(
+    UserRemoteDataSourceImpl(getIt<DioClient>()),
+  );
+
+  // Repository
+  getIt.registerSingleton<UserRepository>(
+    UserRepositoryImpl(getIt<UserRemoteDataSource>()),
+  );
+
+  // Use Cases
+  getIt.registerSingleton<CheckEmailUseCase>(
+    CheckEmailUseCase(getIt<UserRepository>()),
+  );
+  getIt.registerSingleton<CreateUserUseCase>(
+    CreateUserUseCase(getIt<UserRepository>()),
+  );
+
+  // UserRegisterBloc as factory to allow fresh state per page
+  getIt.registerFactory<UserRegisterBloc>(
+    () => UserRegisterBloc(
+      checkEmailUseCase: getIt<CheckEmailUseCase>(),
+      createUserUseCase: getIt<CreateUserUseCase>(),
     ),
   );
 }

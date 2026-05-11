@@ -37,3 +37,7 @@ class AuthenticationFailure extends Failure {
 class ValidationFailure extends Failure {
   const ValidationFailure(super.message);
 }
+
+class DuplicateEmailFailure extends Failure {
+  const DuplicateEmailFailure(super.message);
+}
