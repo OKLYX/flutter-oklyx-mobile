@@ -16,6 +16,7 @@ class UserManageBloc extends Bloc<UserManageEvent, UserManageState> {
     on<LoadUsersRequested>(_onLoadUsersRequested);
     on<UserSearchRequested>(_onUserSearchRequested);
     on<UserPageChanged>(_onUserPageChanged);
+    on<UserListItemUpdated>(_onUserListItemUpdated);
   }
 
   Future<void> _fetchUsers(
@@ -68,5 +69,23 @@ class UserManageBloc extends Bloc<UserManageEvent, UserManageState> {
     Emitter<UserManageState> emit,
   ) async {
     await _fetchUsers(lastSearchName, lastSearchEmail, event.page, emit);
+  }
+
+  Future<void> _onUserListItemUpdated(
+    UserListItemUpdated event,
+    Emitter<UserManageState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is UserManageLoaded) {
+      final updatedUsers = currentState.users
+          .map((u) => u.id == event.user.id ? event.user : u)
+          .toList();
+      emit(UserManageLoaded(
+        users: updatedUsers,
+        currentPage: currentState.currentPage,
+        totalPages: currentState.totalPages,
+        totalElements: currentState.totalElements,
+      ));
+    }
   }
 }

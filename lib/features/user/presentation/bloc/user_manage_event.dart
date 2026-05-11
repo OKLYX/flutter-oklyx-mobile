@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import 'package:flutter_oklyn_mobile/features/user/domain/entities/user.dart';
+
 sealed class UserManageEvent extends Equatable {
   const UserManageEvent();
 
@@ -42,4 +44,13 @@ class UserPageChanged extends UserManageEvent {
 
   @override
   List<Object?> get props => [page];
+}
+
+class UserListItemUpdated extends UserManageEvent {
+  final User user;
+
+  const UserListItemUpdated(this.user);
+
+  @override
+  List<Object?> get props => [user];
 }

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
+import 'package:flutter_oklyn_mobile/features/user/domain/entities/user.dart';
 import 'package:flutter_oklyn_mobile/features/user/presentation/bloc/user_manage_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/user/presentation/bloc/user_manage_event.dart';
 import 'package:flutter_oklyn_mobile/features/user/presentation/bloc/user_manage_state.dart';
@@ -197,31 +198,57 @@ class _UserManagePageState extends State<UserManagePage> {
 
                                   return DataRow(
                                     cells: [
-                                      DataCell(Text('$rowNumber')),
-                                      DataCell(Text(user.name)),
-                                      DataCell(Text(user.email)),
                                       DataCell(
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 6,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: badgeColor,
-                                            borderRadius:
-                                                BorderRadius.circular(4),
-                                          ),
-                                          child: Text(
-                                            user.role,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 12,
+                                        GestureDetector(
+                                          onTap: () =>
+                                              _navigateToUserEdit(context, user),
+                                          child: Text('$rowNumber'),
+                                        ),
+                                      ),
+                                      DataCell(
+                                        GestureDetector(
+                                          onTap: () =>
+                                              _navigateToUserEdit(context, user),
+                                          child: Text(user.name),
+                                        ),
+                                      ),
+                                      DataCell(
+                                        GestureDetector(
+                                          onTap: () =>
+                                              _navigateToUserEdit(context, user),
+                                          child: Text(user.email),
+                                        ),
+                                      ),
+                                      DataCell(
+                                        GestureDetector(
+                                          onTap: () =>
+                                              _navigateToUserEdit(context, user),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: badgeColor,
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              user.role,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                              ),
                                             ),
                                           ),
                                         ),
                                       ),
                                       DataCell(
-                                        Text(_formatDate(user.createdAt)),
+                                        GestureDetector(
+                                          onTap: () =>
+                                              _navigateToUserEdit(context, user),
+                                          child: Text(_formatDate(user.createdAt)),
+                                        ),
                                       ),
                                     ],
                                   );
@@ -366,5 +393,20 @@ class _UserManagePageState extends State<UserManagePage> {
         ],
       ),
     );
+  }
+
+  Future<void> _navigateToUserEdit(BuildContext context, User user) async {
+    final updatedUser = await context.pushNamed(
+      Routes.userEdit,
+      extra: user,
+    );
+
+    if (updatedUser != null && updatedUser is User) {
+      _updateUserInList(updatedUser);
+    }
+  }
+
+  void _updateUserInList(User updatedUser) {
+    context.read<UserManageBloc>().add(UserListItemUpdated(updatedUser));
   }
 }

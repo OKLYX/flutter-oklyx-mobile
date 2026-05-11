@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:fpdart/fpdart.dart';
 
 import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
@@ -5,6 +7,7 @@ import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/user/data/datasources/user_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/user/domain/entities/get_users_params.dart';
 import 'package:flutter_oklyn_mobile/features/user/domain/entities/get_users_response.dart';
+import 'package:flutter_oklyn_mobile/features/user/domain/entities/update_user_params.dart';
 import 'package:flutter_oklyn_mobile/features/user/domain/entities/user.dart';
 import 'package:flutter_oklyn_mobile/features/user/domain/repositories/user_repository.dart';
 
@@ -54,6 +57,20 @@ class UserRepositoryImpl implements UserRepository {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
     } catch (e) {
       return Left(ServerFailure('Failed to get users: $e'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, User>> updateUser(UpdateUserParams params) async {
+    try {
+      final userModel = await remoteDataSource.updateUser(params);
+      return Right(userModel);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } on SocketException {
+      return Left(ServerFailure('네트워크 오류: 서버에 연결할 수 없습니다'));
+    } catch (e) {
+      return Left(ServerFailure('Failed to update user: $e'));
     }
   }
 }

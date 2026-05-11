@@ -6,6 +6,8 @@ import 'package:flutter_oklyn_mobile/features/product/presentation/pages/product
 import 'package:flutter_oklyn_mobile/features/product/presentation/pages/product_register_page.dart';
 import 'package:flutter_oklyn_mobile/features/stock/presentation/pages/stock_in_out_page.dart';
 import 'package:flutter_oklyn_mobile/features/stock/presentation/pages/stock_search_page.dart';
+import 'package:flutter_oklyn_mobile/features/user/domain/entities/user.dart';
+import 'package:flutter_oklyn_mobile/features/user/presentation/pages/user_edit_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/dashboard_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/list_to_shop_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/not_found_page.dart';
@@ -121,6 +123,16 @@ class AppRouter {
       pageBuilder: (context, state) => const NoTransitionPage(
         child: UserManagePage(),
       ),
+    ),
+    GoRoute(
+      name: Routes.userEdit,
+      path: Routes.userEditPath,
+      pageBuilder: (context, state) {
+        final user = state.extra as User;
+        return NoTransitionPage(
+          child: UserEditPage(user: user),
+        );
+      },
     ),
     GoRoute(
       name: Routes.notFound,
