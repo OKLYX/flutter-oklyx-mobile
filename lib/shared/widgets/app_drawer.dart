@@ -76,6 +76,32 @@ class AppDrawer extends StatelessWidget {
               ),
             ],
           ),
+          ExpansionTile(
+            shape: const Border(),
+            title: const Text('회원관리'),
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('회원등록'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.userRegisterPath);
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('회원관리'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.userManagePath);
+                  },
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

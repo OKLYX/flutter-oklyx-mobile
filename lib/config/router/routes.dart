@@ -9,6 +9,8 @@ class Routes {
   static const String productDetail = 'productDetail';
   static const String stockInOut = 'stockInOut';
   static const String stockSearch = 'stockSearch';
+  static const String userRegister = 'userRegister';
+  static const String userManage = 'userManage';
   static const String notFound = 'notFound';
 
   static const String splashPath = '/';
@@ -21,5 +23,7 @@ class Routes {
   static const String productDetailPath = '/product-detail/:productId';
   static const String stockInOutPath = '/stock/in-out';
   static const String stockSearchPath = '/stock/search';
+  static const String userRegisterPath = '/users/register';
+  static const String userManagePath = '/users/manage';
   static const String notFoundPath = '/404';
 }

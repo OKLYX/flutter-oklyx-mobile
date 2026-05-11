@@ -12,6 +12,8 @@ import 'package:flutter_oklyn_mobile/shared/pages/not_found_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/notification_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/product_search_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/splash_page.dart';
+import 'package:flutter_oklyn_mobile/shared/pages/user_manage_page.dart';
+import 'package:flutter_oklyn_mobile/shared/pages/user_register_page.dart';
 
 import 'routes.dart';
 
@@ -104,6 +106,20 @@ class AppRouter {
       path: Routes.stockSearchPath,
       pageBuilder: (context, state) => const NoTransitionPage(
         child: StockSearchPage(),
+      ),
+    ),
+    GoRoute(
+      name: Routes.userRegister,
+      path: Routes.userRegisterPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: UserRegisterPage(),
+      ),
+    ),
+    GoRoute(
+      name: Routes.userManage,
+      path: Routes.userManagePath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: UserManagePage(),
       ),
     ),
     GoRoute(
