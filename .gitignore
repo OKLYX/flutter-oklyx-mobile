@@ -69,3 +69,4 @@ app.*.map.json
 .claude/
 .cursor/
 .copilot/
+CLAUDE.md
