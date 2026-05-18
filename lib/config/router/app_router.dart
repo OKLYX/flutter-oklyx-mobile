@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/features/auth/presentation/pages/login_page.dart';
+import 'package:flutter_oklyn_mobile/features/package/presentation/pages/package_search_page.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/pages/product_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/pages/product_register_page.dart';
 import 'package:flutter_oklyn_mobile/features/stock/presentation/pages/stock_in_out_page.dart';
@@ -133,6 +134,13 @@ class AppRouter {
           child: UserEditPage(user: user),
         );
       },
+    ),
+    GoRoute(
+      name: Routes.packageSearch,
+      path: Routes.packageSearchPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: PackageSearchPage(),
+      ),
     ),
     GoRoute(
       name: Routes.notFound,

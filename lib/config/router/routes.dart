@@ -12,6 +12,7 @@ class Routes {
   static const String userRegister = 'userRegister';
   static const String userManage = 'userManage';
   static const String userEdit = 'userEdit';
+  static const String packageSearch = 'packageSearch';
   static const String notFound = 'notFound';
 
   static const String splashPath = '/';
@@ -27,5 +28,6 @@ class Routes {
   static const String userRegisterPath = '/users/register';
   static const String userManagePath = '/users/manage';
   static const String userEditPath = '/users/edit';
+  static const String packageSearchPath = '/costs/package/search';
   static const String notFoundPath = '/404';
 }

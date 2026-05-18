@@ -9,21 +9,24 @@ class AppDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Drawer(
       backgroundColor: Colors.white,
-      child: ListView(
-        padding: EdgeInsets.zero,
+      child: Column(
         children: [
-          DrawerHeader(
-            decoration: BoxDecoration(
-              color: Colors.white,
-            ),
-            child: const Text(
-              'Menu',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                DrawerHeader(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                  ),
+                  child: const Text(
+                    'Menu',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
           ExpansionTile(
             shape: const Border(),
             title: const Text('상품관리'),
@@ -101,6 +104,42 @@ class AppDrawer extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          ExpansionTile(
+            shape: const Border(),
+            title: const Text('비용관리'),
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('상자비'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.packageSearchPath);
+                  },
+                ),
+              ),
+            ],
+          ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.go(Routes.loginPath);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('로그아웃'),
+              ),
+            ),
           ),
         ],
       ),
