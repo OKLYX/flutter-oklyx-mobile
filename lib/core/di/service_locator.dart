@@ -51,6 +51,11 @@ import 'package:flutter_oklyn_mobile/features/user/domain/usecases/update_user_u
 import 'package:flutter_oklyn_mobile/features/user/presentation/bloc/user_register_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/user/presentation/bloc/user_manage_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/user/presentation/bloc/user_edit_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/package/data/datasources/package_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/package/data/repositories/package_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/package/domain/repositories/package_repository.dart';
+import 'package:flutter_oklyn_mobile/features/package/domain/usecases/get_packages_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_list_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -61,6 +66,7 @@ void setupServiceLocator() {
   _registerProductServices();
   _registerStockServices();
   _registerUserServices();
+  _registerPackageServices();
   _registerErrorHandling();
 }
 
@@ -280,6 +286,28 @@ void _registerUserServices() {
       checkEmailUseCase: getIt<CheckEmailUseCase>(),
       updateUserUseCase: getIt<UpdateUserUseCase>(),
     ),
+  );
+}
+
+void _registerPackageServices() {
+  // Data Source
+  getIt.registerSingleton<PackageRemoteDataSource>(
+    PackageRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
+  );
+
+  // Repository
+  getIt.registerSingleton<PackageRepository>(
+    PackageRepositoryImpl(remoteDataSource: getIt<PackageRemoteDataSource>()),
+  );
+
+  // Use Case
+  getIt.registerSingleton<GetPackagesUseCase>(
+    GetPackagesUseCase(repository: getIt<PackageRepository>()),
+  );
+
+  // BLoC as factory to allow fresh state per page
+  getIt.registerFactory<PackageListBloc>(
+    () => PackageListBloc(getPackagesUseCase: getIt<GetPackagesUseCase>()),
   );
 }
 

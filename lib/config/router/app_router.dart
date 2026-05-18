@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:get_it/get_it.dart';
 
 import 'package:flutter_oklyn_mobile/features/auth/presentation/pages/login_page.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/pages/package_search_page.dart';
+import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/pages/product_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/pages/product_register_page.dart';
 import 'package:flutter_oklyn_mobile/features/stock/presentation/pages/stock_in_out_page.dart';
@@ -138,8 +141,11 @@ class AppRouter {
     GoRoute(
       name: Routes.packageSearch,
       path: Routes.packageSearchPath,
-      pageBuilder: (context, state) => const NoTransitionPage(
-        child: PackageSearchPage(),
+      pageBuilder: (context, state) => NoTransitionPage(
+        child: BlocProvider<PackageListBloc>(
+          create: (context) => GetIt.instance<PackageListBloc>(),
+          child: const PackageSearchPage(),
+        ),
       ),
     ),
     GoRoute(
