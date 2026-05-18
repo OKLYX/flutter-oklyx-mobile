@@ -22,4 +22,28 @@ class PackageRepositoryImpl implements PackageRepository {
       return Left(NetworkFailure('네트워크 연결을 확인해주세요.'));
     }
   }
+
+  @override
+  Future<Either<Failure, Package>> updatePackage({
+    required int id,
+    required String type,
+    required double cost,
+    required String effectiveDate,
+    required bool isDefault,
+  }) async {
+    try {
+      final package = await remoteDataSource.updatePackage(
+        id: id,
+        type: type,
+        cost: cost,
+        effectiveDate: effectiveDate,
+        isDefault: isDefault,
+      );
+      return Right(package);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } on SocketException {
+      return Left(NetworkFailure('네트워크 연결을 확인해주세요.'));
+    }
+  }
 }

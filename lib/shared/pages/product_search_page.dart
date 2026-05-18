@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:typed_data';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
@@ -12,6 +13,8 @@ import 'package:flutter_oklyn_mobile/features/product/domain/entities/product.da
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_event.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_state.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:dio/dio.dart';
 
 class ProductSearchPage extends StatelessWidget {
   const ProductSearchPage({super.key});

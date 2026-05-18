@@ -12,4 +12,20 @@ class Package {
     required this.effectiveDate,
     required this.isDefault,
   });
+
+  Package copyWith({
+    int? id,
+    String? type,
+    double? cost,
+    String? effectiveDate,
+    bool? isDefault,
+  }) {
+    return Package(
+      id: id ?? this.id,
+      type: type ?? this.type,
+      cost: cost ?? this.cost,
+      effectiveDate: effectiveDate ?? this.effectiveDate,
+      isDefault: isDefault ?? this.isDefault,
+    );
+  }
 }

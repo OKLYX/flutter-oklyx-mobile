@@ -4,4 +4,11 @@ import 'package:flutter_oklyn_mobile/features/package/domain/entities/package.da
 
 abstract class PackageRepository {
   Future<Either<Failure, List<Package>>> getPackages();
+  Future<Either<Failure, Package>> updatePackage({
+    required int id,
+    required String type,
+    required double cost,
+    required String effectiveDate,
+    required bool isDefault,
+  });
 }

@@ -5,7 +5,10 @@ import 'package:get_it/get_it.dart';
 
 import 'package:flutter_oklyn_mobile/features/auth/presentation/pages/login_page.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/pages/package_search_page.dart';
+import 'package:flutter_oklyn_mobile/features/package/presentation/pages/package_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_detail_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_detail_event.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/pages/product_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/pages/product_register_page.dart';
 import 'package:flutter_oklyn_mobile/features/stock/presentation/pages/stock_in_out_page.dart';
@@ -147,6 +150,19 @@ class AppRouter {
           child: const PackageSearchPage(),
         ),
       ),
+    ),
+    GoRoute(
+      name: Routes.packageDetail,
+      path: Routes.packageDetailPath,
+      pageBuilder: (context, state) {
+        final id = int.parse(state.pathParameters['id']!);
+        return NoTransitionPage(
+          child: BlocProvider<PackageDetailBloc>(
+            create: (context) => GetIt.instance<PackageDetailBloc>()..add(LoadPackageDetail(id)),
+            child: PackageDetailPage(packageId: id),
+          ),
+        );
+      },
     ),
     GoRoute(
       name: Routes.notFound,

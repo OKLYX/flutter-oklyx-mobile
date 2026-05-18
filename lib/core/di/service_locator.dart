@@ -55,7 +55,9 @@ import 'package:flutter_oklyn_mobile/features/package/data/datasources/package_r
 import 'package:flutter_oklyn_mobile/features/package/data/repositories/package_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/package/domain/repositories/package_repository.dart';
 import 'package:flutter_oklyn_mobile/features/package/domain/usecases/get_packages_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/package/domain/usecases/update_package_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_detail_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -300,14 +302,25 @@ void _registerPackageServices() {
     PackageRepositoryImpl(remoteDataSource: getIt<PackageRemoteDataSource>()),
   );
 
-  // Use Case
+  // Use Cases
   getIt.registerSingleton<GetPackagesUseCase>(
     GetPackagesUseCase(repository: getIt<PackageRepository>()),
+  );
+  getIt.registerSingleton<UpdatePackageUseCase>(
+    UpdatePackageUseCase(repository: getIt<PackageRepository>()),
   );
 
   // BLoC as factory to allow fresh state per page
   getIt.registerFactory<PackageListBloc>(
     () => PackageListBloc(getPackagesUseCase: getIt<GetPackagesUseCase>()),
+  );
+
+  // PackageDetailBloc as factory to allow fresh state per page
+  getIt.registerFactory<PackageDetailBloc>(
+    () => PackageDetailBloc(
+      getPackagesUseCase: getIt<GetPackagesUseCase>(),
+      updatePackageUseCase: getIt<UpdatePackageUseCase>(),
+    ),
   );
 }
 
