@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
+import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_create_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_create_event.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_list_event.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_list_state.dart';
+import 'package:flutter_oklyn_mobile/features/package/presentation/dialogs/package_input_dialog.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/widgets/package_list_item.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 
@@ -28,6 +31,27 @@ class _PackageSearchPageState extends State<PackageSearchPage> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onAddPackagePressed() {
+    context.read<PackageCreateBloc>().add(ResetCreateForm());
+
+    showDialog(
+      context: context,
+      builder: (ctx) => MultiBlocProvider(
+        providers: [
+          BlocProvider.value(
+            value: context.read<PackageCreateBloc>(),
+          ),
+          BlocProvider.value(
+            value: context.read<PackageListBloc>(),
+          ),
+        ],
+        child: PackageInputDialog(
+          onClose: () => Navigator.pop(context),
+        ),
+      ),
+    );
   }
 
   @override
@@ -57,9 +81,7 @@ class _PackageSearchPageState extends State<PackageSearchPage> {
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
-                  onPressed: () {
-                    // TODO Phase 03: Navigate to add package page
-                  },
+                  onPressed: _onAddPackagePressed,
                   child: const Text('상자비 추가'),
                 ),
               ],

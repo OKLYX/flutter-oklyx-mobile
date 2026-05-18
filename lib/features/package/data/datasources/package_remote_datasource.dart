@@ -1,9 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
+import 'package:flutter_oklyn_mobile/features/package/domain/models/create_package_params.dart';
 import 'package:flutter_oklyn_mobile/features/package/data/models/package_model.dart';
 
 abstract class PackageRemoteDataSource {
   Future<List<PackageModel>> getPackages();
+  Future<PackageModel> createPackage(CreatePackageParams params);
   Future<PackageModel> updatePackage({
     required int id,
     required String type,
@@ -33,6 +35,26 @@ class PackageRemoteDataSourceImpl implements PackageRemoteDataSource {
       throw ServerException(message);
     } catch (e) {
       throw ServerException('Failed to fetch packages: ${e.runtimeType}');
+    }
+  }
+
+  @override
+  Future<PackageModel> createPackage(CreatePackageParams params) async {
+    try {
+      final response = await dio.post(
+        '/api/admin/package',
+        data: params.toJson(),
+      );
+      final dynamic dataField = response.data['data'];
+      if (dataField is! Map) {
+        throw ServerException('Invalid API response format');
+      }
+      return PackageModel.fromJson(dataField as Map<String, dynamic>);
+    } on DioException catch (e) {
+      final message = e.message ?? 'Failed to create package';
+      throw ServerException(message);
+    } catch (e) {
+      throw ServerException('Failed to create package: ${e.runtimeType}');
     }
   }
 

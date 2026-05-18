@@ -9,6 +9,7 @@ import 'package:flutter_oklyn_mobile/features/package/presentation/pages/package
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_detail_event.dart';
+import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_create_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/pages/product_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/pages/product_register_page.dart';
 import 'package:flutter_oklyn_mobile/features/stock/presentation/pages/stock_in_out_page.dart';
@@ -145,8 +146,15 @@ class AppRouter {
       name: Routes.packageSearch,
       path: Routes.packageSearchPath,
       pageBuilder: (context, state) => NoTransitionPage(
-        child: BlocProvider<PackageListBloc>(
-          create: (context) => GetIt.instance<PackageListBloc>(),
+        child: MultiBlocProvider(
+          providers: [
+            BlocProvider<PackageListBloc>(
+              create: (context) => GetIt.instance<PackageListBloc>(),
+            ),
+            BlocProvider<PackageCreateBloc>(
+              create: (context) => GetIt.instance<PackageCreateBloc>(),
+            ),
+          ],
           child: const PackageSearchPage(),
         ),
       ),

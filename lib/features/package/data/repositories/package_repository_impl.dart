@@ -3,6 +3,7 @@ import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/package/data/datasources/package_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/package/domain/models/create_package_params.dart';
 import 'package:flutter_oklyn_mobile/features/package/domain/entities/package.dart';
 import 'package:flutter_oklyn_mobile/features/package/domain/repositories/package_repository.dart';
 
@@ -16,6 +17,18 @@ class PackageRepositoryImpl implements PackageRepository {
     try {
       final packages = await remoteDataSource.getPackages();
       return Right(packages);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } on SocketException {
+      return Left(NetworkFailure('네트워크 연결을 확인해주세요.'));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Package>> createPackage(CreatePackageParams params) async {
+    try {
+      final package = await remoteDataSource.createPackage(params);
+      return Right(package);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
     } on SocketException {
