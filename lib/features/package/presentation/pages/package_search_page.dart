@@ -59,7 +59,7 @@ class _PackageSearchPageState extends State<PackageSearchPage> {
     return ScaffoldWithNavBar(
       title: '상자비',
       navBarIndex: 2,
-      showDrawer: false,
+      showDrawer: true,
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
