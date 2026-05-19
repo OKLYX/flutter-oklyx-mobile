@@ -61,6 +61,11 @@ import 'package:flutter_oklyn_mobile/features/package/domain/usecases/delete_pac
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_create_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_detail_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/carrier_rate/data/datasources/carrier_rate_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/carrier_rate/data/repositories/carrier_rate_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/repositories/carrier_rate_repository.dart';
+import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/usecases/get_carrier_rates_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_list_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -72,6 +77,7 @@ void setupServiceLocator() {
   _registerStockServices();
   _registerUserServices();
   _registerPackageServices();
+  _registerCarrierRateServices();
   _registerErrorHandling();
 }
 
@@ -336,6 +342,28 @@ void _registerPackageServices() {
       updatePackageUseCase: getIt<UpdatePackageUseCase>(),
       deletePackageUseCase: getIt<DeletePackageUseCase>(),
     ),
+  );
+}
+
+void _registerCarrierRateServices() {
+  // Data Source
+  getIt.registerSingleton<CarrierRateRemoteDataSource>(
+    CarrierRateRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
+  );
+
+  // Repository
+  getIt.registerSingleton<CarrierRateRepository>(
+    CarrierRateRepositoryImpl(remoteDataSource: getIt<CarrierRateRemoteDataSource>()),
+  );
+
+  // Use Cases
+  getIt.registerSingleton<GetCarrierRatesUseCase>(
+    GetCarrierRatesUseCase(repository: getIt<CarrierRateRepository>()),
+  );
+
+  // BLoC as factory to allow fresh state per page
+  getIt.registerFactory<CarrierRateListBloc>(
+    () => CarrierRateListBloc(getCarrierRatesUseCase: getIt<GetCarrierRatesUseCase>()),
   );
 }
 

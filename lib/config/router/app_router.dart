@@ -7,6 +7,7 @@ import 'package:flutter_oklyn_mobile/features/auth/presentation/pages/login_page
 import 'package:flutter_oklyn_mobile/features/package/presentation/pages/package_search_page.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/pages/package_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/pages/carrier_rate_search_page.dart';
+import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_detail_event.dart';
@@ -176,8 +177,11 @@ class AppRouter {
     GoRoute(
       name: Routes.carrierRate,
       path: Routes.carrierRatePath,
-      pageBuilder: (context, state) => const NoTransitionPage(
-        child: CarrierRateSearchPage(),
+      pageBuilder: (context, state) => NoTransitionPage(
+        child: BlocProvider<CarrierRateListBloc>(
+          create: (context) => GetIt.instance<CarrierRateListBloc>(),
+          child: const CarrierRateSearchPage(),
+        ),
       ),
     ),
     GoRoute(

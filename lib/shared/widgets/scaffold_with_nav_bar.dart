@@ -58,6 +58,7 @@ class ScaffoldWithNavBar extends StatefulWidget {
   final Widget body;
   final int navBarIndex;
   final bool showDrawer;
+  final bool showAppBarDrawerButton;
   final VoidCallback? onBackPressed;
 
   const ScaffoldWithNavBar({
@@ -65,6 +66,7 @@ class ScaffoldWithNavBar extends StatefulWidget {
     required this.body,
     required this.navBarIndex,
     this.showDrawer = true,
+    this.showAppBarDrawerButton = true,
     this.onBackPressed,
   });
 
@@ -101,13 +103,18 @@ class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
           key: _scaffoldKey,
           drawerScrimColor: Colors.black.withOpacity(0.3),
           appBar: AppBar(
-            automaticallyImplyLeading: widget.onBackPressed == null,
+            automaticallyImplyLeading: false,
             leading: widget.onBackPressed != null
                 ? IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.black),
                     onPressed: widget.onBackPressed,
                   )
-                : null,
+                : (widget.showDrawer && widget.showAppBarDrawerButton
+                    ? IconButton(
+                        icon: const Icon(Icons.menu, color: Colors.black),
+                        onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                      )
+                    : null),
             title: Text(widget.title),
             backgroundColor: Colors.white,
             elevation: 0,
