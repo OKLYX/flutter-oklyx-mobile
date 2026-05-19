@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:flutter_oklyn_mobile/features/auth/presentation/pages/login_page.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/pages/package_search_page.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/pages/package_detail_page.dart';
+import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/pages/carrier_rate_search_page.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_detail_event.dart';
@@ -171,6 +172,13 @@ class AppRouter {
           ),
         );
       },
+    ),
+    GoRoute(
+      name: Routes.carrierRate,
+      path: Routes.carrierRatePath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: CarrierRateSearchPage(),
+      ),
     ),
     GoRoute(
       name: Routes.notFound,
