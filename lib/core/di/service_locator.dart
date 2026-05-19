@@ -57,6 +57,7 @@ import 'package:flutter_oklyn_mobile/features/package/domain/repositories/packag
 import 'package:flutter_oklyn_mobile/features/package/domain/usecases/create_package_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/package/domain/usecases/get_packages_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/package/domain/usecases/update_package_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/package/domain/usecases/delete_package_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_create_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_detail_bloc.dart';
@@ -314,6 +315,9 @@ void _registerPackageServices() {
   getIt.registerSingleton<UpdatePackageUseCase>(
     UpdatePackageUseCase(repository: getIt<PackageRepository>()),
   );
+  getIt.registerSingleton<DeletePackageUseCase>(
+    DeletePackageUseCase(repository: getIt<PackageRepository>()),
+  );
 
   // BLoC as factory to allow fresh state per page
   getIt.registerFactory<PackageListBloc>(
@@ -330,6 +334,7 @@ void _registerPackageServices() {
     () => PackageDetailBloc(
       getPackagesUseCase: getIt<GetPackagesUseCase>(),
       updatePackageUseCase: getIt<UpdatePackageUseCase>(),
+      deletePackageUseCase: getIt<DeletePackageUseCase>(),
     ),
   );
 }

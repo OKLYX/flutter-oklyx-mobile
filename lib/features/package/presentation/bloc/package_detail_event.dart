@@ -14,3 +14,9 @@ class UpdateFormField extends PackageDetailEvent {
 }
 
 class SubmitPackageUpdate extends PackageDetailEvent {}
+
+class StartDeletingPackage extends PackageDetailEvent {}
+
+class ConfirmDeletePackage extends PackageDetailEvent {}
+
+class CancelDeletePackage extends PackageDetailEvent {}

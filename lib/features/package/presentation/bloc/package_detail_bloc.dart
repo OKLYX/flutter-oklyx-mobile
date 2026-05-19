@@ -2,22 +2,28 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/package/domain/entities/package.dart';
 import 'package:flutter_oklyn_mobile/features/package/domain/usecases/get_packages_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/package/domain/usecases/update_package_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/package/domain/usecases/delete_package_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_detail_event.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_detail_state.dart';
 
 class PackageDetailBloc extends Bloc<PackageDetailEvent, PackageDetailState> {
   final GetPackagesUseCase getPackagesUseCase;
   final UpdatePackageUseCase updatePackageUseCase;
+  final DeletePackageUseCase deletePackageUseCase;
   List<Package> _allPackages = [];
 
   PackageDetailBloc({
     required this.getPackagesUseCase,
     required this.updatePackageUseCase,
+    required this.deletePackageUseCase,
   }) : super(PackageDetailInitial()) {
     on<LoadPackageDetail>(_onLoadPackageDetail);
     on<StartEditingPackage>(_onStartEditingPackage);
     on<UpdateFormField>(_onUpdateFormField);
     on<SubmitPackageUpdate>(_onSubmitPackageUpdate);
+    on<StartDeletingPackage>(_onStartDeleting);
+    on<ConfirmDeletePackage>(_onConfirmDelete);
+    on<CancelDeletePackage>(_onCancelDelete);
   }
 
   Future<void> _onLoadPackageDetail(LoadPackageDetail event, Emitter<PackageDetailState> emit) async {
@@ -124,4 +130,53 @@ class PackageDetailBloc extends Bloc<PackageDetailEvent, PackageDetailState> {
   }
 
   bool _isFormValid(Map<String, dynamic> data) => _validateAll(data).isEmpty;
+
+  Future<void> _onStartDeleting(
+    StartDeletingPackage event,
+    Emitter<PackageDetailState> emit,
+  ) async {
+    if (state is PackageDetailLoaded) {
+      final package = (state as PackageDetailLoaded).package;
+      emit(PackageDetailConfirmingDelete(package: package));
+    } else if (state is PackageDetailEditing) {
+      final package = (state as PackageDetailEditing).originalPackage;
+      emit(PackageDetailConfirmingDelete(package: package));
+    }
+  }
+
+  Future<void> _onConfirmDelete(
+    ConfirmDeletePackage event,
+    Emitter<PackageDetailState> emit,
+  ) async {
+    int? packageId;
+
+    final currentState = state;
+    if (currentState is PackageDetailLoaded) {
+      packageId = currentState.package.id;
+    } else if (currentState is PackageDetailEditing) {
+      packageId = currentState.originalPackage.id;
+    } else if (currentState is PackageDetailConfirmingDelete) {
+      packageId = currentState.package.id;
+    }
+
+    if (packageId == null) return;
+
+    emit(PackageDetailDeleting());
+    final result = await deletePackageUseCase(packageId);
+
+    result.fold(
+      (failure) => emit(PackageDetailError(failure.message)),
+      (_) => emit(PackageDetailDeleteSuccess()),
+    );
+  }
+
+  Future<void> _onCancelDelete(
+    CancelDeletePackage event,
+    Emitter<PackageDetailState> emit,
+  ) async {
+    if (state is PackageDetailConfirmingDelete) {
+      final package = (state as PackageDetailConfirmingDelete).package;
+      emit(PackageDetailLoaded(package));
+    }
+  }
 }

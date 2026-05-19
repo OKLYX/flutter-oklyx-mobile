@@ -27,6 +27,16 @@ class PackageDetailSubmitting extends PackageDetailState {}
 
 class PackageDetailUpdateSuccess extends PackageDetailState {}
 
+class PackageDetailConfirmingDelete extends PackageDetailState {
+  final Package package;
+
+  PackageDetailConfirmingDelete({required this.package});
+}
+
+class PackageDetailDeleting extends PackageDetailState {}
+
+class PackageDetailDeleteSuccess extends PackageDetailState {}
+
 class PackageDetailError extends PackageDetailState {
   final String message;
   PackageDetailError(this.message);

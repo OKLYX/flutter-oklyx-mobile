@@ -13,6 +13,7 @@ abstract class PackageRemoteDataSource {
     required String effectiveDate,
     required bool isDefault,
   });
+  Future<void> deletePackage(int id);
 }
 
 class PackageRemoteDataSourceImpl implements PackageRemoteDataSource {
@@ -86,6 +87,23 @@ class PackageRemoteDataSourceImpl implements PackageRemoteDataSource {
       throw ServerException(message);
     } catch (e) {
       throw ServerException('Failed to update package: ${e.runtimeType}');
+    }
+  }
+
+  @override
+  Future<void> deletePackage(int id) async {
+    try {
+      final response = await dio.delete('/api/admin/package/$id');
+      if (response.statusCode == 200) {
+        return;
+      } else {
+        throw ServerException('Failed to delete package');
+      }
+    } on DioException catch (e) {
+      final message = e.message ?? 'Failed to delete package';
+      throw ServerException(message);
+    } catch (e) {
+      throw ServerException('Failed to delete package: ${e.runtimeType}');
     }
   }
 }

@@ -59,4 +59,16 @@ class PackageRepositoryImpl implements PackageRepository {
       return Left(NetworkFailure('네트워크 연결을 확인해주세요.'));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> deletePackage(int id) async {
+    try {
+      await remoteDataSource.deletePackage(id);
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } on SocketException {
+      return Left(NetworkFailure('네트워크 연결을 확인해주세요.'));
+    }
+  }
 }

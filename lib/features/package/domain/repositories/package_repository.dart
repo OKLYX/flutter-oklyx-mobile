@@ -13,4 +13,5 @@ abstract class PackageRepository {
     required String effectiveDate,
     required bool isDefault,
   });
+  Future<Either<Failure, void>> deletePackage(int id);
 }

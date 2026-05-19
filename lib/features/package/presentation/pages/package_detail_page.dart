@@ -28,6 +28,9 @@ class PackageDetailPage extends StatelessWidget {
               const SnackBar(content: Text('상자비가 수정되었습니다.')),
             );
             context.read<PackageListBloc>().add(FetchPackages());
+            context.go(Routes.packageSearchPath);
+          } else if (state is PackageDetailDeleteSuccess) {
+            context.go(Routes.packageSearchPath);
           } else if (state is PackageDetailError) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -95,10 +98,21 @@ class _PackageDetailsView extends StatelessWidget {
                   'ID: ${package.id}',
                   style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
-                ElevatedButton.icon(
-                  onPressed: onEdit,
-                  icon: const Icon(Icons.edit),
-                  label: const Text('수정'),
+                Row(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: onEdit,
+                      icon: const Icon(Icons.edit),
+                      label: const Text('수정'),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: () => _showDeleteDialog(context, package),
+                      icon: const Icon(Icons.delete),
+                      label: const Text('삭제'),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -276,4 +290,48 @@ class _FormField extends StatelessWidget {
       onChanged: onChanged,
     ),
   );
+}
+
+void _showDeleteDialog(BuildContext context, Package package) {
+  showDialog(
+    context: context,
+    builder: (ctx) => _DeleteConfirmationDialog(
+      package: package,
+      onConfirm: () {
+        Navigator.pop(ctx);
+        context.read<PackageDetailBloc>().add(ConfirmDeletePackage());
+      },
+      onCancel: () => Navigator.pop(ctx),
+    ),
+  );
+}
+
+class _DeleteConfirmationDialog extends StatelessWidget {
+  final Package package;
+  final VoidCallback onConfirm;
+  final VoidCallback onCancel;
+  const _DeleteConfirmationDialog({
+    required this.package,
+    required this.onConfirm,
+    required this.onCancel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('상자비 삭제'),
+      content: Text('${package.type}을(를) 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.'),
+      actions: [
+        TextButton(
+          onPressed: onCancel,
+          child: const Text('취소'),
+        ),
+        FilledButton(
+          onPressed: onConfirm,
+          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          child: const Text('삭제'),
+        ),
+      ],
+    );
+  }
 }
