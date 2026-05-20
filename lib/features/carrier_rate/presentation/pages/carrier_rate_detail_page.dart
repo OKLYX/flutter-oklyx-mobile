@@ -22,6 +22,22 @@ class CarrierRateDetailPage extends StatefulWidget {
 class _CarrierRateDetailPageState extends State<CarrierRateDetailPage> {
   bool _isEditing = false;
 
+  void _showDeleteDialog(BuildContext context, CarrierRate carrierRate) {
+    showDialog(
+      context: context,
+      builder: (ctx) => _DeleteConfirmationDialog(
+        carrierRate: carrierRate,
+        onConfirm: () {
+          Navigator.pop(ctx);
+          context.read<CarrierRateDetailBloc>().add(
+                ConfirmDeleteCarrierRate(carrierRate.id),
+              );
+        },
+        onCancel: () => Navigator.pop(ctx),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithNavBar(
@@ -43,6 +59,12 @@ class _CarrierRateDetailPageState extends State<CarrierRateDetailPage> {
             context.read<CarrierRateListBloc>().add(FetchCarrierRates());
             setState(() => _isEditing = false);
             context.go(Routes.carrierRatePath);
+          } else if (state is CarrierRateDetailDeleteSuccess) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('택배비가 삭제되었습니다.')),
+            );
+            context.read<CarrierRateListBloc>().add(FetchCarrierRates());
+            context.go(Routes.carrierRatePath);
           } else if (state is CarrierRateDetailError) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -59,17 +81,19 @@ class _CarrierRateDetailPageState extends State<CarrierRateDetailPage> {
               return const Center(child: CircularProgressIndicator());
             }
             if (state is CarrierRateDetailLoaded) {
+              final carrierRate = CarrierRate(
+                id: widget.carrierRateId,
+                carrier: state.carrier.value,
+                type: state.type.value,
+                cost: state.cost.value,
+                effectiveDate: state.effectiveDate.value,
+                isDefault: state.isDefault,
+              );
               return _CarrierRateDetailsView(
-                carrierRate: CarrierRate(
-                  id: widget.carrierRateId,
-                  carrier: state.carrier.value,
-                  type: state.type.value,
-                  cost: state.cost.value,
-                  effectiveDate: state.effectiveDate.value,
-                  isDefault: state.isDefault,
-                ),
+                carrierRate: carrierRate,
                 isEditing: _isEditing,
                 onEditChange: (editing) => setState(() => _isEditing = editing),
+                onDeletePressed: () => _showDeleteDialog(context, carrierRate),
               );
             }
             if (state is CarrierRateDetailError) {
@@ -99,10 +123,12 @@ class _CarrierRateDetailsView extends StatefulWidget {
   final CarrierRate carrierRate;
   final bool isEditing;
   final Function(bool) onEditChange;
+  final VoidCallback onDeletePressed;
   const _CarrierRateDetailsView({
     required this.carrierRate,
     required this.isEditing,
     required this.onEditChange,
+    required this.onDeletePressed,
   });
 
   @override
@@ -152,12 +178,25 @@ class _CarrierRateDetailsViewState extends State<_CarrierRateDetailsView> {
                     'ID: ${widget.carrierRate.id}',
                     style: const TextStyle(color: Colors.grey, fontSize: 12),
                   ),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      widget.onEditChange(true);
-                    },
-                    icon: const Icon(Icons.edit),
-                    label: const Text('수정'),
+                  Row(
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          widget.onEditChange(true);
+                        },
+                        icon: const Icon(Icons.edit),
+                        label: const Text('수정'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: widget.onDeletePressed,
+                        icon: const Icon(Icons.delete),
+                        label: const Text('삭제'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -298,4 +337,37 @@ class _DetailField extends StatelessWidget {
       ],
     ),
   );
+}
+
+class _DeleteConfirmationDialog extends StatelessWidget {
+  final CarrierRate carrierRate;
+  final VoidCallback onConfirm;
+  final VoidCallback onCancel;
+
+  const _DeleteConfirmationDialog({
+    required this.carrierRate,
+    required this.onConfirm,
+    required this.onCancel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('택배비 삭제'),
+      content: Text(
+        '${carrierRate.carrier}의 ${carrierRate.type}을(를) 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: onCancel,
+          child: const Text('취소'),
+        ),
+        FilledButton(
+          onPressed: onConfirm,
+          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          child: const Text('삭제'),
+        ),
+      ],
+    );
+  }
 }

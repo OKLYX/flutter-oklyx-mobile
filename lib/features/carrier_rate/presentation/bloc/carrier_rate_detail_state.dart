@@ -52,3 +52,7 @@ class CarrierRateDetailError extends CarrierRateDetailState {
 }
 
 class CarrierRateDetailSuccess extends CarrierRateDetailState {}
+
+class CarrierRateDetailDeleting extends CarrierRateDetailState {}
+
+class CarrierRateDetailDeleteSuccess extends CarrierRateDetailState {}

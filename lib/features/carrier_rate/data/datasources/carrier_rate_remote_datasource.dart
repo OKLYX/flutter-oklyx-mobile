@@ -8,6 +8,7 @@ abstract class CarrierRateRemoteDataSource {
   Future<CarrierRateModel> getCarrierRate(int id);
   Future<CarrierRateModel> createCarrierRate(CreateCarrierRateParams params);
   Future<CarrierRateModel> updateCarrierRate(int id, UpdateCarrierRateParams params);
+  Future<void> deleteCarrierRate(int id);
 }
 
 class CarrierRateRemoteDataSourceImpl implements CarrierRateRemoteDataSource {
@@ -49,5 +50,15 @@ class CarrierRateRemoteDataSourceImpl implements CarrierRateRemoteDataSource {
     );
     final Map<String, dynamic> data = response.data['data'] as Map<String, dynamic>;
     return CarrierRateModel.fromJson(data);
+  }
+
+  @override
+  Future<void> deleteCarrierRate(int id) async {
+    final response = await dio.delete('/api/admin/carrier-rate/$id');
+    if (response.statusCode == 200) {
+      return;
+    } else {
+      throw Exception('Failed to delete carrier rate');
+    }
   }
 }

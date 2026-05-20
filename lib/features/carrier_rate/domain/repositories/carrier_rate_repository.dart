@@ -20,4 +20,5 @@ abstract class CarrierRateRepository {
     String effectiveDate,
     bool isDefault,
   );
+  Future<Either<Failure, void>> deleteCarrierRate(int id);
 }

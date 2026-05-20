@@ -34,3 +34,8 @@ class UpdateCarrierRateSubmitted extends CarrierRateDetailEvent {
   final int id;
   UpdateCarrierRateSubmitted(this.id);
 }
+
+class ConfirmDeleteCarrierRate extends CarrierRateDetailEvent {
+  final int id;
+  ConfirmDeleteCarrierRate(this.id);
+}

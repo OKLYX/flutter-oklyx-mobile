@@ -68,6 +68,7 @@ import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/usecases/get_c
 import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/usecases/get_carrier_rate_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/usecases/create_carrier_rate_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/usecases/update_carrier_rate_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/usecases/delete_carrier_rate_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_create_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_detail_bloc.dart';
@@ -374,6 +375,9 @@ void _registerCarrierRateServices() {
   getIt.registerSingleton<UpdateCarrierRateUseCase>(
     UpdateCarrierRateUseCase(repository: getIt<CarrierRateRepository>()),
   );
+  getIt.registerSingleton<DeleteCarrierRateUseCase>(
+    DeleteCarrierRateUseCase(repository: getIt<CarrierRateRepository>()),
+  );
 
   // BLoC as factory to allow fresh state per page
   getIt.registerFactory<CarrierRateListBloc>(
@@ -390,6 +394,7 @@ void _registerCarrierRateServices() {
     () => CarrierRateDetailBloc(
       getCarrierRateUseCase: getIt<GetCarrierRateUseCase>(),
       updateCarrierRateUseCase: getIt<UpdateCarrierRateUseCase>(),
+      deleteCarrierRateUseCase: getIt<DeleteCarrierRateUseCase>(),
     ),
   );
 }

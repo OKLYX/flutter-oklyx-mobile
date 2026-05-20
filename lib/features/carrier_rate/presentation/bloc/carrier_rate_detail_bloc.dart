@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/usecases/get_carrier_rate_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/usecases/update_carrier_rate_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/usecases/delete_carrier_rate_usecase.dart';
 import 'carrier_rate_create_state.dart';
 import 'carrier_rate_detail_event.dart';
 import 'carrier_rate_detail_state.dart';
@@ -9,10 +10,12 @@ class CarrierRateDetailBloc
     extends Bloc<CarrierRateDetailEvent, CarrierRateDetailState> {
   final GetCarrierRateUseCase getCarrierRateUseCase;
   final UpdateCarrierRateUseCase updateCarrierRateUseCase;
+  final DeleteCarrierRateUseCase deleteCarrierRateUseCase;
 
   CarrierRateDetailBloc({
     required this.getCarrierRateUseCase,
     required this.updateCarrierRateUseCase,
+    required this.deleteCarrierRateUseCase,
   }) : super(CarrierRateDetailLoading()) {
     on<FetchCarrierRateDetail>(_onFetch);
     on<CarrierDetailChanged>(_onCarrierChanged);
@@ -21,6 +24,7 @@ class CarrierRateDetailBloc
     on<EffectiveDateDetailChanged>(_onDateChanged);
     on<IsDefaultDetailChanged>(_onIsDefaultChanged);
     on<UpdateCarrierRateSubmitted>(_onSubmitted);
+    on<ConfirmDeleteCarrierRate>(_onConfirmDelete);
   }
 
   Future<void> _onFetch(
@@ -106,6 +110,22 @@ class CarrierRateDetailBloc
       (failure) =>
           emit(curState.copyWith(isSubmitting: false, error: failure.message)),
       (_) => emit(CarrierRateDetailSuccess()),
+    );
+  }
+
+  Future<void> _onConfirmDelete(
+    ConfirmDeleteCarrierRate event,
+    Emitter emit,
+  ) async {
+    if (state is! CarrierRateDetailLoaded) return;
+
+    emit(CarrierRateDetailDeleting());
+
+    final result = await deleteCarrierRateUseCase(event.id);
+
+    result.fold(
+      (failure) => emit(CarrierRateDetailError(failure.message)),
+      (_) => emit(CarrierRateDetailDeleteSuccess()),
     );
   }
 }

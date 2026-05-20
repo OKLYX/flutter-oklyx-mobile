@@ -108,4 +108,21 @@ class CarrierRateRepositoryImpl implements CarrierRateRepository {
       return Left(ServerFailure(e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> deleteCarrierRate(int id) async {
+    try {
+      await remoteDataSource.deleteCarrierRate(id);
+      return const Right(null);
+    } on DioException catch (e) {
+      return Left(
+        ServerFailure(
+          e.message ?? 'Failed to delete carrier rate',
+          statusCode: e.response?.statusCode,
+        ),
+      );
+    } catch (e) {
+      return Left(ServerFailure('Failed to delete carrier rate'));
+    }
+  }
 }
