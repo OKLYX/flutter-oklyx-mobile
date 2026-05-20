@@ -7,7 +7,11 @@ import 'package:flutter_oklyn_mobile/features/auth/presentation/pages/login_page
 import 'package:flutter_oklyn_mobile/features/package/presentation/pages/package_search_page.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/pages/package_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/pages/carrier_rate_search_page.dart';
+import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/pages/carrier_rate_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_create_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_detail_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_detail_event.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_detail_event.dart';
@@ -178,11 +182,42 @@ class AppRouter {
       name: Routes.carrierRate,
       path: Routes.carrierRatePath,
       pageBuilder: (context, state) => NoTransitionPage(
-        child: BlocProvider<CarrierRateListBloc>(
-          create: (context) => GetIt.instance<CarrierRateListBloc>(),
+        child: MultiBlocProvider(
+          providers: [
+            BlocProvider<CarrierRateListBloc>(
+              create: (context) => GetIt.instance<CarrierRateListBloc>(),
+            ),
+            BlocProvider<CarrierRateCreateBloc>(
+              create: (context) => GetIt.instance<CarrierRateCreateBloc>(),
+            ),
+            BlocProvider<CarrierRateDetailBloc>(
+              create: (context) => GetIt.instance<CarrierRateDetailBloc>(),
+            ),
+          ],
           child: const CarrierRateSearchPage(),
         ),
       ),
+    ),
+    GoRoute(
+      name: Routes.carrierRateDetail,
+      path: Routes.carrierRateDetailPath,
+      pageBuilder: (context, state) {
+        final id = int.parse(state.pathParameters['id']!);
+        return NoTransitionPage(
+          child: MultiBlocProvider(
+            providers: [
+              BlocProvider<CarrierRateDetailBloc>(
+                create: (context) => GetIt.instance<CarrierRateDetailBloc>()
+                  ..add(FetchCarrierRateDetail(id)),
+              ),
+              BlocProvider<CarrierRateListBloc>(
+                create: (context) => GetIt.instance<CarrierRateListBloc>(),
+              ),
+            ],
+            child: CarrierRateDetailPage(carrierRateId: id),
+          ),
+        );
+      },
     ),
     GoRoute(
       name: Routes.notFound,

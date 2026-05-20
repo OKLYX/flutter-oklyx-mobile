@@ -60,6 +60,7 @@ class _PackageSearchPageState extends State<PackageSearchPage> {
       title: '상자비',
       navBarIndex: 2,
       showDrawer: true,
+      showAppBarDrawerButton: false,
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(

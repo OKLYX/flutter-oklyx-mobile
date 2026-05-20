@@ -15,6 +15,7 @@ class Routes {
   static const String packageSearch = 'packageSearch';
   static const String packageDetail = 'packageDetail';
   static const String carrierRate = 'carrierRate';
+  static const String carrierRateDetail = 'carrierRateDetail';
   static const String notFound = 'notFound';
 
   static const String splashPath = '/';
@@ -33,5 +34,6 @@ class Routes {
   static const String packageSearchPath = '/costs/package/search';
   static const String packageDetailPath = '/costs/package/:id';
   static const String carrierRatePath = '/costs/carrier/search';
+  static const String carrierRateDetailPath = '/costs/carrier/:id';
   static const String notFoundPath = '/404';
 }

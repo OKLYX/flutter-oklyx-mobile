@@ -65,7 +65,12 @@ import 'package:flutter_oklyn_mobile/features/carrier_rate/data/datasources/carr
 import 'package:flutter_oklyn_mobile/features/carrier_rate/data/repositories/carrier_rate_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/repositories/carrier_rate_repository.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/usecases/get_carrier_rates_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/usecases/get_carrier_rate_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/usecases/create_carrier_rate_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/usecases/update_carrier_rate_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_create_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_detail_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -360,10 +365,32 @@ void _registerCarrierRateServices() {
   getIt.registerSingleton<GetCarrierRatesUseCase>(
     GetCarrierRatesUseCase(repository: getIt<CarrierRateRepository>()),
   );
+  getIt.registerSingleton<GetCarrierRateUseCase>(
+    GetCarrierRateUseCase(repository: getIt<CarrierRateRepository>()),
+  );
+  getIt.registerSingleton<CreateCarrierRateUseCase>(
+    CreateCarrierRateUseCase(repository: getIt<CarrierRateRepository>()),
+  );
+  getIt.registerSingleton<UpdateCarrierRateUseCase>(
+    UpdateCarrierRateUseCase(repository: getIt<CarrierRateRepository>()),
+  );
 
   // BLoC as factory to allow fresh state per page
   getIt.registerFactory<CarrierRateListBloc>(
     () => CarrierRateListBloc(getCarrierRatesUseCase: getIt<GetCarrierRatesUseCase>()),
+  );
+
+  // CarrierRateCreateBloc as factory to allow fresh state per dialog
+  getIt.registerFactory<CarrierRateCreateBloc>(
+    () => CarrierRateCreateBloc(createCarrierRateUseCase: getIt<CreateCarrierRateUseCase>()),
+  );
+
+  // CarrierRateDetailBloc as factory to allow fresh state per dialog
+  getIt.registerFactory<CarrierRateDetailBloc>(
+    () => CarrierRateDetailBloc(
+      getCarrierRateUseCase: getIt<GetCarrierRateUseCase>(),
+      updateCarrierRateUseCase: getIt<UpdateCarrierRateUseCase>(),
+    ),
   );
 }
 

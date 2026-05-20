@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_list_event.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_list_state.dart';
+import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/dialogs/carrier_rate_input_dialog.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/widgets/carrier_rate_list_item.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 
@@ -29,7 +32,7 @@ class _CarrierRateSearchPageState extends State<CarrierRateSearchPage> {
   }
 
   void _onAddCarrierRatePressed() {
-    // Phase 04: Open create/edit dialog
+    showCreateCarrierRateDialog(context);
   }
 
   @override
@@ -108,7 +111,10 @@ class _CarrierRateSearchPageState extends State<CarrierRateSearchPage> {
                         return CarrierRateListItem(
                           carrierRate: rate,
                           onTap: () {
-                            // Phase 04: Navigate to detail/edit page
+                            context.goNamed(
+                              Routes.carrierRateDetail,
+                              pathParameters: {'id': rate.id.toString()},
+                            );
                           },
                         );
                       },
