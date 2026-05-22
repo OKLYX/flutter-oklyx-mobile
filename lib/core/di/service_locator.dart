@@ -75,7 +75,10 @@ import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/car
 import 'package:flutter_oklyn_mobile/features/category/data/datasources/category_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/category/data/repositories/category_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/category/domain/repositories/category_repository.dart';
+import 'package:flutter_oklyn_mobile/features/category/domain/usecases/delete_category_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/category/domain/usecases/get_categories_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/category/domain/usecases/get_category_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_bloc.dart';
 
 final getIt = GetIt.instance;
@@ -421,9 +424,24 @@ void _registerCategoryServices() {
     GetCategoriesUseCase(repository: getIt<CategoryRepository>()),
   );
 
+  getIt.registerSingleton<GetCategoryUseCase>(
+    GetCategoryUseCase(repository: getIt<CategoryRepository>()),
+  );
+
+  getIt.registerSingleton<DeleteCategoryUseCase>(
+    DeleteCategoryUseCase(repository: getIt<CategoryRepository>()),
+  );
+
   // Category Presentation Layer — registerFactory to allow fresh state per page
   getIt.registerFactory<CategoryListBloc>(
     () => CategoryListBloc(getCategoriesUseCase: getIt<GetCategoriesUseCase>()),
+  );
+
+  getIt.registerFactory<CategoryDetailBloc>(
+    () => CategoryDetailBloc(
+      getCategoryUseCase: getIt<GetCategoryUseCase>(),
+      deleteCategoryUseCase: getIt<DeleteCategoryUseCase>(),
+    ),
   );
 }
 

@@ -10,6 +10,10 @@ abstract class CategoryRemoteDataSource {
     required String platform,
     required String platformCategoryId,
   });
+
+  Future<CategoryModel> getCategory(int id);
+
+  Future<void> deleteCategory(int id);
 }
 
 class CategoryRemoteDataSourceImpl implements CategoryRemoteDataSource {
@@ -54,6 +58,39 @@ class CategoryRemoteDataSourceImpl implements CategoryRemoteDataSource {
       throw ServerException(e.message ?? 'Failed to create category');
     } catch (e) {
       throw ServerException('Failed to create category: ${e.runtimeType}');
+    }
+  }
+
+  @override
+  Future<CategoryModel> getCategory(int id) async {
+    try {
+      final response = await dio.get('/api/admin/category/$id');
+
+      if (response.statusCode == 200) {
+        final data = response.data['data'] as Map<String, dynamic>;
+        return CategoryModel.fromJson(data);
+      } else {
+        throw ServerException(
+          response.data['message'] ?? 'Failed to fetch category',
+        );
+      }
+    } on DioException catch (e) {
+      throw ServerException(e.message ?? 'Network error');
+    }
+  }
+
+  @override
+  Future<void> deleteCategory(int id) async {
+    try {
+      final response = await dio.delete('/api/admin/category/$id');
+
+      if (response.statusCode != 204 && response.statusCode != 200) {
+        throw ServerException(
+          response.data['message'] ?? 'Failed to delete category',
+        );
+      }
+    } on DioException catch (e) {
+      throw ServerException(e.message ?? 'Network error');
     }
   }
 }

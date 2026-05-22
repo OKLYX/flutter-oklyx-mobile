@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_event.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_state.dart';
@@ -101,6 +103,12 @@ class _CategoryListPageState extends State<CategoryListPage> {
                               style: const TextStyle(fontSize: 12),
                             ),
                             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                            onTap: () {
+                              context.pushNamed(
+                                Routes.categoryDetail,
+                                pathParameters: {'id': category.id.toString()},
+                              );
+                            },
                           ),
                         );
                       },

@@ -47,4 +47,32 @@ class CategoryRepositoryImpl implements CategoryRepository {
       return Left(UnknownFailure(e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, Category>> getCategory(int id) async {
+    try {
+      final category = await remoteDataSource.getCategory(id);
+      return Right(category);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } on SocketException {
+      return Left(NetworkFailure('Network error'));
+    } catch (e) {
+      return Left(UnknownFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteCategory(int id) async {
+    try {
+      await remoteDataSource.deleteCategory(id);
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } on SocketException {
+      return Left(NetworkFailure('Network error'));
+    } catch (e) {
+      return Left(UnknownFailure(e.toString()));
+    }
+  }
 }
