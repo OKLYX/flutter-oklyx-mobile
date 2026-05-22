@@ -179,6 +179,13 @@ class AppRouter {
       },
     ),
     GoRoute(
+      name: Routes.categoryList,
+      path: Routes.categoryListPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: Placeholder(),
+      ),
+    ),
+    GoRoute(
       name: Routes.carrierRate,
       path: Routes.carrierRatePath,
       pageBuilder: (context, state) => NoTransitionPage(
