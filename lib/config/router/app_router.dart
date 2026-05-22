@@ -3,7 +3,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/auth/presentation/pages/login_page.dart';
+import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/category/presentation/pages/category_list_page.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/pages/package_search_page.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/pages/package_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/pages/carrier_rate_search_page.dart';
@@ -181,8 +184,11 @@ class AppRouter {
     GoRoute(
       name: Routes.categoryList,
       path: Routes.categoryListPath,
-      pageBuilder: (context, state) => const NoTransitionPage(
-        child: Placeholder(),
+      pageBuilder: (context, state) => NoTransitionPage(
+        child: BlocProvider(
+          create: (context) => getIt<CategoryListBloc>(),
+          child: const CategoryListPage(),
+        ),
       ),
     ),
     GoRoute(

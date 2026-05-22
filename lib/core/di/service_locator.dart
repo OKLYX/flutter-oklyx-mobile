@@ -72,6 +72,11 @@ import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/usecases/delet
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_create_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_detail_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/category/data/datasources/category_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/category/data/repositories/category_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/category/domain/repositories/category_repository.dart';
+import 'package:flutter_oklyn_mobile/features/category/domain/usecases/get_categories_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -84,6 +89,7 @@ void setupServiceLocator() {
   _registerUserServices();
   _registerPackageServices();
   _registerCarrierRateServices();
+  _registerCategoryServices();
   _registerErrorHandling();
 }
 
@@ -396,6 +402,28 @@ void _registerCarrierRateServices() {
       updateCarrierRateUseCase: getIt<UpdateCarrierRateUseCase>(),
       deleteCarrierRateUseCase: getIt<DeleteCarrierRateUseCase>(),
     ),
+  );
+}
+
+void _registerCategoryServices() {
+  // Category Data Layer
+  getIt.registerSingleton<CategoryRemoteDataSource>(
+    CategoryRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
+  );
+
+  // Category Domain Layer
+  getIt.registerSingleton<CategoryRepository>(
+    CategoryRepositoryImpl(remoteDataSource: getIt<CategoryRemoteDataSource>()),
+  );
+
+  // Category Use Cases
+  getIt.registerSingleton<GetCategoriesUseCase>(
+    GetCategoriesUseCase(repository: getIt<CategoryRepository>()),
+  );
+
+  // Category Presentation Layer — registerFactory to allow fresh state per page
+  getIt.registerFactory<CategoryListBloc>(
+    () => CategoryListBloc(getCategoriesUseCase: getIt<GetCategoriesUseCase>()),
   );
 }
 
