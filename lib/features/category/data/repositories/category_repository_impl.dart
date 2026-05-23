@@ -31,12 +31,14 @@ class CategoryRepositoryImpl implements CategoryRepository {
     required String name,
     required String platform,
     required String platformCategoryId,
+    int? parentId,
   }) async {
     try {
       final category = await remoteDataSource.createCategory(
         name: name,
         platform: platform,
         platformCategoryId: platformCategoryId,
+        parentId: parentId,
       );
       return Right(category);
     } on ServerException catch (e) {
@@ -52,6 +54,32 @@ class CategoryRepositoryImpl implements CategoryRepository {
   Future<Either<Failure, Category>> getCategory(int id) async {
     try {
       final category = await remoteDataSource.getCategory(id);
+      return Right(category);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } on SocketException {
+      return Left(NetworkFailure('Network error'));
+    } catch (e) {
+      return Left(UnknownFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Category>> updateCategory({
+    required int id,
+    required String name,
+    required String platform,
+    required String platformCategoryId,
+    required int? parentId,
+  }) async {
+    try {
+      final category = await remoteDataSource.updateCategory(
+        id: id,
+        name: name,
+        platform: platform,
+        platformCategoryId: platformCategoryId,
+        parentId: parentId,
+      );
       return Right(category);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));

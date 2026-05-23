@@ -9,9 +9,18 @@ abstract class CategoryRemoteDataSource {
     required String name,
     required String platform,
     required String platformCategoryId,
+    int? parentId,
   });
 
   Future<CategoryModel> getCategory(int id);
+
+  Future<CategoryModel> updateCategory({
+    required int id,
+    required String name,
+    required String platform,
+    required String platformCategoryId,
+    required int? parentId,
+  });
 
   Future<void> deleteCategory(int id);
 }
@@ -39,6 +48,7 @@ class CategoryRemoteDataSourceImpl implements CategoryRemoteDataSource {
     required String name,
     required String platform,
     required String platformCategoryId,
+    int? parentId,
   }) async {
     try {
       final response = await dio.post(
@@ -47,17 +57,19 @@ class CategoryRemoteDataSourceImpl implements CategoryRemoteDataSource {
           'name': name,
           'platform': platform,
           'platformCategoryId': platformCategoryId,
+          if (parentId != null) 'parentId': parentId,
         },
       );
-      final dynamic dataField = response.data['data'];
-      if (dataField is! Map) {
-        throw ServerException('Invalid API response format');
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final data = response.data['data'] as Map<String, dynamic>;
+        return CategoryModel.fromJson(data);
+      } else {
+        throw ServerException(
+          response.data['message'] ?? 'Failed to create category',
+        );
       }
-      return CategoryModel.fromJson(dataField as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw ServerException(e.message ?? 'Failed to create category');
-    } catch (e) {
-      throw ServerException('Failed to create category: ${e.runtimeType}');
+      throw ServerException(e.message ?? 'Network error');
     }
   }
 
@@ -72,6 +84,38 @@ class CategoryRemoteDataSourceImpl implements CategoryRemoteDataSource {
       } else {
         throw ServerException(
           response.data['message'] ?? 'Failed to fetch category',
+        );
+      }
+    } on DioException catch (e) {
+      throw ServerException(e.message ?? 'Network error');
+    }
+  }
+
+  @override
+  Future<CategoryModel> updateCategory({
+    required int id,
+    required String name,
+    required String platform,
+    required String platformCategoryId,
+    required int? parentId,
+  }) async {
+    try {
+      final response = await dio.patch(
+        '/api/admin/category/$id',
+        data: {
+          'name': name,
+          'platform': platform,
+          'platformCategoryId': platformCategoryId,
+          if (parentId != null) 'parentId': parentId,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data['data'] as Map<String, dynamic>;
+        return CategoryModel.fromJson(data);
+      } else {
+        throw ServerException(
+          response.data['message'] ?? 'Failed to update category',
         );
       }
     } on DioException catch (e) {

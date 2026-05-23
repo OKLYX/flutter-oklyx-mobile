@@ -75,11 +75,14 @@ import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/car
 import 'package:flutter_oklyn_mobile/features/category/data/datasources/category_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/category/data/repositories/category_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/category/domain/repositories/category_repository.dart';
+import 'package:flutter_oklyn_mobile/features/category/domain/usecases/create_category_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/category/domain/usecases/delete_category_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/category/domain/usecases/get_categories_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/category/domain/usecases/get_category_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/category/domain/usecases/update_category_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/create_category_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -432,16 +435,29 @@ void _registerCategoryServices() {
     DeleteCategoryUseCase(repository: getIt<CategoryRepository>()),
   );
 
-  // Category Presentation Layer — registerFactory to allow fresh state per page
-  getIt.registerFactory<CategoryListBloc>(
-    () => CategoryListBloc(getCategoriesUseCase: getIt<GetCategoriesUseCase>()),
+  getIt.registerSingleton<CreateCategoryUseCase>(
+    CreateCategoryUseCase(repository: getIt<CategoryRepository>()),
+  );
+
+  getIt.registerSingleton<UpdateCategoryUseCase>(
+    UpdateCategoryUseCase(repository: getIt<CategoryRepository>()),
+  );
+
+  // Category Presentation Layer — registerSingleton for CategoryListBloc to share state
+  getIt.registerSingleton<CategoryListBloc>(
+    CategoryListBloc(getCategoriesUseCase: getIt<GetCategoriesUseCase>()),
   );
 
   getIt.registerFactory<CategoryDetailBloc>(
     () => CategoryDetailBloc(
       getCategoryUseCase: getIt<GetCategoryUseCase>(),
+      updateCategoryUseCase: getIt<UpdateCategoryUseCase>(),
       deleteCategoryUseCase: getIt<DeleteCategoryUseCase>(),
     ),
+  );
+
+  getIt.registerFactory<CreateCategoryBloc>(
+    () => CreateCategoryBloc(createCategoryUseCase: getIt<CreateCategoryUseCase>()),
   );
 }
 

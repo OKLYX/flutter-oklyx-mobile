@@ -8,8 +8,10 @@ import 'package:flutter_oklyn_mobile/features/auth/presentation/pages/login_page
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_detail_event.dart';
+import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/create_category_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/pages/category_list_page.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/pages/category_detail_page.dart';
+import 'package:flutter_oklyn_mobile/features/category/presentation/pages/create_category_page.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/pages/package_search_page.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/pages/package_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/pages/carrier_rate_search_page.dart';
@@ -191,6 +193,23 @@ class AppRouter {
         child: BlocProvider(
           create: (context) => getIt<CategoryListBloc>(),
           child: const CategoryListPage(),
+        ),
+      ),
+    ),
+    GoRoute(
+      name: Routes.categoryCreate,
+      path: Routes.categoryCreatePath,
+      pageBuilder: (context, state) => NoTransitionPage(
+        child: MultiBlocProvider(
+          providers: [
+            BlocProvider<CategoryListBloc>.value(
+              value: getIt<CategoryListBloc>(),
+            ),
+            BlocProvider<CreateCategoryBloc>(
+              create: (context) => getIt<CreateCategoryBloc>(),
+            ),
+          ],
+          child: const CreateCategoryPage(),
         ),
       ),
     ),

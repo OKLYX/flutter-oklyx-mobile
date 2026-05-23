@@ -9,9 +9,18 @@ abstract class CategoryRepository {
     required String name,
     required String platform,
     required String platformCategoryId,
+    int? parentId,
   });
 
   Future<Either<Failure, Category>> getCategory(int id);
+
+  Future<Either<Failure, Category>> updateCategory({
+    required int id,
+    required String name,
+    required String platform,
+    required String platformCategoryId,
+    required int? parentId,
+  });
 
   Future<Either<Failure, void>> deleteCategory(int id);
 }

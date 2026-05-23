@@ -26,8 +26,8 @@ class CategoryModel extends Category {
       platform: json['platform'] as String,
       platformCategoryId: json['platformCategoryId'] as String,
       parentId: json['parentId'] as int?,
-      createdDate: DateTime.parse(json['createdDate'] as String),
-      modifiedDate: DateTime.parse(json['modifiedDate'] as String),
+      createdDate: json['createdDate'] != null ? DateTime.parse(json['createdDate'] as String) : DateTime.now(),
+      modifiedDate: json['modifiedDate'] != null ? DateTime.parse(json['modifiedDate'] as String) : DateTime.now(),
     );
   }
 

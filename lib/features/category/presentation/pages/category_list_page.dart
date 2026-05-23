@@ -5,7 +5,6 @@ import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_event.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_state.dart';
-import 'package:flutter_oklyn_mobile/features/category/presentation/dialogs/category_input_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 
 class CategoryListPage extends StatefulWidget {
@@ -30,13 +29,13 @@ class _CategoryListPageState extends State<CategoryListPage> {
     super.dispose();
   }
 
-  void _onAddCategoryPressed() {
-    showDialog(
-      context: context,
-      builder: (ctx) => CategoryInputDialog(
-        onClose: () => Navigator.pop(context),
-      ),
-    );
+  void _onAddCategoryPressed() async {
+    final result = await context.pushNamed(Routes.categoryCreate);
+    if (result == true) {
+      if (mounted) {
+        context.read<CategoryListBloc>().add(FetchCategoriesRequested());
+      }
+    }
   }
 
   @override
