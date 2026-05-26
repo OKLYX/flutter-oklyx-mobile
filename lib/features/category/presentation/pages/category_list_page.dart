@@ -102,11 +102,14 @@ class _CategoryListPageState extends State<CategoryListPage> {
                               style: const TextStyle(fontSize: 12),
                             ),
                             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                            onTap: () {
-                              context.pushNamed(
+                            onTap: () async {
+                              await context.pushNamed(
                                 Routes.categoryDetail,
                                 pathParameters: {'id': category.id.toString()},
                               );
+                              if (mounted) {
+                                context.read<CategoryListBloc>().add(FetchCategoriesRequested());
+                              }
                             },
                           ),
                         );

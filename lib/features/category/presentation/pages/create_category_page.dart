@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_event.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_state.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/create_category_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/create_category_event.dart';
@@ -29,6 +30,7 @@ class _CreateCategoryPageState extends State<CreateCategoryPage> {
     _nameController = TextEditingController();
     _platformController = TextEditingController();
     _platformCategoryIdController = TextEditingController();
+    context.read<CategoryListBloc>().add(FetchCategoriesRequested());
   }
 
   @override

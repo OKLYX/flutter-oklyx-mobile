@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/domain/usecases/delete_category_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/category/domain/usecases/get_category_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/category/domain/usecases/update_category_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_event_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_detail_event.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_detail_state.dart';
 
@@ -9,6 +10,7 @@ class CategoryDetailBloc extends Bloc<CategoryDetailEvent, CategoryDetailState> 
   final GetCategoryUseCase getCategoryUseCase;
   final UpdateCategoryUseCase updateCategoryUseCase;
   final DeleteCategoryUseCase deleteCategoryUseCase;
+  final CategoryEventBloc categoryEventBloc;
 
   String _editName = '';
   String _editPlatform = '';
@@ -19,6 +21,7 @@ class CategoryDetailBloc extends Bloc<CategoryDetailEvent, CategoryDetailState> 
     required this.getCategoryUseCase,
     required this.updateCategoryUseCase,
     required this.deleteCategoryUseCase,
+    required this.categoryEventBloc,
   }) : super(CategoryDetailInitial()) {
     on<FetchCategoryRequested>(_onFetchCategoryRequested);
     on<NameDetailChanged>(_onNameChanged);
@@ -116,7 +119,11 @@ class CategoryDetailBloc extends Bloc<CategoryDetailEvent, CategoryDetailState> 
 
     result.fold(
       (failure) => emit(CategoryDetailError(message: failure.message)),
-      (_) => emit(CategoryDetailDeleteSuccess()),
+      (_) {
+        // 삭제 성공 → CategoryEventBloc으로 브로드캐스트
+        categoryEventBloc.add(CategoryDeleted(event.categoryId));
+        emit(CategoryDetailDeleteSuccess());
+      },
     );
   }
 }

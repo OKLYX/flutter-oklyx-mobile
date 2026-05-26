@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/auth/presentation/pages/login_page.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_event.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_detail_event.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/create_category_bloc.dart';
@@ -219,9 +220,17 @@ class AppRouter {
       pageBuilder: (context, state) {
         final categoryId = int.parse(state.pathParameters['id']!);
         return NoTransitionPage(
-          child: BlocProvider(
-            create: (context) => getIt<CategoryDetailBloc>()
-              ..add(FetchCategoryRequested(categoryId: categoryId)),
+          child: MultiBlocProvider(
+            providers: [
+              BlocProvider<CategoryListBloc>(
+                create: (context) => getIt<CategoryListBloc>()
+                  ..add(FetchCategoriesRequested()),
+              ),
+              BlocProvider<CategoryDetailBloc>(
+                create: (context) => getIt<CategoryDetailBloc>()
+                  ..add(FetchCategoryRequested(categoryId: categoryId)),
+              ),
+            ],
             child: CategoryDetailPage(categoryId: categoryId),
           ),
         );

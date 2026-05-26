@@ -7,3 +7,9 @@ final class SearchCategoriesRequested extends CategoryListEvent {
 
   SearchCategoriesRequested({required this.query});
 }
+
+final class CategoryDeletedLocally extends CategoryListEvent {
+  final int categoryId;
+
+  CategoryDeletedLocally({required this.categoryId});
+}

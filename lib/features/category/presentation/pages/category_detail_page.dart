@@ -57,6 +57,10 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
         }
       },
       body: BlocListener<CategoryDetailBloc, CategoryDetailState>(
+          listenWhen: (previous, current) =>
+              current is CategoryDetailSuccess ||
+              current is CategoryDetailDeleteSuccess ||
+              current is CategoryDetailError,
           listener: (context, state) {
             if (state is CategoryDetailSuccess) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -70,8 +74,12 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('카테고리가 삭제되었습니다.')),
               );
-              context.read<CategoryListBloc>().add(FetchCategoriesRequested());
-              context.go(Routes.categoryListPath);
+              Future.delayed(const Duration(milliseconds: 500), () {
+                if (mounted) {
+                  GetIt.instance<CategoryListBloc>().add(FetchCategoriesRequested());
+                  context.pop();
+                }
+              });
             } else if (state is CategoryDetailError) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -201,7 +209,7 @@ class _CategoryDetailsViewState extends State<_CategoryDetailsView> {
       );
       return parent.name;
     } catch (e) {
-      return '${widget.category.category.parentId} (삭제됨?)';
+      return '(삭제됨 - ID: ${widget.category.category.parentId})';
     }
   }
 
@@ -224,9 +232,7 @@ class _CategoryDetailsViewState extends State<_CategoryDetailsView> {
   @override
   Widget build(BuildContext context) {
     if (!widget.isEditing) {
-      final categoryListBloc = GetIt.instance<CategoryListBloc>();
       return BlocBuilder<CategoryListBloc, CategoryListState>(
-        bloc: categoryListBloc,
         builder: (context, state) {
           final List<Category> categories = state is CategoryListLoaded ? state.categories : [];
           final parentCategoryName = _getParentCategoryName(categories);
@@ -284,9 +290,7 @@ class _CategoryDetailsViewState extends State<_CategoryDetailsView> {
       );
     }
 
-    final categoryListBloc = GetIt.instance<CategoryListBloc>();
     return BlocBuilder<CategoryListBloc, CategoryListState>(
-      bloc: categoryListBloc,
       builder: (context, listState) {
         final List<Category> categories = listState is CategoryListLoaded ? listState.categories : [];
 

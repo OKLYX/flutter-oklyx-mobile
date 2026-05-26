@@ -80,6 +80,7 @@ import 'package:flutter_oklyn_mobile/features/category/domain/usecases/delete_ca
 import 'package:flutter_oklyn_mobile/features/category/domain/usecases/get_categories_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/category/domain/usecases/get_category_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/category/domain/usecases/update_category_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_event_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/create_category_bloc.dart';
@@ -443,9 +444,17 @@ void _registerCategoryServices() {
     UpdateCategoryUseCase(repository: getIt<CategoryRepository>()),
   );
 
-  // Category Presentation Layer — registerSingleton for CategoryListBloc to share state
-  getIt.registerSingleton<CategoryListBloc>(
-    CategoryListBloc(getCategoriesUseCase: getIt<GetCategoriesUseCase>()),
+  // Category Event BLoC - Singleton으로 등록 (모든 category BLoC이 공유)
+  getIt.registerSingleton<CategoryEventBloc>(
+    CategoryEventBloc(),
+  );
+
+  // Category Presentation Layer - CategoryEventBloc 주입
+  getIt.registerFactory<CategoryListBloc>(
+    () => CategoryListBloc(
+      getCategoriesUseCase: getIt<GetCategoriesUseCase>(),
+      categoryEventBloc: getIt<CategoryEventBloc>(),
+    ),
   );
 
   getIt.registerFactory<CategoryDetailBloc>(
@@ -453,6 +462,7 @@ void _registerCategoryServices() {
       getCategoryUseCase: getIt<GetCategoryUseCase>(),
       updateCategoryUseCase: getIt<UpdateCategoryUseCase>(),
       deleteCategoryUseCase: getIt<DeleteCategoryUseCase>(),
+      categoryEventBloc: getIt<CategoryEventBloc>(),
     ),
   );
 
