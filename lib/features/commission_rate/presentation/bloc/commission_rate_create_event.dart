@@ -1,11 +1,26 @@
 sealed class CommissionRateCreateEvent {}
 
-class CreateCommissionRate extends CommissionRateCreateEvent {
+class PlatformSelected extends CommissionRateCreateEvent {
+  final String platform;
+  PlatformSelected(this.platform);
+}
+
+class CategorySelected extends CommissionRateCreateEvent {
+  final int categoryId;
+  CategorySelected(this.categoryId);
+}
+
+class RateChanged extends CommissionRateCreateEvent {
+  final String rate;
+  RateChanged(this.rate);
+}
+
+class CreateCommissionRateSubmitted extends CommissionRateCreateEvent {
   final String platform;
   final int? categoryId;
   final double rate;
 
-  CreateCommissionRate({
+  CreateCommissionRateSubmitted({
     required this.platform,
     this.categoryId,
     required this.rate,

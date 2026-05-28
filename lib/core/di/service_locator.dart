@@ -463,7 +463,10 @@ void _registerCommissionRateServices() {
 
   // CommissionRateCreateBloc as factory to allow fresh state per dialog
   getIt.registerFactory<CommissionRateCreateBloc>(
-    () => CommissionRateCreateBloc(getIt<CreateCommissionRateUseCase>()),
+    () => CommissionRateCreateBloc(
+      getIt<CreateCommissionRateUseCase>(),
+      getIt<GetCategoriesUseCase>(),
+    ),
   );
 
   // CommissionRateDetailBloc as factory to allow fresh state per page

@@ -6,6 +6,7 @@ import '../../../../config/router/routes.dart';
 import '../bloc/commission_rate_list_bloc.dart';
 import '../bloc/commission_rate_list_event.dart';
 import '../bloc/commission_rate_list_state.dart';
+import '../dialogs/commission_rate_input_dialog.dart';
 import '../widgets/commission_rate_list_item.dart';
 import '../../../../shared/widgets/scaffold_with_nav_bar.dart';
 
@@ -32,7 +33,7 @@ class _CommissionRateSearchPageState extends State<CommissionRateSearchPage> {
   }
 
   void _onAddCommissionRatePressed() {
-    // 다음 프롬프트: showCreateCommissionRateDialog(context)
+    showCreateCommissionRateDialog(context);
   }
 
   @override
