@@ -6,14 +6,16 @@ class CommissionRateListInitial extends CommissionRateListState {}
 
 class CommissionRateListLoading extends CommissionRateListState {}
 
-class CommissionRateListSuccess extends CommissionRateListState {
+class CommissionRateListLoaded extends CommissionRateListState {
   final List<CommissionRate> commissionRates;
 
-  CommissionRateListSuccess(this.commissionRates);
+  CommissionRateListLoaded({required this.commissionRates});
 }
+
+class CommissionRateListEmpty extends CommissionRateListState {}
 
 class CommissionRateListError extends CommissionRateListState {
   final String message;
 
-  CommissionRateListError(this.message);
+  CommissionRateListError({required this.message});
 }

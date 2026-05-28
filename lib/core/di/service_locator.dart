@@ -106,10 +106,10 @@ void setupServiceLocator() {
   _registerProductServices();
   _registerStockServices();
   _registerUserServices();
+  _registerCategoryServices();
   _registerPackageServices();
   _registerCarrierRateServices();
   _registerCommissionRateServices();
-  _registerCategoryServices();
   _registerErrorHandling();
 }
 
@@ -433,7 +433,10 @@ void _registerCommissionRateServices() {
 
   // Repository
   getIt.registerSingleton<CommissionRateRepository>(
-    CommissionRateRepositoryImpl(getIt<CommissionRateRemoteDataSource>()),
+    CommissionRateRepositoryImpl(
+      getIt<CommissionRateRemoteDataSource>(),
+      getIt<CategoryRemoteDataSource>(),
+    ),
   );
 
   // Use Cases

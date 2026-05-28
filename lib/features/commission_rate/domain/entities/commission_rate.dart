@@ -2,6 +2,7 @@ class CommissionRate {
   final int id;
   final String platform;
   final int? categoryId;
+  final String? categoryName;
   final double rate;
   final bool isDefault;
 
@@ -9,6 +10,7 @@ class CommissionRate {
     required this.id,
     required this.platform,
     this.categoryId,
+    this.categoryName,
     required this.rate,
     required this.isDefault,
   });
@@ -17,6 +19,7 @@ class CommissionRate {
     int? id,
     String? platform,
     int? categoryId,
+    String? categoryName,
     double? rate,
     bool? isDefault,
   }) {
@@ -24,6 +27,7 @@ class CommissionRate {
       id: id ?? this.id,
       platform: platform ?? this.platform,
       categoryId: categoryId ?? this.categoryId,
+      categoryName: categoryName ?? this.categoryName,
       rate: rate ?? this.rate,
       isDefault: isDefault ?? this.isDefault,
     );

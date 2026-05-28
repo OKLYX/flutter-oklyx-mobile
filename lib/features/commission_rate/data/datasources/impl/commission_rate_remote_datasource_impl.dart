@@ -13,13 +13,19 @@ class CommissionRateRemoteDataSourceImpl implements CommissionRateRemoteDataSour
   Future<List<CommissionRateModel>> getCommissionRates() async {
     try {
       final response = await _dio.get('/api/admin/commission-rate');
-      if (response.statusCode == 200) {
-        final List<dynamic> data = response.data;
-        return data.map((json) => CommissionRateModel.fromJson(json as Map<String, dynamic>)).toList();
+      final dynamic dataField = response.data['data'];
+      if (dataField is! List) {
+        throw ServerException('Invalid API response format');
       }
-      throw ServerException('Failed to fetch commission rates');
+      final List<dynamic> data = dataField;
+      return data
+          .map((json) => CommissionRateModel.fromJson(json as Map<String, dynamic>))
+          .toList();
     } on DioException catch (e) {
-      throw ServerException(e.message ?? 'Unknown error');
+      final message = e.message ?? 'Failed to fetch commission rates';
+      throw ServerException(message);
+    } catch (e) {
+      throw ServerException('Failed to fetch commission rates: ${e.runtimeType}');
     }
   }
 
@@ -27,12 +33,16 @@ class CommissionRateRemoteDataSourceImpl implements CommissionRateRemoteDataSour
   Future<CommissionRateModel> getCommissionRate(int id) async {
     try {
       final response = await _dio.get('/api/admin/commission-rate/$id');
-      if (response.statusCode == 200) {
-        return CommissionRateModel.fromJson(response.data as Map<String, dynamic>);
+      final dynamic dataField = response.data['data'];
+      if (dataField is! Map) {
+        throw ServerException('Invalid API response format');
       }
-      throw ServerException('Failed to fetch commission rate');
+      return CommissionRateModel.fromJson(dataField as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw ServerException(e.message ?? 'Unknown error');
+      final message = e.message ?? 'Failed to fetch commission rate';
+      throw ServerException(message);
+    } catch (e) {
+      throw ServerException('Failed to fetch commission rate: ${e.runtimeType}');
     }
   }
 
@@ -43,12 +53,16 @@ class CommissionRateRemoteDataSourceImpl implements CommissionRateRemoteDataSour
         '/api/admin/commission-rate',
         data: params,
       );
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return CommissionRateModel.fromJson(response.data as Map<String, dynamic>);
+      final dynamic dataField = response.data['data'];
+      if (dataField is! Map) {
+        throw ServerException('Invalid API response format');
       }
-      throw ServerException('Failed to create commission rate');
+      return CommissionRateModel.fromJson(dataField as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw ServerException(e.message ?? 'Failed to create');
+      final message = e.message ?? 'Failed to create commission rate';
+      throw ServerException(message);
+    } catch (e) {
+      throw ServerException('Failed to create commission rate: ${e.runtimeType}');
     }
   }
 
@@ -59,12 +73,16 @@ class CommissionRateRemoteDataSourceImpl implements CommissionRateRemoteDataSour
         '/api/admin/commission-rate/$id',
         data: params,
       );
-      if (response.statusCode == 200) {
-        return CommissionRateModel.fromJson(response.data as Map<String, dynamic>);
+      final dynamic dataField = response.data['data'];
+      if (dataField is! Map) {
+        throw ServerException('Invalid API response format');
       }
-      throw ServerException('Failed to update commission rate');
+      return CommissionRateModel.fromJson(dataField as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw ServerException(e.message ?? 'Failed to update');
+      final message = e.message ?? 'Failed to update commission rate';
+      throw ServerException(message);
+    } catch (e) {
+      throw ServerException('Failed to update commission rate: ${e.runtimeType}');
     }
   }
 
@@ -72,11 +90,16 @@ class CommissionRateRemoteDataSourceImpl implements CommissionRateRemoteDataSour
   Future<void> deleteCommissionRate(int id) async {
     try {
       final response = await _dio.delete('/api/admin/commission-rate/$id');
-      if (response.statusCode != 200 && response.statusCode != 204) {
+      if (response.statusCode == 200) {
+        return;
+      } else {
         throw ServerException('Failed to delete commission rate');
       }
     } on DioException catch (e) {
-      throw ServerException(e.message ?? 'Failed to delete');
+      final message = e.message ?? 'Failed to delete commission rate';
+      throw ServerException(message);
+    } catch (e) {
+      throw ServerException('Failed to delete commission rate: ${e.runtimeType}');
     }
   }
 }

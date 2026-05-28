@@ -1,21 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../config/router/routes.dart';
 import '../../../../shared/widgets/scaffold_with_nav_bar.dart';
 
-class CommissionRateDetailPage extends StatefulWidget {
+class CommissionRateDetailPage extends StatelessWidget {
   final int id;
 
-  const CommissionRateDetailPage({
-    super.key,
-    required this.id,
-  });
+  const CommissionRateDetailPage({required this.id});
 
-  @override
-  State<CommissionRateDetailPage> createState() => _CommissionRateDetailPageState();
-}
-
-class _CommissionRateDetailPageState extends State<CommissionRateDetailPage> {
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithNavBar(
@@ -23,9 +16,9 @@ class _CommissionRateDetailPageState extends State<CommissionRateDetailPage> {
       navBarIndex: 2,
       showDrawer: true,
       showAppBarDrawerButton: false,
-      onBackPressed: () => context.pop(),
+      onBackPressed: () => context.go(Routes.commissionRatePath),
       body: Center(
-        child: Text('[수수료 상세 - ID: ${widget.id}, 다음 프롬프트에서 구현]'),
+        child: Text('[수수료 상세 - ID: $id, 다음 프롬프트에서 구현]'),
       ),
     );
   }
