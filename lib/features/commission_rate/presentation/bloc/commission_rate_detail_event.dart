@@ -2,26 +2,31 @@ sealed class CommissionRateDetailEvent {}
 
 class FetchCommissionRateDetail extends CommissionRateDetailEvent {
   final int id;
-
   FetchCommissionRateDetail(this.id);
 }
 
-class UpdateCommissionRate extends CommissionRateDetailEvent {
-  final int id;
-  final String? platform;
-  final int? categoryId;
-  final double? rate;
+class StartEditingCommissionRate extends CommissionRateDetailEvent {}
 
-  UpdateCommissionRate({
-    required this.id,
-    this.platform,
-    this.categoryId,
-    this.rate,
-  });
+class PlatformChanged extends CommissionRateDetailEvent {
+  final String platform;
+  PlatformChanged(this.platform);
 }
 
-class DeleteCommissionRate extends CommissionRateDetailEvent {
-  final int id;
+class CategoryChanged extends CommissionRateDetailEvent {
+  final int? categoryId;
+  CategoryChanged(this.categoryId);
+}
 
-  DeleteCommissionRate(this.id);
+class RateChanged extends CommissionRateDetailEvent {
+  final String rate;
+  RateChanged(this.rate);
+}
+
+class UpdateCommissionRateSubmitted extends CommissionRateDetailEvent {}
+
+class CancelEditing extends CommissionRateDetailEvent {}
+
+class ConfirmDeleteCommissionRate extends CommissionRateDetailEvent {
+  final int id;
+  ConfirmDeleteCommissionRate(this.id);
 }

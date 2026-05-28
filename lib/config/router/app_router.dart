@@ -308,9 +308,16 @@ class AppRouter {
       pageBuilder: (context, state) {
         final id = int.parse(state.pathParameters['id']!);
         return NoTransitionPage(
-          child: BlocProvider<CommissionRateDetailBloc>(
-            create: (context) => GetIt.instance<CommissionRateDetailBloc>(),
-            child: CommissionRateDetailPage(id: id),
+          child: MultiBlocProvider(
+            providers: [
+              BlocProvider<CommissionRateListBloc>(
+                create: (context) => GetIt.instance<CommissionRateListBloc>(),
+              ),
+              BlocProvider<CommissionRateDetailBloc>(
+                create: (context) => GetIt.instance<CommissionRateDetailBloc>(),
+              ),
+            ],
+            child: CommissionRateDetailPage(commissionRateId: id),
           ),
         );
       },

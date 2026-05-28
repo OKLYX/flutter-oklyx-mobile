@@ -1,4 +1,5 @@
 import '../../domain/entities/commission_rate.dart';
+import '../../../category/domain/entities/category.dart';
 
 sealed class CommissionRateDetailState {}
 
@@ -6,26 +7,52 @@ class CommissionRateDetailInitial extends CommissionRateDetailState {}
 
 class CommissionRateDetailLoading extends CommissionRateDetailState {}
 
-class CommissionRateDetailSuccess extends CommissionRateDetailState {
+class CommissionRateDetailLoaded extends CommissionRateDetailState {
   final CommissionRate commissionRate;
-
-  CommissionRateDetailSuccess(this.commissionRate);
+  CommissionRateDetailLoaded(this.commissionRate);
 }
 
-class CommissionRateDetailError extends CommissionRateDetailState {
-  final String message;
+class CommissionRateDetailEditing extends CommissionRateDetailState {
+  final CommissionRate originalCommissionRate;
+  final Map<String, dynamic> editingData;
+  final List<Category> availableCategories;
+  final Map<String, String?> validationErrors;
 
-  CommissionRateDetailError(this.message);
+  CommissionRateDetailEditing({
+    required this.originalCommissionRate,
+    required this.editingData,
+    required this.availableCategories,
+    this.validationErrors = const {},
+  });
+
+  CommissionRateDetailEditing copyWith({
+    CommissionRate? originalCommissionRate,
+    Map<String, dynamic>? editingData,
+    List<Category>? availableCategories,
+    Map<String, String?>? validationErrors,
+  }) {
+    return CommissionRateDetailEditing(
+      originalCommissionRate: originalCommissionRate ?? this.originalCommissionRate,
+      editingData: editingData ?? this.editingData,
+      availableCategories: availableCategories ?? this.availableCategories,
+      validationErrors: validationErrors ?? this.validationErrors,
+    );
+  }
 }
 
-class CommissionRateDetailUpdating extends CommissionRateDetailState {}
+class CommissionRateDetailSubmitting extends CommissionRateDetailState {
+  final CommissionRate commissionRate;
+  CommissionRateDetailSubmitting(this.commissionRate);
+}
 
 class CommissionRateDetailUpdateSuccess extends CommissionRateDetailState {
   final CommissionRate commissionRate;
-
   CommissionRateDetailUpdateSuccess(this.commissionRate);
 }
 
-class CommissionRateDetailDeleting extends CommissionRateDetailState {}
-
 class CommissionRateDetailDeleteSuccess extends CommissionRateDetailState {}
+
+class CommissionRateDetailError extends CommissionRateDetailState {
+  final String message;
+  CommissionRateDetailError(this.message);
+}

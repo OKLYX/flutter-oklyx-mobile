@@ -475,6 +475,7 @@ void _registerCommissionRateServices() {
       getIt<GetCommissionRateUseCase>(),
       getIt<UpdateCommissionRateUseCase>(),
       getIt<DeleteCommissionRateUseCase>(),
+      getIt<GetCategoriesUseCase>(),
     ),
   );
 }
