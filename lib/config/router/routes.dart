@@ -18,6 +18,8 @@ class Routes {
   static const String categoryCreate = 'categoryCreate';
   static const String carrierRate = 'carrierRate';
   static const String carrierRateDetail = 'carrierRateDetail';
+  static const String commissionRate = 'commissionRate';
+  static const String commissionRateDetail = 'commissionRateDetail';
   static const String notFound = 'notFound';
 
   static const String splashPath = '/';
@@ -41,5 +43,7 @@ class Routes {
   static const String categoryDetailPath = '/categories/:id';
   static const String carrierRatePath = '/costs/carrier/search';
   static const String carrierRateDetailPath = '/costs/carrier/:id';
+  static const String commissionRatePath = '/costs/commission/search';
+  static const String commissionRateDetailPath = '/costs/commission/:id';
   static const String notFoundPath = '/404';
 }

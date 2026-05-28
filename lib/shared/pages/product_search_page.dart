@@ -4,7 +4,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'dart:typed_data';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
@@ -14,7 +13,6 @@ import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_event.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_state.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
-import 'package:dio/dio.dart';
 
 class ProductSearchPage extends StatelessWidget {
   const ProductSearchPage({super.key});
@@ -36,23 +34,12 @@ class _ProductSearchView extends StatefulWidget {
 }
 
 class _ProductSearchViewState extends State<_ProductSearchView> {
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ScrollController _scrollController = ScrollController();
-  bool _previousDrawerState = false;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    WidgetsBinding.instance.addPersistentFrameCallback((_) {
-      final isOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
-      if (isOpen != _previousDrawerState) {
-        _previousDrawerState = isOpen;
-        if (mounted) {
-          setState(() {});
-        }
-      }
-    });
   }
 
   @override
@@ -73,193 +60,50 @@ class _ProductSearchViewState extends State<_ProductSearchView> {
   }
 
   @override
-  Widget build(BuildContext context) => Stack(
-    children: [
-      Scaffold(
-        key: _scaffoldKey,
-        drawerScrimColor: Colors.black.withOpacity(0.3),
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          title: const Text('상품 조회'),
-          backgroundColor: Colors.white,
-          elevation: 0,
-        ),
-        backgroundColor: Colors.grey[100],
-        body: BlocBuilder<ProductBloc, ProductState>(
-          builder: (context, state) {
-            if (state is ProductLoading) {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
-            }
+  Widget build(BuildContext context) => ScaffoldWithNavBar(
+    title: '상품 조회',
+    navBarIndex: 2,
+    showDrawer: true,
+    body: BlocBuilder<ProductBloc, ProductState>(
+      builder: (context, state) {
+        if (state is ProductLoading) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
 
-            if (state is ProductError) {
-              return Center(
-                child: Text(state.message),
-              );
-            }
+        if (state is ProductError) {
+          return Center(
+            child: Text(state.message),
+          );
+        }
 
-            if (state is ProductLoaded || state is ProductLoadingMore) {
-              final products = state is ProductLoaded
-                  ? state.products
-                  : (state as ProductLoadingMore).products;
-              final isLoadingMore = state is ProductLoadingMore;
+        if (state is ProductLoaded || state is ProductLoadingMore) {
+          final products = state is ProductLoaded
+              ? state.products
+              : (state as ProductLoadingMore).products;
+          final isLoadingMore = state is ProductLoadingMore;
 
-              return ListView.builder(
-                controller: _scrollController,
-                itemCount: products.length + (isLoadingMore ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (index == products.length) {
-                    return const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                    );
-                  }
-                  return _ProductCard(product: products[index]);
-                },
-              );
-            }
+          return ListView.builder(
+            controller: _scrollController,
+            itemCount: products.length + (isLoadingMore ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index == products.length) {
+                return const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
+              return _ProductCard(product: products[index]);
+            },
+          );
+        }
 
-            return const SizedBox.shrink();
-          },
-        ),
-        bottomNavigationBar: SizedBox.shrink(),
-        drawer: Drawer(
-          backgroundColor: Colors.white,
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              DrawerHeader(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                ),
-                child: const Text(
-                  'Menu',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              ExpansionTile(
-                shape: const Border(),
-                title: const Text('상품관리'),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16),
-                    child: ListTile(
-                      title: const Text('상품등록'),
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.go(Routes.productRegisterPath);
-                      },
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16),
-                    child: ListTile(
-                      title: const Text('상품조회'),
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.go(Routes.productSearchPath);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              ExpansionTile(
-                shape: const Border(),
-                title: const Text('입출고관리'),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16),
-                    child: ListTile(
-                      title: const Text('입출고 관리'),
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.go(Routes.stockInOutPath);
-                      },
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16),
-                    child: ListTile(
-                      title: const Text('입출고 조회'),
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.go(Routes.stockSearchPath);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-      Positioned(
-        bottom: 0,
-        left: 0,
-        right: 0,
-        child: Builder(
-          builder: (context) {
-            final isDrawerOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
-
-            return BottomNavigationBar(
-              type: BottomNavigationBarType.fixed,
-              currentIndex: 2,
-              selectedItemColor: const Color(0xffffc417),
-              items: [
-                BottomNavigationBarItem(
-                  icon: Icon(
-                    Icons.menu,
-                    color: isDrawerOpen ? const Color(0xffffc417) : Colors.black87,
-                  ),
-                  label: '',
-                ),
-                BottomNavigationBarItem(
-                  icon: const Icon(Icons.home),
-                  label: '',
-                ),
-                BottomNavigationBarItem(
-                  icon: const Icon(Icons.checklist),
-                  label: '',
-                ),
-                BottomNavigationBarItem(
-                  icon: const Icon(Icons.notifications),
-                  label: '',
-                ),
-              ],
-              onTap: (index) {
-                switch (index) {
-                  case 0:
-                    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
-                      Navigator.pop(context);
-                    } else {
-                      _scaffoldKey.currentState?.openDrawer();
-                    }
-                    setState(() {});
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) setState(() {});
-                    });
-                    break;
-                  case 1:
-                    context.go(Routes.dashboardPath);
-                    break;
-                  case 2:
-                    break;
-                  case 3:
-                    context.go(Routes.notificationPath);
-                    break;
-                }
-              },
-            );
-          },
-        ),
-      ),
-    ],
+        return const SizedBox.shrink();
+      },
+    ),
   );
 }
 
@@ -371,16 +215,18 @@ class _ProductCardState extends State<_ProductCard> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      'Barcode: ${widget.product.barcodeId}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
+                    if (widget.product.barcodeId != null)
+                      Text(
+                        'Barcode: ${widget.product.barcodeId}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
+                    if (widget.product.barcodeId != null)
+                      const SizedBox(height: 4),
                     if (widget.product.price != null)
                       Text(
                         '${widget.product.price} 원',

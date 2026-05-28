@@ -104,13 +104,6 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
   }
 
   void _onSubmit() {
-    if (!_barcodeAvailable || !_barcodeChecked) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('바코드 확인을 먼저 해주세요')),
-      );
-      return;
-    }
-
     final productName = _nameController.text.trim();
     if (productName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -119,9 +112,17 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
       return;
     }
 
+    final barcode = _barcodeController.text.trim();
+    if (barcode.isNotEmpty && (!_barcodeChecked || !_barcodeAvailable)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('바코드 중복 체크를 하세요')),
+      );
+      return;
+    }
+
     _bloc.add(RegisterProductRequested(
       productName: productName,
-      barcodeId: _barcodeController.text.trim(),
+      barcodeId: barcode.isEmpty ? null : barcode,
       brand: _brandController.text.trim().isEmpty ? null : _brandController.text.trim(),
       description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
       price: _priceController.text.isEmpty ? null : int.tryParse(_priceController.text),
@@ -201,36 +202,36 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
                     children: [
                       _buildSectionTitle('기본 정보'),
                       const SizedBox(height: 12),
+                      _buildTextField('상품명 *', _nameController),
+                      const SizedBox(height: 12),
                       _buildBarcodeField(),
                       const SizedBox(height: 12),
-                      _buildTextField('상품명 *', _nameController, enabled: _barcodeAvailable),
+                      _buildTextField('브랜드', _brandController),
                       const SizedBox(height: 12),
-                      _buildTextField('브랜드', _brandController, enabled: _barcodeAvailable),
-                      const SizedBox(height: 12),
-                      _buildTextField('설명', _descriptionController, maxLines: 3, enabled: _barcodeAvailable),
+                      _buildTextField('설명', _descriptionController, maxLines: 3),
                       const SizedBox(height: 24),
                       _buildSectionTitle('가격 및 판매처'),
                       const SizedBox(height: 12),
-                      _buildTextField('가격', _priceController, keyboardType: TextInputType.number, enabled: _barcodeAvailable),
+                      _buildTextField('가격', _priceController, keyboardType: TextInputType.number),
                       const SizedBox(height: 12),
-                      _buildTextField('판매처', _storeController, enabled: _barcodeAvailable),
+                      _buildTextField('판매처', _storeController),
                       const SizedBox(height: 12),
                       _buildUnitDropdown(),
                       const SizedBox(height: 24),
                       _buildSectionTitle('치수'),
                       const SizedBox(height: 12),
-                      _buildTextField('높이', _heightController, keyboardType: TextInputType.number, enabled: _barcodeAvailable),
+                      _buildTextField('높이', _heightController, keyboardType: TextInputType.number),
                       const SizedBox(height: 12),
-                      _buildTextField('길이', _lengthController, keyboardType: TextInputType.number, enabled: _barcodeAvailable),
+                      _buildTextField('길이', _lengthController, keyboardType: TextInputType.number),
                       const SizedBox(height: 12),
-                      _buildTextField('너비', _widthController, keyboardType: TextInputType.number, enabled: _barcodeAvailable),
+                      _buildTextField('너비', _widthController, keyboardType: TextInputType.number),
                       const SizedBox(height: 12),
-                      _buildTextField('무게', _weightController, keyboardType: TextInputType.number, enabled: _barcodeAvailable),
+                      _buildTextField('무게', _weightController, keyboardType: TextInputType.number),
                       const SizedBox(height: 32),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: (_bloc.state is ProductRegisterLoading || !_barcodeAvailable) ? null : _onSubmit,
+                          onPressed: _bloc.state is ProductRegisterLoading ? null : _onSubmit,
                           child: const Text('상품 등록'),
                         ),
                       ),
@@ -322,7 +323,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
         Expanded(
           child: Stack(
             children: [
-              _buildTextField('바코드 *', _barcodeController, enabled: !showResetButton),
+              _buildTextField('바코드', _barcodeController, enabled: !showResetButton),
               if (!showResetButton)
                 Positioned(
                   right: 8,
@@ -373,13 +374,11 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
             child: Text(unit.displayName),
           ))
           .toList(),
-      onChanged: _barcodeAvailable
-          ? (Unit? value) {
-            setState(() {
-              _selectedUnit = value;
-            });
-          }
-          : null,
+      onChanged: (Unit? value) {
+        setState(() {
+          _selectedUnit = value;
+        });
+      },
     );
   }
 }

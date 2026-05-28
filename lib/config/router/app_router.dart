@@ -21,6 +21,11 @@ import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/car
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_create_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_detail_event.dart';
+import 'package:flutter_oklyn_mobile/features/commission_rate/presentation/pages/commission_rate_search_page.dart';
+import 'package:flutter_oklyn_mobile/features/commission_rate/presentation/pages/commission_rate_detail_page.dart';
+import 'package:flutter_oklyn_mobile/features/commission_rate/presentation/bloc/commission_rate_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/commission_rate/presentation/bloc/commission_rate_create_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/commission_rate/presentation/bloc/commission_rate_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_detail_event.dart';
@@ -273,6 +278,39 @@ class AppRouter {
               ),
             ],
             child: CarrierRateDetailPage(carrierRateId: id),
+          ),
+        );
+      },
+    ),
+    GoRoute(
+      name: Routes.commissionRate,
+      path: Routes.commissionRatePath,
+      pageBuilder: (context, state) => NoTransitionPage(
+        child: MultiBlocProvider(
+          providers: [
+            BlocProvider<CommissionRateListBloc>(
+              create: (context) => GetIt.instance<CommissionRateListBloc>(),
+            ),
+            BlocProvider<CommissionRateCreateBloc>(
+              create: (context) => GetIt.instance<CommissionRateCreateBloc>(),
+            ),
+            BlocProvider<CommissionRateDetailBloc>(
+              create: (context) => GetIt.instance<CommissionRateDetailBloc>(),
+            ),
+          ],
+          child: const CommissionRateSearchPage(),
+        ),
+      ),
+    ),
+    GoRoute(
+      name: Routes.commissionRateDetail,
+      path: Routes.commissionRateDetailPath,
+      pageBuilder: (context, state) {
+        final id = int.parse(state.pathParameters['id']!);
+        return NoTransitionPage(
+          child: BlocProvider<CommissionRateDetailBloc>(
+            create: (context) => GetIt.instance<CommissionRateDetailBloc>(),
+            child: CommissionRateDetailPage(id: id),
           ),
         );
       },

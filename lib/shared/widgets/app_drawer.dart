@@ -139,6 +139,16 @@ class AppDrawer extends StatelessWidget {
                   },
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('수수료'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.commissionRatePath);
+                  },
+                ),
+              ),
             ],
           ),
               ],

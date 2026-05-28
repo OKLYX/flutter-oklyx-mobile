@@ -4,7 +4,7 @@ class ProductModel extends Product {
   const ProductModel({
     required super.id,
     required super.productName,
-    required super.barcodeId,
+    super.barcodeId,
     super.brand,
     super.price,
     super.store,
@@ -25,7 +25,7 @@ class ProductModel extends Product {
     return ProductModel(
       id: json['id'] as int,
       productName: json['productName'] as String,
-      barcodeId: json['barcodeId'] as String,
+      barcodeId: json['barcodeId'] as String?,
       brand: json['brand'] as String?,
       price: _toInt(json['price']),
       store: json['store'] as String?,

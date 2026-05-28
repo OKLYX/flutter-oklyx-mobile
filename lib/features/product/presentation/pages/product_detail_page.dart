@@ -313,12 +313,12 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         ),
                         const SizedBox(height: 12),
                         _TimestampsCard(product: product),
-                        if (!isEditing) ...[
+                        if (!isEditing && product.barcodeId != null) ...[
                           const SizedBox(height: 12),
                           BlocProvider.value(
                             value: getIt<StockBloc>(),
                             child: StockCard(
-                              barcodeId: product.barcodeId,
+                              barcodeId: product.barcodeId!,
                               productName: product.productName,
                             ),
                           ),
@@ -654,13 +654,14 @@ class _EditableBasicInfoCard extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 8),
-            Text(
-              'Barcode: ${product.barcodeId}',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
+            if (product.barcodeId != null)
+              Text(
+                'Barcode: ${product.barcodeId}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
               ),
-            ),
           ],
         ),
       ),

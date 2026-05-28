@@ -84,6 +84,18 @@ import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/categor
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/create_category_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/commission_rate/data/datasources/commission_rate_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/commission_rate/data/datasources/impl/commission_rate_remote_datasource_impl.dart';
+import 'package:flutter_oklyn_mobile/features/commission_rate/data/repositories/commission_rate_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/commission_rate/domain/repositories/commission_rate_repository.dart';
+import 'package:flutter_oklyn_mobile/features/commission_rate/domain/usecases/get_commission_rates_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/commission_rate/domain/usecases/get_commission_rate_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/commission_rate/domain/usecases/create_commission_rate_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/commission_rate/domain/usecases/update_commission_rate_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/commission_rate/domain/usecases/delete_commission_rate_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/commission_rate/presentation/bloc/commission_rate_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/commission_rate/presentation/bloc/commission_rate_create_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/commission_rate/presentation/bloc/commission_rate_detail_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -96,6 +108,7 @@ void setupServiceLocator() {
   _registerUserServices();
   _registerPackageServices();
   _registerCarrierRateServices();
+  _registerCommissionRateServices();
   _registerCategoryServices();
   _registerErrorHandling();
 }
@@ -408,6 +421,54 @@ void _registerCarrierRateServices() {
       getCarrierRateUseCase: getIt<GetCarrierRateUseCase>(),
       updateCarrierRateUseCase: getIt<UpdateCarrierRateUseCase>(),
       deleteCarrierRateUseCase: getIt<DeleteCarrierRateUseCase>(),
+    ),
+  );
+}
+
+void _registerCommissionRateServices() {
+  // Data Source
+  getIt.registerSingleton<CommissionRateRemoteDataSource>(
+    CommissionRateRemoteDataSourceImpl(getIt<DioClient>().dio),
+  );
+
+  // Repository
+  getIt.registerSingleton<CommissionRateRepository>(
+    CommissionRateRepositoryImpl(getIt<CommissionRateRemoteDataSource>()),
+  );
+
+  // Use Cases
+  getIt.registerSingleton<GetCommissionRatesUseCase>(
+    GetCommissionRatesUseCase(getIt<CommissionRateRepository>()),
+  );
+  getIt.registerSingleton<GetCommissionRateUseCase>(
+    GetCommissionRateUseCase(getIt<CommissionRateRepository>()),
+  );
+  getIt.registerSingleton<CreateCommissionRateUseCase>(
+    CreateCommissionRateUseCase(getIt<CommissionRateRepository>()),
+  );
+  getIt.registerSingleton<UpdateCommissionRateUseCase>(
+    UpdateCommissionRateUseCase(getIt<CommissionRateRepository>()),
+  );
+  getIt.registerSingleton<DeleteCommissionRateUseCase>(
+    DeleteCommissionRateUseCase(getIt<CommissionRateRepository>()),
+  );
+
+  // BLoC as factory to allow fresh state per page
+  getIt.registerFactory<CommissionRateListBloc>(
+    () => CommissionRateListBloc(getIt<GetCommissionRatesUseCase>()),
+  );
+
+  // CommissionRateCreateBloc as factory to allow fresh state per dialog
+  getIt.registerFactory<CommissionRateCreateBloc>(
+    () => CommissionRateCreateBloc(getIt<CreateCommissionRateUseCase>()),
+  );
+
+  // CommissionRateDetailBloc as factory to allow fresh state per page
+  getIt.registerFactory<CommissionRateDetailBloc>(
+    () => CommissionRateDetailBloc(
+      getIt<GetCommissionRateUseCase>(),
+      getIt<UpdateCommissionRateUseCase>(),
+      getIt<DeleteCommissionRateUseCase>(),
     ),
   );
 }

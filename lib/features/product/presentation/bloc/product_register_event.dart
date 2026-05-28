@@ -8,7 +8,7 @@ sealed class ProductRegisterEvent extends Equatable {
 
 class RegisterProductRequested extends ProductRegisterEvent {
   final String productName;
-  final String barcodeId;
+  final String? barcodeId;
   final String? brand;
   final String? description;
   final int? price;
@@ -21,7 +21,7 @@ class RegisterProductRequested extends ProductRegisterEvent {
 
   const RegisterProductRequested({
     required this.productName,
-    required this.barcodeId,
+    this.barcodeId,
     this.brand,
     this.description,
     this.price,

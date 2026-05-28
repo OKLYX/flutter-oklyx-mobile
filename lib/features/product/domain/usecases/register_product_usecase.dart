@@ -7,7 +7,7 @@ import 'package:flutter_oklyn_mobile/features/product/domain/repositories/produc
 
 class RegisterProductParams extends Equatable {
   final String productName;
-  final String barcodeId;
+  final String? barcodeId;
   final String? brand;
   final String? description;
   final int? price;
@@ -21,7 +21,7 @@ class RegisterProductParams extends Equatable {
 
   const RegisterProductParams({
     required this.productName,
-    required this.barcodeId,
+    this.barcodeId,
     this.brand,
     this.description,
     this.price,
@@ -52,7 +52,7 @@ class RegisterProductParams extends Equatable {
 
   Map<String, dynamic> toJson() => {
     'productName': productName,
-    'barcodeId': barcodeId,
+    if (barcodeId != null) 'barcodeId': barcodeId,
     if (brand != null) 'brand': brand,
     if (description != null) 'description': description,
     if (price != null) 'price': price,

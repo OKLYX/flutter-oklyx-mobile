@@ -3,7 +3,7 @@ import 'package:equatable/equatable.dart';
 class Product extends Equatable {
   final int id;
   final String productName;
-  final String barcodeId;
+  final String? barcodeId;
   final String? brand;
   final int? price;
   final String? store;
@@ -22,7 +22,7 @@ class Product extends Equatable {
   const Product({
     required this.id,
     required this.productName,
-    required this.barcodeId,
+    this.barcodeId,
     this.brand,
     this.price,
     this.store,
