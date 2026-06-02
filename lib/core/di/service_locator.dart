@@ -96,6 +96,10 @@ import 'package:flutter_oklyn_mobile/features/commission_rate/domain/usecases/de
 import 'package:flutter_oklyn_mobile/features/commission_rate/presentation/bloc/commission_rate_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/commission_rate/presentation/bloc/commission_rate_create_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/commission_rate/presentation/bloc/commission_rate_detail_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/seller/data/datasources/seller_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/seller/data/repositories/seller_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/seller/domain/repositories/seller_repository.dart';
+import 'package:flutter_oklyn_mobile/features/seller/domain/usecases/get_sellers_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_list_bloc.dart';
 
 final getIt = GetIt.instance;
@@ -428,9 +432,24 @@ void _registerCarrierRateServices() {
 }
 
 void _registerSellerServices() {
-  // SellerListBloc as singleton
-  getIt.registerSingleton<SellerListBloc>(
-    SellerListBloc(),
+  // Data Source
+  getIt.registerSingleton<SellerRemoteDataSource>(
+    SellerRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
+  );
+
+  // Repository
+  getIt.registerSingleton<SellerRepository>(
+    SellerRepositoryImpl(remoteDataSource: getIt<SellerRemoteDataSource>()),
+  );
+
+  // Use Cases
+  getIt.registerSingleton<GetSellersUseCase>(
+    GetSellersUseCase(repository: getIt<SellerRepository>()),
+  );
+
+  // BLoC as factory to allow fresh state per page
+  getIt.registerFactory<SellerListBloc>(
+    () => SellerListBloc(getSellersUseCase: getIt<GetSellersUseCase>()),
   );
 }
 

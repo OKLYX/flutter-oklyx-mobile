@@ -5,6 +5,7 @@ import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_list_event.dart';
 import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_list_state.dart';
+import 'package:flutter_oklyn_mobile/features/seller/presentation/widgets/seller_list_item.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 
 class SellerSearchPage extends StatefulWidget {
@@ -101,12 +102,11 @@ class _SellerSearchPageState extends State<SellerSearchPage> {
                       itemCount: state.sellers.length,
                       itemBuilder: (context, index) {
                         final seller = state.sellers[index];
-                        return Card(
-                          child: ListTile(
-                            title: Text(seller.sellerName ?? 'N/A'),
-                            subtitle: Text('사업자: ${seller.businessRegistration ?? 'N/A'}'),
-                            onTap: () => context.goNamed(Routes.sellerDetail,
-                              pathParameters: {'id': (seller.id ?? 0).toString()}),
+                        return SellerListItem(
+                          seller: seller,
+                          onTap: () => context.goNamed(
+                            Routes.sellerDetail,
+                            pathParameters: {'id': seller.id.toString()},
                           ),
                         );
                       },

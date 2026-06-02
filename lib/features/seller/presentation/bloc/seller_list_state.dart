@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../domain/entities/seller.dart';
 
 abstract class SellerListState extends Equatable {
   const SellerListState();
@@ -15,7 +16,7 @@ class SellerListLoading extends SellerListState {
 }
 
 class SellerListLoaded extends SellerListState {
-  final List<dynamic> sellers;
+  final List<Seller> sellers;
   const SellerListLoaded(this.sellers);
   @override
   List<Object?> get props => [sellers];
