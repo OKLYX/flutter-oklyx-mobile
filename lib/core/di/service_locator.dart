@@ -96,6 +96,7 @@ import 'package:flutter_oklyn_mobile/features/commission_rate/domain/usecases/de
 import 'package:flutter_oklyn_mobile/features/commission_rate/presentation/bloc/commission_rate_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/commission_rate/presentation/bloc/commission_rate_create_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/commission_rate/presentation/bloc/commission_rate_detail_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_list_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -109,6 +110,7 @@ void setupServiceLocator() {
   _registerCategoryServices();
   _registerPackageServices();
   _registerCarrierRateServices();
+  _registerSellerServices();
   _registerCommissionRateServices();
   _registerErrorHandling();
 }
@@ -422,6 +424,13 @@ void _registerCarrierRateServices() {
       updateCarrierRateUseCase: getIt<UpdateCarrierRateUseCase>(),
       deleteCarrierRateUseCase: getIt<DeleteCarrierRateUseCase>(),
     ),
+  );
+}
+
+void _registerSellerServices() {
+  // SellerListBloc as singleton
+  getIt.registerSingleton<SellerListBloc>(
+    SellerListBloc(),
   );
 }
 
