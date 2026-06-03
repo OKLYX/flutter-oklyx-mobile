@@ -62,13 +62,17 @@ class _SellerDetailPageState extends State<SellerDetailPage> {
             );
             context.read<SellerListBloc>().add(const FetchSellers());
             setState(() => _isEditing = false);
-            context.go(Routes.sellerPath);
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (mounted) context.go(Routes.sellerPath);
+            });
           } else if (state is SellerDetailDeleteSuccess) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('판매자가 삭제되었습니다.')),
             );
             context.read<SellerListBloc>().add(const FetchSellers());
-            context.go(Routes.sellerPath);
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (mounted) context.go(Routes.sellerPath);
+            });
           } else if (state is SellerDetailError) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
