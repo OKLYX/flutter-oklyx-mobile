@@ -19,6 +19,7 @@ class Routes {
   static const String carrierRate = 'carrierRate';
   static const String carrierRateDetail = 'carrierRateDetail';
   static const String seller = 'seller';
+  static const String sellerCreate = 'sellerCreate';
   static const String sellerDetail = 'sellerDetail';
   static const String commissionRate = 'commissionRate';
   static const String commissionRateDetail = 'commissionRateDetail';
@@ -46,6 +47,7 @@ class Routes {
   static const String carrierRatePath = '/costs/carrier/search';
   static const String carrierRateDetailPath = '/costs/carrier/:id';
   static const String sellerPath = '/costs/seller/search';
+  static const String sellerCreatePath = '/costs/seller/search/create';
   static const String sellerDetailPath = '/costs/seller/:id';
   static const String commissionRatePath = '/costs/commission/search';
   static const String commissionRateDetailPath = '/costs/commission/:id';

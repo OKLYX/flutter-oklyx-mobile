@@ -6,4 +6,6 @@ abstract class SellerRepository {
   Future<Either<Failure, List<Seller>>> getSellers();
 
   Future<Either<Failure, Seller>> getSellerById(int id);
+
+  Future<Either<Failure, Seller>> createSeller(String sellerName, String businessRegistration);
 }

@@ -22,7 +22,9 @@ import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/car
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_detail_event.dart';
 import 'package:flutter_oklyn_mobile/features/seller/presentation/pages/seller_search_page.dart';
+import 'package:flutter_oklyn_mobile/features/seller/presentation/pages/seller_create_page.dart';
 import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_create_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/commission_rate/presentation/pages/commission_rate_search_page.dart';
 import 'package:flutter_oklyn_mobile/features/commission_rate/presentation/pages/commission_rate_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/commission_rate/presentation/bloc/commission_rate_list_bloc.dart';
@@ -293,6 +295,18 @@ class AppRouter {
           child: const SellerSearchPage(),
         ),
       ),
+      routes: [
+        GoRoute(
+          name: Routes.sellerCreate,
+          path: 'create',
+          pageBuilder: (context, state) => NoTransitionPage(
+            child: BlocProvider<SellerCreateBloc>(
+              create: (context) => GetIt.instance<SellerCreateBloc>(),
+              child: const SellerCreatePage(),
+            ),
+          ),
+        ),
+      ],
     ),
     GoRoute(
       name: Routes.commissionRate,

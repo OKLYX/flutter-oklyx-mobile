@@ -31,10 +31,7 @@ class _SellerSearchPageState extends State<SellerSearchPage> {
   }
 
   void _onAddSellerPressed() {
-    // Phase 3: Will navigate to create page
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('판매자 추가 기능은 Phase 3에서 구현됩니다.')),
-    );
+    context.goNamed(Routes.sellerCreate);
   }
 
   @override
