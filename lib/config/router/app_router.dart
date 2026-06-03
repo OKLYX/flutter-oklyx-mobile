@@ -27,6 +27,7 @@ import 'package:flutter_oklyn_mobile/features/seller/presentation/pages/seller_d
 import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_create_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_detail_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_detail_event.dart';
 import 'package:flutter_oklyn_mobile/features/commission_rate/presentation/pages/commission_rate_search_page.dart';
 import 'package:flutter_oklyn_mobile/features/commission_rate/presentation/pages/commission_rate_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/commission_rate/presentation/bloc/commission_rate_list_bloc.dart';
@@ -292,8 +293,8 @@ class AppRouter {
       name: Routes.seller,
       path: Routes.sellerPath,
       pageBuilder: (context, state) => NoTransitionPage(
-        child: BlocProvider<SellerListBloc>(
-          create: (context) => GetIt.instance<SellerListBloc>(),
+        child: BlocProvider<SellerListBloc>.value(
+          value: GetIt.instance<SellerListBloc>(),
           child: const SellerSearchPage(),
         ),
       ),
@@ -314,8 +315,16 @@ class AppRouter {
           pageBuilder: (context, state) {
             final id = int.parse(state.pathParameters['id'] ?? '0');
             return NoTransitionPage(
-              child: BlocProvider<SellerDetailBloc>(
-                create: (context) => GetIt.instance<SellerDetailBloc>(),
+              child: MultiBlocProvider(
+                providers: [
+                  BlocProvider<SellerDetailBloc>(
+                    create: (context) => GetIt.instance<SellerDetailBloc>()
+                      ..add(LoadSellerDetail(id)),
+                  ),
+                  BlocProvider<SellerListBloc>.value(
+                    value: GetIt.instance<SellerListBloc>(),
+                  ),
+                ],
                 child: SellerDetailPage(sellerId: id),
               ),
             );

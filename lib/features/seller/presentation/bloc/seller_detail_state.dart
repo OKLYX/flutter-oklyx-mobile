@@ -33,3 +33,35 @@ class SellerDetailError extends SellerDetailState {
   @override
   List<Object?> get props => [message];
 }
+
+class SellerDetailEditing extends SellerDetailState {
+  final Seller originalSeller;
+  final Map<String, dynamic> editingData;
+  final Map<String, String?> validationErrors;
+
+  const SellerDetailEditing({
+    required this.originalSeller,
+    required this.editingData,
+    this.validationErrors = const {},
+  });
+
+  @override
+  List<Object?> get props => [originalSeller, editingData, validationErrors];
+}
+
+class SellerDetailSubmitting extends SellerDetailState {
+  const SellerDetailSubmitting();
+}
+
+class SellerDetailUpdateSuccess extends SellerDetailState {
+  final Seller updatedSeller;
+
+  const SellerDetailUpdateSuccess(this.updatedSeller);
+
+  @override
+  List<Object?> get props => [updatedSeller];
+}
+
+class SellerDetailDeleteSuccess extends SellerDetailState {
+  const SellerDetailDeleteSuccess();
+}

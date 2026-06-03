@@ -7,6 +7,10 @@ abstract class SellerRemoteDataSource {
   Future<SellerModel> getSellerById(int id);
 
   Future<SellerModel> createSeller(String sellerName, String businessRegistration);
+
+  Future<SellerModel> updateSeller(int id, String sellerName, String businessRegistration);
+
+  Future<void> deleteSeller(int id);
 }
 
 class SellerRemoteDataSourceImpl implements SellerRemoteDataSource {
@@ -51,6 +55,28 @@ class SellerRemoteDataSourceImpl implements SellerRemoteDataSource {
         throw Exception('잘못된 판매자 정보 형식입니다');
       }
       return SellerModel.fromJson(sellerData);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
+  Future<SellerModel> updateSeller(int id, String sellerName, String businessRegistration) async {
+    try {
+      final response = await dio.patch(
+        '/api/admin/seller/$id',
+        data: {'sellerName': sellerName, 'businessRegistration': businessRegistration},
+      );
+      return SellerModel.fromJson(response.data['data'] as Map<String, dynamic>);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> deleteSeller(int id) async {
+    try {
+      await dio.delete('/api/admin/seller/$id');
     } catch (e) {
       rethrow;
     }

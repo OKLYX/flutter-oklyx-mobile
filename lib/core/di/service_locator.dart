@@ -102,6 +102,8 @@ import 'package:flutter_oklyn_mobile/features/seller/domain/repositories/seller_
 import 'package:flutter_oklyn_mobile/features/seller/domain/usecases/get_sellers_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/usecases/create_seller_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/usecases/get_seller_by_id_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/seller/domain/usecases/update_seller_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/seller/domain/usecases/delete_seller_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_create_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_detail_bloc.dart';
@@ -456,6 +458,12 @@ void _registerSellerServices() {
   getIt.registerSingleton<GetSellerByIdUseCase>(
     GetSellerByIdUseCase(repository: getIt<SellerRepository>()),
   );
+  getIt.registerSingleton<UpdateSellerUseCase>(
+    UpdateSellerUseCase(repository: getIt<SellerRepository>()),
+  );
+  getIt.registerSingleton<DeleteSellerUseCase>(
+    DeleteSellerUseCase(repository: getIt<SellerRepository>()),
+  );
 
   // BLoC - SellerListBloc as singleton (shared across pages for list refresh)
   getIt.registerSingleton<SellerListBloc>(
@@ -469,7 +477,11 @@ void _registerSellerServices() {
 
   // SellerDetailBloc as factory to allow fresh state per page
   getIt.registerFactory<SellerDetailBloc>(
-    () => SellerDetailBloc(getSellerByIdUseCase: getIt<GetSellerByIdUseCase>()),
+    () => SellerDetailBloc(
+      getSellerByIdUseCase: getIt<GetSellerByIdUseCase>(),
+      updateSellerUseCase: getIt<UpdateSellerUseCase>(),
+      deleteSellerUseCase: getIt<DeleteSellerUseCase>(),
+    ),
   );
 }
 

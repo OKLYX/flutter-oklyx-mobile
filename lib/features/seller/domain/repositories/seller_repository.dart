@@ -8,4 +8,8 @@ abstract class SellerRepository {
   Future<Either<Failure, Seller>> getSellerById(int id);
 
   Future<Either<Failure, Seller>> createSeller(String sellerName, String businessRegistration);
+
+  Future<Either<Failure, Seller>> updateSeller(int id, String sellerName, String businessRegistration);
+
+  Future<Either<Failure, void>> deleteSeller(int id);
 }

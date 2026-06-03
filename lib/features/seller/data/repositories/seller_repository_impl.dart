@@ -71,4 +71,38 @@ class SellerRepositoryImpl implements SellerRepository {
     }
     return e.message ?? 'Failed to create seller';
   }
+
+  @override
+  Future<Either<Failure, Seller>> updateSeller(int id, String sellerName, String businessRegistration) async {
+    try {
+      final seller = await remoteDataSource.updateSeller(id, sellerName, businessRegistration);
+      return Right(seller);
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionTimeout) {
+        return Left(ServerFailure('서버 연결 실패'));
+      }
+      final errorMessage = _extractErrorMessage(e);
+      return Left(ServerFailure(errorMessage));
+    } catch (e) {
+      final message = e is Exception ? e.toString().replaceAll('Exception: ', '') : e.toString();
+      return Left(ServerFailure(message));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteSeller(int id) async {
+    try {
+      await remoteDataSource.deleteSeller(id);
+      return const Right(null);
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.connectionTimeout) {
+        return Left(ServerFailure('서버 연결 실패'));
+      }
+      final errorMessage = _extractErrorMessage(e);
+      return Left(ServerFailure(errorMessage));
+    } catch (e) {
+      final message = e is Exception ? e.toString().replaceAll('Exception: ', '') : e.toString();
+      return Left(ServerFailure(message));
+    }
+  }
 }
