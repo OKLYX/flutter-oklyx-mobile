@@ -20,9 +20,37 @@ class SellerDetailPage extends StatefulWidget {
 }
 
 class _SellerDetailPageState extends State<SellerDetailPage> {
+  late final SellerDetailBloc _sellerDetailBloc;
   bool _isEditing = false;
 
-  void _showDeleteDialog(Seller seller) {
+  late TextEditingController _sellerNameController;
+  late TextEditingController _businessRegController;
+
+  @override
+  void initState() {
+    super.initState();
+    _sellerDetailBloc = context.read<SellerDetailBloc>();
+    _initializeControllers();
+  }
+
+  void _initializeControllers() {
+    _sellerNameController = TextEditingController();
+    _businessRegController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _sellerNameController.dispose();
+    _businessRegController.dispose();
+    super.dispose();
+  }
+
+  void _populateControllers(Seller seller) {
+    _sellerNameController.text = seller.sellerName;
+    _businessRegController.text = seller.businessRegistration;
+  }
+
+  void _showDeleteDialog(BuildContext context, Seller seller) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -37,7 +65,7 @@ class _SellerDetailPageState extends State<SellerDetailPage> {
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
               Navigator.pop(ctx);
-              context.read<SellerDetailBloc>().add(const ConfirmDeleteSeller());
+              _sellerDetailBloc.add(const ConfirmDeleteSeller());
             },
             child: const Text('삭제'),
           ),
@@ -46,22 +74,39 @@ class _SellerDetailPageState extends State<SellerDetailPage> {
     );
   }
 
+  void _onCancel() {
+    setState(() => _isEditing = false);
+  }
+
+  void _onSave() {
+    _sellerDetailBloc.add(SubmitSellerUpdateDirect(
+      sellerName: _sellerNameController.text.trim(),
+      businessRegistration: _businessRegController.text.trim(),
+    ));
+  }
+
   @override
-  Widget build(BuildContext context) {
-    return ScaffoldWithNavBar(
-      title: '판매자 정보',
-      navBarIndex: 2,
-      onBackPressed: _isEditing
-          ? () => setState(() => _isEditing = false)
-          : () => context.go(Routes.sellerPath),
-      body: BlocListener<SellerDetailBloc, SellerDetailState>(
+  Widget build(BuildContext context) => ScaffoldWithNavBar(
+    title: '판매자 정보',
+    navBarIndex: 2,
+    onBackPressed: _isEditing
+        ? () => setState(() => _isEditing = false)
+        : () => context.go(Routes.sellerPath),
+    body: BlocProvider.value(
+      value: _sellerDetailBloc,
+      child: BlocListener<SellerDetailBloc, SellerDetailState>(
         listener: (context, state) {
+          if (state is SellerDetailLoaded) {
+            _populateControllers(state.seller);
+            if (_isEditing) {
+              setState(() => _isEditing = false);
+            }
+          }
           if (state is SellerDetailUpdateSuccess) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('판매자 정보가 수정되었습니다.')),
             );
             context.read<SellerListBloc>().add(const FetchSellers());
-            setState(() => _isEditing = false);
             Future.delayed(const Duration(milliseconds: 500), () {
               if (mounted) context.go(Routes.sellerPath);
             });
@@ -83,22 +128,17 @@ class _SellerDetailPageState extends State<SellerDetailPage> {
           }
         },
         child: BlocBuilder<SellerDetailBloc, SellerDetailState>(
+          buildWhen: (previous, current) =>
+              current is SellerDetailLoading ||
+              current is SellerDetailError ||
+              current is SellerDetailLoaded,
           builder: (context, state) {
             if (state is SellerDetailLoading) {
-              return const Center(child: CircularProgressIndicator());
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
             }
-            if (state is SellerDetailSubmitting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (state is SellerDetailLoaded) {
-              return _isEditing
-                  ? _SellerEditForm(seller: state.seller)
-                  : _SellerDetailsView(
-                      seller: state.seller,
-                      onEditPressed: () => setState(() => _isEditing = true),
-                      onDeletePressed: () => _showDeleteDialog(state.seller),
-                    );
-            }
+
             if (state is SellerDetailError) {
               return Center(
                 child: Column(
@@ -107,64 +147,213 @@ class _SellerDetailPageState extends State<SellerDetailPage> {
                     Text(state.message),
                     const SizedBox(height: 16),
                     ElevatedButton(
-                      onPressed: () => context.read<SellerDetailBloc>().add(LoadSellerDetail(widget.sellerId)),
-                      child: const Text('재시도'),
+                      onPressed: () => _sellerDetailBloc.add(LoadSellerDetail(widget.sellerId)),
+                      child: const Text('다시 시도'),
                     ),
                   ],
                 ),
               );
             }
+
+            if (state is SellerDetailLoaded) {
+              final seller = state.seller;
+              return SingleChildScrollView(
+                child: Column(
+                  children: [
+                    const SizedBox(height: 16),
+                    if (_isEditing)
+                      _EditableBasicInfoCard(
+                        seller: seller,
+                        sellerNameController: _sellerNameController,
+                        businessRegController: _businessRegController,
+                      )
+                    else
+                      _BasicInfoCard(seller: seller),
+                    const SizedBox(height: 12),
+                    if (!_isEditing) ...[
+                      _DetailsCard(seller: seller),
+                      const SizedBox(height: 12),
+                      _ActionCard(
+                        onEditPressed: () => setState(() => _isEditing = true),
+                        onDeletePressed: () => _showDeleteDialog(context, seller),
+                      ),
+                    ],
+                    if (_isEditing)
+                      _EditActionCard(
+                        onSavePressed: _onSave,
+                        onCancelPressed: _onCancel,
+                      ),
+                    const SizedBox(height: 12),
+                    _TimestampsCard(seller: seller),
+                    const SizedBox(height: 80),
+                  ],
+                ),
+              );
+            }
+
             return const SizedBox.shrink();
           },
+        ),
+      ),
+    ),
+  );
+}
+
+class _BasicInfoCard extends StatelessWidget {
+  final Seller seller;
+
+  const _BasicInfoCard({required this.seller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              seller.sellerName,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'ID: ${seller.id}',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _SellerDetailsView extends StatelessWidget {
+class _DetailsCard extends StatelessWidget {
   final Seller seller;
+
+  const _DetailsCard({required this.seller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text('사업자등록번호: '),
+                Text(
+                  seller.businessRegistration,
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EditableBasicInfoCard extends StatelessWidget {
+  final Seller seller;
+  final TextEditingController sellerNameController;
+  final TextEditingController businessRegController;
+
+  const _EditableBasicInfoCard({
+    required this.seller,
+    required this.sellerNameController,
+    required this.businessRegController,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: sellerNameController,
+              decoration: InputDecoration(
+                labelText: '판매자명',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: businessRegController,
+              maxLength: 10,
+              decoration: InputDecoration(
+                labelText: '사업자등록번호',
+                hintText: '0000000000',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'ID: ${seller.id}',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionCard extends StatelessWidget {
   final VoidCallback onEditPressed;
   final VoidCallback onDeletePressed;
 
-  const _SellerDetailsView({
-    required this.seller,
+  const _ActionCard({
     required this.onEditPressed,
     required this.onDeletePressed,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
+        child: Row(
           children: [
-            Text(
-              'ID: ${seller.id}',
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: onEditPressed,
+                child: const Text('수정'),
+              ),
             ),
-            const SizedBox(height: 24),
-            _DetailField('판매자명', seller.sellerName),
-            _DetailField('사업자등록번호', seller.businessRegistration),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: onEditPressed,
-                    child: const Text('수정'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(backgroundColor: Colors.red),
-                    onPressed: onDeletePressed,
-                    child: const Text('삭제'),
-                  ),
-                ),
-              ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: onDeletePressed,
+                child: const Text('삭제'),
+              ),
             ),
           ],
         ),
@@ -173,127 +362,35 @@ class _SellerDetailsView extends StatelessWidget {
   }
 }
 
-class _SellerEditForm extends StatefulWidget {
-  final Seller seller;
+class _EditActionCard extends StatelessWidget {
+  final VoidCallback onSavePressed;
+  final VoidCallback onCancelPressed;
 
-  const _SellerEditForm({required this.seller});
-
-  @override
-  State<_SellerEditForm> createState() => _SellerEditFormState();
-}
-
-class _SellerEditFormState extends State<_SellerEditForm> {
-  late TextEditingController _sellerNameController;
-  late TextEditingController _businessRegController;
-  Map<String, String?> _validationErrors = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _sellerNameController = TextEditingController(text: widget.seller.sellerName);
-    _businessRegController = TextEditingController(text: widget.seller.businessRegistration);
-  }
-
-  @override
-  void dispose() {
-    _sellerNameController.dispose();
-    _businessRegController.dispose();
-    super.dispose();
-  }
-
-  void _validateFields() {
-    final errors = <String, String?>{};
-
-    final sellerName = _sellerNameController.text;
-    if (sellerName.isEmpty) {
-      errors['sellerName'] = '판매자명을 입력해주세요.';
-    } else if (sellerName.length > 255) {
-      errors['sellerName'] = '최대 255자입니다.';
-    } else {
-      errors['sellerName'] = null;
-    }
-
-    final businessReg = _businessRegController.text;
-    if (businessReg.isEmpty) {
-      errors['businessRegistration'] = '사업자등록번호를 입력해주세요.';
-    } else if (businessReg.length != 10) {
-      errors['businessRegistration'] = '10자리 숫자를 입력해주세요.';
-    } else if (!RegExp(r'^\d{10}$').hasMatch(businessReg)) {
-      errors['businessRegistration'] = '숫자만 입력 가능합니다.';
-    } else {
-      errors['businessRegistration'] = null;
-    }
-
-    setState(() => _validationErrors = errors);
-  }
-
-  bool _hasChanges() {
-    return _sellerNameController.text != widget.seller.sellerName ||
-        _businessRegController.text != widget.seller.businessRegistration;
-  }
-
-  bool _hasErrors() {
-    return _validationErrors.values.any((error) => error != null);
-  }
+  const _EditActionCard({
+    required this.onSavePressed,
+    required this.onCancelPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
+        child: Row(
           children: [
-            TextField(
-              controller: _sellerNameController,
-              decoration: InputDecoration(
-                labelText: '판매자명',
-                errorText: _validationErrors['sellerName'],
+            Expanded(
+              child: OutlinedButton(
+                onPressed: onCancelPressed,
+                child: const Text('취소'),
               ),
-              onChanged: (_) => _validateFields(),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _businessRegController,
-              maxLength: 10,
-              decoration: InputDecoration(
-                labelText: '사업자등록번호',
-                hintText: '0000000000',
-                errorText: _validationErrors['businessRegistration'],
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton(
+                onPressed: onSavePressed,
+                child: const Text('저장'),
               ),
-              keyboardType: TextInputType.number,
-              onChanged: (_) => _validateFields(),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      _sellerNameController.text = widget.seller.sellerName;
-                      _businessRegController.text = widget.seller.businessRegistration;
-                      setState(() => _validationErrors = {});
-                      context.read<SellerDetailBloc>().add(LoadSellerDetail(widget.seller.id));
-                    },
-                    child: const Text('취소'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: (_hasErrors() || !_hasChanges())
-                        ? null
-                        : () {
-                            context.read<SellerDetailBloc>().add(
-                              SubmitSellerUpdateDirect(
-                                sellerName: _sellerNameController.text,
-                                businessRegistration: _businessRegController.text,
-                              ),
-                            );
-                          },
-                    child: const Text('저장'),
-                  ),
-                ),
-              ],
             ),
           ],
         ),
@@ -302,23 +399,47 @@ class _SellerEditFormState extends State<_SellerEditForm> {
   }
 }
 
-class _DetailField extends StatelessWidget {
-  final String label;
-  final String value;
+class _TimestampsCard extends StatelessWidget {
+  final Seller seller;
 
-  const _DetailField(this.label, this.value);
+  const _TimestampsCard({required this.seller});
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-        const SizedBox(height: 4),
-        Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-        const Divider(),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '기본 정보',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Text('생성: '),
+                Text(
+                  seller.createdDate,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Text('수정: '),
+                Text(
+                  seller.modifiedDate,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
