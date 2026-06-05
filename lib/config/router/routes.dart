@@ -23,6 +23,9 @@ class Routes {
   static const String sellerDetail = 'sellerDetail';
   static const String commissionRate = 'commissionRate';
   static const String commissionRateDetail = 'commissionRateDetail';
+  static const String salesProducts = 'salesProducts';
+  static const String salesProductsRegister = 'salesProductsRegister';
+  static const String salesProductsDetail = 'salesProductsDetail';
   static const String notFound = 'notFound';
 
   static const String splashPath = '/';
@@ -51,5 +54,10 @@ class Routes {
   static const String sellerDetailPath = '/costs/seller/:id';
   static const String commissionRatePath = '/costs/commission/search';
   static const String commissionRateDetailPath = '/costs/commission/:id';
+  static const String salesProductsPath = '/sales-products';
+  static const String salesProductsRegisterPath = '/sales-products/register';
+  static const String salesProductsDetailPath = '/sales-products/detail/:id';
   static const String notFoundPath = '/404';
+
+  static String salesProductsDetailRoute(int id) => '/sales-products/detail/$id';
 }

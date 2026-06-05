@@ -51,6 +51,10 @@ import 'package:flutter_oklyn_mobile/shared/pages/product_search_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/splash_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/user_manage_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/user_register_page.dart';
+import 'package:flutter_oklyn_mobile/features/product_listing/presentation/pages/product_listing_search_page.dart';
+import 'package:flutter_oklyn_mobile/features/product_listing/presentation/pages/product_listing_register_page.dart';
+import 'package:flutter_oklyn_mobile/features/product_listing/presentation/pages/product_listing_detail_page.dart';
+import 'package:flutter_oklyn_mobile/features/product_listing/presentation/bloc/product_listing_create_bloc.dart';
 
 import 'routes.dart';
 
@@ -371,6 +375,35 @@ class AppRouter {
           ),
         );
       },
+    ),
+    GoRoute(
+      name: Routes.salesProducts,
+      path: Routes.salesProductsPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: ProductListingSearchPage(),
+      ),
+      routes: [
+        GoRoute(
+          name: Routes.salesProductsRegister,
+          path: 'register',
+          pageBuilder: (context, state) => NoTransitionPage(
+            child: BlocProvider<ProductListingCreateBloc>(
+              create: (context) => GetIt.instance<ProductListingCreateBloc>(),
+              child: const ProductListingRegisterPage(),
+            ),
+          ),
+        ),
+        GoRoute(
+          name: 'salesProductsDetail',
+          path: 'detail/:id',
+          pageBuilder: (context, state) {
+            final id = int.parse(state.pathParameters['id']!);
+            return NoTransitionPage(
+              child: ProductListingDetailPage(id: id),
+            );
+          },
+        ),
+      ],
     ),
     GoRoute(
       name: Routes.notFound,

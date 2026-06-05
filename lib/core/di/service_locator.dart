@@ -107,6 +107,11 @@ import 'package:flutter_oklyn_mobile/features/seller/domain/usecases/delete_sell
 import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_create_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_detail_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/product_listing/data/datasources/product_listing_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/product_listing/data/repositories/product_listing_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/product_listing/domain/repositories/product_listing_repository.dart';
+import 'package:flutter_oklyn_mobile/features/product_listing/domain/usecases/product_listing_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/product_listing/presentation/bloc/product_listing_create_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -122,6 +127,7 @@ void setupServiceLocator() {
   _registerCarrierRateServices();
   _registerSellerServices();
   _registerCommissionRateServices();
+  _registerProductListingServices();
   _registerErrorHandling();
 }
 
@@ -596,6 +602,30 @@ void _registerCategoryServices() {
 
   getIt.registerFactory<CreateCategoryBloc>(
     () => CreateCategoryBloc(createCategoryUseCase: getIt<CreateCategoryUseCase>()),
+  );
+}
+
+void _registerProductListingServices() {
+  // Data Source
+  getIt.registerSingleton<ProductListingRemoteDataSource>(
+    ProductListingRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
+  );
+
+  // Repository
+  getIt.registerSingleton<ProductListingRepository>(
+    ProductListingRepositoryImpl(remoteDataSource: getIt<ProductListingRemoteDataSource>()),
+  );
+
+  // Use Case
+  getIt.registerSingleton<ProductListingUseCase>(
+    ProductListingUseCase(repository: getIt<ProductListingRepository>()),
+  );
+
+  // BLoC as factory to allow fresh state per page
+  getIt.registerFactory<ProductListingCreateBloc>(
+    () => ProductListingCreateBloc(
+      productListingUseCase: getIt<ProductListingUseCase>(),
+    ),
   );
 }
 
