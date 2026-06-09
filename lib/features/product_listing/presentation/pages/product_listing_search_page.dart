@@ -9,6 +9,7 @@ import '../../domain/entities/product_listing.dart';
 import '../bloc/product_listing_list_bloc.dart';
 import '../bloc/product_listing_list_event.dart';
 import '../bloc/product_listing_list_state.dart';
+import '../product_listing_refresh.dart';
 
 /// 판매상품 조회 페이지 (목록 + 검색)
 ///
@@ -55,12 +56,26 @@ class _ProductListingSearchViewState extends State<_ProductListingSearchView> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    // 수정/삭제 후 돌아오면 마지막 검색을 재실행해 변경 내용을 반영한다.
+    productListingRefreshSignal.addListener(_onRefreshSignal);
   }
 
   @override
   void dispose() {
+    productListingRefreshSignal.removeListener(_onRefreshSignal);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  // 갱신 신호 수신 시 마지막으로 조회한 플랫폼으로 재검색 (이미 검색한 경우에만).
+  void _onRefreshSignal() {
+    if (!mounted) return;
+    final state = context.read<ProductListingListBloc>().state;
+    if (state is ProductListingListLoaded) {
+      context
+          .read<ProductListingListBloc>()
+          .add(SearchProductListings(platform: state.platform));
+    }
   }
 
   void _onScroll() {

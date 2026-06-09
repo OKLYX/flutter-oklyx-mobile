@@ -7,6 +7,8 @@ import 'package:flutter_oklyn_mobile/features/product_listing/presentation/bloc/
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/bloc/product_listing_create_event.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/bloc/product_listing_create_state.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/product.dart';
+import 'package:flutter_oklyn_mobile/features/product_listing/domain/entities/product_listing.dart';
+import 'package:flutter_oklyn_mobile/features/product_listing/presentation/product_listing_refresh.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 
 const List<String> PLATFORMS = ['COUPANG', 'GMARKET', 'AUCTION', 'SMARTSTORE'];
@@ -55,8 +57,15 @@ String _comma(num value) {
   return negative ? '-$buf' : buf.toString();
 }
 
+/// 판매상품 등록/수정 공용 단일 폼 페이지.
+///
+/// - [editListing] == null → 신규 등록(create). 프론트 ProductListingSinglePageForm.
+/// - [editListing] != null → 수정(update). 프론트 ProductListingEditSinglePageForm.
+///   기존 데이터로 폼을 프리필하고 제출 시 update를 호출한다.
 class ProductListingRegisterPage extends StatefulWidget {
-  const ProductListingRegisterPage({super.key});
+  final ProductListing? editListing;
+
+  const ProductListingRegisterPage({super.key, this.editListing});
 
   @override
   State<ProductListingRegisterPage> createState() =>
@@ -70,11 +79,22 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
   // 최종 등록 진행 중 여부 (프론트 isSubmitting과 동일한 로컬 상태)
   bool _submitting = false;
 
+  bool get _isEdit => widget.editListing != null;
+
   @override
   void initState() {
     super.initState();
-    context.read<ProductListingCreateBloc>().add(const ResetCreateForm());
-    context.read<ProductListingCreateBloc>().add(const FetchLookupData());
+    final bloc = context.read<ProductListingCreateBloc>();
+    bloc.add(const ResetCreateForm());
+    // 수정 모드: 이름/플랫폼 상품 ID 컨트롤러를 즉시 채우고, lookup 로드 시점에
+    // 나머지 필드(드롭다운/옵션)도 함께 프리필되도록 editListing 을 전달한다.
+    if (_isEdit) {
+      _nameCtrl.text = widget.editListing!.name;
+      _platformProductIdCtrl.text = widget.editListing!.platformProductId;
+      bloc.add(FetchLookupData(editListing: widget.editListing));
+    } else {
+      bloc.add(const FetchLookupData());
+    }
   }
 
   @override
@@ -208,7 +228,7 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithNavBar(
-      title: '판매상품 등록',
+      title: _isEdit ? '판매상품 수정' : '판매상품 등록',
       navBarIndex: 2,
       showDrawer: true,
       onBackPressed: () => context.go(Routes.salesProductsPath),
@@ -216,13 +236,15 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
         listener: (context, state) {
           if (state is ProductListingCreateSuccess) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('판매상품이 생성되었습니다!'),
+              SnackBar(
+                content: Text(_isEdit ? '판매상품이 수정되었습니다!' : '판매상품이 생성되었습니다!'),
                 backgroundColor: Colors.green,
                 behavior: SnackBarBehavior.floating,
-                margin: EdgeInsets.only(bottom: 70, left: 16, right: 16),
+                margin: const EdgeInsets.only(bottom: 70, left: 16, right: 16),
               ),
             );
+            // 조회 페이지가 변경 내용을 반영하도록 갱신 신호 발행 (등록/수정 공통)
+            notifyProductListingChanged();
             Future.delayed(const Duration(milliseconds: 500), () {
               context.go(Routes.salesProductsPath);
             });
@@ -251,7 +273,9 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                   children: [
                     const CircularProgressIndicator(),
                     const SizedBox(height: 16),
-                    Text(_submitting ? '등록 중...' : '데이터를 불러오는 중...'),
+                    Text(_submitting
+                        ? (_isEdit ? '수정 중...' : '등록 중...')
+                        : '데이터를 불러오는 중...'),
                   ],
                 ),
               );
@@ -344,7 +368,9 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                               child: Text('판매자 데이터를 불러오는 중입니다...'),
                             )
                           : DropdownButtonFormField<String>(
-                              value: '',
+                              value: (formData['sellerId']?.isEmpty ?? true)
+                                  ? ''
+                                  : formData['sellerId'],
                               isExpanded: true,
                               decoration: InputDecoration(
                                 labelText: '판매자 *',
@@ -376,7 +402,9 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                       sectionNumber: '1',
                       isComplete: formData['platform']?.isNotEmpty == true,
                       child: DropdownButtonFormField<String>(
-                        value: '',
+                        value: (formData['platform']?.isEmpty ?? true)
+                            ? ''
+                            : formData['platform'],
                         isExpanded: true,
                         decoration: InputDecoration(
                           labelText: '플랫폼 *',
@@ -525,7 +553,9 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                           ),
                           const SizedBox(height: 16),
                           DropdownButtonFormField<String>(
-                            value: '',
+                            value: (formData['categoryId']?.isEmpty ?? true)
+                                ? ''
+                                : formData['categoryId'],
                             isExpanded: true,
                             decoration: InputDecoration(
                               labelText: '카테고리 *',
@@ -592,7 +622,9 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
-                            value: '',
+                            value: (formData['carrierId']?.isEmpty ?? true)
+                                ? ''
+                                : formData['carrierId'],
                             isExpanded: true,
                             decoration: InputDecoration(
                               labelText: '택배비 *',
@@ -622,7 +654,9 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                           ),
                           const SizedBox(height: 12),
                           DropdownButtonFormField<String>(
-                            value: '',
+                            value: (formData['packageId']?.isEmpty ?? true)
+                                ? ''
+                                : formData['packageId'],
                             isExpanded: true,
                             decoration: InputDecoration(
                               labelText: '패키지 *',
@@ -701,7 +735,9 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      child: Text(_submitting ? '등록 중...' : '완료 및 등록'),
+                      child: Text(_submitting
+                          ? (_isEdit ? '수정 중...' : '등록 중...')
+                          : (_isEdit ? '수정 완료' : '완료 및 등록')),
                     ),
                   ],
                 ),

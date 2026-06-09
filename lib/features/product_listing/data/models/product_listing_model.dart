@@ -11,6 +11,9 @@ class ProductListingModel extends ProductListing {
     super.categoryName,
     super.carrierName,
     super.packageType,
+    super.categoryId,
+    super.deliveryId,
+    super.packageId,
     super.options,
   });
 
@@ -25,6 +28,9 @@ class ProductListingModel extends ProductListing {
       categoryName: json['categoryName'] as String?,
       carrierName: json['carrierName'] as String?,
       packageType: json['packageType'] as String?,
+      categoryId: (json['categoryId'] as num?)?.toInt(),
+      deliveryId: (json['deliveryId'] as num?)?.toInt(),
+      packageId: (json['packageId'] as num?)?.toInt(),
       options: json['options'] != null
           ? (json['options'] as List<dynamic>)
               .map((e) => ProductListingOptionModel.fromJson(e as Map<String, dynamic>))
@@ -44,6 +50,9 @@ class ProductListingModel extends ProductListing {
       'categoryName': categoryName,
       'carrierName': carrierName,
       'packageType': packageType,
+      'categoryId': categoryId,
+      'deliveryId': deliveryId,
+      'packageId': packageId,
       'options': options?.map((e) => (e as ProductListingOptionModel).toJson()).toList(),
     };
   }

@@ -9,16 +9,17 @@ import '../../domain/entities/product_listing.dart';
 import '../bloc/product_listing_detail_bloc.dart';
 import '../bloc/product_listing_detail_event.dart';
 import '../bloc/product_listing_detail_state.dart';
+import '../product_listing_refresh.dart';
 
 /// 판매상품 상세 페이지
 ///
 /// 프론트 "판매 상품 상세정보"(ProductListingDetailsCard/Table)와 동일하게
 /// 상품 기본정보 + 카테고리/물류 정보 + 옵션(판매가/플랫폼 옵션 ID/구성상품)을 표시.
 ///
-/// ⚠️ 수정/삭제 버튼은 현재 Mock 동작이다(실제 API 호출 없음).
-///    - 수정: "준비 중" SnackBar 표시
+/// 수정/삭제 버튼은 프론트 상세 페이지와 동일하게 동작한다:
+///    - 수정: 수정 페이지(ProductListingEditPage)로 이동 → 폼 프리필 후 update
 ///    - 삭제: 확인 다이얼로그(프론트 ProductListingDeleteDialog와 동일 UX) →
-///            확인 시 Mock SnackBar 후 목록으로 복귀
+///            확인 시 delete API 호출 → 성공 시 목록으로 복귀
 class ProductListingDetailPage extends StatelessWidget {
   final int id;
 
@@ -46,10 +47,25 @@ class _ProductListingDetailView extends StatelessWidget {
       navBarIndex: 2,
       showDrawer: true,
       onBackPressed: () => context.go(Routes.salesProductsPath),
-      body: BlocBuilder<ProductListingDetailBloc, ProductListingDetailState>(
+      body: BlocConsumer<ProductListingDetailBloc, ProductListingDetailState>(
+        listener: (context, state) {
+          if (state is ProductListingDetailDeleteSuccess) {
+            // 조회 페이지가 삭제를 반영하도록 갱신 신호 발행 후 목록으로 이동
+            notifyProductListingChanged();
+            context.go(Routes.salesProductsPath);
+          } else if (state is ProductListingDetailDeleteFailure) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
         builder: (context, state) {
           if (state is ProductListingDetailLoading ||
-              state is ProductListingDetailInitial) {
+              state is ProductListingDetailInitial ||
+              state is ProductListingDetailDeleteSuccess) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -71,15 +87,31 @@ class _ProductListingDetailView extends StatelessWidget {
             );
           }
 
+          // 삭제 중/실패 상태도 기존 데이터를 보관하므로 동일하게 내용을 렌더링한다
+          // (삭제 진행/오류 표시는 다이얼로그가 담당).
+          ProductListing? listing;
+          List<ProductListingOption> options = const [];
           if (state is ProductListingDetailLoaded) {
-            final listing = state.listing;
+            listing = state.listing;
+            options = state.options;
+          } else if (state is ProductListingDetailDeleting) {
+            listing = state.listing;
+            options = state.options;
+          } else if (state is ProductListingDetailDeleteFailure) {
+            listing = state.listing;
+            options = state.options;
+          }
+
+          if (listing != null) {
+            // 클로저(버튼 콜백)에서 non-null 승격을 유지하기 위해 final 로 고정.
+            final ProductListing loaded = listing;
             return SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 // 카드가 가로를 꽉 채우도록 stretch (좌우 패딩 16px 동일)
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // 프론트 헤더 우측의 수정/삭제 버튼 (Mock)
+                  // 프론트 헤더 우측의 수정/삭제 버튼
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -93,7 +125,7 @@ class _ProductListingDetailView extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton(
-                        onPressed: () => _onDelete(context, listing),
+                        onPressed: () => _onDelete(context, loaded),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red[600],
                           foregroundColor: Colors.white,
@@ -122,7 +154,7 @@ class _ProductListingDetailView extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  _OptionsCard(options: state.options),
+                  _OptionsCard(options: options),
                   const SizedBox(height: 80),
                 ],
               ),
@@ -145,89 +177,59 @@ class _ProductListingDetailView extends StatelessWidget {
     return labels[platform] ?? platform;
   }
 
-  // Mock: 실제 수정 화면은 아직 미구현. 프론트 Phase 5에서 추가 예정.
+  // 수정 페이지로 이동 (프론트 router.push(EDIT)와 동일). 뒤로가기 시 상세로 복귀.
   void _onEdit(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('수정 기능은 준비 중입니다. (Mock)'),
-        behavior: SnackBarBehavior.floating,
-        margin: EdgeInsets.only(bottom: 70, left: 16, right: 16),
-      ),
-    );
+    context.push(Routes.salesProductsEditRoute(id));
   }
 
-  // Mock: 확인 다이얼로그(프론트와 동일 UX)만 보여주고 실제 삭제 API는 호출하지 않는다.
-  Future<void> _onDelete(BuildContext context, ProductListing listing) async {
-    final confirmed = await showDialog<bool>(
+  // 삭제 확인 다이얼로그 표시(상자비/택배비 상세와 동일한 UI).
+  // 확인 시 다이얼로그를 닫고 BLoC delete 이벤트 발행 →
+  // 성공/실패 처리는 페이지 상단의 BlocListener가 담당.
+  void _onDelete(BuildContext context, ProductListing listing) {
+    final bloc = context.read<ProductListingDetailBloc>();
+    showDialog(
       context: context,
-      builder: (ctx) => _DeleteConfirmDialog(
+      builder: (ctx) => _DeleteConfirmationDialog(
         listingName: '${_platformLabel(listing.platform)} - '
             '${listing.platformProductId}',
+        onConfirm: () {
+          Navigator.pop(ctx);
+          bloc.add(DeleteProductListing(listing.id));
+        },
+        onCancel: () => Navigator.pop(ctx),
       ),
     );
-
-    if (confirmed == true && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('삭제되었습니다. (Mock)'),
-          behavior: SnackBarBehavior.floating,
-          margin: EdgeInsets.only(bottom: 70, left: 16, right: 16),
-        ),
-      );
-      context.go(Routes.salesProductsPath);
-    }
   }
 }
 
-/// 삭제 확인 다이얼로그 (Mock)
+/// 삭제 확인 다이얼로그
 ///
-/// 프론트 ProductListingDeleteDialog와 동일한 문구/구조.
-class _DeleteConfirmDialog extends StatelessWidget {
+/// 상자비(PackageDetailPage)·택배비(CarrierRateDetailPage) 상세의 삭제 모달과
+/// 동일한 UI/구조: 간단한 AlertDialog + 취소(TextButton)/삭제(빨간 FilledButton).
+class _DeleteConfirmationDialog extends StatelessWidget {
   final String listingName;
+  final VoidCallback onConfirm;
+  final VoidCallback onCancel;
 
-  const _DeleteConfirmDialog({required this.listingName});
+  const _DeleteConfirmationDialog({
+    required this.listingName,
+    required this.onConfirm,
+    required this.onCancel,
+  });
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('판매상품 삭제'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('정말 삭제하시겠습니까?'),
-          const SizedBox(height: 4),
-          Text(
-            listingName,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.red[50],
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.red[200]!),
-            ),
-            child: Text(
-              '⚠️ 삭제된 데이터는 복구할 수 없습니다.',
-              style: TextStyle(fontSize: 13, color: Colors.red[600]),
-            ),
-          ),
-        ],
-      ),
+      content: Text('$listingName을(를) 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.'),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
+          onPressed: onCancel,
           child: const Text('취소'),
         ),
-        ElevatedButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red[600],
-            foregroundColor: Colors.white,
-          ),
+        FilledButton(
+          onPressed: onConfirm,
+          style: FilledButton.styleFrom(backgroundColor: Colors.red),
           child: const Text('삭제'),
         ),
       ],

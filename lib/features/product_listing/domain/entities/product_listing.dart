@@ -8,6 +8,12 @@ class ProductListing {
   final String? categoryName;
   final String? carrierName;
   final String? packageType;
+  // 수정 화면 프리필용 ID들 (프론트 ProductListingEntity의 categoryId/deliveryId/packageId와 동일).
+  // 상세/목록 표시에는 *Name 필드를 쓰지만, 수정 폼은 드롭다운 선택값 복원을 위해 ID가 필요하다.
+  // ⚠️ 백엔드는 택배비 ID를 `deliveryId`로 내려준다 (carrierId 아님).
+  final int? categoryId;
+  final int? deliveryId;
+  final int? packageId;
   final List<ProductListingOption>? options;
 
   ProductListing({
@@ -20,6 +26,9 @@ class ProductListing {
     this.categoryName,
     this.carrierName,
     this.packageType,
+    this.categoryId,
+    this.deliveryId,
+    this.packageId,
     this.options,
   });
 }

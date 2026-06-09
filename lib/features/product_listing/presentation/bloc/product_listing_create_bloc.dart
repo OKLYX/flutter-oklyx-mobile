@@ -9,6 +9,11 @@ import 'product_listing_create_state.dart';
 class ProductListingCreateBloc
     extends Bloc<ProductListingCreateEvent, ProductListingCreateState> {
   final ProductListingUseCase productListingUseCase;
+
+  // 수정 모드일 때 대상 판매상품 ID. null 이면 신규 등록(create), 값이 있으면 수정(update).
+  // 이 BLoC은 factory로 등록되어 화면마다 새 인스턴스이므로 인스턴스 필드로 안전하게 보관한다.
+  int? editingListingId;
+
   static const _initialData = {
     'sellerId': '',
     'platform': '',
@@ -36,6 +41,7 @@ class ProductListingCreateBloc
   }
 
   void _onResetForm(ResetCreateForm event, Emitter<ProductListingCreateState> emit) {
+    editingListingId = null;
     if (state is! ProductListingCreateLoaded) {
       emit(const ProductListingCreateLoaded(formData: _initialData));
       return;
@@ -49,6 +55,92 @@ class ProductListingCreateBloc
       packages: current.packages,
       commissionRates: current.commissionRates,
     ));
+  }
+
+  // 수정 모드 프리필: 로드된 lookup 데이터 + 기존 listing 으로 채워진 Loaded 를 만든다.
+  // 프론트 ProductListingEditSinglePageForm의 fetchData 초기화 로직과 동일.
+  // [editingListingId] 도 함께 설정해 이후 제출이 update 로 분기되게 한다.
+  ProductListingCreateLoaded _buildEditLoaded(
+    ProductListing listing, {
+    required List<dynamic> sellers,
+    required List<dynamic> categories,
+    required List<dynamic> carrierRates,
+    required List<dynamic> packages,
+    required List<dynamic> commissionRates,
+  }) {
+    editingListingId = listing.id;
+
+    // 택배비 ID(deliveryId)로 배송사명을 역추적 (프론트의 selectedCarrierRateId→carrier useEffect와 동일)
+    String carrier = '';
+    final deliveryId = listing.deliveryId;
+    if (deliveryId != null) {
+      final match = carrierRates.firstWhere(
+        (r) => r is Map && r['id'].toString() == deliveryId.toString(),
+        orElse: () => null,
+      );
+      if (match != null && match is Map) {
+        carrier = match['carrier']?.toString() ?? '';
+      }
+    }
+
+    final formData = {
+      'sellerId': listing.sellerId?.toString() ?? '',
+      'platform': listing.platform,
+      'name': listing.name,
+      'platformProductId': listing.platformProductId,
+      'categoryId': listing.categoryId?.toString() ?? '',
+      'carrier': carrier,
+      'carrierId': deliveryId?.toString() ?? '',
+      'packageId': listing.packageId?.toString() ?? '',
+    };
+
+    // 옵션 + 구성상품 복원. 구성상품은 가격 정보가 없으므로(상세 응답 미포함)
+    // price=null 로 selectedProducts에 채워 옵션 편집 다이얼로그가 동작하도록 한다.
+    final selectedProductsMap = <int, Product>{};
+    final optionsData = <OptionWithProducts>[];
+    for (final opt in listing.options ?? const <ProductListingOption>[]) {
+      final pqs = <ProductQuantity>[];
+      for (final p in opt.products ?? const <ProductListingProduct>[]) {
+        pqs.add(ProductQuantity(productId: p.productId, quantity: p.quantity));
+        selectedProductsMap.putIfAbsent(
+          p.productId,
+          () => Product(
+            id: p.productId,
+            productName: p.productName,
+            active: true,
+            createdDate: '',
+            modifiedDate: '',
+          ),
+        );
+      }
+      optionsData.add(OptionWithProducts(
+        option: ProductListingOption(
+          id: opt.id,
+          optionName: opt.optionName,
+          sellingPrice: opt.sellingPrice,
+        ),
+        products: pqs,
+        platformOptionId: opt.platformOptionId,
+      ));
+    }
+
+    final commissionRate = _computeCommissionRate(
+      commissionRates,
+      formData['platform'] ?? '',
+      formData['categoryId'] ?? '',
+    );
+
+    return ProductListingCreateLoaded(
+      formData: formData,
+      sellers: sellers,
+      categories: categories,
+      carrierRates: carrierRates,
+      packages: packages,
+      commissionRates: commissionRates,
+      selectedProducts: selectedProductsMap.values.toList(),
+      optionsData: optionsData,
+      commissionRate: commissionRate,
+    );
   }
 
   void _onUpdateField(UpdateFormField event, Emitter<ProductListingCreateState> emit) {
@@ -186,26 +278,46 @@ class ProductListingCreateBloc
       );
     }).toList();
 
-    final request = CreateProductListingRequest(
-      platform: current.formData['platform']!,
-      platformProductId: current.formData['platformProductId']!,
-      name: current.formData['name']!,
-      categoryId: current.formData['categoryId']?.isEmpty ?? true
-          ? null
-          : current.formData['categoryId'],
-      carrierId: current.formData['carrierId']?.isEmpty ?? true
-          ? null
-          : current.formData['carrierId'],
-      packageId: current.formData['packageId']?.isEmpty ?? true
-          ? null
-          : current.formData['packageId'],
-      sellerId: current.formData['sellerId']?.isEmpty ?? true
-          ? null
-          : current.formData['sellerId'],
-      options: options,
-    );
+    final categoryId = current.formData['categoryId']?.isEmpty ?? true
+        ? null
+        : current.formData['categoryId'];
+    final carrierId = current.formData['carrierId']?.isEmpty ?? true
+        ? null
+        : current.formData['carrierId'];
+    final packageId = current.formData['packageId']?.isEmpty ?? true
+        ? null
+        : current.formData['packageId'];
+    final sellerId = current.formData['sellerId']?.isEmpty ?? true
+        ? null
+        : current.formData['sellerId'];
 
-    final result = await productListingUseCase.create(request);
+    // 수정 모드면 update(id), 아니면 create. (프론트의 handleFinalSubmit과 동일 분기)
+    final result = editingListingId != null
+        ? await productListingUseCase.update(
+            editingListingId!,
+            UpdateProductListingRequest(
+              platform: current.formData['platform']!,
+              platformProductId: current.formData['platformProductId']!,
+              name: current.formData['name']!,
+              categoryId: categoryId,
+              carrierId: carrierId,
+              packageId: packageId,
+              sellerId: sellerId,
+              options: options,
+            ),
+          )
+        : await productListingUseCase.create(
+            CreateProductListingRequest(
+              platform: current.formData['platform']!,
+              platformProductId: current.formData['platformProductId']!,
+              name: current.formData['name']!,
+              categoryId: categoryId,
+              carrierId: carrierId,
+              packageId: packageId,
+              sellerId: sellerId,
+              options: options,
+            ),
+          );
 
     result.fold(
       (failure) {
@@ -299,16 +411,26 @@ class ProductListingCreateBloc
         }
       }
 
-      // 에러가 있어도 로드된 데이터는 표시
-      final state = ProductListingCreateLoaded(
-        formData: _initialData,
-        sellers: sellers,
-        categories: categories,
-        carrierRates: carrierRates,
-        packages: packages,
-        commissionRates: commissionRates,
-        commissionRate: commissionRate,
-      );
+      // 수정 모드면 lookup + 기존 데이터 프리필을 한 번에 emit (순서 경합 방지),
+      // 신규 등록이면 빈 폼으로 emit.
+      final state = event.editListing != null
+          ? _buildEditLoaded(
+              event.editListing!,
+              sellers: sellers,
+              categories: categories,
+              carrierRates: carrierRates,
+              packages: packages,
+              commissionRates: commissionRates,
+            )
+          : ProductListingCreateLoaded(
+              formData: _initialData,
+              sellers: sellers,
+              categories: categories,
+              carrierRates: carrierRates,
+              packages: packages,
+              commissionRates: commissionRates,
+              commissionRate: commissionRate,
+            );
 
       if (errors.isNotEmpty) {
         emit(ProductListingCreateError(

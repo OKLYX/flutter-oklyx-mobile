@@ -54,6 +54,7 @@ import 'package:flutter_oklyn_mobile/shared/pages/user_register_page.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/pages/product_listing_search_page.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/pages/product_listing_register_page.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/pages/product_listing_detail_page.dart';
+import 'package:flutter_oklyn_mobile/features/product_listing/presentation/pages/product_listing_edit_page.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/bloc/product_listing_create_bloc.dart';
 
 import 'routes.dart';
@@ -400,6 +401,16 @@ class AppRouter {
             final id = int.parse(state.pathParameters['id']!);
             return NoTransitionPage(
               child: ProductListingDetailPage(id: id),
+            );
+          },
+        ),
+        GoRoute(
+          name: Routes.salesProductsEdit,
+          path: 'edit/:id',
+          pageBuilder: (context, state) {
+            final id = int.parse(state.pathParameters['id']!);
+            return NoTransitionPage(
+              child: ProductListingEditPage(id: id),
             );
           },
         ),

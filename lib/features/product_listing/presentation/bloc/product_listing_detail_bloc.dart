@@ -15,6 +15,7 @@ class ProductListingDetailBloc
   ProductListingDetailBloc({required this.productListingUseCase})
       : super(ProductListingDetailInitial()) {
     on<LoadProductListingDetail>(_onLoad);
+    on<DeleteProductListing>(_onDelete);
   }
 
   Future<void> _onLoad(
@@ -31,6 +32,39 @@ class ProductListingDetailBloc
         listing: listing,
         options: listing.options ?? <ProductListingOption>[],
       )),
+    );
+  }
+
+  Future<void> _onDelete(
+    DeleteProductListing event,
+    Emitter<ProductListingDetailState> emit,
+  ) async {
+    // 현재 로드된 데이터를 보존해 삭제 중/실패 시 페이지가 비지 않게 한다.
+    // 삭제 실패 후 재시도도 가능하도록 Loaded/DeleteFailure 두 상태 모두 허용한다.
+    final current = state;
+    final ProductListing listing;
+    final List<ProductListingOption> options;
+    if (current is ProductListingDetailLoaded) {
+      listing = current.listing;
+      options = current.options;
+    } else if (current is ProductListingDetailDeleteFailure) {
+      listing = current.listing;
+      options = current.options;
+    } else {
+      return;
+    }
+
+    emit(ProductListingDetailDeleting(listing: listing, options: options));
+
+    final result = await productListingUseCase.delete(event.id);
+
+    result.fold(
+      (failure) => emit(ProductListingDetailDeleteFailure(
+        listing: listing,
+        options: options,
+        message: failure.message,
+      )),
+      (_) => emit(ProductListingDetailDeleteSuccess()),
     );
   }
 }
