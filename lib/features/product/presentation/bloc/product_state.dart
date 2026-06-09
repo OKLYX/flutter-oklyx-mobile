@@ -20,28 +20,32 @@ class ProductLoaded extends ProductState {
   final List<Product> products;
   final bool hasMore;
   final int currentPage;
+  final String searchQuery;
 
   const ProductLoaded({
     required this.products,
     required this.hasMore,
     required this.currentPage,
+    this.searchQuery = '',
   });
 
   @override
-  List<Object?> get props => [products, hasMore, currentPage];
+  List<Object?> get props => [products, hasMore, currentPage, searchQuery];
 }
 
 class ProductLoadingMore extends ProductState {
   final List<Product> products;
   final int currentPage;
+  final String searchQuery;
 
   const ProductLoadingMore({
     required this.products,
     required this.currentPage,
+    this.searchQuery = '',
   });
 
   @override
-  List<Object?> get props => [products, currentPage];
+  List<Object?> get props => [products, currentPage, searchQuery];
 }
 
 class ProductError extends ProductState {

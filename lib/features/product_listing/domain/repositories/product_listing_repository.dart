@@ -14,6 +14,9 @@ abstract class ProductListingRepository {
   /// 판매상품 상세 조회 (by ID)
   Future<Either<Failure, ProductListing>> getById(int id);
 
+  /// 판매상품 옵션 목록 조회 (by listing ID)
+  Future<Either<Failure, List<ProductListingOption>>> getOptions(int listingId);
+
   Future<Either<Failure, ProductListing>> create(
     CreateProductListingRequest request,
   );
@@ -24,4 +27,13 @@ abstract class ProductListingRepository {
   );
 
   Future<Either<Failure, void>> delete(int id);
+
+  // Lookup data methods
+  Future<List<dynamic>> getSellers();
+  Future<List<dynamic>> getCategories();
+  Future<List<dynamic>> getCarrierRates();
+  Future<List<dynamic>> getPackages();
+  Future<List<dynamic>> getCommissionRates();
+  Future<dynamic> getProducts({int page = 0, int size = 50});
+  Future<dynamic> searchProducts({required String query, int page = 0, int size = 50});
 }

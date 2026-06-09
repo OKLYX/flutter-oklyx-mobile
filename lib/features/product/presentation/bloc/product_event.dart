@@ -18,3 +18,12 @@ class LoadMoreProducts extends ProductEvent {
 class RefreshProducts extends ProductEvent {
   const RefreshProducts();
 }
+
+class SearchProducts extends ProductEvent {
+  final String query;
+
+  const SearchProducts(this.query);
+
+  @override
+  List<Object?> get props => [query];
+}

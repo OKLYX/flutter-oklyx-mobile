@@ -112,6 +112,8 @@ import 'package:flutter_oklyn_mobile/features/product_listing/data/repositories/
 import 'package:flutter_oklyn_mobile/features/product_listing/domain/repositories/product_listing_repository.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/domain/usecases/product_listing_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/bloc/product_listing_create_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/product_listing/presentation/bloc/product_listing_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/product_listing/presentation/bloc/product_listing_detail_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -624,6 +626,18 @@ void _registerProductListingServices() {
   // BLoC as factory to allow fresh state per page
   getIt.registerFactory<ProductListingCreateBloc>(
     () => ProductListingCreateBloc(
+      productListingUseCase: getIt<ProductListingUseCase>(),
+    ),
+  );
+
+  getIt.registerFactory<ProductListingListBloc>(
+    () => ProductListingListBloc(
+      productListingUseCase: getIt<ProductListingUseCase>(),
+    ),
+  );
+
+  getIt.registerFactory<ProductListingDetailBloc>(
+    () => ProductListingDetailBloc(
       productListingUseCase: getIt<ProductListingUseCase>(),
     ),
   );

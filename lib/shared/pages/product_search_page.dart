@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -35,6 +36,8 @@ class _ProductSearchView extends StatefulWidget {
 
 class _ProductSearchViewState extends State<_ProductSearchView> {
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -44,6 +47,8 @@ class _ProductSearchViewState extends State<_ProductSearchView> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -59,50 +64,84 @@ class _ProductSearchViewState extends State<_ProductSearchView> {
     }
   }
 
+  /// 검색어 입력 시 300ms 디바운스 후 서버 검색을 요청한다.
+  /// 상품 목록은 서버 페이지네이션(/api/products?search=)을 사용하므로
+  /// 매 키 입력마다 호출하지 않고 디바운스로 요청 수를 줄인다.
+  void _onSearchChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      context.read<ProductBloc>().add(SearchProducts(value));
+    });
+  }
+
   @override
   Widget build(BuildContext context) => ScaffoldWithNavBar(
     title: '상품 조회',
     navBarIndex: 2,
     showDrawer: true,
-    body: BlocBuilder<ProductBloc, ProductState>(
-      builder: (context, state) {
-        if (state is ProductLoading) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
-
-        if (state is ProductError) {
-          return Center(
-            child: Text(state.message),
-          );
-        }
-
-        if (state is ProductLoaded || state is ProductLoadingMore) {
-          final products = state is ProductLoaded
-              ? state.products
-              : (state as ProductLoadingMore).products;
-          final isLoadingMore = state is ProductLoadingMore;
-
-          return ListView.builder(
-            controller: _scrollController,
-            itemCount: products.length + (isLoadingMore ? 1 : 0),
-            itemBuilder: (context, index) {
-              if (index == products.length) {
-                return const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Center(
+    body: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          TextField(
+            controller: _searchController,
+            decoration: const InputDecoration(
+              hintText: '상품명 검색...',
+              prefixIcon: Icon(Icons.search),
+              border: OutlineInputBorder(),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            onChanged: _onSearchChanged,
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: BlocBuilder<ProductBloc, ProductState>(
+              builder: (context, state) {
+                if (state is ProductLoading) {
+                  return const Center(
                     child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-              return _ProductCard(product: products[index]);
-            },
-          );
-        }
+                  );
+                }
 
-        return const SizedBox.shrink();
-      },
+                if (state is ProductError) {
+                  return Center(
+                    child: Text(state.message),
+                  );
+                }
+
+                if (state is ProductLoaded || state is ProductLoadingMore) {
+                  final products = state is ProductLoaded
+                      ? state.products
+                      : (state as ProductLoadingMore).products;
+                  final isLoadingMore = state is ProductLoadingMore;
+
+                  if (products.isEmpty) {
+                    return const Center(child: Text('조회 결과가 없습니다.'));
+                  }
+
+                  return ListView.builder(
+                    controller: _scrollController,
+                    itemCount: products.length + (isLoadingMore ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index == products.length) {
+                        return const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      }
+                      return _ProductCard(product: products[index]);
+                    },
+                  );
+                }
+
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }

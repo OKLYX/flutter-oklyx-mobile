@@ -3,10 +3,11 @@ class ProductListing {
   final String platform;
   final String platformProductId;
   final String name;
+  final int? sellerId;
+  final String? sellerName;
   final String? categoryName;
   final String? carrierName;
   final String? packageType;
-  final String? sellerName;
   final List<ProductListingOption>? options;
 
   ProductListing({
@@ -14,10 +15,11 @@ class ProductListing {
     required this.platform,
     required this.platformProductId,
     required this.name,
+    this.sellerId,
+    this.sellerName,
     this.categoryName,
     this.carrierName,
     this.packageType,
-    this.sellerName,
     this.options,
   });
 }
