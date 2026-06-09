@@ -201,9 +201,6 @@ class _ProductListingSearchViewState extends State<_ProductListingSearchView> {
                           return _ProductListingCard(
                             listing: listing,
                             isExpanded: state.expandedId == listing.id,
-                            isLoadingOptions:
-                                state.loadingOptionsId == listing.id,
-                            options: state.optionsCache[listing.id],
                             onToggle: () => context
                                 .read<ProductListingListBloc>()
                                 .add(ToggleListingOptions(listingId: listing.id)),
@@ -228,16 +225,12 @@ class _ProductListingSearchViewState extends State<_ProductListingSearchView> {
 class _ProductListingCard extends StatelessWidget {
   final ProductListing listing;
   final bool isExpanded;
-  final bool isLoadingOptions;
-  final List<ProductListingOption>? options;
   final VoidCallback onToggle;
   final VoidCallback onTap;
 
   const _ProductListingCard({
     required this.listing,
     required this.isExpanded,
-    required this.isLoadingOptions,
-    required this.options,
     required this.onToggle,
     required this.onTap,
   });
@@ -315,10 +308,7 @@ class _ProductListingCard extends StatelessWidget {
           if (isExpanded)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: _OptionsSection(
-                isLoading: isLoadingOptions,
-                options: options,
-              ),
+              child: _OptionsSection(options: listing.options),
             ),
         ],
       ),
@@ -327,26 +317,12 @@ class _ProductListingCard extends StatelessWidget {
 }
 
 class _OptionsSection extends StatelessWidget {
-  final bool isLoading;
   final List<ProductListingOption>? options;
 
-  const _OptionsSection({required this.isLoading, required this.options});
+  const _OptionsSection({required this.options});
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
-      return const Padding(
-        padding: EdgeInsets.all(12),
-        child: Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
-      );
-    }
-
     final opts = options ?? const [];
     if (opts.isEmpty) {
       return Container(

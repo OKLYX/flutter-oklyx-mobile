@@ -17,8 +17,9 @@ class ProductListingListError extends ProductListingListState {
 
 /// 조회 성공 (목록 + 페이지네이션 + 옵션 펼침 상태)
 ///
-/// 프론트 "판매상품 조회"와 동일하게 행을 펼치면 옵션을 별도로 로드해
-/// [optionsCache] 에 저장한다. [expandedId] 는 현재 펼쳐진 행의 id.
+/// 옵션(판매가/마진/마진율)은 목록 조회 응답의 각 listing.options 에 포함되어
+/// 온다(프론트와 동일). 따라서 별도 fetch/cache 없이 [expandedId] 로 현재
+/// 펼쳐진 행만 추적한다.
 class ProductListingListLoaded extends ProductListingListState {
   final String platform;
   final List<ProductListing> listings;
@@ -26,8 +27,6 @@ class ProductListingListLoaded extends ProductListingListState {
   final bool hasMore;
   final bool isLoadingMore;
   final int? expandedId;
-  final int? loadingOptionsId;
-  final Map<int, List<ProductListingOption>> optionsCache;
 
   ProductListingListLoaded({
     required this.platform,
@@ -36,8 +35,6 @@ class ProductListingListLoaded extends ProductListingListState {
     required this.hasMore,
     this.isLoadingMore = false,
     this.expandedId,
-    this.loadingOptionsId,
-    this.optionsCache = const {},
   });
 
   ProductListingListLoaded copyWith({
@@ -48,9 +45,6 @@ class ProductListingListLoaded extends ProductListingListState {
     bool? isLoadingMore,
     int? expandedId,
     bool clearExpanded = false,
-    int? loadingOptionsId,
-    bool clearLoadingOptions = false,
-    Map<int, List<ProductListingOption>>? optionsCache,
   }) {
     return ProductListingListLoaded(
       platform: platform ?? this.platform,
@@ -59,9 +53,6 @@ class ProductListingListLoaded extends ProductListingListState {
       hasMore: hasMore ?? this.hasMore,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       expandedId: clearExpanded ? null : (expandedId ?? this.expandedId),
-      loadingOptionsId:
-          clearLoadingOptions ? null : (loadingOptionsId ?? this.loadingOptionsId),
-      optionsCache: optionsCache ?? this.optionsCache,
     );
   }
 }

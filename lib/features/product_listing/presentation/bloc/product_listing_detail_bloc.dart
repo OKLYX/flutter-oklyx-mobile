@@ -6,8 +6,8 @@ import 'product_listing_detail_state.dart';
 
 /// 판매상품 상세 BLoC
 ///
-/// 상세 정보(getById)와 옵션 목록(getOptions)을 함께 로드한다.
-/// 옵션 조회가 실패해도 상세 정보는 보여주기 위해 옵션은 빈 목록으로 처리한다.
+/// 상세 정보(getById)를 로드한다. 옵션(판매가/마진/마진율)은 상세 응답의
+/// listing.options 에 포함되어 오므로(프론트와 동일) 별도 요청하지 않는다.
 class ProductListingDetailBloc
     extends Bloc<ProductListingDetailEvent, ProductListingDetailState> {
   final ProductListingUseCase productListingUseCase;
@@ -25,18 +25,12 @@ class ProductListingDetailBloc
 
     final listingResult = await productListingUseCase.getById(event.id);
 
-    await listingResult.fold(
-      (failure) async =>
-          emit(ProductListingDetailError(message: failure.message)),
-      (listing) async {
-        final optionsResult =
-            await productListingUseCase.getOptions(event.id);
-        final options = optionsResult.fold(
-          (failure) => <ProductListingOption>[],
-          (options) => options,
-        );
-        emit(ProductListingDetailLoaded(listing: listing, options: options));
-      },
+    listingResult.fold(
+      (failure) => emit(ProductListingDetailError(message: failure.message)),
+      (listing) => emit(ProductListingDetailLoaded(
+        listing: listing,
+        options: listing.options ?? <ProductListingOption>[],
+      )),
     );
   }
 }

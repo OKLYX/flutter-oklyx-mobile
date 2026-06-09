@@ -8,7 +8,7 @@ import 'product_listing_list_state.dart';
 /// 프론트 "판매상품 조회" 기능과 동일하게 동작한다:
 /// - 플랫폼 선택 후 검색 ([SearchProductListings])
 /// - 무한 스크롤 페이지네이션 ([LoadMoreProductListings])
-/// - 행을 펼치면 옵션을 별도로 로드 ([ToggleListingOptions])
+/// - 행 펼침/접힘 토글 ([ToggleListingOptions]) — 옵션은 목록 응답에 포함되어 옴
 class ProductListingListBloc
     extends Bloc<ProductListingListEvent, ProductListingListState> {
   final ProductListingUseCase productListingUseCase;
@@ -73,45 +73,19 @@ class ProductListingListBloc
     );
   }
 
-  Future<void> _onToggleOptions(
+  void _onToggleOptions(
     ToggleListingOptions event,
     Emitter<ProductListingListState> emit,
-  ) async {
+  ) {
     final current = state;
     if (current is! ProductListingListLoaded) return;
 
-    // 이미 펼쳐진 행을 다시 누르면 접는다.
+    // 옵션(판매가/마진/마진율)은 목록 조회 응답에 이미 포함되어 온다(프론트와 동일).
+    // 별도 요청 없이 펼침 상태만 토글한다.
     if (current.expandedId == event.listingId) {
-      emit(current.copyWith(clearExpanded: true, clearLoadingOptions: true));
-      return;
-    }
-
-    // 캐시에 있으면 추가 요청 없이 바로 펼친다.
-    if (current.optionsCache.containsKey(event.listingId)) {
+      emit(current.copyWith(clearExpanded: true));
+    } else {
       emit(current.copyWith(expandedId: event.listingId));
-      return;
     }
-
-    emit(current.copyWith(
-      expandedId: event.listingId,
-      loadingOptionsId: event.listingId,
-    ));
-
-    final result = await productListingUseCase.getOptions(event.listingId);
-
-    // 토글이 진행되는 동안 상태가 바뀌었을 수 있으므로 최신 상태로 갱신.
-    final latest = state;
-    if (latest is! ProductListingListLoaded) return;
-
-    result.fold(
-      (failure) => emit(latest.copyWith(clearLoadingOptions: true)),
-      (options) => emit(latest.copyWith(
-        optionsCache: {
-          ...latest.optionsCache,
-          event.listingId: options,
-        },
-        clearLoadingOptions: true,
-      )),
-    );
   }
 }
