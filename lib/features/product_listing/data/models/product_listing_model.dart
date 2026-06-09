@@ -54,8 +54,10 @@ class ProductListingOptionModel extends ProductListingOption {
     required super.id,
     required super.optionName,
     required super.sellingPrice,
+    super.platformOptionId,
     super.margin,
     super.marginRate,
+    super.products,
   });
 
   factory ProductListingOptionModel.fromJson(Map<String, dynamic> json) {
@@ -65,8 +67,15 @@ class ProductListingOptionModel extends ProductListingOption {
       // 백엔드가 sellingPrice/margin 을 double(예: 22880.0)로 내려줄 수 있어
       // num 으로 받아 toInt() 처리한다.
       sellingPrice: (json['sellingPrice'] as num).toInt(),
+      platformOptionId: json['platformOptionId'] as String?,
       margin: (json['margin'] as num?)?.toInt(),
       marginRate: (json['marginRate'] as num?)?.toDouble(),
+      products: json['products'] != null
+          ? (json['products'] as List<dynamic>)
+              .map((e) =>
+                  ProductListingProductModel.fromJson(e as Map<String, dynamic>))
+              .toList()
+          : null,
     );
   }
 
@@ -75,8 +84,39 @@ class ProductListingOptionModel extends ProductListingOption {
       'id': id,
       'optionName': optionName,
       'sellingPrice': sellingPrice,
+      'platformOptionId': platformOptionId,
       'margin': margin,
       'marginRate': marginRate,
+      'products': products
+          ?.map((e) => (e as ProductListingProductModel).toJson())
+          .toList(),
+    };
+  }
+}
+
+class ProductListingProductModel extends ProductListingProduct {
+  ProductListingProductModel({
+    required super.id,
+    required super.productId,
+    required super.productName,
+    required super.quantity,
+  });
+
+  factory ProductListingProductModel.fromJson(Map<String, dynamic> json) {
+    return ProductListingProductModel(
+      id: json['id'] as int,
+      productId: json['productId'] as int,
+      productName: json['productName'] as String? ?? '',
+      quantity: (json['quantity'] as num).toInt(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'productId': productId,
+      'productName': productName,
+      'quantity': quantity,
     };
   }
 }
