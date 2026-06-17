@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
+import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
@@ -108,8 +110,8 @@ class _LoadedBody extends StatelessWidget {
                           decoration: const InputDecoration(
                             labelText: '판매자',
                             border: OutlineInputBorder(),
-                            contentPadding:
-                                EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
                           ),
                           items: [
                             const DropdownMenuItem<int?>(
@@ -227,56 +229,61 @@ class _OrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    order.externalOrderId,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        // 항목 탭 → 주문 상세 페이지로 이동 (선택한 OrderItem 을 extra 로 전달).
+        onTap: () => context.push(Routes.orderHistoryDetailPath, extra: order),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      order.externalOrderId,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(12),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      order.status,
+                      style: TextStyle(fontSize: 12, color: Colors.blue[800]),
+                    ),
                   ),
-                  child: Text(
-                    order.status,
-                    style: TextStyle(fontSize: 12, color: Colors.blue[800]),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(order.itemName ?? '-', style: const TextStyle(fontSize: 13)),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 12,
-              runSpacing: 4,
-              children: [
-                _metric('주문수량', order.orderCount),
-                _metric('취소', order.cancelCount),
-                _metric('보류', order.holdCount),
-                _metric('구매가능', order.purchasableQty),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '결제일 ${_formatDate(order.paidAt)}',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-            ),
-          ],
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(order.itemName ?? '-', style: const TextStyle(fontSize: 13)),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 12,
+                runSpacing: 4,
+                children: [
+                  _metric('주문수량', order.orderCount),
+                  _metric('취소', order.cancelCount),
+                  _metric('보류', order.holdCount),
+                  _metric('구매가능', order.purchasableQty),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '결제일 ${_formatDate(order.paidAt)}',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            ],
+          ),
         ),
       ),
     );

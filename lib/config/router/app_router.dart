@@ -56,6 +56,8 @@ import 'package:flutter_oklyn_mobile/features/product_listing/presentation/pages
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/pages/product_listing_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/pages/product_listing_edit_page.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/bloc/product_listing_create_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/order/presentation/pages/order_detail_page.dart';
+import 'package:flutter_oklyn_mobile/features/order/domain/entities/order_item.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/pages/order_history_page.dart';
 
 import 'routes.dart';
@@ -199,7 +201,8 @@ class AppRouter {
         final id = int.parse(state.pathParameters['id']!);
         return NoTransitionPage(
           child: BlocProvider<PackageDetailBloc>(
-            create: (context) => GetIt.instance<PackageDetailBloc>()..add(LoadPackageDetail(id)),
+            create: (context) =>
+                GetIt.instance<PackageDetailBloc>()..add(LoadPackageDetail(id)),
             child: PackageDetailPage(packageId: id),
           ),
         );
@@ -241,8 +244,8 @@ class AppRouter {
           child: MultiBlocProvider(
             providers: [
               BlocProvider<CategoryListBloc>(
-                create: (context) => getIt<CategoryListBloc>()
-                  ..add(FetchCategoriesRequested()),
+                create: (context) =>
+                    getIt<CategoryListBloc>()..add(FetchCategoriesRequested()),
               ),
               BlocProvider<CategoryDetailBloc>(
                 create: (context) => getIt<CategoryDetailBloc>()
@@ -423,6 +426,19 @@ class AppRouter {
       pageBuilder: (context, state) => const NoTransitionPage(
         child: OrderHistoryPage(),
       ),
+      routes: [
+        GoRoute(
+          name: Routes.orderHistoryDetail,
+          path: 'detail',
+          pageBuilder: (context, state) {
+            // 목록에서 extra 로 전달한 OrderItem 사용 (상세 API 없음, 프론트와 동일).
+            final order = state.extra as OrderItem?;
+            return NoTransitionPage(
+              child: OrderDetailPage(order: order),
+            );
+          },
+        ),
+      ],
     ),
     GoRoute(
       name: Routes.notFound,

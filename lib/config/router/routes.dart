@@ -28,6 +28,7 @@ class Routes {
   static const String salesProductsDetail = 'salesProductsDetail';
   static const String salesProductsEdit = 'salesProductsEdit';
   static const String orderHistory = 'orderHistory';
+  static const String orderHistoryDetail = 'orderHistoryDetail';
   static const String notFound = 'notFound';
 
   static const String splashPath = '/';
@@ -61,8 +62,10 @@ class Routes {
   static const String salesProductsDetailPath = '/sales-products/detail/:id';
   static const String salesProductsEditPath = '/sales-products/edit/:id';
   static const String orderHistoryPath = '/orders/history';
+  static const String orderHistoryDetailPath = '/orders/history/detail';
   static const String notFoundPath = '/404';
 
-  static String salesProductsDetailRoute(int id) => '/sales-products/detail/$id';
+  static String salesProductsDetailRoute(int id) =>
+      '/sales-products/detail/$id';
   static String salesProductsEditRoute(int id) => '/sales-products/edit/$id';
 }
