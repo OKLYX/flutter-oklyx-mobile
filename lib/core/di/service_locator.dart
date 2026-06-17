@@ -114,6 +114,11 @@ import 'package:flutter_oklyn_mobile/features/product_listing/domain/usecases/pr
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/bloc/product_listing_create_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/bloc/product_listing_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/bloc/product_listing_detail_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/order/data/datasources/order_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/order/data/repositories/order_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/order/domain/repositories/order_repository.dart';
+import 'package:flutter_oklyn_mobile/features/order/domain/usecases/order_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_list_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -130,6 +135,7 @@ void setupServiceLocator() {
   _registerSellerServices();
   _registerCommissionRateServices();
   _registerProductListingServices();
+  _registerOrderServices();
   _registerErrorHandling();
 }
 
@@ -639,6 +645,32 @@ void _registerProductListingServices() {
   getIt.registerFactory<ProductListingDetailBloc>(
     () => ProductListingDetailBloc(
       productListingUseCase: getIt<ProductListingUseCase>(),
+    ),
+  );
+}
+
+void _registerOrderServices() {
+  // Data Source
+  getIt.registerSingleton<OrderRemoteDataSource>(
+    OrderRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
+  );
+
+  // Repository
+  getIt.registerSingleton<OrderRepository>(
+    OrderRepositoryImpl(remoteDataSource: getIt<OrderRemoteDataSource>()),
+  );
+
+  // Use Case
+  getIt.registerSingleton<OrderUseCase>(
+    OrderUseCase(repository: getIt<OrderRepository>()),
+  );
+
+  // BLoC as factory to allow fresh state per page.
+  // 판매자 드롭다운은 기존 seller 기능의 GetSellersUseCase 를 재사용한다.
+  getIt.registerFactory<OrderListBloc>(
+    () => OrderListBloc(
+      orderUseCase: getIt<OrderUseCase>(),
+      getSellersUseCase: getIt<GetSellersUseCase>(),
     ),
   );
 }
