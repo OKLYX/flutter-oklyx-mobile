@@ -119,6 +119,14 @@ import 'package:flutter_oklyn_mobile/features/order/data/repositories/order_repo
 import 'package:flutter_oklyn_mobile/features/order/domain/repositories/order_repository.dart';
 import 'package:flutter_oklyn_mobile/features/order/domain/usecases/order_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/marketplace_account/data/datasources/marketplace_account_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/marketplace_account/data/repositories/marketplace_account_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/marketplace_account/domain/repositories/marketplace_account_repository.dart';
+import 'package:flutter_oklyn_mobile/features/marketplace_account/domain/usecases/get_marketplace_accounts_by_seller_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/marketplace_account/domain/usecases/create_marketplace_account_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/marketplace_account/domain/usecases/update_marketplace_account_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/marketplace_account/domain/usecases/delete_marketplace_account_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/marketplace_account/presentation/bloc/marketplace_account_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -133,6 +141,7 @@ void setupServiceLocator() {
   _registerPackageServices();
   _registerCarrierRateServices();
   _registerSellerServices();
+  _registerMarketplaceAccountServices();
   _registerCommissionRateServices();
   _registerProductListingServices();
   _registerOrderServices();
@@ -495,6 +504,45 @@ void _registerSellerServices() {
       getSellerByIdUseCase: getIt<GetSellerByIdUseCase>(),
       updateSellerUseCase: getIt<UpdateSellerUseCase>(),
       deleteSellerUseCase: getIt<DeleteSellerUseCase>(),
+    ),
+  );
+}
+
+void _registerMarketplaceAccountServices() {
+  // Data Source
+  getIt.registerSingleton<MarketplaceAccountRemoteDataSource>(
+    MarketplaceAccountRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
+  );
+
+  // Repository
+  getIt.registerSingleton<MarketplaceAccountRepository>(
+    MarketplaceAccountRepositoryImpl(
+      remoteDataSource: getIt<MarketplaceAccountRemoteDataSource>(),
+    ),
+  );
+
+  // Use Cases
+  getIt.registerSingleton<GetMarketplaceAccountsBySellerUseCase>(
+    GetMarketplaceAccountsBySellerUseCase(repository: getIt<MarketplaceAccountRepository>()),
+  );
+  getIt.registerSingleton<CreateMarketplaceAccountUseCase>(
+    CreateMarketplaceAccountUseCase(repository: getIt<MarketplaceAccountRepository>()),
+  );
+  getIt.registerSingleton<UpdateMarketplaceAccountUseCase>(
+    UpdateMarketplaceAccountUseCase(repository: getIt<MarketplaceAccountRepository>()),
+  );
+  getIt.registerSingleton<DeleteMarketplaceAccountUseCase>(
+    DeleteMarketplaceAccountUseCase(repository: getIt<MarketplaceAccountRepository>()),
+  );
+
+  // BLoC - factoryParam(sellerId) so each expanded SellerChannelSection gets its own bloc
+  getIt.registerFactoryParam<MarketplaceAccountBloc, int, void>(
+    (sellerId, _) => MarketplaceAccountBloc(
+      sellerId: sellerId,
+      getBySellerUseCase: getIt<GetMarketplaceAccountsBySellerUseCase>(),
+      createUseCase: getIt<CreateMarketplaceAccountUseCase>(),
+      updateUseCase: getIt<UpdateMarketplaceAccountUseCase>(),
+      deleteUseCase: getIt<DeleteMarketplaceAccountUseCase>(),
     ),
   );
 }
