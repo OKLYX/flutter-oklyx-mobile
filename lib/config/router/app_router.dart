@@ -56,6 +56,7 @@ import 'package:flutter_oklyn_mobile/features/product_listing/presentation/pages
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/pages/product_listing_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/pages/product_listing_edit_page.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/bloc/product_listing_create_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/order/presentation/pages/order_history_page.dart';
 
 import 'routes.dart';
 
@@ -415,6 +416,13 @@ class AppRouter {
           },
         ),
       ],
+    ),
+    GoRoute(
+      name: Routes.orderHistory,
+      path: Routes.orderHistoryPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: OrderHistoryPage(),
+      ),
     ),
     GoRoute(
       name: Routes.notFound,
