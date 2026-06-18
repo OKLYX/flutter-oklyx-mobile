@@ -33,3 +33,28 @@ class OrderItem {
     this.paidAt,
   });
 }
+
+/// Coupang order status codes in workflow sequence; used for the status filter
+/// buttons (프론트 OrderEntity.ORDER_STATUSES와 동일).
+const List<String> kOrderStatuses = [
+  'ACCEPT',
+  'INSTRUCT',
+  'DEPARTURE',
+  'DELIVERING',
+  'FINAL_DELIVERY',
+  'NONE_TRACKING',
+];
+
+// Maps Coupang order status codes to Korean display labels (프론트와 동일).
+const Map<String, String> _orderStatusLabels = {
+  'ACCEPT': '결제완료',
+  'INSTRUCT': '상품준비중',
+  'DEPARTURE': '배송지시',
+  'DELIVERING': '배송중',
+  'FINAL_DELIVERY': '배송완료',
+  'NONE_TRACKING': '업체 직접 배송(배송 연동 미적용), 추적불가',
+};
+
+/// Returns the Korean label for an order status code; falls back to the raw value.
+String getOrderStatusLabel(String status) =>
+    _orderStatusLabels[status] ?? status;

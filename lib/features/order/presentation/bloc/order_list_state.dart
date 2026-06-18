@@ -33,6 +33,9 @@ class OrderListLoaded extends OrderListState {
   final OrderSyncResult? syncResult;
   final String? lastSyncedAt;
 
+  /// 선택된 상태 필터 (null = 전체). 프론트 OrderContainer.selectedStatus와 동일.
+  final String? selectedStatus;
+
   OrderListLoaded({
     required this.sellers,
     this.selectedSellerId,
@@ -42,7 +45,22 @@ class OrderListLoaded extends OrderListState {
     this.actionError,
     this.syncResult,
     this.lastSyncedAt,
+    this.selectedStatus,
   });
+
+  /// 상태별 주문 건수 (필터 버튼 배지용). 선택과 무관하게 전체 주문 기준.
+  Map<String, int> get statusCounts {
+    final counts = <String, int>{};
+    for (final order in orders) {
+      counts[order.status] = (counts[order.status] ?? 0) + 1;
+    }
+    return counts;
+  }
+
+  /// 선택된 상태로 거른 주문 목록 (null = 전체).
+  List<OrderItem> get filteredOrders => selectedStatus == null
+      ? orders
+      : orders.where((o) => o.status == selectedStatus).toList();
 
   OrderListLoaded copyWith({
     List<Seller>? sellers,
@@ -56,6 +74,8 @@ class OrderListLoaded extends OrderListState {
     OrderSyncResult? syncResult,
     bool clearSyncResult = false,
     String? lastSyncedAt,
+    String? selectedStatus,
+    bool clearSelectedStatus = false,
   }) {
     return OrderListLoaded(
       sellers: sellers ?? this.sellers,
@@ -68,6 +88,9 @@ class OrderListLoaded extends OrderListState {
       actionError: clearActionError ? null : (actionError ?? this.actionError),
       syncResult: clearSyncResult ? null : (syncResult ?? this.syncResult),
       lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+      selectedStatus: clearSelectedStatus
+          ? null
+          : (selectedStatus ?? this.selectedStatus),
     );
   }
 }

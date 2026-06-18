@@ -15,3 +15,10 @@ class SearchOrders extends OrderListEvent {}
 
 /// 동기화 버튼: 외부 마켓플레이스 주문 동기화 후 목록 갱신
 class SyncOrders extends OrderListEvent {}
+
+/// 상태 필터 버튼 선택 (null = 전체). 같은 상태를 다시 누르면 해제(전체)된다.
+class SelectStatus extends OrderListEvent {
+  final String? status;
+
+  SelectStatus({this.status});
+}

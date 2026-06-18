@@ -20,7 +20,8 @@ import '../bloc/order_list_state.dart';
 /// - 판매자 필터 드롭다운 (기존 seller 기능 재사용)
 /// - 조회: GET /api/orders?sellerId=
 /// - 동기화: POST /api/orders/sync?sellerId= → 신규/수정/취소 건수 배너 표시
-/// - 컬럼: 주문번호 / 상품명 / 상태 / 주문수량 / 취소 / 보류 / 구매가능수량 / 결제일
+/// - 상태 필터: 6개 상태 버튼(건수 배지) — 선택 상태만 표시, 재선택 시 전체
+/// - 카드 항목(프론트 OrderTable과 동일): 주문번호 / 상품명 / 주문수량 / 취소 / 결제일
 class OrderHistoryPage extends StatelessWidget {
   const OrderHistoryPage({super.key});
 
@@ -186,11 +187,19 @@ class _LoadedBody extends StatelessWidget {
             const SizedBox(height: 8),
           ],
 
+          // 상태 필터 버튼 (프론트 OrderStatusFilter). 같은 버튼 재선택 시 전체 해제.
+          _StatusFilterBar(
+            selectedStatus: s.selectedStatus,
+            counts: s.statusCounts,
+            onSelect: (status) => bloc.add(SelectStatus(status: status)),
+          ),
+          const SizedBox(height: 8),
+
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '총 ${s.orders.length}건',
+                '총 ${s.filteredOrders.length}건',
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
               if (s.lastSyncedAt != null)
@@ -203,16 +212,16 @@ class _LoadedBody extends StatelessWidget {
           const SizedBox(height: 8),
 
           Expanded(
-            child: s.orders.isEmpty
+            child: s.filteredOrders.isEmpty
                 ? const Center(child: Text('조회 결과가 없습니다.'))
                 : ListView.separated(
                     padding: const EdgeInsets.only(
                       bottom: kBottomNavigationBarHeight + 24,
                     ),
-                    itemCount: s.orders.length,
+                    itemCount: s.filteredOrders.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, index) =>
-                        _OrderCard(order: s.orders[index]),
+                        _OrderCard(order: s.filteredOrders[index]),
                   ),
           ),
         ],
@@ -235,34 +244,16 @@ class _OrderCard extends StatelessWidget {
         onTap: () => context.push(Routes.orderHistoryDetailPath, extra: order),
         child: Padding(
           padding: const EdgeInsets.all(12),
+          // 카드 항목은 프론트 OrderTable 컬럼과 동일: 주문번호 / 상품명 / 주문수량 / 취소 / 결제일.
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      order.externalOrderId,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      order.status,
-                      style: TextStyle(fontSize: 12, color: Colors.blue[800]),
-                    ),
-                  ),
-                ],
+              Text(
+                order.externalOrderId,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 6),
               Text(order.itemName ?? '-', style: const TextStyle(fontSize: 13)),
@@ -273,8 +264,6 @@ class _OrderCard extends StatelessWidget {
                 children: [
                   _metric('주문수량', order.orderCount),
                   _metric('취소', order.cancelCount),
-                  _metric('보류', order.holdCount),
-                  _metric('구매가능', order.purchasableQty),
                 ],
               ),
               const SizedBox(height: 6),
@@ -311,6 +300,110 @@ class _ErrorRetry extends StatelessWidget {
           const SizedBox(height: 12),
           ElevatedButton(onPressed: onRetry, child: const Text('재시도')),
         ],
+      ),
+    );
+  }
+}
+
+/// 상태 필터 버튼 바 (프론트 OrderStatusFilter와 동일).
+///
+/// 6개 상태 버튼을 가로 스크롤로 배치하고, 각 버튼에 해당 상태의 건수 배지를
+/// 표시한다. 활성 버튼을 다시 누르면 [onSelect]에 null을 전달해 필터를
+/// 해제(전체)한다.
+class _StatusFilterBar extends StatelessWidget {
+  final String? selectedStatus;
+  final Map<String, int> counts;
+  final void Function(String? status) onSelect;
+
+  const _StatusFilterBar({
+    required this.selectedStatus,
+    required this.counts,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: kOrderStatuses.map((status) {
+          final isActive = selectedStatus == status;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: _StatusChip(
+              label: getOrderStatusLabel(status),
+              count: counts[status] ?? 0,
+              isActive: isActive,
+              onTap: () => onSelect(isActive ? null : status),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  final String label;
+  final int count;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _StatusChip({
+    required this.label,
+    required this.count,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = isActive ? Colors.white : Colors.grey[800];
+    return Material(
+      color: isActive ? Colors.blue[600] : Colors.white,
+      shape: StadiumBorder(
+        side: BorderSide(
+          color: isActive ? Colors.blue.shade600 : Colors.grey.shade300,
+        ),
+      ),
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: textColor,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? Colors.white.withValues(alpha: 0.25)
+                      : Colors.grey[100],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: isActive ? Colors.white : Colors.grey[600],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

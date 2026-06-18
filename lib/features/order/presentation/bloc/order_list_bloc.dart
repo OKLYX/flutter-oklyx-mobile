@@ -25,6 +25,7 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
     on<SelectSeller>(_onSelectSeller);
     on<SearchOrders>(_onSearch);
     on<SyncOrders>(_onSync);
+    on<SelectStatus>(_onSelectStatus);
   }
 
   Future<void> _onLoad(LoadOrders event, Emitter<OrderListState> emit) async {
@@ -47,6 +48,15 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
     emit(current.copyWith(
       selectedSellerId: event.sellerId,
       clearSelectedSeller: event.sellerId == null,
+    ));
+  }
+
+  void _onSelectStatus(SelectStatus event, Emitter<OrderListState> emit) {
+    final current = state;
+    if (current is! OrderListLoaded) return;
+    emit(current.copyWith(
+      selectedStatus: event.status,
+      clearSelectedStatus: event.status == null,
     ));
   }
 
