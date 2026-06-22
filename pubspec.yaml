@@ -1,5 +1,5 @@
 name: flutter_oklyn_mobile
-description: "Flutter Oklyn Mobile - Clean Architecture with BLoC, go_router, and Dio"
+description: "Flutter Oclyn Mobile - Clean Architecture with BLoC, go_router, and Dio"
 publish_to: 'none'
 
 version: 1.0.0+1

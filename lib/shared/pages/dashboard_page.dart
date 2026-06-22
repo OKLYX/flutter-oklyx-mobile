@@ -31,92 +31,95 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) => Stack(
-    children: [
-      Scaffold(
-        key: _scaffoldKey,
-        drawerScrimColor: Colors.black.withOpacity(0.3),
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          centerTitle: true,
-          title: SizedBox(
-            height: 30,
-            child: Image.asset(
-              'assets/images/oklyx_letter_logo.png',
-              fit: BoxFit.contain,
+        children: [
+          Scaffold(
+            key: _scaffoldKey,
+            drawerScrimColor: Colors.black.withOpacity(0.3),
+            appBar: AppBar(
+              automaticallyImplyLeading: false,
+              centerTitle: true,
+              title: SizedBox(
+                height: 70,
+                child: Image.asset(
+                  'assets/images/oclyx_letter_logo.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+              backgroundColor: Colors.white,
+              elevation: 0,
+            ),
+            backgroundColor: Colors.grey[100],
+            drawer: const AppDrawer(),
+            body: const Center(
+              child: Text('Dashboard Page'),
+            ),
+            bottomNavigationBar: SizedBox.shrink(),
+          ),
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Builder(
+              builder: (context) {
+                final isDrawerOpen =
+                    _scaffoldKey.currentState?.isDrawerOpen ?? false;
+
+                return BottomNavigationBar(
+                  type: BottomNavigationBarType.fixed,
+                  currentIndex: 1,
+                  selectedItemColor: const Color(0xffffc417),
+                  items: [
+                    BottomNavigationBarItem(
+                      icon: Icon(
+                        Icons.menu,
+                        color: isDrawerOpen
+                            ? const Color(0xffffc417)
+                            : Colors.black87,
+                      ),
+                      label: '',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: const Icon(Icons.home),
+                      label: '',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: const Icon(Icons.checklist),
+                      label: '',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: const Icon(Icons.notifications),
+                      label: '',
+                    ),
+                  ],
+                  onTap: (index) {
+                    switch (index) {
+                      case 0:
+                        if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+                          Navigator.pop(context);
+                        } else {
+                          _scaffoldKey.currentState?.openDrawer();
+                        }
+                        setState(() {});
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) setState(() {});
+                        });
+                        break;
+                      case 1:
+                        // Already on dashboard
+                        setState(() {});
+                        break;
+                      case 2:
+                        context.go(Routes.listToShopPath);
+                        break;
+                      case 3:
+                        context.go(Routes.notificationPath);
+                        break;
+                    }
+                  },
+                );
+              },
             ),
           ),
-          backgroundColor: Colors.white,
-          elevation: 0,
-        ),
-        backgroundColor: Colors.grey[100],
-        drawer: const AppDrawer(),
-        body: const Center(
-          child: Text('Dashboard Page'),
-        ),
-        bottomNavigationBar: SizedBox.shrink(),
-      ),
-      Positioned(
-        bottom: 0,
-        left: 0,
-        right: 0,
-        child: Builder(
-          builder: (context) {
-            final isDrawerOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
-
-            return BottomNavigationBar(
-              type: BottomNavigationBarType.fixed,
-              currentIndex: 1,
-              selectedItemColor: const Color(0xffffc417),
-              items: [
-                BottomNavigationBarItem(
-                  icon: Icon(
-                    Icons.menu,
-                    color: isDrawerOpen ? const Color(0xffffc417) : Colors.black87,
-                  ),
-                  label: '',
-                ),
-                BottomNavigationBarItem(
-                  icon: const Icon(Icons.home),
-                  label: '',
-                ),
-                BottomNavigationBarItem(
-                  icon: const Icon(Icons.checklist),
-                  label: '',
-                ),
-                BottomNavigationBarItem(
-                  icon: const Icon(Icons.notifications),
-                  label: '',
-                ),
-              ],
-              onTap: (index) {
-                switch (index) {
-                  case 0:
-                    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
-                      Navigator.pop(context);
-                    } else {
-                      _scaffoldKey.currentState?.openDrawer();
-                    }
-                    setState(() {});
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) setState(() {});
-                    });
-                    break;
-                  case 1:
-                    // Already on dashboard
-                    setState(() {});
-                    break;
-                  case 2:
-                    context.go(Routes.listToShopPath);
-                    break;
-                  case 3:
-                    context.go(Routes.notificationPath);
-                    break;
-                }
-              },
-            );
-          },
-        ),
-      ),
-    ],
-  );
+        ],
+      );
 }
