@@ -12,6 +12,9 @@ class PurchaseProductCard extends StatelessWidget {
   final PurchaseListItem item;
   final bool expanded;
   final bool busy;
+
+  /// 읽기전용(완료 탭)이면 라인 인라인 폼을 숨긴다.
+  final bool readOnly;
   final VoidCallback onToggle;
   final void Function(int itemId, String purchasedOn, int quantity)
       onRecordPurchase;
@@ -24,6 +27,7 @@ class PurchaseProductCard extends StatelessWidget {
     required this.onToggle,
     required this.onRecordPurchase,
     required this.onAdjustManual,
+    this.readOnly = false,
     super.key,
   });
 
@@ -80,6 +84,7 @@ class PurchaseProductCard extends StatelessWidget {
                       (line) => PurchaseLineTile(
                         line: line,
                         busy: busy,
+                        readOnly: readOnly,
                         onRecordPurchase: onRecordPurchase,
                         onAdjustManual: onAdjustManual,
                       ),

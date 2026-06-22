@@ -132,8 +132,10 @@ import 'package:flutter_oklyn_mobile/features/purchase_list/data/repositories/pu
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/repositories/purchase_list_repository.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/get_purchase_list_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/extract_purchase_list_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/get_completed_purchase_list_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/record_purchase_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/adjust_manual_qty_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/add_manual_item_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_list_bloc.dart';
 
 final getIt = GetIt.instance;
@@ -758,16 +760,25 @@ void _registerPurchaseListServices() {
   getIt.registerSingleton<AdjustManualQtyUseCase>(
     AdjustManualQtyUseCase(repository: getIt<PurchaseListRepository>()),
   );
+  getIt.registerSingleton<GetCompletedPurchaseListUseCase>(
+    GetCompletedPurchaseListUseCase(repository: getIt<PurchaseListRepository>()),
+  );
+  getIt.registerSingleton<AddManualItemUseCase>(
+    AddManualItemUseCase(repository: getIt<PurchaseListRepository>()),
+  );
 
   // BLoC as factory to allow fresh state per page.
-  // 판매자 드롭다운은 기존 seller 기능의 GetSellersUseCase 를 재사용한다.
+  // 판매자 드롭다운/주문동기화는 기존 seller/order 기능 usecase 를 재사용한다.
   getIt.registerFactory<PurchaseListBloc>(
     () => PurchaseListBloc(
       getPurchaseListUseCase: getIt<GetPurchaseListUseCase>(),
       extractPurchaseListUseCase: getIt<ExtractPurchaseListUseCase>(),
+      getCompletedPurchaseListUseCase: getIt<GetCompletedPurchaseListUseCase>(),
       recordPurchaseUseCase: getIt<RecordPurchaseUseCase>(),
       adjustManualQtyUseCase: getIt<AdjustManualQtyUseCase>(),
+      addManualItemUseCase: getIt<AddManualItemUseCase>(),
       getSellersUseCase: getIt<GetSellersUseCase>(),
+      orderUseCase: getIt<OrderUseCase>(),
     ),
   );
 }

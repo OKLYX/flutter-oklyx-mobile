@@ -15,6 +15,9 @@ import '../../domain/entities/purchase_line.dart';
 class PurchaseLineTile extends StatefulWidget {
   final PurchaseLine line;
   final bool busy;
+
+  /// 읽기전용(완료 탭)이면 인라인 폼을 숨기고 기록만 표시한다.
+  final bool readOnly;
   final void Function(int itemId, String purchasedOn, int quantity)
       onRecordPurchase;
   final void Function(int itemId, int manualQty) onAdjustManual;
@@ -24,6 +27,7 @@ class PurchaseLineTile extends StatefulWidget {
     required this.busy,
     required this.onRecordPurchase,
     required this.onAdjustManual,
+    this.readOnly = false,
     super.key,
   });
 
@@ -142,72 +146,75 @@ class _PurchaseLineTileState extends State<PurchaseLineTile> {
               ),
             ),
           ],
-          const Divider(height: 18),
+          if (!widget.readOnly) ...[
+            const Divider(height: 18),
 
-          // 구매기록 입력 폼
-          Row(
-            children: [
-              Expanded(
-                flex: 3,
-                child: OutlinedButton(
-                  onPressed: widget.busy ? null : _pickDate,
-                  child: Text(
-                    DateFormat('yyyy-MM-dd').format(_purchasedOn),
-                    style: const TextStyle(fontSize: 13),
+            // 구매기록 입력 폼
+            Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: OutlinedButton(
+                    onPressed: widget.busy ? null : _pickDate,
+                    child: Text(
+                      DateFormat('yyyy-MM-dd').format(_purchasedOn),
+                      style: const TextStyle(fontSize: 13),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                flex: 2,
-                child: TextField(
-                  controller: _qtyController,
-                  keyboardType: const TextInputType.numberWithOptions(signed: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^-?\d*')),
-                  ],
-                  decoration: const InputDecoration(
-                    hintText: '수량',
-                    isDense: true,
-                    border: OutlineInputBorder(),
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                const SizedBox(width: 6),
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: _qtyController,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(signed: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'^-?\d*')),
+                    ],
+                    decoration: const InputDecoration(
+                      hintText: '수량',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              ElevatedButton(
-                onPressed: widget.busy ? null : _submitRecord,
-                child: const Text('기록'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
+                const SizedBox(width: 6),
+                ElevatedButton(
+                  onPressed: widget.busy ? null : _submitRecord,
+                  child: const Text('기록'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
 
-          // 수동수량 교체 폼
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _manualController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
-                    labelText: '수동수량',
-                    isDense: true,
-                    border: OutlineInputBorder(),
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+            // 수동수량 교체 폼
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _manualController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(
+                      labelText: '수동수량',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              OutlinedButton(
-                onPressed: widget.busy ? null : _submitManual,
-                child: const Text('교체'),
-              ),
-            ],
-          ),
+                const SizedBox(width: 6),
+                OutlinedButton(
+                  onPressed: widget.busy ? null : _submitManual,
+                  child: const Text('교체'),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

@@ -1,3 +1,5 @@
+import 'purchase_list_state.dart' show PurchaseTab;
+
 abstract class PurchaseListEvent {}
 
 /// 페이지 진입 시: 판매자 목록 + 전체 구매목록 로드 (프론트 초기 useEffect와 동일)
@@ -39,4 +41,29 @@ class AdjustManualQty extends PurchaseListEvent {
   final int manualQty;
 
   AdjustManualQty({required this.itemId, required this.manualQty});
+}
+
+/// 탭 전환 (구매목록 / 구매완료내역). completed 미로드 시 지연 로드.
+class SwitchTab extends PurchaseListEvent {
+  final PurchaseTab tab;
+
+  SwitchTab({required this.tab});
+}
+
+/// 완료 탭 상품 카드 펼침/접힘 토글 (읽기전용).
+class ToggleExpandCompleted extends PurchaseListEvent {
+  final int productId;
+
+  ToggleExpandCompleted({required this.productId});
+}
+
+/// 주문동기화 버튼: 외부 마켓플레이스 동기화 후 재적재 → 목록 갱신.
+class SyncOrders extends PurchaseListEvent {}
+
+/// 수동항목 추가: 상품 + 수량(>=1)으로 수동 라인 추가. 성공 시 목록 재조회.
+class AddManualItem extends PurchaseListEvent {
+  final int productId;
+  final int quantity;
+
+  AddManualItem({required this.productId, required this.quantity});
 }
