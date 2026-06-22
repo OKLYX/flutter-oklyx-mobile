@@ -44,7 +44,7 @@ import 'package:flutter_oklyn_mobile/features/stock/presentation/pages/stock_sea
 import 'package:flutter_oklyn_mobile/features/user/domain/entities/user.dart';
 import 'package:flutter_oklyn_mobile/features/user/presentation/pages/user_edit_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/dashboard_page.dart';
-import 'package:flutter_oklyn_mobile/shared/pages/list_to_shop_page.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/pages/purchase_list_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/not_found_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/notification_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/product_search_page.dart';
@@ -105,7 +105,7 @@ class AppRouter {
       name: Routes.listToShop,
       path: Routes.listToShopPath,
       pageBuilder: (context, state) => const NoTransitionPage(
-        child: ListToShopPage(),
+        child: PurchaseListPage(),
       ),
     ),
     GoRoute(

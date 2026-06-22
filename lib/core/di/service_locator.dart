@@ -127,6 +127,14 @@ import 'package:flutter_oklyn_mobile/features/marketplace_account/domain/usecase
 import 'package:flutter_oklyn_mobile/features/marketplace_account/domain/usecases/update_marketplace_account_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/domain/usecases/delete_marketplace_account_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/presentation/bloc/marketplace_account_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/data/datasources/purchase_list_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/data/repositories/purchase_list_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/domain/repositories/purchase_list_repository.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/get_purchase_list_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/extract_purchase_list_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/record_purchase_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/adjust_manual_qty_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_list_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -145,6 +153,7 @@ void setupServiceLocator() {
   _registerCommissionRateServices();
   _registerProductListingServices();
   _registerOrderServices();
+  _registerPurchaseListServices();
   _registerErrorHandling();
 }
 
@@ -718,6 +727,46 @@ void _registerOrderServices() {
   getIt.registerFactory<OrderListBloc>(
     () => OrderListBloc(
       orderUseCase: getIt<OrderUseCase>(),
+      getSellersUseCase: getIt<GetSellersUseCase>(),
+    ),
+  );
+}
+
+void _registerPurchaseListServices() {
+  // Data Source
+  getIt.registerSingleton<PurchaseListRemoteDataSource>(
+    PurchaseListRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
+  );
+
+  // Repository
+  getIt.registerSingleton<PurchaseListRepository>(
+    PurchaseListRepositoryImpl(
+      remoteDataSource: getIt<PurchaseListRemoteDataSource>(),
+    ),
+  );
+
+  // Use Cases
+  getIt.registerSingleton<GetPurchaseListUseCase>(
+    GetPurchaseListUseCase(repository: getIt<PurchaseListRepository>()),
+  );
+  getIt.registerSingleton<ExtractPurchaseListUseCase>(
+    ExtractPurchaseListUseCase(repository: getIt<PurchaseListRepository>()),
+  );
+  getIt.registerSingleton<RecordPurchaseUseCase>(
+    RecordPurchaseUseCase(repository: getIt<PurchaseListRepository>()),
+  );
+  getIt.registerSingleton<AdjustManualQtyUseCase>(
+    AdjustManualQtyUseCase(repository: getIt<PurchaseListRepository>()),
+  );
+
+  // BLoC as factory to allow fresh state per page.
+  // 판매자 드롭다운은 기존 seller 기능의 GetSellersUseCase 를 재사용한다.
+  getIt.registerFactory<PurchaseListBloc>(
+    () => PurchaseListBloc(
+      getPurchaseListUseCase: getIt<GetPurchaseListUseCase>(),
+      extractPurchaseListUseCase: getIt<ExtractPurchaseListUseCase>(),
+      recordPurchaseUseCase: getIt<RecordPurchaseUseCase>(),
+      adjustManualQtyUseCase: getIt<AdjustManualQtyUseCase>(),
       getSellersUseCase: getIt<GetSellersUseCase>(),
     ),
   );
