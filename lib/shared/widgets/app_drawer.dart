@@ -209,6 +209,22 @@ class AppDrawer extends StatelessWidget {
               ),
             ],
           ),
+          ExpansionTile(
+            shape: const Border(),
+            title: const Text('구매관리'),
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('구매목록'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.listToShopPath);
+                  },
+                ),
+              ),
+            ],
+          ),
               ],
             ),
           ),

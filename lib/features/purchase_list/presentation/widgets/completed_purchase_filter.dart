@@ -100,61 +100,58 @@ class _CompletedPurchaseFilterState extends State<CompletedPurchaseFilter> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SellerFilterDropdown(
+          sellers: widget.sellers,
+          selectedSellerId: _sellerId,
+          enabled: !widget.isLoading,
+          onChanged: (value) => setState(() => _sellerId = value),
+        ),
+        const SizedBox(height: 8),
+        Row(
           children: [
-            SellerFilterDropdown(
-              sellers: widget.sellers,
-              selectedSellerId: _sellerId,
-              enabled: !widget.isLoading,
-              onChanged: (value) => setState(() => _sellerId = value),
+            Expanded(
+              child: _DateField(
+                label: '구매일 시작',
+                value: _from,
+                enabled: !widget.isLoading,
+                onTap: () => _pickDate(isFrom: true),
+              ),
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _DateField(
-                    label: '구매일 시작',
-                    value: _from,
-                    enabled: !widget.isLoading,
-                    onTap: () => _pickDate(isFrom: true),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _DateField(
-                    label: '구매일 종료',
-                    value: _to,
-                    enabled: !widget.isLoading,
-                    onTap: () => _pickDate(isFrom: false),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                OutlinedButton(
-                  onPressed: widget.isLoading ? null : widget.onReset,
-                  child: const Text('초기화'),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: widget.isLoading
-                      ? null
-                      : () => widget.onApply(_sellerId, _from, _to),
-                  child: Text(widget.isLoading ? '조회 중...' : '조회'),
-                ),
-              ],
+            const SizedBox(width: 8),
+            Expanded(
+              child: _DateField(
+                label: '구매일 종료',
+                value: _to,
+                enabled: !widget.isLoading,
+                onTap: () => _pickDate(isFrom: false),
+              ),
             ),
           ],
         ),
-      ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: widget.isLoading ? null : widget.onReset,
+                child: const Text('초기화'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: widget.isLoading
+                    ? null
+                    : () => widget.onApply(_sellerId, _from, _to),
+                child: Text(widget.isLoading ? '조회 중...' : '조회'),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

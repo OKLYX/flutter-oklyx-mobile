@@ -33,7 +33,7 @@ class UnmappedOrdersSection extends StatelessWidget {
                   size: 18, color: Colors.amber[800]),
               const SizedBox(width: 6),
               Text(
-                '미매핑 주문 ${orders.length}건',
+                '미등록 주문 ${orders.length}건',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
@@ -51,17 +51,34 @@ class UnmappedOrdersSection extends StatelessWidget {
           ...orders.map(
             (o) => Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Column(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    o.itemName.isEmpty ? '(이름 없음)' : o.itemName,
-                    style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w500),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          o.itemName.isEmpty ? '(이름 없음)' : o.itemName,
+                          style: const TextStyle(
+                              fontSize: 13, fontWeight: FontWeight.w500),
+                        ),
+                        Text(
+                          '옵션ID ${o.externalItemId} · 주문 ${o.orderCount}건',
+                          style:
+                              TextStyle(fontSize: 11, color: Colors.grey[700]),
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Text(
-                    '옵션ID ${o.externalItemId} · 구매가능 ${o.purchasableQty} · 주문 ${o.orderCount}건',
-                    style: TextStyle(fontSize: 11, color: Colors.grey[700]),
+                    '총 주문수량 ${o.purchasableQty}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.amber[900],
+                    ),
                   ),
                 ],
               ),

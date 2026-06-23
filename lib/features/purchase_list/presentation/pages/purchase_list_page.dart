@@ -93,65 +93,7 @@ class _LoadedBody extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 판매자 필터 + 재적재
-          Row(
-            children: [
-              Expanded(
-                child: SellerFilterDropdown(
-                  sellers: state.sellers,
-                  selectedSellerId: state.selectedSellerId,
-                  enabled: !busy,
-                  onChanged: (value) => bloc.add(SelectSeller(sellerId: value)),
-                ),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton(
-                onPressed: busy ? null : () => bloc.add(ExtractPurchaseList()),
-                child: Text(state.isExtracting ? '동기화 중...' : '동기화'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // 동기화 + 수동추가
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: busy ? null : () => bloc.add(SyncOrders()),
-                  icon: state.isSyncing
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.sync, size: 18),
-                  label: Text(state.isSyncing ? '동기화 중...' : '주문동기화'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: busy
-                      ? null
-                      : () => showDialog<void>(
-                            context: context,
-                            builder: (_) => AddManualItemDialog(
-                              onSubmit: (productId, quantity) => bloc.add(
-                                AddManualItem(
-                                  productId: productId,
-                                  quantity: quantity,
-                                ),
-                              ),
-                            ),
-                          ),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('수동추가'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // 탭 스위처
+          // 탭 스위처 (최상단)
           _TabSwitcher(
             activeTab: state.activeTab,
             onChanged: (tab) => bloc.add(SwitchTab(tab: tab)),
@@ -206,6 +148,64 @@ class _ActiveTabBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 판매자 필터 + 재적재 (구매목록 탭 전용)
+        Row(
+          children: [
+            Expanded(
+              child: SellerFilterDropdown(
+                sellers: state.sellers,
+                selectedSellerId: state.selectedSellerId,
+                enabled: !busy,
+                onChanged: (value) => bloc.add(SelectSeller(sellerId: value)),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: busy ? null : () => bloc.add(ExtractPurchaseList()),
+              child: Text(state.isExtracting ? '동기화 중...' : '동기화'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        // 주문동기화 + 수동추가 (구매목록 탭 전용)
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: busy ? null : () => bloc.add(SyncOrders()),
+                icon: state.isSyncing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.sync, size: 18),
+                label: Text(state.isSyncing ? '동기화 중...' : '주문동기화'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: busy
+                    ? null
+                    : () => showDialog<void>(
+                          context: context,
+                          builder: (_) => AddManualItemDialog(
+                            onSubmit: (productId, quantity) => bloc.add(
+                              AddManualItem(
+                                productId: productId,
+                                quantity: quantity,
+                              ),
+                            ),
+                          ),
+                        ),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('수동추가'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
         if (state.syncResult != null) ...[
           Container(
             width: double.infinity,
@@ -224,12 +224,13 @@ class _ActiveTabBody extends StatelessWidget {
           ),
           const SizedBox(height: 8),
         ],
-        UnmappedOrdersSection(orders: state.unmappedOrders),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              '총 ${state.items.length}건',
+              state.unmappedOrders.isEmpty
+                  ? '${state.items.length}건'
+                  : '${state.items.length}건 (미등록 주문 ${state.unmappedOrders.length}건)',
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
             if (state.isRefreshing)
@@ -241,13 +242,20 @@ class _ActiveTabBody extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
+        // 항목 리스트 + 미매핑 섹션을 하나의 스크롤 영역으로 합쳐
+        // 마지막 항목/섹션이 플로팅 하단바에 가리지 않도록 bottom 패딩을 둔다.
         Expanded(
-          child: state.items.isEmpty
-              ? const Center(child: Text('구매할 항목이 없습니다.'))
-              : ListView.separated(
-                  padding: const EdgeInsets.only(
-                    bottom: kBottomNavigationBarHeight + 24,
+          child: CustomScrollView(
+            slivers: [
+              if (state.items.isEmpty && state.unmappedOrders.isEmpty)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(child: Text('구매할 항목이 없습니다.')),
                   ),
+                )
+              else if (state.items.isNotEmpty)
+                SliverList.separated(
                   itemCount: state.items.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
@@ -270,6 +278,17 @@ class _ActiveTabBody extends StatelessWidget {
                     );
                   },
                 ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(
+                    top: 8,
+                    bottom: kBottomNavigationBarHeight + 24,
+                  ),
+                  child: UnmappedOrdersSection(orders: state.unmappedOrders),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
