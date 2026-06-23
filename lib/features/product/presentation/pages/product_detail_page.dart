@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_drawer.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/zoomable_image_viewer.dart';
 import 'package:flutter_oklyn_mobile/core/constants/app_constants.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/core/network/dio_client.dart';
@@ -410,51 +411,6 @@ class _ImageSection extends StatefulWidget {
 class _ImageSectionState extends State<_ImageSection> {
   final _picker = ImagePicker();
 
-  void _showImageDialog(BuildContext context, Uint8List imageBytes) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.black,
-        insetPadding: EdgeInsets.zero,
-        child: Stack(
-          children: [
-            GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Container(
-                width: MediaQuery.of(context).size.width,
-                height: MediaQuery.of(context).size.height,
-                color: Colors.black,
-                child: Image.memory(
-                  imageBytes,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
-            Positioned(
-              top: 16,
-              right: 16,
-              child: GestureDetector(
-                onTap: () => Navigator.pop(context),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    shape: BoxShape.circle,
-                  ),
-                  padding: const EdgeInsets.all(8),
-                  child: const Icon(
-                    Icons.close,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<Uint8List?> _loadProductImage(int productId) async {
     try {
       final response = await getIt<DioClient>().get(
@@ -544,8 +500,8 @@ class _ImageSectionState extends State<_ImageSection> {
                     }
 
                     if (snapshot.hasData && snapshot.data != null) {
-                      return GestureDetector(
-                        onTap: () => _showImageDialog(context, snapshot.data!),
+                      return ImageWithZoomButton(
+                        image: MemoryImage(snapshot.data!),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: Image.memory(

@@ -231,7 +231,7 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
       title: _isEdit ? '판매상품 수정' : '판매상품 등록',
       navBarIndex: 2,
       showDrawer: true,
-      onBackPressed: () => context.go(Routes.salesProductsPath),
+      showAppBarDrawerButton: false,
       body: BlocListener<ProductListingCreateBloc, ProductListingCreateState>(
         listener: (context, state) {
           if (state is ProductListingCreateSuccess) {
@@ -720,7 +720,7 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                     ),
                     const SizedBox(height: 32),
 
-                    // Submit Button (취소는 AppBar 뒤로가기 버튼으로 대체)
+                    // Submit Button
                     ElevatedButton(
                       onPressed: (!isFormComplete || _submitting)
                           ? null

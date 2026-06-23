@@ -15,11 +15,9 @@ class CarrierRateListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final costFormatter = NumberFormat('###,##0', 'ko_KR');
-    return GestureDetector(
+    return InkWell(
       onTap: onTap,
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 8),
-        child: Padding(
+      child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -53,7 +51,6 @@ class CarrierRateListItem extends StatelessWidget {
             ],
           ),
         ),
-      ),
     );
   }
 }

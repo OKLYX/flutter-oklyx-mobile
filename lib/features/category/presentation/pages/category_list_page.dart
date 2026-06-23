@@ -85,33 +85,31 @@ class _CategoryListPageState extends State<CategoryListPage> {
                         child: Text('조회 결과가 없습니다.'),
                       );
                     }
-                    return ListView.builder(
+                    return ListView.separated(
                       itemCount: state.categories.length,
+                      separatorBuilder: (context, index) => const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final category = state.categories[index];
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            title: Text(
-                              category.name,
-                              style: const TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            subtitle: Text(
-                              '${category.platform} | ${category.createdDate.toString().split('.')[0]}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                            onTap: () async {
-                              await context.pushNamed(
-                                Routes.categoryDetail,
-                                pathParameters: {'id': category.id.toString()},
-                              );
-                              if (mounted) {
-                                context.read<CategoryListBloc>().add(FetchCategoriesRequested());
-                              }
-                            },
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          title: Text(
+                            category.name,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
+                          subtitle: Text(
+                            '${category.platform} | ${category.createdDate.toString().split('.')[0]}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                          onTap: () async {
+                            await context.pushNamed(
+                              Routes.categoryDetail,
+                              pathParameters: {'id': category.id.toString()},
+                            );
+                            if (mounted) {
+                              context.read<CategoryListBloc>().add(FetchCategoriesRequested());
+                            }
+                          },
                         );
                       },
                     );

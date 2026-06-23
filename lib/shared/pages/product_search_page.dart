@@ -14,6 +14,7 @@ import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_event.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_state.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/zoomable_image_viewer.dart';
 
 class ProductSearchPage extends StatelessWidget {
   const ProductSearchPage({super.key});
@@ -79,6 +80,7 @@ class _ProductSearchViewState extends State<_ProductSearchView> {
     title: '상품 조회',
     navBarIndex: 2,
     showDrawer: true,
+    showAppBarDrawerButton: false,
     body: Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -119,9 +121,10 @@ class _ProductSearchViewState extends State<_ProductSearchView> {
                     return const Center(child: Text('조회 결과가 없습니다.'));
                   }
 
-                  return ListView.builder(
+                  return ListView.separated(
                     controller: _scrollController,
                     itemCount: products.length + (isLoadingMore ? 1 : 0),
+                    separatorBuilder: (context, index) => const Divider(height: 1),
                     itemBuilder: (context, index) {
                       if (index == products.length) {
                         return const Padding(
@@ -178,15 +181,14 @@ class _ProductCardState extends State<_ProductCard> {
         widget.product.imageUrl.toString().isNotEmpty &&
         widget.product.imageUrl != 'null';
 
-    return GestureDetector(
+    return InkWell(
       onTap: () => context.go(
         '${Routes.productDetailPath.replaceFirst(':productId', widget.product.id.toString())}',
       ),
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Padding(
+      child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (hasImage)
                 FutureBuilder<Uint8List?>(
@@ -194,12 +196,9 @@ class _ProductCardState extends State<_ProductCard> {
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                        width: 110,
+                        height: 110,
+                        color: Colors.grey[300],
                         child: const Center(
                           child: CircularProgressIndicator(strokeWidth: 2),
                         ),
@@ -207,36 +206,37 @@ class _ProductCardState extends State<_ProductCard> {
                     }
 
                     if (snapshot.hasData && snapshot.data != null) {
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.memory(
-                          snapshot.data!,
-                          width: 80,
-                          height: 80,
-                          fit: BoxFit.cover,
+                      return ImageWithZoomButton(
+                        image: MemoryImage(snapshot.data!),
+                        // The whole image area zooms; the rest of the row still
+                        // navigates to the detail page via its InkWell.
+                        child: Container(
+                          width: 110,
+                          height: 110,
+                          color: Colors.grey[400],
+                          child: Image.memory(
+                            snapshot.data!,
+                            width: 110,
+                            height: 110,
+                            fit: BoxFit.contain,
+                          ),
                         ),
                       );
                     }
 
                     return Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                      width: 110,
+                      height: 110,
+                      color: Colors.grey[300],
                       child: Icon(Icons.image, color: Colors.grey[500]),
                     );
                   },
                 )
               else
                 Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
+                  width: 110,
+                  height: 110,
+                  color: Colors.grey[300],
                   child: Icon(Icons.image, color: Colors.grey[500]),
                 ),
               const SizedBox(width: 12),
@@ -254,12 +254,25 @@ class _ProductCardState extends State<_ProductCard> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
+                    if (widget.product.brand != null &&
+                        widget.product.brand!.isNotEmpty) ...[
+                      Text(
+                        '브랜드: ${widget.product.brand}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                    ],
                     if (widget.product.barcodeId != null)
                       Text(
                         'Barcode: ${widget.product.barcodeId}',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
-                          color: Colors.grey[600],
+                          color: Colors.black,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -268,10 +281,11 @@ class _ProductCardState extends State<_ProductCard> {
                       const SizedBox(height: 4),
                     if (widget.product.price != null)
                       Text(
-                        '${widget.product.price} 원',
+                        '가격: ${widget.product.price} 원',
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
+                          color: Colors.black,
                         ),
                       ),
                   ],
@@ -280,7 +294,6 @@ class _ProductCardState extends State<_ProductCard> {
             ],
           ),
         ),
-      ),
     );
   }
 }

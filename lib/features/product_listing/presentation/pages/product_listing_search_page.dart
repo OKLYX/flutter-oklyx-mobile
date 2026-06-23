@@ -201,10 +201,11 @@ class _ProductListingSearchViewState extends State<_ProductListingSearchView> {
                         return const Center(child: Text('조회 결과가 없습니다.'));
                       }
 
-                      return ListView.builder(
+                      return ListView.separated(
                         controller: _scrollController,
                         itemCount:
                             state.listings.length + (state.isLoadingMore ? 1 : 0),
+                        separatorBuilder: (context, index) => const Divider(height: 1),
                         itemBuilder: (context, index) {
                           if (index == state.listings.length) {
                             return const Padding(
@@ -252,9 +253,7 @@ class _ProductListingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Column(
+    return Column(
         children: [
           InkWell(
             onTap: onTap,
@@ -326,7 +325,6 @@ class _ProductListingCard extends StatelessWidget {
               child: _OptionsSection(options: listing.options),
             ),
         ],
-      ),
     );
   }
 }

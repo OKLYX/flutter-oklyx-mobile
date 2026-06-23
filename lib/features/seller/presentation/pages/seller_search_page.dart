@@ -95,8 +95,9 @@ class _SellerSearchPageState extends State<SellerSearchPage> {
                       ),
                     );
                   } else if (state is SellerListLoaded) {
-                    return ListView.builder(
+                    return ListView.separated(
                       itemCount: state.sellers.length,
+                      separatorBuilder: (context, index) => const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final seller = state.sellers[index];
                         return SellerListItem(

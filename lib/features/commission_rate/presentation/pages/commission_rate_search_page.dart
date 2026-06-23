@@ -109,8 +109,9 @@ class _CommissionRateSearchPageState extends State<CommissionRateSearchPage> {
                   }
 
                   if (state is CommissionRateListLoaded) {
-                    return ListView.builder(
+                    return ListView.separated(
                       itemCount: state.commissionRates.length,
+                      separatorBuilder: (context, index) => const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final rate = state.commissionRates[index];
                         return CommissionRateListItem(

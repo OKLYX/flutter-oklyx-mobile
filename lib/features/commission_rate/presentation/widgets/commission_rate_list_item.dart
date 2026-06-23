@@ -35,8 +35,7 @@ class CommissionRateListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
+    return ListTile(
         title: Text(commissionRate.platform),
         subtitle: Text(
           commissionRate.categoryId == null
@@ -59,7 +58,6 @@ class CommissionRateListItem extends StatelessWidget {
           ],
         ),
         onTap: onTap,
-      ),
     );
   }
 }

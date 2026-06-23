@@ -115,8 +115,9 @@ class _PackageSearchPageState extends State<PackageSearchPage> {
                       ),
                     );
                   } else if (state is PackageListLoaded) {
-                    return ListView.builder(
+                    return ListView.separated(
                       itemCount: state.packages.length,
+                      separatorBuilder: (context, index) => const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final pkg = state.packages[index];
                         return PackageListItem(

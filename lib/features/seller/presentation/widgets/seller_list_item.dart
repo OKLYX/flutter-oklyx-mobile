@@ -29,9 +29,7 @@ class _SellerListItemState extends State<SellerListItem> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Column(
+    return Column(
         children: [
           InkWell(
             onTap: widget.onTap,
@@ -70,7 +68,6 @@ class _SellerListItemState extends State<SellerListItem> {
               sellerName: widget.seller.sellerName,
             ),
         ],
-      ),
     );
   }
 }
