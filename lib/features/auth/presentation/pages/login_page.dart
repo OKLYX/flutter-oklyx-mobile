@@ -50,7 +50,7 @@ class _LoginPageState extends State<LoginPage> {
                     padding: const EdgeInsets.symmetric(horizontal: 48),
                     child: Center(
                       child: SizedBox(
-                        height: 60,
+                        height: 120,
                         child: Image.asset(
                           'assets/images/oclyx_letter_logo.png',
                           fit: BoxFit.contain,
