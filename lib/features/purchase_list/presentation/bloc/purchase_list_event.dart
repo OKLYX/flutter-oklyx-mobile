@@ -57,6 +57,18 @@ class ToggleExpandCompleted extends PurchaseListEvent {
   ToggleExpandCompleted({required this.productId});
 }
 
+/// 완료내역 필터 적용 ('조회' 버튼): 판매자 + 구매일 기간(YYYY-MM-DD, 빈 값=전체)으로 재조회.
+class ApplyCompletedFilter extends PurchaseListEvent {
+  final int? sellerId;
+  final String from;
+  final String to;
+
+  ApplyCompletedFilter({this.sellerId, required this.from, required this.to});
+}
+
+/// 완료내역 필터 초기화 ('초기화' 버튼): 판매자 전체 + 구매일 오늘로 되돌린 뒤 재조회.
+class ResetCompletedFilter extends PurchaseListEvent {}
+
 /// 주문동기화 버튼: 외부 마켓플레이스 동기화 후 재적재 → 목록 갱신.
 class SyncOrders extends PurchaseListEvent {}
 

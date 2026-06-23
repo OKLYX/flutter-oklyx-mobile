@@ -8,7 +8,11 @@ import '../models/record_purchase_params.dart';
 abstract class PurchaseListRemoteDataSource {
   Future<PurchaseListResultModel> getList(int? sellerId);
   Future<PurchaseListResultModel> extract(int? sellerId);
-  Future<List<PurchaseListItemModel>> getCompleted(int? sellerId);
+  Future<List<PurchaseListItemModel>> getCompleted(
+    int? sellerId,
+    String? from,
+    String? to,
+  );
   Future<void> recordPurchase(int itemId, RecordPurchaseParams params);
   Future<void> adjustManualQty(int itemId, AdjustManualQtyParams params);
   Future<void> addManual(AddManualParams params);
@@ -44,11 +48,20 @@ class PurchaseListRemoteDataSourceImpl implements PurchaseListRemoteDataSource {
   }
 
   /// GET /completed returns { data: [ PurchaseProductGroup ] } (배열, 읽기전용).
+  /// 판매자(sellerId) + 구매일 기간(from/to, YYYY-MM-DD)으로 필터링. 빈 값은 생략(=전체).
   @override
-  Future<List<PurchaseListItemModel>> getCompleted(int? sellerId) async {
+  Future<List<PurchaseListItemModel>> getCompleted(
+    int? sellerId,
+    String? from,
+    String? to,
+  ) async {
+    final params = <String, dynamic>{};
+    if (sellerId != null) params['sellerId'] = sellerId;
+    if (from != null && from.isNotEmpty) params['from'] = from;
+    if (to != null && to.isNotEmpty) params['to'] = to;
     final response = await dio.get(
       '/api/admin/purchase-list/completed',
-      queryParameters: sellerId != null ? {'sellerId': sellerId} : null,
+      queryParameters: params.isEmpty ? null : params,
     );
     final items = (response.data['data'] as List<dynamic>?) ?? const [];
     return items

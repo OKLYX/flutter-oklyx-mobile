@@ -46,6 +46,12 @@ class PurchaseListLoaded extends PurchaseListState {
   final int? expandedCompletedProductId;
   final bool isLoadingCompleted;
 
+  // completed 탭 필터 (판매자 + 구매일 기간). active 탭의 selectedSellerId와 독립적.
+  // 기본값은 오늘(YYYY-MM-DD), 판매자 전체. '조회' 버튼으로 적용한다(프론트와 동일).
+  final int? completedSellerId;
+  final String completedFrom;
+  final String completedTo;
+
   final bool isRefreshing;
   final bool isExtracting;
   final bool isSyncing;
@@ -62,6 +68,9 @@ class PurchaseListLoaded extends PurchaseListState {
     this.completedItems,
     this.expandedCompletedProductId,
     this.isLoadingCompleted = false,
+    this.completedSellerId,
+    required this.completedFrom,
+    required this.completedTo,
     this.isRefreshing = false,
     this.isExtracting = false,
     this.isSyncing = false,
@@ -83,6 +92,10 @@ class PurchaseListLoaded extends PurchaseListState {
     int? expandedCompletedProductId,
     bool clearExpandedCompleted = false,
     bool? isLoadingCompleted,
+    int? completedSellerId,
+    bool clearCompletedSeller = false,
+    String? completedFrom,
+    String? completedTo,
     bool? isRefreshing,
     bool? isExtracting,
     bool? isSyncing,
@@ -108,6 +121,11 @@ class PurchaseListLoaded extends PurchaseListState {
           ? null
           : (expandedCompletedProductId ?? this.expandedCompletedProductId),
       isLoadingCompleted: isLoadingCompleted ?? this.isLoadingCompleted,
+      completedSellerId: clearCompletedSeller
+          ? null
+          : (completedSellerId ?? this.completedSellerId),
+      completedFrom: completedFrom ?? this.completedFrom,
+      completedTo: completedTo ?? this.completedTo,
       isRefreshing: isRefreshing ?? this.isRefreshing,
       isExtracting: isExtracting ?? this.isExtracting,
       isSyncing: isSyncing ?? this.isSyncing,

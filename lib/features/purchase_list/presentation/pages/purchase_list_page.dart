@@ -7,6 +7,7 @@ import '../bloc/purchase_list_bloc.dart';
 import '../bloc/purchase_list_event.dart';
 import '../bloc/purchase_list_state.dart';
 import '../widgets/add_manual_item_dialog.dart';
+import '../widgets/completed_purchase_filter.dart';
 import '../widgets/purchase_product_card.dart';
 import '../widgets/seller_filter_dropdown.dart';
 import '../widgets/unmapped_orders_section.dart';
@@ -284,6 +285,27 @@ class _CompletedTabBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final bloc = context.read<PurchaseListBloc>();
 
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CompletedPurchaseFilter(
+          sellers: state.sellers,
+          sellerId: state.completedSellerId,
+          from: state.completedFrom,
+          to: state.completedTo,
+          isLoading: state.isLoadingCompleted,
+          onApply: (sellerId, from, to) => bloc.add(
+            ApplyCompletedFilter(sellerId: sellerId, from: from, to: to),
+          ),
+          onReset: () => bloc.add(ResetCompletedFilter()),
+        ),
+        const SizedBox(height: 8),
+        Expanded(child: _buildList(bloc)),
+      ],
+    );
+  }
+
+  Widget _buildList(PurchaseListBloc bloc) {
     if (state.isLoadingCompleted) {
       return const Center(child: CircularProgressIndicator());
     }

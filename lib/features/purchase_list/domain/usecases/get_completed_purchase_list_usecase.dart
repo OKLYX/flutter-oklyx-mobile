@@ -8,7 +8,11 @@ class GetCompletedPurchaseListUseCase {
 
   GetCompletedPurchaseListUseCase({required this.repository});
 
-  Future<Either<Failure, List<PurchaseListItem>>> call(int? sellerId) {
-    return repository.getCompleted(sellerId);
+  Future<Either<Failure, List<PurchaseListItem>>> call(
+    int? sellerId,
+    String? from,
+    String? to,
+  ) {
+    return repository.getCompleted(sellerId, from, to);
   }
 }

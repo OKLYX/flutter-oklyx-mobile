@@ -49,9 +49,11 @@ class PurchaseListRepositoryImpl implements PurchaseListRepository {
   @override
   Future<Either<Failure, List<PurchaseListItem>>> getCompleted(
     int? sellerId,
+    String? from,
+    String? to,
   ) async {
     try {
-      final models = await remoteDataSource.getCompleted(sellerId);
+      final models = await remoteDataSource.getCompleted(sellerId, from, to);
       return Right(models.cast<PurchaseListItem>());
     } on DioException catch (e) {
       return Left(

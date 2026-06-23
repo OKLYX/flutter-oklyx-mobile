@@ -11,7 +11,12 @@ abstract class PurchaseListRepository {
   Future<Either<Failure, PurchaseListResult>> extract(int? sellerId);
 
   /// Completed purchases (remainingQty <= 0 && purchasedQty > 0), read-only.
-  Future<Either<Failure, List<PurchaseListItem>>> getCompleted(int? sellerId);
+  /// Filter by seller and purchase-date range ([from]/[to], YYYY-MM-DD); null = all.
+  Future<Either<Failure, List<PurchaseListItem>>> getCompleted(
+    int? sellerId,
+    String? from,
+    String? to,
+  );
 
   /// Record a purchase against a line. [quantity] may be negative for corrections.
   Future<Either<Failure, void>> recordPurchase(

@@ -51,6 +51,8 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
     on<SwitchTab>(_onSwitchTab);
     on<ToggleExpand>(_onToggleExpand);
     on<ToggleExpandCompleted>(_onToggleExpandCompleted);
+    on<ApplyCompletedFilter>(_onApplyCompletedFilter);
+    on<ResetCompletedFilter>(_onResetCompletedFilter);
     on<RecordPurchase>(_onRecordPurchase);
     on<AdjustManualQty>(_onAdjustManualQty);
     on<AddManualItem>(_onAddManualItem);
@@ -58,6 +60,14 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
 
   bool _busy(PurchaseListLoaded s) =>
       s.isRefreshing || s.isExtracting || s.isSyncing;
+
+  /// 로컬 타임존 기준 오늘(YYYY-MM-DD). 완료내역 필터 기본값으로 사용한다(프론트와 동일).
+  String _todayStr() {
+    final d = DateTime.now();
+    final m = d.month.toString().padLeft(2, '0');
+    final day = d.day.toString().padLeft(2, '0');
+    return '${d.year}-$m-$day';
+  }
 
   Future<void> _onLoad(
     LoadPurchaseList event,
@@ -76,6 +86,8 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
         sellers: sellers,
         items: result.items,
         unmappedOrders: result.unmappedOrders,
+        completedFrom: _todayStr(),
+        completedTo: _todayStr(),
       )),
     );
   }
@@ -202,30 +214,81 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
 
     emit(current.copyWith(activeTab: event.tab));
 
-    // 완료 탭 진입 시 미로드 캐시면 지연 로드한다.
+    // 완료 탭 진입 시 미로드 캐시면 현재 완료내역 필터로 지연 로드한다.
     if (event.tab == PurchaseTab.completed &&
         current.completedItems == null &&
         !current.isLoadingCompleted) {
-      emit(current.copyWith(
-        activeTab: PurchaseTab.completed,
-        isLoadingCompleted: true,
-        clearActionError: true,
-      ));
-      final result =
-          await getCompletedPurchaseListUseCase(current.selectedSellerId);
-      final latest = state;
-      if (latest is! PurchaseListLoaded) return;
-      result.fold(
-        (failure) => emit(latest.copyWith(
-          isLoadingCompleted: false,
-          actionError: failure.message,
-        )),
-        (items) => emit(latest.copyWith(
-          isLoadingCompleted: false,
-          completedItems: items,
-        )),
+      await _loadCompleted(
+        current.copyWith(activeTab: PurchaseTab.completed),
+        current.completedSellerId,
+        current.completedFrom,
+        current.completedTo,
+        emit,
       );
     }
+  }
+
+  /// 완료내역 필터 적용 → 해당 조건으로 재조회 (펼침 초기화).
+  Future<void> _onApplyCompletedFilter(
+    ApplyCompletedFilter event,
+    Emitter<PurchaseListState> emit,
+  ) async {
+    final current = state;
+    if (current is! PurchaseListLoaded) return;
+    if (current.isLoadingCompleted) return;
+
+    await _loadCompleted(current, event.sellerId, event.from, event.to, emit);
+  }
+
+  /// 완료내역 필터 초기화 → 판매자 전체 + 구매일 오늘로 재조회.
+  Future<void> _onResetCompletedFilter(
+    ResetCompletedFilter event,
+    Emitter<PurchaseListState> emit,
+  ) async {
+    final current = state;
+    if (current is! PurchaseListLoaded) return;
+    if (current.isLoadingCompleted) return;
+
+    final today = _todayStr();
+    await _loadCompleted(current, null, today, today, emit);
+  }
+
+  /// 완료내역을 주어진 필터(판매자 + 구매일 기간)로 조회한다. 필터 값은 상태에
+  /// 함께 저장해 active 탭 변이 후 완료 탭 재진입 시에도 유지한다.
+  Future<void> _loadCompleted(
+    PurchaseListLoaded base,
+    int? sellerId,
+    String from,
+    String to,
+    Emitter<PurchaseListState> emit,
+  ) async {
+    emit(base.copyWith(
+      completedSellerId: sellerId,
+      clearCompletedSeller: sellerId == null,
+      completedFrom: from,
+      completedTo: to,
+      clearExpandedCompleted: true,
+      isLoadingCompleted: true,
+      clearActionError: true,
+    ));
+
+    final result = await getCompletedPurchaseListUseCase(
+      sellerId,
+      from.isEmpty ? null : from,
+      to.isEmpty ? null : to,
+    );
+    final latest = state;
+    if (latest is! PurchaseListLoaded) return;
+    result.fold(
+      (failure) => emit(latest.copyWith(
+        isLoadingCompleted: false,
+        actionError: failure.message,
+      )),
+      (items) => emit(latest.copyWith(
+        isLoadingCompleted: false,
+        completedItems: items,
+      )),
+    );
   }
 
   void _onToggleExpand(ToggleExpand event, Emitter<PurchaseListState> emit) {
