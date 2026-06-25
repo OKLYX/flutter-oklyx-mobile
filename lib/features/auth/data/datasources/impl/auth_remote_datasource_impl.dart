@@ -41,7 +41,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         'email': data['email'],
         'name': data['name'],
         'token': data['token'],
-        'refreshToken': null,
+        'refreshToken': data['refreshToken'],
       };
 
       return UserModel.fromJson(userData);
@@ -75,7 +75,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         'email': data['email'],
         'name': data['name'],
         'token': data['token'] ?? '',
-        'refreshToken': null,
+        'refreshToken': data['refreshToken'],
       };
 
       return UserModel.fromJson(userData);
@@ -100,7 +100,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     try {
       final response = await dioClient.post(
         '/api/auth/refresh',
-        data: {'refresh_token': refreshToken},
+        data: {'refreshToken': refreshToken},
       );
 
       if (response.statusCode != 200) {
@@ -118,13 +118,30 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         'email': data['email'],
         'name': data['name'],
         'token': data['token'],
-        'refreshToken': null,
+        'refreshToken': data['refreshToken'],
       };
 
       return UserModel.fromJson(userData);
     } on DioException catch (e) {
       throw ServerException(
         e.message ?? 'Token refresh failed',
+        statusCode: e.response?.statusCode,
+      );
+    } catch (e) {
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<void> logout(String refreshToken) async {
+    try {
+      await dioClient.post(
+        '/api/auth/logout',
+        data: {'refreshToken': refreshToken},
+      );
+    } on DioException catch (e) {
+      throw ServerException(
+        e.message ?? 'Logout failed',
         statusCode: e.response?.statusCode,
       );
     } catch (e) {

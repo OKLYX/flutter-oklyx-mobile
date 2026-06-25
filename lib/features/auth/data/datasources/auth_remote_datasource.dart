@@ -18,4 +18,9 @@ abstract class AuthRemoteDataSource {
   /// Uses refresh token to get new access token
   /// Throws exception or network exception
   Future<UserModel> refreshToken(String refreshToken);
+
+  /// Invalidate the refresh token on the server
+  /// Sends the stored refresh token so the backend can revoke it
+  /// Throws exception or network exception
+  Future<void> logout(String refreshToken);
 }

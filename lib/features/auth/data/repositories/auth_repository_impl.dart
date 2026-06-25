@@ -54,6 +54,18 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, void>> logout() async {
     try {
+      // Best-effort server-side revocation: invalidate the refresh token on the
+      // backend before clearing local storage. Ignore failures so logout always
+      // succeeds locally even when offline or the server call fails.
+      try {
+        final storedRefreshToken = await localDataSource.getRefreshToken();
+        if (storedRefreshToken != null) {
+          await remoteDataSource.logout(storedRefreshToken);
+        }
+      } catch (_) {
+        // Ignore server-side logout errors
+      }
+
       await localDataSource.deleteToken();
       await localDataSource.deleteRefreshToken();
 
