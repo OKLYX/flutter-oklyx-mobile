@@ -81,6 +81,7 @@ class _ProductSearchViewState extends State<_ProductSearchView> {
     navBarIndex: 2,
     showDrawer: true,
     showAppBarDrawerButton: false,
+    backgroundColor: Colors.white,
     body: Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(

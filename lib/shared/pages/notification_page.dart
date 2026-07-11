@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
@@ -58,13 +59,13 @@ class _NotificationPageState extends State<NotificationPage> {
 
             return BottomNavigationBar(
               type: BottomNavigationBarType.fixed,
-              selectedItemColor: const Color(0xffffc417),
+              selectedItemColor: AppColors.brandMain,
               currentIndex: 3,
               items: [
                 BottomNavigationBarItem(
                   icon: Icon(
                     Icons.menu,
-                    color: isDrawerOpen ? const Color(0xffffc417) : Colors.black87,
+                    color: isDrawerOpen ? AppColors.brandMain : Colors.black87,
                   ),
                   label: '',
                 ),

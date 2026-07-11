@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_oklyn_mobile/core/constants/app_constants.dart';
 import '../models/order_model.dart';
 
 abstract class OrderRemoteDataSource {
@@ -39,9 +40,14 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
   Future<OrderSyncResultModel> syncOrders({int? sellerId}) async {
     try {
       // 프론트와 동일: body 없이 sellerId 를 query param 으로 전송한다.
+      // 서버가 쿠팡 API를 실시간 조회 → 기본 30초를 초과할 수 있어 개별 연장.
       final response = await dio.post(
         '/api/orders/sync',
         queryParameters: sellerId != null ? {'sellerId': sellerId} : null,
+        options: Options(
+          receiveTimeout:
+              const Duration(seconds: AppConstants.coupangReceiveTimeout),
+        ),
       );
       final data = response.data['data'];
       if (data is! Map<String, dynamic>) {

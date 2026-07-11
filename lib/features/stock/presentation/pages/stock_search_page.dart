@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -139,12 +140,12 @@ class _StockSearchViewState extends State<_StockSearchView> {
             return BottomNavigationBar(
               type: BottomNavigationBarType.fixed,
               currentIndex: 1,
-              selectedItemColor: const Color(0xffffc417),
+              selectedItemColor: AppColors.brandMain,
               items: [
                 BottomNavigationBarItem(
                   icon: Icon(
                     Icons.menu,
-                    color: isDrawerOpen ? const Color(0xffffc417) : Colors.black87,
+                    color: isDrawerOpen ? AppColors.brandMain : Colors.black87,
                   ),
                   label: '',
                 ),

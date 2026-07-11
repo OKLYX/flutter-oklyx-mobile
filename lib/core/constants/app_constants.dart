@@ -7,6 +7,12 @@ class AppConstants {
   static const int connectionTimeout = 30;
   static const int receiveTimeout = 30;
 
+  /// 쿠팡 OpenAPI를 실시간 재조회하는 무거운 엔드포인트용 per-request 타임아웃(초).
+  /// 주문 동기화(POST /api/orders/sync)·Shipping Label 다운로드
+  /// (GET /api/admin/shipping-labels/spreadsheet)는 서버가 쿠팡을 페이징 조회하므로
+  /// 기본 [receiveTimeout] 30초를 초과할 수 있어 이 값을 개별 요청에만 적용한다.
+  static const int coupangReceiveTimeout = 120;
+
   static const int defaultPageSize = 20;
   static const int defaultPageNumber = 1;
 

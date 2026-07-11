@@ -36,6 +36,13 @@ class OrderListLoaded extends OrderListState {
   /// 선택된 상태 필터 (null = 전체). 프론트 OrderContainer.selectedStatus와 동일.
   final String? selectedStatus;
 
+  /// Shipping Label(주문목록) xlsx 다운로드 진행 중 여부.
+  final bool isDownloading;
+
+  /// 다운로드 성공 시 저장된 파일 경로 (transient — SnackBar 노출용).
+  /// [syncResult]와 동일하게 다음 액션 시작 시 clearDownloadResult 로 비운다.
+  final String? downloadSavedPath;
+
   OrderListLoaded({
     required this.sellers,
     this.selectedSellerId,
@@ -46,6 +53,8 @@ class OrderListLoaded extends OrderListState {
     this.syncResult,
     this.lastSyncedAt,
     this.selectedStatus,
+    this.isDownloading = false,
+    this.downloadSavedPath,
   });
 
   /// 상태별 주문 건수 (필터 버튼 배지용). 선택과 무관하게 전체 주문 기준.
@@ -76,6 +85,9 @@ class OrderListLoaded extends OrderListState {
     String? lastSyncedAt,
     String? selectedStatus,
     bool clearSelectedStatus = false,
+    bool? isDownloading,
+    String? downloadSavedPath,
+    bool clearDownloadResult = false,
   }) {
     return OrderListLoaded(
       sellers: sellers ?? this.sellers,
@@ -91,6 +103,10 @@ class OrderListLoaded extends OrderListState {
       selectedStatus: clearSelectedStatus
           ? null
           : (selectedStatus ?? this.selectedStatus),
+      isDownloading: isDownloading ?? this.isDownloading,
+      downloadSavedPath: clearDownloadResult
+          ? null
+          : (downloadSavedPath ?? this.downloadSavedPath),
     );
   }
 }

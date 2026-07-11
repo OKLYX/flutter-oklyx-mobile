@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -244,7 +245,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
           drawer: const AppDrawer(),
           bottomNavigationBar: BottomNavigationBar(
             type: BottomNavigationBarType.fixed,
-            selectedItemColor: const Color(0xffffc417),
+            selectedItemColor: AppColors.brandMain,
             currentIndex: 2,
             items: [
               BottomNavigationBarItem(icon: const Icon(Icons.menu), label: ''),

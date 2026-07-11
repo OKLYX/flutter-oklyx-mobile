@@ -22,3 +22,7 @@ class SelectStatus extends OrderListEvent {
 
   SelectStatus({this.status});
 }
+
+/// 주문목록 다운로드 버튼: 현재 선택된 판매자 기준으로 Shipping Label xlsx 를
+/// 서버에서 받아 기기 다운로드 폴더에 저장한다.
+class DownloadShippingLabel extends OrderListEvent {}

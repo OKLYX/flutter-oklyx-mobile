@@ -109,10 +109,13 @@ class _ProductListingSearchViewState extends State<_ProductListingSearchView> {
         showDrawer: true,
         showAppBarDrawerButton: false,
         body: Padding(
-          padding: const EdgeInsets.all(16.0),
+          // 좌우 패딩은 헤더(검색/결과개수)에만 적용하고, 리스트는 화면 끝까지 닿게 한다.
+          padding: const EdgeInsets.only(top: 16.0),
           child: Column(
             children: [
-              Row(
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
@@ -148,23 +151,27 @@ class _ProductListingSearchViewState extends State<_ProductListingSearchView> {
                     },
                   ),
                 ],
+                ),
               ),
               const SizedBox(height: 8),
               // 프론트 ProductListingSearchCard와 동일: 결과 개수 표시 (N개의 결과)
-              BlocBuilder<ProductListingListBloc, ProductListingListState>(
-                builder: (context, state) {
-                  if (state is ProductListingListLoaded &&
-                      state.listings.isNotEmpty) {
-                    return Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        '${state.listings.length}개의 결과',
-                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: BlocBuilder<ProductListingListBloc, ProductListingListState>(
+                  builder: (context, state) {
+                    if (state is ProductListingListLoaded &&
+                        state.listings.isNotEmpty) {
+                      return Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '${state.listings.length}개의 결과',
+                          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
               ),
               const SizedBox(height: 8),
               Expanded(

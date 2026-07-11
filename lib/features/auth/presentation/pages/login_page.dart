@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -93,7 +94,7 @@ class _LoginPageState extends State<LoginPage> {
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(8),
                                       borderSide: const BorderSide(
-                                          color: Color(0xffffc417), width: 2),
+                                          color: AppColors.brandMain, width: 2),
                                     ),
                                   ),
                                 ),
@@ -122,7 +123,7 @@ class _LoginPageState extends State<LoginPage> {
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(8),
                                       borderSide: const BorderSide(
-                                          color: Color(0xffffc417), width: 2),
+                                          color: AppColors.brandMain, width: 2),
                                     ),
                                   ),
                                 ),
@@ -133,8 +134,8 @@ class _LoginPageState extends State<LoginPage> {
                         const Spacer(),
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.black,
-                            foregroundColor: const Color(0xffffc417),
+                            backgroundColor: AppColors.brandMain,
+                            foregroundColor: Colors.black,
                           ),
                           onPressed: state is! AuthLoading
                               ? () {
@@ -157,7 +158,7 @@ class _LoginPageState extends State<LoginPage> {
                                   child: CircularProgressIndicator(
                                       strokeWidth: 2,
                                       valueColor: AlwaysStoppedAnimation<Color>(
-                                          Color(0xffffc417))),
+                                          Colors.black)),
                                 )
                               : const Text('LOGIN'),
                         ),

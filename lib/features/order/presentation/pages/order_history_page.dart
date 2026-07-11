@@ -47,14 +47,17 @@ class _OrderHistoryView extends StatelessWidget {
       body: BlocConsumer<OrderListBloc, OrderListState>(
         // 검색/동기화 중 발생한 일시적 오류는 SnackBar로 표시한다.
         listenWhen: (prev, curr) =>
-            curr is OrderListLoaded && curr.actionError != null,
+            curr is OrderListLoaded &&
+            (curr.actionError != null || curr.downloadSavedPath != null),
         listener: (context, state) {
-          final message = (state as OrderListLoaded).actionError;
+          final s = state as OrderListLoaded;
+          // actionError 우선, 없으면 다운로드 성공 메시지.
+          final message = s.actionError ?? '주문목록을 다운로드 폴더에 저장했습니다.';
           ScaffoldMessenger.of(context)
             ..hideCurrentSnackBar()
             ..showSnackBar(
               SnackBar(
-                content: Text(message ?? '요청에 실패했습니다.'),
+                content: Text(message),
                 behavior: SnackBarBehavior.floating,
                 margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
               ),
@@ -89,7 +92,7 @@ class _LoadedBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = state as OrderListLoaded;
     final bloc = context.read<OrderListBloc>();
-    final busy = s.isSearching || s.isSyncing;
+    final busy = s.isSearching || s.isSyncing || s.isDownloading;
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -157,6 +160,30 @@ class _LoadedBody extends StatelessWidget {
                                 )
                               : const Icon(Icons.sync, size: 18),
                           label: Text(s.isSyncing ? '동기화 중...' : '동기화'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // 주문목록 다운로드 (Shipping Label): 쿠팡 INSTRUCT 주문 xlsx 를
+                  // 서버에서 실시간 생성해 기기 다운로드 폴더에 저장한다.
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: busy
+                              ? null
+                              : () => bloc.add(DownloadShippingLabel()),
+                          icon: s.isDownloading
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.download, size: 18),
+                          label: Text(
+                              s.isDownloading ? '다운로드 중...' : '주문목록 다운로드'),
                         ),
                       ),
                     ],

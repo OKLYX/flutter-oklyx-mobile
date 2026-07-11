@@ -119,6 +119,10 @@ import 'package:flutter_oklyn_mobile/features/order/data/repositories/order_repo
 import 'package:flutter_oklyn_mobile/features/order/domain/repositories/order_repository.dart';
 import 'package:flutter_oklyn_mobile/features/order/domain/usecases/order_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/data/datasources/shipping_label_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/data/repositories/shipping_label_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/domain/repositories/shipping_label_repository.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/domain/usecases/shipping_label_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/data/datasources/marketplace_account_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/data/repositories/marketplace_account_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/domain/repositories/marketplace_account_repository.dart';
@@ -154,6 +158,7 @@ void setupServiceLocator() {
   _registerMarketplaceAccountServices();
   _registerCommissionRateServices();
   _registerProductListingServices();
+  _registerShippingLabelServices();
   _registerOrderServices();
   _registerPurchaseListServices();
   _registerErrorHandling();
@@ -708,6 +713,27 @@ void _registerProductListingServices() {
   );
 }
 
+// Shipping Label 은 Order 와 별개 도메인(백엔드 /api/admin/shipping-labels).
+// OrderListBloc 이 다운로드 오케스트레이션에 사용하므로 _registerOrderServices 앞에 등록한다.
+void _registerShippingLabelServices() {
+  // Data Source
+  getIt.registerSingleton<ShippingLabelRemoteDataSource>(
+    ShippingLabelRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
+  );
+
+  // Repository
+  getIt.registerSingleton<ShippingLabelRepository>(
+    ShippingLabelRepositoryImpl(
+      remoteDataSource: getIt<ShippingLabelRemoteDataSource>(),
+    ),
+  );
+
+  // Use Case
+  getIt.registerSingleton<ShippingLabelUseCase>(
+    ShippingLabelUseCase(repository: getIt<ShippingLabelRepository>()),
+  );
+}
+
 void _registerOrderServices() {
   // Data Source
   getIt.registerSingleton<OrderRemoteDataSource>(
@@ -726,10 +752,12 @@ void _registerOrderServices() {
 
   // BLoC as factory to allow fresh state per page.
   // 판매자 드롭다운은 기존 seller 기능의 GetSellersUseCase 를 재사용한다.
+  // 주문목록 다운로드는 shipping_label 기능의 ShippingLabelUseCase 를 재사용한다.
   getIt.registerFactory<OrderListBloc>(
     () => OrderListBloc(
       orderUseCase: getIt<OrderUseCase>(),
       getSellersUseCase: getIt<GetSellersUseCase>(),
+      shippingLabelUseCase: getIt<ShippingLabelUseCase>(),
     ),
   );
 }

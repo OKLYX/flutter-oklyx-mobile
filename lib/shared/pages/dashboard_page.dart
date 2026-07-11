@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
@@ -67,13 +68,13 @@ class _DashboardPageState extends State<DashboardPage> {
                 return BottomNavigationBar(
                   type: BottomNavigationBarType.fixed,
                   currentIndex: 1,
-                  selectedItemColor: const Color(0xffffc417),
+                  selectedItemColor: AppColors.brandMain,
                   items: [
                     BottomNavigationBarItem(
                       icon: Icon(
                         Icons.menu,
                         color: isDrawerOpen
-                            ? const Color(0xffffc417)
+                            ? AppColors.brandMain
                             : Colors.black87,
                       ),
                       label: '',

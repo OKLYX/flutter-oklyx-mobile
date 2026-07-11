@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_drawer.dart';
@@ -61,6 +62,10 @@ class ScaffoldWithNavBar extends StatefulWidget {
   final bool showAppBarDrawerButton;
   final VoidCallback? onBackPressed;
 
+  /// Body background color. Defaults to null → falls back to grey[100].
+  /// Pass `Colors.white` for pages that need a plain white background.
+  final Color? backgroundColor;
+
   const ScaffoldWithNavBar({
     required this.title,
     required this.body,
@@ -68,6 +73,7 @@ class ScaffoldWithNavBar extends StatefulWidget {
     this.showDrawer = true,
     this.showAppBarDrawerButton = true,
     this.onBackPressed,
+    this.backgroundColor,
   });
 
   @override
@@ -119,7 +125,7 @@ class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
             backgroundColor: Colors.white,
             elevation: 0,
           ),
-          backgroundColor: Colors.grey[100],
+          backgroundColor: widget.backgroundColor ?? Colors.grey[100],
           body: widget.body,
           bottomNavigationBar: SizedBox.shrink(),
           drawer: widget.showDrawer ? const AppDrawer() : null,
@@ -135,12 +141,12 @@ class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
               return BottomNavigationBar(
                 type: BottomNavigationBarType.fixed,
                 currentIndex: widget.navBarIndex,
-                selectedItemColor: const Color(0xffffc417),
+                selectedItemColor: AppColors.brandMain,
                 items: [
                   BottomNavigationBarItem(
                     icon: Icon(
                       Icons.menu,
-                      color: isDrawerOpen ? const Color(0xffffc417) : Colors.black87,
+                      color: isDrawerOpen ? AppColors.brandMain : Colors.black87,
                     ),
                     label: '',
                   ),

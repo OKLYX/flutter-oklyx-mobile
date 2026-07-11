@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_oklyn_mobile/config/router/app_router.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_theme.dart';
 
 void main() {
   setupServiceLocator();
@@ -21,10 +22,10 @@ class MyApp extends StatelessWidget {
     child: MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'Flutter Oklyn Mobile',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      // Kept on light until hardcoded Colors.white/black usages are themed.
+      themeMode: ThemeMode.light,
       routerConfig: AppRouter.router,
     ),
   );
