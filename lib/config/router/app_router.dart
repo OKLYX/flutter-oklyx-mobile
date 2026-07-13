@@ -21,6 +21,10 @@ import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/car
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_create_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_detail_event.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/presentation/pages/carrier_list_page.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/presentation/bloc/carrier_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/presentation/bloc/carrier_list_event.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/presentation/bloc/carrier_form_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/seller/presentation/pages/seller_search_page.dart';
 import 'package:flutter_oklyn_mobile/features/seller/presentation/pages/seller_create_page.dart';
 import 'package:flutter_oklyn_mobile/features/seller/presentation/pages/seller_detail_page.dart';
@@ -297,6 +301,24 @@ class AppRouter {
           ),
         );
       },
+    ),
+    GoRoute(
+      name: Routes.carrier,
+      path: Routes.carrierPath,
+      pageBuilder: (context, state) => NoTransitionPage(
+        child: MultiBlocProvider(
+          providers: [
+            BlocProvider<CarrierListBloc>(
+              create: (context) =>
+                  GetIt.instance<CarrierListBloc>()..add(FetchCarriers()),
+            ),
+            BlocProvider<CarrierFormBloc>(
+              create: (context) => GetIt.instance<CarrierFormBloc>(),
+            ),
+          ],
+          child: const CarrierListPage(),
+        ),
+      ),
     ),
     GoRoute(
       name: Routes.seller,

@@ -72,6 +72,20 @@ import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/usecases/delet
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_create_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_detail_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/data/datasources/carrier_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/data/repositories/carrier_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/domain/repositories/carrier_repository.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/domain/usecases/get_carriers_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/domain/usecases/create_carrier_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/domain/usecases/update_carrier_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/domain/usecases/delete_carrier_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/domain/usecases/get_platform_codes_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/domain/usecases/create_platform_code_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/domain/usecases/update_platform_code_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/domain/usecases/delete_platform_code_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/presentation/bloc/carrier_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/presentation/bloc/carrier_form_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/presentation/bloc/platform_code_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/data/datasources/category_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/category/data/repositories/category_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/category/domain/repositories/category_repository.dart';
@@ -154,6 +168,7 @@ void setupServiceLocator() {
   _registerCategoryServices();
   _registerPackageServices();
   _registerCarrierRateServices();
+  _registerCarrierServices();
   _registerSellerServices();
   _registerMarketplaceAccountServices();
   _registerCommissionRateServices();
@@ -472,6 +487,69 @@ void _registerCarrierRateServices() {
       getCarrierRateUseCase: getIt<GetCarrierRateUseCase>(),
       updateCarrierRateUseCase: getIt<UpdateCarrierRateUseCase>(),
       deleteCarrierRateUseCase: getIt<DeleteCarrierRateUseCase>(),
+    ),
+  );
+}
+
+void _registerCarrierServices() {
+  // Data Source
+  getIt.registerSingleton<CarrierRemoteDataSource>(
+    CarrierRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
+  );
+
+  // Repository
+  getIt.registerSingleton<CarrierRepository>(
+    CarrierRepositoryImpl(remoteDataSource: getIt<CarrierRemoteDataSource>()),
+  );
+
+  // Use Cases
+  getIt.registerSingleton<GetCarriersUseCase>(
+    GetCarriersUseCase(repository: getIt<CarrierRepository>()),
+  );
+  getIt.registerSingleton<CreateCarrierUseCase>(
+    CreateCarrierUseCase(repository: getIt<CarrierRepository>()),
+  );
+  getIt.registerSingleton<UpdateCarrierUseCase>(
+    UpdateCarrierUseCase(repository: getIt<CarrierRepository>()),
+  );
+  getIt.registerSingleton<DeleteCarrierUseCase>(
+    DeleteCarrierUseCase(repository: getIt<CarrierRepository>()),
+  );
+  getIt.registerSingleton<GetPlatformCodesUseCase>(
+    GetPlatformCodesUseCase(repository: getIt<CarrierRepository>()),
+  );
+  getIt.registerSingleton<CreatePlatformCodeUseCase>(
+    CreatePlatformCodeUseCase(repository: getIt<CarrierRepository>()),
+  );
+  getIt.registerSingleton<UpdatePlatformCodeUseCase>(
+    UpdatePlatformCodeUseCase(repository: getIt<CarrierRepository>()),
+  );
+  getIt.registerSingleton<DeletePlatformCodeUseCase>(
+    DeletePlatformCodeUseCase(repository: getIt<CarrierRepository>()),
+  );
+
+  // BLoC - CarrierListBloc as factory to allow fresh state per page
+  getIt.registerFactory<CarrierListBloc>(
+    () => CarrierListBloc(getCarriersUseCase: getIt<GetCarriersUseCase>()),
+  );
+
+  // CarrierFormBloc as factory to allow fresh state per page
+  getIt.registerFactory<CarrierFormBloc>(
+    () => CarrierFormBloc(
+      createCarrierUseCase: getIt<CreateCarrierUseCase>(),
+      updateCarrierUseCase: getIt<UpdateCarrierUseCase>(),
+      deleteCarrierUseCase: getIt<DeleteCarrierUseCase>(),
+    ),
+  );
+
+  // PlatformCodeBloc - factoryParam(carrierId) so each expanded section gets its own bloc
+  getIt.registerFactoryParam<PlatformCodeBloc, int, void>(
+    (carrierId, _) => PlatformCodeBloc(
+      carrierId: carrierId,
+      getPlatformCodesUseCase: getIt<GetPlatformCodesUseCase>(),
+      createPlatformCodeUseCase: getIt<CreatePlatformCodeUseCase>(),
+      updatePlatformCodeUseCase: getIt<UpdatePlatformCodeUseCase>(),
+      deletePlatformCodeUseCase: getIt<DeletePlatformCodeUseCase>(),
     ),
   );
 }
