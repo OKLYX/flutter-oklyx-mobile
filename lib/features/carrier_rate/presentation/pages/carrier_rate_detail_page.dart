@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/domain/entities/carrier.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/entities/carrier_rate.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_detail_event.dart';
@@ -81,9 +82,18 @@ class _CarrierRateDetailPageState extends State<CarrierRateDetailPage> {
               return const Center(child: CircularProgressIndicator());
             }
             if (state is CarrierRateDetailLoaded) {
+              // Resolve carrier name from loaded carriers for display.
+              String carrierName = '';
+              for (final c in state.carriers) {
+                if (c.id == state.carrierId) {
+                  carrierName = c.name;
+                  break;
+                }
+              }
               final carrierRate = CarrierRate(
                 id: widget.carrierRateId,
-                carrier: state.carrier.value,
+                carrierId: state.carrierId ?? 0,
+                carrier: carrierName,
                 type: state.type.value,
                 cost: state.cost.value,
                 effectiveDate: state.effectiveDate.value,
@@ -91,6 +101,8 @@ class _CarrierRateDetailPageState extends State<CarrierRateDetailPage> {
               );
               return _CarrierRateDetailsView(
                 carrierRate: carrierRate,
+                carriers: state.carriers,
+                carriersLoading: state.carriersLoading,
                 isEditing: _isEditing,
                 onEditChange: (editing) => setState(() => _isEditing = editing),
                 onDeletePressed: () => _showDeleteDialog(context, carrierRate),
@@ -121,11 +133,15 @@ class _CarrierRateDetailPageState extends State<CarrierRateDetailPage> {
 
 class _CarrierRateDetailsView extends StatefulWidget {
   final CarrierRate carrierRate;
+  final List<Carrier> carriers;
+  final bool carriersLoading;
   final bool isEditing;
   final Function(bool) onEditChange;
   final VoidCallback onDeletePressed;
   const _CarrierRateDetailsView({
     required this.carrierRate,
+    required this.carriers,
+    required this.carriersLoading,
     required this.isEditing,
     required this.onEditChange,
     required this.onDeletePressed,
@@ -136,7 +152,6 @@ class _CarrierRateDetailsView extends StatefulWidget {
 }
 
 class _CarrierRateDetailsViewState extends State<_CarrierRateDetailsView> {
-  late TextEditingController _carrierCtrl;
   late TextEditingController _typeCtrl;
   late TextEditingController _costCtrl;
   late TextEditingController _dateCtrl;
@@ -144,7 +159,6 @@ class _CarrierRateDetailsViewState extends State<_CarrierRateDetailsView> {
   @override
   void initState() {
     super.initState();
-    _carrierCtrl = TextEditingController(text: widget.carrierRate.carrier);
     _typeCtrl = TextEditingController(text: widget.carrierRate.type);
     _costCtrl = TextEditingController(
       text: widget.carrierRate.cost.toInt().toString(),
@@ -154,11 +168,80 @@ class _CarrierRateDetailsViewState extends State<_CarrierRateDetailsView> {
 
   @override
   void dispose() {
-    _carrierCtrl.dispose();
     _typeCtrl.dispose();
     _costCtrl.dispose();
     _dateCtrl.dispose();
     super.dispose();
+  }
+
+  Widget _buildCarrierDropdown() {
+    final decoration = const InputDecoration(
+      labelText: '배송사',
+      border: OutlineInputBorder(),
+    );
+
+    if (widget.carriersLoading) {
+      return InputDecorator(
+        decoration: decoration,
+        child: const SizedBox(
+          height: 20,
+          child: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 8),
+              Text('택배사 불러오는 중...'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final items = <DropdownMenuItem<int>>[
+      for (final c in widget.carriers.where((c) => c.isActive))
+        DropdownMenuItem<int>(value: c.id, child: Text(c.name)),
+    ];
+
+    // Keep the current carrierId selectable even if inactive/missing.
+    final cid = widget.carrierRate.carrierId;
+    if (cid != 0 && !items.any((it) => it.value == cid)) {
+      final match = widget.carriers.where((c) => c.id == cid);
+      if (match.isNotEmpty) {
+        items.add(DropdownMenuItem<int>(value: cid, child: Text(match.first.name)));
+      }
+    }
+
+    if (items.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DropdownButtonFormField<int>(
+            decoration: decoration,
+            items: const [],
+            onChanged: null,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '등록된 택배사가 없습니다',
+            style: TextStyle(color: Colors.red.shade700, fontSize: 12),
+          ),
+        ],
+      );
+    }
+
+    return DropdownButtonFormField<int>(
+      value: cid != 0 ? cid : null,
+      decoration: decoration,
+      items: items,
+      onChanged: (value) {
+        if (value != null) {
+          context.read<CarrierRateDetailBloc>().add(CarrierIdDetailChanged(value));
+        }
+      },
+    );
   }
 
   @override
@@ -222,15 +305,8 @@ class _CarrierRateDetailsViewState extends State<_CarrierRateDetailsView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _FormField(
-              '배송사',
-              _carrierCtrl,
-              (v) {
-                context
-                    .read<CarrierRateDetailBloc>()
-                    .add(CarrierDetailChanged(v));
-              },
-            ),
+            _buildCarrierDropdown(),
+            const SizedBox(height: 16),
             _FormField(
               '타입',
               _typeCtrl,

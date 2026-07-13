@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/domain/usecases/get_carriers_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/usecases/create_carrier_rate_usecase.dart';
 import 'carrier_rate_create_event.dart';
 import 'carrier_rate_create_state.dart';
@@ -6,10 +7,14 @@ import 'carrier_rate_create_state.dart';
 class CarrierRateCreateBloc
     extends Bloc<CarrierRateCreateEvent, CarrierRateCreateState> {
   final CreateCarrierRateUseCase createCarrierRateUseCase;
+  final GetCarriersUseCase getCarriersUseCase;
 
-  CarrierRateCreateBloc({required this.createCarrierRateUseCase})
-      : super(CarrierRateCreateInitial()) {
-    on<CarrierChanged>(_onCarrierChanged);
+  CarrierRateCreateBloc({
+    required this.createCarrierRateUseCase,
+    required this.getCarriersUseCase,
+  }) : super(CarrierRateCreateInitial()) {
+    on<LoadCarriers>(_onLoadCarriers);
+    on<CarrierIdChanged>(_onCarrierIdChanged);
     on<TypeChanged>(_onTypeChanged);
     on<CostChanged>(_onCostChanged);
     on<EffectiveDateChanged>(_onEffectiveDateChanged);
@@ -18,9 +23,23 @@ class CarrierRateCreateBloc
     on<ResetCreateForm>(_onResetForm);
   }
 
-  void _onCarrierChanged(CarrierChanged event, Emitter emit) {
+  Future<void> _onLoadCarriers(LoadCarriers event, Emitter emit) async {
+    final current = state as CarrierRateCreateInitial;
+    emit(current.copyWith(carriersLoading: true));
+
+    final result = await getCarriersUseCase();
+    result.fold(
+      // On failure, leave carriers empty → dialog shows "load failed" + save disabled.
+      (_) => emit((state as CarrierRateCreateInitial)
+          .copyWith(carriers: const [], carriersLoading: false)),
+      (carriers) => emit((state as CarrierRateCreateInitial)
+          .copyWith(carriers: carriers, carriersLoading: false)),
+    );
+  }
+
+  void _onCarrierIdChanged(CarrierIdChanged event, Emitter emit) {
     emit((state as CarrierRateCreateInitial).copyWith(
-      carrier: CarrierForm.dirty(value: event.carrier),
+      carrierId: event.carrierId,
     ));
   }
 
@@ -71,7 +90,7 @@ class CarrierRateCreateBloc
     emit(state.copyWith(isSubmitting: true, error: null));
 
     final result = await createCarrierRateUseCase(CreateCarrierRateParams(
-      carrier: state.carrier.value,
+      carrierId: state.carrierId!,
       type: state.type.value,
       cost: state.cost.value,
       effectiveDate: state.effectiveDate.value,

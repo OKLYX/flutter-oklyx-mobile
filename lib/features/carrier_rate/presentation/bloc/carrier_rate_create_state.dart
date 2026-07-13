@@ -1,18 +1,5 @@
 import 'package:formz/formz.dart';
-
-class CarrierForm extends FormzInput<String, String> {
-  const CarrierForm.pure() : super.pure('');
-  const CarrierForm.dirty({String value = ''}) : super.dirty(value);
-
-  @override
-  String? validator(String value) {
-    if (value.isEmpty) return '배송사를 입력하세요';
-    if (value.length > 100) return '100자 이내';
-    return null;
-  }
-
-  String? get error => validator(value);
-}
+import 'package:flutter_oklyn_mobile/features/carrier/domain/entities/carrier.dart';
 
 class TypeForm extends FormzInput<String, String> {
   const TypeForm.pure() : super.pure('');
@@ -60,7 +47,9 @@ class EffectiveDateForm extends FormzInput<String, String> {
 abstract class CarrierRateCreateState {}
 
 class CarrierRateCreateInitial extends CarrierRateCreateState {
-  final CarrierForm carrier;
+  final int? carrierId;
+  final List<Carrier> carriers;
+  final bool carriersLoading;
   final TypeForm type;
   final CostForm cost;
   final EffectiveDateForm effectiveDate;
@@ -69,7 +58,9 @@ class CarrierRateCreateInitial extends CarrierRateCreateState {
   final String? error;
 
   CarrierRateCreateInitial({
-    this.carrier = const CarrierForm.pure(),
+    this.carrierId,
+    this.carriers = const [],
+    this.carriersLoading = false,
     this.type = const TypeForm.pure(),
     this.cost = const CostForm.pure(),
     this.effectiveDate = const EffectiveDateForm.pure(),
@@ -78,10 +69,13 @@ class CarrierRateCreateInitial extends CarrierRateCreateState {
     this.error,
   });
 
-  bool get isValid => Formz.validate([carrier, type, cost, effectiveDate]);
+  bool get isValid =>
+      carrierId != null && Formz.validate([type, cost, effectiveDate]);
 
   CarrierRateCreateInitial copyWith({
-    CarrierForm? carrier,
+    int? carrierId,
+    List<Carrier>? carriers,
+    bool? carriersLoading,
     TypeForm? type,
     CostForm? cost,
     EffectiveDateForm? effectiveDate,
@@ -90,7 +84,9 @@ class CarrierRateCreateInitial extends CarrierRateCreateState {
     String? error,
   }) =>
       CarrierRateCreateInitial(
-        carrier: carrier ?? this.carrier,
+        carrierId: carrierId ?? this.carrierId,
+        carriers: carriers ?? this.carriers,
+        carriersLoading: carriersLoading ?? this.carriersLoading,
         type: type ?? this.type,
         cost: cost ?? this.cost,
         effectiveDate: effectiveDate ?? this.effectiveDate,

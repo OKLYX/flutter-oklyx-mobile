@@ -4,7 +4,6 @@ import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/entities/carrier_rate.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/repositories/carrier_rate_repository.dart';
 import '../datasources/carrier_rate_remote_datasource.dart';
-import '../models/carrier_rate_model.dart';
 import '../models/create_carrier_rate_params.dart';
 import '../models/update_carrier_rate_params.dart';
 
@@ -49,7 +48,7 @@ class CarrierRateRepositoryImpl implements CarrierRateRepository {
 
   @override
   Future<Either<Failure, CarrierRate>> createCarrierRate(
-    String carrier,
+    int carrierId,
     String type,
     double cost,
     String effectiveDate,
@@ -57,7 +56,7 @@ class CarrierRateRepositoryImpl implements CarrierRateRepository {
   ) async {
     try {
       final params = CreateCarrierRateParams(
-        carrier: carrier,
+        carrierId: carrierId,
         type: type,
         cost: cost,
         effectiveDate: effectiveDate,
@@ -80,7 +79,7 @@ class CarrierRateRepositoryImpl implements CarrierRateRepository {
   @override
   Future<Either<Failure, CarrierRate>> updateCarrierRate(
     int id,
-    String carrier,
+    int carrierId,
     String type,
     double cost,
     String effectiveDate,
@@ -89,7 +88,7 @@ class CarrierRateRepositoryImpl implements CarrierRateRepository {
     try {
       final params = UpdateCarrierRateParams(
         id: id,
-        carrier: carrier,
+        carrierId: carrierId,
         type: type,
         cost: cost,
         effectiveDate: effectiveDate,

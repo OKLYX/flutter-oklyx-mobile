@@ -1,6 +1,7 @@
 class CarrierRate {
   final int id;
-  final String carrier;
+  final int carrierId;
+  final String carrier; // carrier name (display)
   final String type;
   final double cost;
   final String effectiveDate;
@@ -8,6 +9,7 @@ class CarrierRate {
 
   CarrierRate({
     required this.id,
+    required this.carrierId,
     required this.carrier,
     required this.type,
     required this.cost,
@@ -17,6 +19,7 @@ class CarrierRate {
 
   CarrierRate copyWith({
     int? id,
+    int? carrierId,
     String? carrier,
     String? type,
     double? cost,
@@ -25,6 +28,7 @@ class CarrierRate {
   }) {
     return CarrierRate(
       id: id ?? this.id,
+      carrierId: carrierId ?? this.carrierId,
       carrier: carrier ?? this.carrier,
       type: type ?? this.type,
       cost: cost ?? this.cost,

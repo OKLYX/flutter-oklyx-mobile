@@ -75,13 +75,14 @@ void showEditCarrierRateDialog(BuildContext context, int id) {
     ),
   );
 
-  // Trigger fetch after dialog is shown
+  // Load carriers first so the first Loaded state already reflects
+  // carriersLoading=true (gates the dropdown until both async complete).
+  detailBloc.add(LoadCarriersDetail());
   detailBloc.add(FetchCarrierRateDetail(id));
 }
 
 
 class _CarrierRateDetailDialogState extends State<CarrierRateDetailDialog> {
-  late TextEditingController _carrierController;
   late TextEditingController _typeController;
   late TextEditingController _costController;
   late TextEditingController _dateController;
@@ -89,7 +90,6 @@ class _CarrierRateDetailDialogState extends State<CarrierRateDetailDialog> {
   @override
   void initState() {
     super.initState();
-    _carrierController = TextEditingController();
     _typeController = TextEditingController();
     _costController = TextEditingController();
     _dateController = TextEditingController();
@@ -97,7 +97,6 @@ class _CarrierRateDetailDialogState extends State<CarrierRateDetailDialog> {
 
   @override
   void dispose() {
-    _carrierController.dispose();
     _typeController.dispose();
     _costController.dispose();
     _dateController.dispose();
@@ -153,7 +152,6 @@ class _CarrierRateDetailDialogState extends State<CarrierRateDetailDialog> {
 
             // Update controllers when state loads
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              _carrierController.text = state.carrier.value;
               _typeController.text = state.type.value;
               _costController.text = state.cost.value.toStringAsFixed(0);
               _dateController.text = state.effectiveDate.value;
@@ -196,17 +194,8 @@ class _CarrierRateDetailDialogState extends State<CarrierRateDetailDialog> {
                         ),
                       ),
 
-                    // Carrier Field
-                    _buildTextField(
-                      controller: _carrierController,
-                      label: '배송사',
-                      onChanged: (value) {
-                        context.read<CarrierRateDetailBloc>().add(
-                              CarrierDetailChanged(value),
-                            );
-                      },
-                      enabled: !state.isSubmitting,
-                    ),
+                    // Carrier Dropdown
+                    _buildCarrierDropdown(context, state),
                     const SizedBox(height: 12),
 
                     // Type Field
@@ -266,6 +255,86 @@ class _CarrierRateDetailDialogState extends State<CarrierRateDetailDialog> {
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildCarrierDropdown(
+    BuildContext context,
+    CarrierRateDetailLoaded state,
+  ) {
+    final decoration = InputDecoration(
+      labelText: '배송사',
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+    );
+
+    // Gate: wait until both detail fetch (carrierId) and carriers load finish.
+    if (state.carriersLoading) {
+      return InputDecorator(
+        decoration: decoration,
+        child: const SizedBox(
+          height: 20,
+          child: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 8),
+              Text('택배사 불러오는 중...'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final items = <DropdownMenuItem<int>>[
+      for (final c in state.carriers.where((c) => c.isActive))
+        DropdownMenuItem<int>(value: c.id, child: Text(c.name)),
+    ];
+
+    // Ensure the current carrierId is always present in items (inactive/missing
+    // carrier appended) → avoids DropdownButtonFormField value assert.
+    final cid = state.carrierId;
+    if (cid != null && !items.any((it) => it.value == cid)) {
+      final match = state.carriers.where((c) => c.id == cid);
+      if (match.isNotEmpty) {
+        items.add(DropdownMenuItem<int>(value: cid, child: Text(match.first.name)));
+      }
+    }
+
+    // No selectable carriers (load failed and no resolvable current value).
+    if (items.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DropdownButtonFormField<int>(
+            decoration: decoration,
+            items: const [],
+            onChanged: null,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '등록된 택배사가 없습니다',
+            style: TextStyle(color: Colors.red.shade700, fontSize: 12),
+          ),
+        ],
+      );
+    }
+
+    return DropdownButtonFormField<int>(
+      value: cid,
+      decoration: decoration,
+      items: items,
+      onChanged: state.isSubmitting
+          ? null
+          : (value) {
+              if (value != null) {
+                context
+                    .read<CarrierRateDetailBloc>()
+                    .add(CarrierIdDetailChanged(value));
+              }
+            },
     );
   }
 

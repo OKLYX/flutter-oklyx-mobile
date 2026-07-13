@@ -4,14 +4,14 @@ import '../entities/carrier_rate.dart';
 import '../repositories/carrier_rate_repository.dart';
 
 class CreateCarrierRateParams {
-  final String carrier;
+  final int carrierId;
   final String type;
   final double cost;
   final String effectiveDate;
   final bool isDefault;
 
   CreateCarrierRateParams({
-    required this.carrier,
+    required this.carrierId,
     required this.type,
     required this.cost,
     required this.effectiveDate,
@@ -26,7 +26,7 @@ class CreateCarrierRateUseCase {
 
   Future<Either<Failure, CarrierRate>> call(CreateCarrierRateParams params) {
     return repository.createCarrierRate(
-      params.carrier,
+      params.carrierId,
       params.type,
       params.cost,
       params.effectiveDate,

@@ -291,6 +291,7 @@ class AppRouter {
             providers: [
               BlocProvider<CarrierRateDetailBloc>(
                 create: (context) => GetIt.instance<CarrierRateDetailBloc>()
+                  ..add(LoadCarriersDetail())
                   ..add(FetchCarrierRateDetail(id)),
               ),
               BlocProvider<CarrierRateListBloc>(

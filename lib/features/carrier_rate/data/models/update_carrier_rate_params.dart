@@ -1,6 +1,6 @@
 class UpdateCarrierRateParams {
   final int id;
-  final String carrier;
+  final int carrierId;
   final String type;
   final double cost;
   final String effectiveDate; // YYYY-MM-DD
@@ -8,7 +8,7 @@ class UpdateCarrierRateParams {
 
   UpdateCarrierRateParams({
     required this.id,
-    required this.carrier,
+    required this.carrierId,
     required this.type,
     required this.cost,
     required this.effectiveDate,
@@ -16,7 +16,7 @@ class UpdateCarrierRateParams {
   });
 
   Map<String, dynamic> toJson() => {
-    'carrier': carrier,
+    'carrierId': carrierId,
     'type': type,
     'cost': cost,
     'effectiveDate': effectiveDate,

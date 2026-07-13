@@ -1,8 +1,10 @@
 abstract class CarrierRateCreateEvent {}
 
-class CarrierChanged extends CarrierRateCreateEvent {
-  final String carrier;
-  CarrierChanged(this.carrier);
+class LoadCarriers extends CarrierRateCreateEvent {}
+
+class CarrierIdChanged extends CarrierRateCreateEvent {
+  final int carrierId;
+  CarrierIdChanged(this.carrierId);
 }
 
 class TypeChanged extends CarrierRateCreateEvent {

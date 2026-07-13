@@ -478,7 +478,10 @@ void _registerCarrierRateServices() {
 
   // CarrierRateCreateBloc as factory to allow fresh state per dialog
   getIt.registerFactory<CarrierRateCreateBloc>(
-    () => CarrierRateCreateBloc(createCarrierRateUseCase: getIt<CreateCarrierRateUseCase>()),
+    () => CarrierRateCreateBloc(
+      createCarrierRateUseCase: getIt<CreateCarrierRateUseCase>(),
+      getCarriersUseCase: getIt<GetCarriersUseCase>(),
+    ),
   );
 
   // CarrierRateDetailBloc as factory to allow fresh state per dialog
@@ -487,6 +490,7 @@ void _registerCarrierRateServices() {
       getCarrierRateUseCase: getIt<GetCarrierRateUseCase>(),
       updateCarrierRateUseCase: getIt<UpdateCarrierRateUseCase>(),
       deleteCarrierRateUseCase: getIt<DeleteCarrierRateUseCase>(),
+      getCarriersUseCase: getIt<GetCarriersUseCase>(),
     ),
   );
 }

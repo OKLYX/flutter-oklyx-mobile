@@ -5,7 +5,7 @@ import '../repositories/carrier_rate_repository.dart';
 
 class UpdateCarrierRateParams {
   final int id;
-  final String carrier;
+  final int carrierId;
   final String type;
   final double cost;
   final String effectiveDate;
@@ -13,7 +13,7 @@ class UpdateCarrierRateParams {
 
   UpdateCarrierRateParams({
     required this.id,
-    required this.carrier,
+    required this.carrierId,
     required this.type,
     required this.cost,
     required this.effectiveDate,
@@ -29,7 +29,7 @@ class UpdateCarrierRateUseCase {
   Future<Either<Failure, CarrierRate>> call(UpdateCarrierRateParams params) {
     return repository.updateCarrierRate(
       params.id,
-      params.carrier,
+      params.carrierId,
       params.type,
       params.cost,
       params.effectiveDate,

@@ -1,4 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/domain/entities/carrier.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/domain/usecases/get_carriers_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/usecases/get_carrier_rate_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/usecases/update_carrier_rate_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/usecases/delete_carrier_rate_usecase.dart';
@@ -11,14 +13,22 @@ class CarrierRateDetailBloc
   final GetCarrierRateUseCase getCarrierRateUseCase;
   final UpdateCarrierRateUseCase updateCarrierRateUseCase;
   final DeleteCarrierRateUseCase deleteCarrierRateUseCase;
+  final GetCarriersUseCase getCarriersUseCase;
+
+  // Carriers cached on the bloc so fetch (carrierId) and LoadCarriersDetail
+  // (carriers list) can complete in any order and still converge into Loaded.
+  List<Carrier> _carriers = const [];
+  bool _carriersLoading = false;
 
   CarrierRateDetailBloc({
     required this.getCarrierRateUseCase,
     required this.updateCarrierRateUseCase,
     required this.deleteCarrierRateUseCase,
+    required this.getCarriersUseCase,
   }) : super(CarrierRateDetailLoading()) {
     on<FetchCarrierRateDetail>(_onFetch);
-    on<CarrierDetailChanged>(_onCarrierChanged);
+    on<LoadCarriersDetail>(_onLoadCarriers);
+    on<CarrierIdDetailChanged>(_onCarrierIdChanged);
     on<TypeDetailChanged>(_onTypeChanged);
     on<CostDetailChanged>(_onCostChanged);
     on<EffectiveDateDetailChanged>(_onDateChanged);
@@ -35,7 +45,9 @@ class CarrierRateDetailBloc
     result.fold(
       (failure) => emit(CarrierRateDetailError(failure.message)),
       (carrierRate) => emit(CarrierRateDetailLoaded(
-        carrier: CarrierForm.dirty(value: carrierRate.carrier),
+        carrierId: carrierRate.carrierId,
+        carriers: _carriers,
+        carriersLoading: _carriersLoading,
         type: TypeForm.dirty(value: carrierRate.type),
         cost: CostForm.dirty(value: carrierRate.cost),
         effectiveDate: EffectiveDateForm.dirty(value: carrierRate.effectiveDate),
@@ -44,10 +56,27 @@ class CarrierRateDetailBloc
     );
   }
 
-  void _onCarrierChanged(CarrierDetailChanged event, Emitter emit) {
+  Future<void> _onLoadCarriers(LoadCarriersDetail event, Emitter emit) async {
+    _carriersLoading = true;
+    if (state is CarrierRateDetailLoaded) {
+      emit((state as CarrierRateDetailLoaded).copyWith(carriersLoading: true));
+    }
+
+    final result = await getCarriersUseCase();
+    // On failure, leave carriers empty → dialog shows "load failed" + save disabled.
+    _carriers = result.fold((_) => const [], (carriers) => carriers);
+    _carriersLoading = false;
+
+    if (state is CarrierRateDetailLoaded) {
+      emit((state as CarrierRateDetailLoaded)
+          .copyWith(carriers: _carriers, carriersLoading: false));
+    }
+  }
+
+  void _onCarrierIdChanged(CarrierIdDetailChanged event, Emitter emit) {
     if (state is CarrierRateDetailLoaded) {
       emit((state as CarrierRateDetailLoaded).copyWith(
-        carrier: CarrierForm.dirty(value: event.carrier),
+        carrierId: event.carrierId,
       ));
     }
   }
@@ -99,7 +128,7 @@ class CarrierRateDetailBloc
 
     final result = await updateCarrierRateUseCase(UpdateCarrierRateParams(
       id: event.id,
-      carrier: curState.carrier.value,
+      carrierId: curState.carrierId!,
       type: curState.type.value,
       cost: curState.cost.value,
       effectiveDate: curState.effectiveDate.value,

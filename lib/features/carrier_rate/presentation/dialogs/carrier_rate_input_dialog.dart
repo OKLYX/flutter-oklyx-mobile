@@ -66,7 +66,6 @@ void showCreateCarrierRateDialog(BuildContext context) {
 
 
 class _CarrierRateInputDialogState extends State<CarrierRateInputDialog> {
-  late TextEditingController _carrierController;
   late TextEditingController _typeController;
   late TextEditingController _costController;
   late TextEditingController _dateController;
@@ -74,7 +73,6 @@ class _CarrierRateInputDialogState extends State<CarrierRateInputDialog> {
   @override
   void initState() {
     super.initState();
-    _carrierController = TextEditingController();
     _typeController = TextEditingController();
     _costController = TextEditingController();
     _dateController = TextEditingController();
@@ -82,13 +80,14 @@ class _CarrierRateInputDialogState extends State<CarrierRateInputDialog> {
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
     _dateController.text = today;
     Future.microtask(() {
-      context.read<CarrierRateCreateBloc>().add(EffectiveDateChanged(today));
+      final bloc = context.read<CarrierRateCreateBloc>();
+      bloc.add(EffectiveDateChanged(today));
+      bloc.add(LoadCarriers());
     });
   }
 
   @override
   void dispose() {
-    _carrierController.dispose();
     _typeController.dispose();
     _costController.dispose();
     _dateController.dispose();
@@ -179,16 +178,8 @@ class _CarrierRateInputDialogState extends State<CarrierRateInputDialog> {
                   },
                 ),
 
-                // Carrier Field
-                _buildTextField(
-                  controller: _carrierController,
-                  label: '배송사',
-                  onChanged: (value) {
-                    context.read<CarrierRateCreateBloc>().add(
-                          CarrierChanged(value),
-                        );
-                  },
-                ),
+                // Carrier Dropdown
+                _buildCarrierDropdown(context),
                 const SizedBox(height: 12),
 
                 // Type Field
@@ -249,6 +240,82 @@ class _CarrierRateInputDialogState extends State<CarrierRateInputDialog> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildCarrierDropdown(BuildContext context) {
+    return BlocBuilder<CarrierRateCreateBloc, CarrierRateCreateState>(
+      builder: (context, state) {
+        if (state is! CarrierRateCreateInitial) return const SizedBox.shrink();
+
+        final decoration = InputDecoration(
+          labelText: '배송사',
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        );
+
+        // Loading carriers → disabled field with spinner.
+        if (state.carriersLoading) {
+          return InputDecorator(
+            decoration: decoration,
+            child: const SizedBox(
+              height: 20,
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 8),
+                  Text('택배사 불러오는 중...'),
+                ],
+              ),
+            ),
+          );
+        }
+
+        final activeCarriers =
+            state.carriers.where((c) => c.isActive).toList();
+
+        // Empty (or load failed) → disabled dropdown + message, save stays disabled.
+        if (activeCarriers.isEmpty) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              DropdownButtonFormField<int>(
+                decoration: decoration,
+                items: const [],
+                onChanged: null,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '등록된 택배사가 없습니다',
+                style: TextStyle(color: Colors.red.shade700, fontSize: 12),
+              ),
+            ],
+          );
+        }
+
+        return DropdownButtonFormField<int>(
+          value: state.carrierId,
+          decoration: decoration,
+          items: activeCarriers
+              .map((c) => DropdownMenuItem<int>(
+                    value: c.id,
+                    child: Text(c.name),
+                  ))
+              .toList(),
+          onChanged: state.isSubmitting
+              ? null
+              : (value) {
+                  if (value != null) {
+                    context
+                        .read<CarrierRateCreateBloc>()
+                        .add(CarrierIdChanged(value));
+                  }
+                },
+        );
+      },
     );
   }
 

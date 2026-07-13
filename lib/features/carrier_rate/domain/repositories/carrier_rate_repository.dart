@@ -6,7 +6,7 @@ abstract class CarrierRateRepository {
   Future<Either<Failure, List<CarrierRate>>> getCarrierRates();
   Future<Either<Failure, CarrierRate>> getCarrierRate(int id);
   Future<Either<Failure, CarrierRate>> createCarrierRate(
-    String carrier,
+    int carrierId,
     String type,
     double cost,
     String effectiveDate,
@@ -14,7 +14,7 @@ abstract class CarrierRateRepository {
   );
   Future<Either<Failure, CarrierRate>> updateCarrierRate(
     int id,
-    String carrier,
+    int carrierId,
     String type,
     double cost,
     String effectiveDate,

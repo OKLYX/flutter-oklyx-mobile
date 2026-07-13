@@ -3,6 +3,7 @@ import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/entities/carri
 class CarrierRateModel extends CarrierRate {
   CarrierRateModel({
     required int id,
+    required int carrierId,
     required String carrier,
     required String type,
     required double cost,
@@ -10,6 +11,7 @@ class CarrierRateModel extends CarrierRate {
     required bool isDefault,
   }) : super(
     id: id,
+    carrierId: carrierId,
     carrier: carrier,
     type: type,
     cost: cost,
@@ -20,6 +22,7 @@ class CarrierRateModel extends CarrierRate {
   factory CarrierRateModel.fromJson(Map<String, dynamic> json) {
     return CarrierRateModel(
       id: json['id'] as int,
+      carrierId: json['carrierId'] as int,
       carrier: json['carrier'] as String,
       type: json['type'] as String,
       cost: (json['cost'] as num).toDouble(),
@@ -31,6 +34,7 @@ class CarrierRateModel extends CarrierRate {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'carrierId': carrierId,
       'carrier': carrier,
       'type': type,
       'cost': cost,

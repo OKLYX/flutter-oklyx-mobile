@@ -1,4 +1,5 @@
 import 'package:formz/formz.dart';
+import 'package:flutter_oklyn_mobile/features/carrier/domain/entities/carrier.dart';
 import 'carrier_rate_create_state.dart';
 
 abstract class CarrierRateDetailState {}
@@ -6,7 +7,9 @@ abstract class CarrierRateDetailState {}
 class CarrierRateDetailLoading extends CarrierRateDetailState {}
 
 class CarrierRateDetailLoaded extends CarrierRateDetailState {
-  final CarrierForm carrier;
+  final int? carrierId;
+  final List<Carrier> carriers;
+  final bool carriersLoading;
   final TypeForm type;
   final CostForm cost;
   final EffectiveDateForm effectiveDate;
@@ -15,7 +18,9 @@ class CarrierRateDetailLoaded extends CarrierRateDetailState {
   final String? error;
 
   CarrierRateDetailLoaded({
-    this.carrier = const CarrierForm.pure(),
+    this.carrierId,
+    this.carriers = const [],
+    this.carriersLoading = false,
     this.type = const TypeForm.pure(),
     this.cost = const CostForm.pure(),
     this.effectiveDate = const EffectiveDateForm.pure(),
@@ -24,10 +29,13 @@ class CarrierRateDetailLoaded extends CarrierRateDetailState {
     this.error,
   });
 
-  bool get isValid => Formz.validate([carrier, type, cost, effectiveDate]);
+  bool get isValid =>
+      carrierId != null && Formz.validate([type, cost, effectiveDate]);
 
   CarrierRateDetailLoaded copyWith({
-    CarrierForm? carrier,
+    int? carrierId,
+    List<Carrier>? carriers,
+    bool? carriersLoading,
     TypeForm? type,
     CostForm? cost,
     EffectiveDateForm? effectiveDate,
@@ -36,7 +44,9 @@ class CarrierRateDetailLoaded extends CarrierRateDetailState {
     String? error,
   }) =>
       CarrierRateDetailLoaded(
-        carrier: carrier ?? this.carrier,
+        carrierId: carrierId ?? this.carrierId,
+        carriers: carriers ?? this.carriers,
+        carriersLoading: carriersLoading ?? this.carriersLoading,
         type: type ?? this.type,
         cost: cost ?? this.cost,
         effectiveDate: effectiveDate ?? this.effectiveDate,

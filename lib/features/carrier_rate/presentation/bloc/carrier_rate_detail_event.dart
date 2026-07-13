@@ -5,9 +5,11 @@ class FetchCarrierRateDetail extends CarrierRateDetailEvent {
   FetchCarrierRateDetail(this.id);
 }
 
-class CarrierDetailChanged extends CarrierRateDetailEvent {
-  final String carrier;
-  CarrierDetailChanged(this.carrier);
+class LoadCarriersDetail extends CarrierRateDetailEvent {}
+
+class CarrierIdDetailChanged extends CarrierRateDetailEvent {
+  final int carrierId;
+  CarrierIdDetailChanged(this.carrierId);
 }
 
 class TypeDetailChanged extends CarrierRateDetailEvent {
