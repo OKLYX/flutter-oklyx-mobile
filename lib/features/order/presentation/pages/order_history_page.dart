@@ -6,6 +6,7 @@ import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/dialogs/shipment_confirm_dialog.dart';
 import '../../domain/entities/order_item.dart';
 import '../bloc/order_list_bloc.dart';
 import '../bloc/order_list_event.dart';
@@ -52,7 +53,7 @@ class _OrderHistoryView extends StatelessWidget {
         listener: (context, state) {
           final s = state as OrderListLoaded;
           // actionError 우선, 없으면 다운로드 성공 메시지.
-          final message = s.actionError ?? '주문목록을 다운로드 폴더에 저장했습니다.';
+          final message = s.actionError ?? '주문목록을 저장했습니다.';
           ScaffoldMessenger.of(context)
             ..hideCurrentSnackBar()
             ..showSnackBar(
@@ -184,6 +185,35 @@ class _LoadedBody extends StatelessWidget {
                               : const Icon(Icons.download, size: 18),
                           label: Text(
                               s.isDownloading ? '다운로드 중...' : '주문목록 다운로드'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // 주문목록 다운로드 V2 (임시 진입점): preview 페이지에서 택배수량 편집 후 다운로드.
+                  // ⚠️ V1 버튼은 마감 안전장치로 유지 — 검증 후 별도 작업에서 V1 제거 + 리네임.
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () =>
+                              context.push(Routes.shippingLabelPreviewPath),
+                          icon: const Icon(Icons.edit_note, size: 18),
+                          label: const Text('주문목록 다운로드 V2'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // 발송처리 (Shipping Label 업로드): 택배사 결과 xlsx → 쿠팡 송장업로드 배치.
+                  // OrderListBloc.busy 와 무관 — 별도 BLoC·다이얼로그.
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => showShipmentConfirmDialog(context),
+                          icon: const Icon(Icons.upload_file, size: 18),
+                          label: const Text('발송처리'),
                         ),
                       ),
                     ],

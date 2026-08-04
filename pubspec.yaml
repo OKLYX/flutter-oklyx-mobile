@@ -25,6 +25,7 @@ dependencies:
   intl: 0.19.0
   json_annotation: 4.9.0
   file_saver: ^0.2.14
+  file_picker: ^11.0.2
 
 dev_dependencies:
   flutter_test:

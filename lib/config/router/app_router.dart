@@ -63,6 +63,7 @@ import 'package:flutter_oklyn_mobile/features/product_listing/presentation/bloc/
 import 'package:flutter_oklyn_mobile/features/order/presentation/pages/order_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/order/domain/entities/order_item.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/pages/order_history_page.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/pages/shipping_label_preview_page.dart';
 
 import 'routes.dart';
 
@@ -462,6 +463,13 @@ class AppRouter {
           },
         ),
       ],
+    ),
+    GoRoute(
+      name: Routes.shippingLabelPreview,
+      path: Routes.shippingLabelPreviewPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: ShippingLabelPreviewPage(),
+      ),
     ),
     GoRoute(
       name: Routes.notFound,

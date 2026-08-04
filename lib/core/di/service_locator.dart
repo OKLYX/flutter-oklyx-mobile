@@ -137,6 +137,7 @@ import 'package:flutter_oklyn_mobile/features/shipping_label/data/datasources/sh
 import 'package:flutter_oklyn_mobile/features/shipping_label/data/repositories/shipping_label_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/domain/repositories/shipping_label_repository.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/domain/usecases/shipping_label_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/shipping_label_preview_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/data/datasources/marketplace_account_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/data/repositories/marketplace_account_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/domain/repositories/marketplace_account_repository.dart';
@@ -813,6 +814,15 @@ void _registerShippingLabelServices() {
   // Use Case
   getIt.registerSingleton<ShippingLabelUseCase>(
     ShippingLabelUseCase(repository: getIt<ShippingLabelRepository>()),
+  );
+
+  // BLoC (V2 preview/편집) as factory to allow fresh state per page.
+  // 판매자 드롭다운은 기존 seller 기능의 GetSellersUseCase 를 재사용한다.
+  getIt.registerFactory<ShippingLabelPreviewBloc>(
+    () => ShippingLabelPreviewBloc(
+      useCase: getIt<ShippingLabelUseCase>(),
+      getSellersUseCase: getIt<GetSellersUseCase>(),
+    ),
   );
 }
 
