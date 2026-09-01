@@ -84,11 +84,11 @@ class ProductDetailBloc extends Bloc<ProductDetailEvent, ProductDetailState> {
       description: event.description,
       price: event.price,
       store: event.store,
-      unit: event.unit,
-      volumeHeight: event.volumeHeight,
-      volumeLong: event.volumeLong,
-      volumeShort: event.volumeShort,
-      weight: event.weight,
+      netContentUnit: event.netContentUnit,
+      packageHeight: event.packageHeight,
+      packageLength: event.packageLength,
+      packageWidth: event.packageWidth,
+      netContent: event.netContent,
     );
 
     final result = await updateProductUseCase(params);

@@ -44,7 +44,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   late TextEditingController _heightController;
   late TextEditingController _lengthController;
   late TextEditingController _widthController;
-  late TextEditingController _weightController;
+  late TextEditingController _netContentController;
 
   Unit? _selectedUnit;
 
@@ -67,7 +67,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     _heightController = TextEditingController();
     _lengthController = TextEditingController();
     _widthController = TextEditingController();
-    _weightController = TextEditingController();
+    _netContentController = TextEditingController();
   }
 
   @override
@@ -81,7 +81,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     _heightController.dispose();
     _lengthController.dispose();
     _widthController.dispose();
-    _weightController.dispose();
+    _netContentController.dispose();
     _productDetailBloc.close();
     super.dispose();
   }
@@ -92,11 +92,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     _descriptionController.text = product.description ?? '';
     _priceController.text = product.price?.toString() ?? '';
     _storeController.text = product.store ?? '';
-    _selectedUnit = Unit.fromString(product.unit);
-    _heightController.text = product.volumeHeight?.toString() ?? '';
-    _lengthController.text = product.volumeLong?.toString() ?? '';
-    _widthController.text = product.volumeShort?.toString() ?? '';
-    _weightController.text = product.weight?.toString() ?? '';
+    _selectedUnit = Unit.fromString(product.netContentUnit);
+    _heightController.text = product.packageHeight?.toString() ?? '';
+    _lengthController.text = product.packageLength?.toString() ?? '';
+    _widthController.text = product.packageWidth?.toString() ?? '';
+    _netContentController.text = product.netContent?.toString() ?? '';
   }
 
   void _showDeleteDialog(BuildContext context) {
@@ -129,11 +129,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
       price: _priceController.text.isEmpty ? null : int.tryParse(_priceController.text),
       store: _storeController.text.trim().isEmpty ? null : _storeController.text.trim(),
-      unit: _selectedUnit,
-      volumeHeight: _heightController.text.isEmpty ? null : double.tryParse(_heightController.text),
-      volumeLong: _lengthController.text.isEmpty ? null : double.tryParse(_lengthController.text),
-      volumeShort: _widthController.text.isEmpty ? null : double.tryParse(_widthController.text),
-      weight: _weightController.text.isEmpty ? null : double.tryParse(_weightController.text),
+      netContentUnit: _selectedUnit,
+      packageHeight: _heightController.text.isEmpty ? null : double.tryParse(_heightController.text),
+      packageLength: _lengthController.text.isEmpty ? null : double.tryParse(_lengthController.text),
+      packageWidth: _widthController.text.isEmpty ? null : double.tryParse(_widthController.text),
+      netContent: _netContentController.text.isEmpty ? null : double.tryParse(_netContentController.text),
     ));
   }
 
@@ -292,10 +292,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                             });
                           },
                         ),
-                        if (product.volumeHeight != null ||
-                            product.volumeLong != null ||
-                            product.volumeShort != null ||
-                            product.weight != null) ...[
+                        if (product.packageHeight != null ||
+                            product.packageLength != null ||
+                            product.packageWidth != null ||
+                            product.netContent != null) ...[
                           const SizedBox(height: 12),
                           _EditableDimensionsCard(
                             product: product,
@@ -303,7 +303,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                             heightController: _heightController,
                             lengthController: _lengthController,
                             widthController: _widthController,
-                            weightController: _weightController,
+                            netContentController: _netContentController,
                           ),
                         ],
                         const SizedBox(height: 12),
@@ -699,12 +699,12 @@ class _EditablePricingCardState extends State<_EditablePricingCard> {
         onChanged: widget.onUnitChanged,
       );
     } else {
-      if (widget.product.unit == null) return const SizedBox.shrink();
+      if (widget.product.netContentUnit == null) return const SizedBox.shrink();
       return Row(
         children: [
           const Text('단위: '),
           Text(
-            widget.product.unit,
+            widget.product.netContentUnit,
             style: const TextStyle(fontWeight: FontWeight.w500),
           ),
         ],
@@ -738,7 +738,7 @@ class _EditablePricingCardState extends State<_EditablePricingCard> {
                 _buildField('상점', widget.storeController),
                 const SizedBox(height: 8),
               ],
-              if (widget.product.unit != null) _buildUnitField(),
+              if (widget.product.netContentUnit != null) _buildUnitField(),
             ],
           ],
         ),
@@ -753,7 +753,7 @@ class _EditableDimensionsCard extends StatelessWidget {
   final TextEditingController heightController;
   final TextEditingController lengthController;
   final TextEditingController widthController;
-  final TextEditingController weightController;
+  final TextEditingController netContentController;
 
   const _EditableDimensionsCard({
     required this.product,
@@ -761,7 +761,7 @@ class _EditableDimensionsCard extends StatelessWidget {
     required this.heightController,
     required this.lengthController,
     required this.widthController,
-    required this.weightController,
+    required this.netContentController,
   });
 
   Widget _buildField(String label, TextEditingController controller) {
@@ -810,21 +810,21 @@ class _EditableDimensionsCard extends StatelessWidget {
               const SizedBox(height: 12),
               _buildField('너비', widthController),
               const SizedBox(height: 12),
-              _buildField('무게', weightController),
+              _buildField('내용물 양', netContentController),
             ] else ...[
-              if (product.volumeHeight != null) ...[
+              if (product.packageHeight != null) ...[
                 _buildField('높이', heightController),
                 const SizedBox(height: 4),
               ],
-              if (product.volumeLong != null) ...[
+              if (product.packageLength != null) ...[
                 _buildField('길이', lengthController),
                 const SizedBox(height: 4),
               ],
-              if (product.volumeShort != null) ...[
+              if (product.packageWidth != null) ...[
                 _buildField('너비', widthController),
                 const SizedBox(height: 4),
               ],
-              if (product.weight != null) _buildField('무게', weightController),
+              if (product.netContent != null) _buildField('내용물 양', netContentController),
             ],
           ],
         ),

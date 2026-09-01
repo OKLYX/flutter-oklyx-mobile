@@ -13,11 +13,11 @@ class RegisterProductRequested extends ProductRegisterEvent {
   final String? description;
   final int? price;
   final String? store;
-  final Unit? unit;
-  final double? volumeHeight;
-  final double? volumeLong;
-  final double? volumeShort;
-  final double? weight;
+  final Unit? netContentUnit;
+  final double? packageHeight;
+  final double? packageLength;
+  final double? packageWidth;
+  final double? netContent;
 
   const RegisterProductRequested({
     required this.productName,
@@ -26,11 +26,11 @@ class RegisterProductRequested extends ProductRegisterEvent {
     this.description,
     this.price,
     this.store,
-    this.unit,
-    this.volumeHeight,
-    this.volumeLong,
-    this.volumeShort,
-    this.weight,
+    this.netContentUnit,
+    this.packageHeight,
+    this.packageLength,
+    this.packageWidth,
+    this.netContent,
   });
 
   @override
@@ -41,11 +41,11 @@ class RegisterProductRequested extends ProductRegisterEvent {
     description,
     price,
     store,
-    unit,
-    volumeHeight,
-    volumeLong,
-    volumeShort,
-    weight,
+    netContentUnit,
+    packageHeight,
+    packageLength,
+    packageWidth,
+    netContent,
   ];
 }
 
