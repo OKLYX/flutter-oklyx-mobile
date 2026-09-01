@@ -199,9 +199,22 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             BlocBuilder<ProductDetailBloc, ProductDetailState>(
               builder: (context, state) {
                 if (state is ProductDetailLoaded) {
+                  final product = state.product;
                   return Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      IconButton(
+                        icon: const Icon(Icons.photo_library_outlined,
+                            color: Colors.black),
+                        tooltip: '판매자별 썸네일',
+                        onPressed: () => context.push(
+                          Routes.productThumbnailRoute(product.id),
+                          extra: {
+                            'brand': product.brand,
+                            'productName': product.productName,
+                          },
+                        ),
+                      ),
                       IconButton(
                         icon: const Icon(Icons.edit, color: Colors.black),
                         onPressed: () => _productDetailBloc.add(const EditModeToggled()),
