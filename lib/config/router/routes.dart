@@ -7,6 +7,7 @@ class Routes {
   static const String productRegister = 'productRegister';
   static const String productSearch = 'productSearch';
   static const String productDetail = 'productDetail';
+  static const String productThumbnail = 'productThumbnail';
   static const String stockInOut = 'stockInOut';
   static const String stockSearch = 'stockSearch';
   static const String userRegister = 'userRegister';
@@ -41,6 +42,7 @@ class Routes {
   static const String productRegisterPath = '/product-register';
   static const String productSearchPath = '/product-search';
   static const String productDetailPath = '/product-detail/:productId';
+  static const String productThumbnailPath = '/product-thumbnail/:productId';
   static const String stockInOutPath = '/stock/in-out';
   static const String stockSearchPath = '/stock/search';
   static const String userRegisterPath = '/users/register';
@@ -72,4 +74,7 @@ class Routes {
   static String salesProductsDetailRoute(int id) =>
       '/sales-products/detail/$id';
   static String salesProductsEditRoute(int id) => '/sales-products/edit/$id';
+
+  static String productThumbnailRoute(int productId) =>
+      '/product-thumbnail/$productId';
 }

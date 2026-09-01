@@ -7,11 +7,11 @@ class Product extends Equatable {
   final String? brand;
   final int? price;
   final String? store;
-  final String? unit;
-  final String? volumeHeight;
-  final String? volumeLong;
-  final String? volumeShort;
-  final String? weight;
+  final String? netContentUnit;
+  final String? packageHeight;
+  final String? packageLength;
+  final String? packageWidth;
+  final String? netContent;
   final String? description;
   final String? name;
   final String? imageUrl;
@@ -26,11 +26,11 @@ class Product extends Equatable {
     this.brand,
     this.price,
     this.store,
-    this.unit,
-    this.volumeHeight,
-    this.volumeLong,
-    this.volumeShort,
-    this.weight,
+    this.netContentUnit,
+    this.packageHeight,
+    this.packageLength,
+    this.packageWidth,
+    this.netContent,
     this.description,
     this.name,
     this.imageUrl,
@@ -47,11 +47,11 @@ class Product extends Equatable {
     brand,
     price,
     store,
-    unit,
-    volumeHeight,
-    volumeLong,
-    volumeShort,
-    weight,
+    netContentUnit,
+    packageHeight,
+    packageLength,
+    packageWidth,
+    netContent,
     description,
     name,
     imageUrl,
