@@ -72,6 +72,27 @@ class ShippingLabelRepositoryImpl implements ShippingLabelRepository {
   }
 
   @override
+  Future<Either<Failure, List<ShippingLabelPreviewRow>>> previewRowsByOrder({
+    required int orderItemId,
+  }) async {
+    try {
+      final rows =
+          await remoteDataSource.previewRowsByOrder(orderItemId: orderItemId);
+      return Right(rows);
+    } on DioException catch (e) {
+      // 목록 preview 와 동일하게 에러 본문은 파싱하지 않고 statusCode 만 전달한다.
+      return Left(
+        ServerFailure(
+          e.message ?? 'Failed to load order sheet',
+          statusCode: e.response?.statusCode,
+        ),
+      );
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, Uint8List>> exportSpreadsheet(
     List<ShippingLabelPreviewRow> rows,
   ) async {
