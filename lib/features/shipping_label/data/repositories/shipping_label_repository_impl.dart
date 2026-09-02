@@ -14,24 +14,6 @@ class ShippingLabelRepositoryImpl implements ShippingLabelRepository {
   ShippingLabelRepositoryImpl({required this.remoteDataSource});
 
   @override
-  Future<Either<Failure, Uint8List>> downloadSpreadsheet({int? sellerId}) async {
-    try {
-      final bytes = await remoteDataSource.downloadSpreadsheet(sellerId: sellerId);
-      return Right(bytes);
-    } on DioException catch (e) {
-      // 에러 본문 bytes 는 파싱하지 않고 statusCode 만 전달한다(프론트와 동일).
-      return Left(
-        ServerFailure(
-          e.message ?? 'Failed to download spreadsheet',
-          statusCode: e.response?.statusCode,
-        ),
-      );
-    } on Exception catch (e) {
-      return Left(ServerFailure(e.toString()));
-    }
-  }
-
-  @override
   Future<Either<Failure, ShipmentConfirmResult>> confirmShipment({
     required Uint8List bytes,
     required String filename,

@@ -6,10 +6,6 @@ import '../models/shipment_confirm_result.dart';
 import '../models/shipping_label_preview_row.dart';
 
 abstract class ShippingLabelRemoteDataSource {
-  /// GET /api/admin/shipping-labels/spreadsheet?sellerId={sellerId}
-  /// xlsx 바이너리를 그대로 반환 (JSON 언래핑 없음).
-  Future<Uint8List> downloadSpreadsheet({int? sellerId});
-
   /// POST /api/admin/shipping-labels/confirm (multipart, param 'file')
   /// JSON 봉투 응답 → data 언래핑해 ShipmentConfirmResult 반환.
   Future<ShipmentConfirmResult> confirmShipment({
@@ -32,23 +28,6 @@ class ShippingLabelRemoteDataSourceImpl implements ShippingLabelRemoteDataSource
   ShippingLabelRemoteDataSourceImpl({required this.dio});
 
   @override
-  Future<Uint8List> downloadSpreadsheet({int? sellerId}) async {
-    // xlsx 는 바이너리 → ResponseType.bytes 로 받아 Uint8List 반환.
-    // 4xx/5xx 에러 본문도 bytes 로 오지만 파싱하지 않고 DioException 을 그대로 던진다.
-    final response = await dio.get(
-      '/api/admin/shipping-labels/spreadsheet',
-      queryParameters: sellerId != null ? {'sellerId': sellerId} : null,
-      options: Options(
-        responseType: ResponseType.bytes,
-        // 서버가 쿠팡 API를 실시간 조회 → 기본 30초를 초과할 수 있어 개별 연장.
-        receiveTimeout:
-            const Duration(seconds: AppConstants.coupangReceiveTimeout),
-      ),
-    );
-    return response.data as Uint8List;
-  }
-
-  @override
   Future<ShipmentConfirmResult> confirmShipment({
     required Uint8List bytes,
     required String filename,
@@ -66,14 +45,14 @@ class ShippingLabelRemoteDataSourceImpl implements ShippingLabelRemoteDataSource
             const Duration(seconds: AppConstants.coupangReceiveTimeout),
       ),
     );
-    // 다운로드(bytes)와 달리 표준 JSON 봉투 → data 언래핑.
+    // preview(JSON 봉투)와 동일하게 data 언래핑.
     return ShipmentConfirmResult.fromJson(
         response.data['data'] as Map<String, dynamic>);
   }
 
   @override
   Future<List<ShippingLabelPreviewRow>> previewRows({int? sellerId}) async {
-    // preview 는 편집용 JSON 봉투 → data(List) 언래핑 (다운로드와 달리 bytes 아님).
+    // preview 는 편집용 JSON 봉투 → data(List) 언래핑 (export 와 달리 bytes 아님).
     final response = await dio.get(
       '/api/admin/shipping-labels/v2/preview',
       queryParameters: sellerId != null ? {'sellerId': sellerId} : null,

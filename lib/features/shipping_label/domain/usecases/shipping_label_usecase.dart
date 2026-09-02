@@ -6,14 +6,11 @@ import '../../data/models/shipment_confirm_result.dart';
 import '../../data/models/shipping_label_preview_row.dart';
 import '../repositories/shipping_label_repository.dart';
 
-/// Shipping Label 다운로드/발송처리 UseCase (Repository 에 위임하는 얇은 계층).
+/// Shipping Label 발송처리/미리보기/내보내기 UseCase (Repository 에 위임하는 얇은 계층).
 class ShippingLabelUseCase {
   final ShippingLabelRepository repository;
 
   ShippingLabelUseCase({required this.repository});
-
-  Future<Either<Failure, Uint8List>> downloadSpreadsheet({int? sellerId}) =>
-      repository.downloadSpreadsheet(sellerId: sellerId);
 
   Future<Either<Failure, ShipmentConfirmResult>> confirmShipment({
     required Uint8List bytes,
