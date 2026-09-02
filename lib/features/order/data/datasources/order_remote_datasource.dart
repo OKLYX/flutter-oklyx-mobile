@@ -1,15 +1,23 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_oklyn_mobile/core/constants/app_constants.dart';
 import '../models/order_model.dart';
+import '../models/sync_target_model.dart';
 
 abstract class OrderRemoteDataSource {
   /// GET /api/orders?sellerId={sellerId}
   /// Returns the order list (응답 data 는 OrderItem 배열).
   Future<List<OrderModel>> getOrders({int? sellerId});
 
-  /// POST /api/orders/sync?sellerId={sellerId}
+  /// POST /api/orders/sync?accountId={accountId} 또는 ?sellerId={sellerId}
   /// 동기화 후 갱신된 주문 목록 + 건수 요약을 반환한다.
-  Future<OrderSyncResultModel> syncOrders({int? sellerId});
+  ///
+  /// ⚠️ 서버 우선순위는 accountId > sellerId 다. 둘을 함께 보내면 응답 목록의
+  /// 스코프가 헷갈리므로 **하나만** 보낸다(accountId 가 있으면 그것만).
+  Future<OrderSyncResultModel> syncOrders({int? sellerId, int? accountId});
+
+  /// GET /api/orders/sync/targets?sellerId={sellerId}
+  /// 동기화 대상 채널(활성 + COUPANG) 목록. 자격증명은 응답에 포함되지 않는다.
+  Future<List<SyncTargetModel>> getSyncTargets({int? sellerId});
 }
 
 class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
@@ -37,13 +45,17 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
   }
 
   @override
-  Future<OrderSyncResultModel> syncOrders({int? sellerId}) async {
+  Future<OrderSyncResultModel> syncOrders({int? sellerId, int? accountId}) async {
     try {
-      // 프론트와 동일: body 없이 sellerId 를 query param 으로 전송한다.
+      // body 없이 query param 으로 전송한다. 계정 단위 호출이면 accountId 만,
+      // 아니면 sellerId 만 (서버 우선순위 accountId > sellerId).
       // 서버가 쿠팡 API를 실시간 조회 → 기본 30초를 초과할 수 있어 개별 연장.
+      // 계정 1건 기준의 타임아웃이므로 전체 동기화보다 오히려 여유가 있다.
       final response = await dio.post(
         '/api/orders/sync',
-        queryParameters: sellerId != null ? {'sellerId': sellerId} : null,
+        queryParameters: accountId != null
+            ? {'accountId': accountId}
+            : (sellerId != null ? {'sellerId': sellerId} : null),
         options: Options(
           receiveTimeout:
               const Duration(seconds: AppConstants.coupangReceiveTimeout),
@@ -61,6 +73,24 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
         throw Exception(body['message'].toString());
       }
       throw Exception(e.message ?? 'Failed to sync orders');
+    }
+  }
+
+  @override
+  Future<List<SyncTargetModel>> getSyncTargets({int? sellerId}) async {
+    try {
+      // DB 조회만 하므로 타임아웃 연장 불필요.
+      final response = await dio.get(
+        '/api/orders/sync/targets',
+        queryParameters: sellerId != null ? {'sellerId': sellerId} : null,
+      );
+      final data = response.data['data'];
+      if (data is! List) return [];
+      return data
+          .map((e) => SyncTargetModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw Exception(e.message ?? 'Failed to fetch sync targets');
     }
   }
 }
