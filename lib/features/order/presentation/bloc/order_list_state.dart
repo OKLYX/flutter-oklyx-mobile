@@ -1,8 +1,37 @@
 import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import '../../domain/entities/order_item.dart';
 import '../../domain/entities/order_sync_result.dart';
+import '../../domain/entities/sync_target.dart';
 
 abstract class OrderListState {}
+
+/// 채널 1개의 동기화 진행 상태.
+///
+/// ⚠️ **이번 실행의 HTTP 결과만** 표현한다 — 서버가 낙인한 상태(SUCCESS/PARTIAL/FAILED)와
+/// 다르다. 계정이 200 을 주고도 서버는 PARTIAL(취소 보정 실패)일 수 있으므로, 목록 상단
+/// 배너는 이 값이 아니라 [OrderListLoaded.syncTargets] 로 그린다(PLAN D8/D18).
+enum ChannelSyncState { pending, running, success, failed }
+
+/// 진행 다이얼로그의 행 1개.
+class ChannelProgress {
+  final SyncTarget target;
+  final ChannelSyncState state;
+  final String? error;
+
+  const ChannelProgress({
+    required this.target,
+    required this.state,
+    this.error,
+  });
+
+  ChannelProgress copyWith({ChannelSyncState? state, String? error}) {
+    return ChannelProgress(
+      target: target,
+      state: state ?? this.state,
+      error: error ?? this.error,
+    );
+  }
+}
 
 /// 초기 상태 (진입 직후)
 class OrderListInitial extends OrderListState {}
@@ -36,6 +65,20 @@ class OrderListLoaded extends OrderListState {
   /// 선택된 상태 필터 (null = 전체). 프론트 OrderContainer.selectedStatus와 동일.
   final String? selectedStatus;
 
+  /// 진행 다이얼로그 전용 — 이번 동기화 실행의 채널별 진행 상태.
+  /// 진행률 분모는 반드시 이 리스트의 길이다(판매자 수 아님, PLAN D3).
+  final List<ChannelProgress> syncChannels;
+
+  /// 진행률 분자 — 응답을 받은 채널 수.
+  final int syncDoneCount;
+
+  /// 사용자의 취소로 중단됐는지 (리포트 문구용).
+  final bool syncCanceled;
+
+  /// 배너 전용 — 서버가 영속한 채널 상태. [syncChannels]와 **겸용하지 않는다**:
+  /// 진행 리스트에는 PARTIAL 이 없어 서버 낙인과 lastSyncError 가 사라진다(PLAN D8/D18).
+  final List<SyncTarget> syncTargets;
+
   OrderListLoaded({
     required this.sellers,
     this.selectedSellerId,
@@ -46,6 +89,10 @@ class OrderListLoaded extends OrderListState {
     this.syncResult,
     this.lastSyncedAt,
     this.selectedStatus,
+    this.syncChannels = const [],
+    this.syncDoneCount = 0,
+    this.syncCanceled = false,
+    this.syncTargets = const [],
   });
 
   /// 상태별 주문 건수 (필터 버튼 배지용). 선택과 무관하게 전체 주문 기준.
@@ -56,6 +103,11 @@ class OrderListLoaded extends OrderListState {
     }
     return counts;
   }
+
+  /// 마지막 동기화가 완료되지 않은 채널(배너 대상). 서버 상태 기준 — PARTIAL/FAILED.
+  List<SyncTarget> get nonSuccessTargets => syncTargets
+      .where((t) => t.lastSyncStatus != null && t.lastSyncStatus != 'SUCCESS')
+      .toList();
 
   /// 선택된 상태로 거른 주문 목록 (null = 전체).
   List<OrderItem> get filteredOrders => selectedStatus == null
@@ -76,6 +128,10 @@ class OrderListLoaded extends OrderListState {
     String? lastSyncedAt,
     String? selectedStatus,
     bool clearSelectedStatus = false,
+    List<ChannelProgress>? syncChannels,
+    int? syncDoneCount,
+    bool? syncCanceled,
+    List<SyncTarget>? syncTargets,
   }) {
     return OrderListLoaded(
       sellers: sellers ?? this.sellers,
@@ -91,6 +147,11 @@ class OrderListLoaded extends OrderListState {
       selectedStatus: clearSelectedStatus
           ? null
           : (selectedStatus ?? this.selectedStatus),
+      // clear* 플래그 불필요 — 네 값 모두 새 값을 대입해 초기화한다(빈 리스트/0/false).
+      syncChannels: syncChannels ?? this.syncChannels,
+      syncDoneCount: syncDoneCount ?? this.syncDoneCount,
+      syncCanceled: syncCanceled ?? this.syncCanceled,
+      syncTargets: syncTargets ?? this.syncTargets,
     );
   }
 }

@@ -32,7 +32,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
   late TextEditingController _heightController;
   late TextEditingController _lengthController;
   late TextEditingController _widthController;
-  late TextEditingController _weightController;
+  late TextEditingController _netContentController;
 
   Unit? _selectedUnit;
 
@@ -56,7 +56,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
     _heightController = TextEditingController();
     _lengthController = TextEditingController();
     _widthController = TextEditingController();
-    _weightController = TextEditingController();
+    _netContentController = TextEditingController();
   }
 
   @override
@@ -70,7 +70,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
     _heightController.dispose();
     _lengthController.dispose();
     _widthController.dispose();
-    _weightController.dispose();
+    _netContentController.dispose();
     _bloc.close();
     super.dispose();
   }
@@ -98,7 +98,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
       _heightController.clear();
       _lengthController.clear();
       _widthController.clear();
-      _weightController.clear();
+      _netContentController.clear();
       _barcodeChecked = false;
       _barcodeAvailable = false;
     });
@@ -128,11 +128,11 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
       description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
       price: _priceController.text.isEmpty ? null : int.tryParse(_priceController.text),
       store: _storeController.text.trim().isEmpty ? null : _storeController.text.trim(),
-      unit: _selectedUnit,
-      volumeHeight: _heightController.text.isEmpty ? null : double.tryParse(_heightController.text),
-      volumeLong: _lengthController.text.isEmpty ? null : double.tryParse(_lengthController.text),
-      volumeShort: _widthController.text.isEmpty ? null : double.tryParse(_widthController.text),
-      weight: _weightController.text.isEmpty ? null : double.tryParse(_weightController.text),
+      netContentUnit: _selectedUnit,
+      packageHeight: _heightController.text.isEmpty ? null : double.tryParse(_heightController.text),
+      packageLength: _lengthController.text.isEmpty ? null : double.tryParse(_lengthController.text),
+      packageWidth: _widthController.text.isEmpty ? null : double.tryParse(_widthController.text),
+      netContent: _netContentController.text.isEmpty ? null : double.tryParse(_netContentController.text),
     ));
   }
 
@@ -217,6 +217,8 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
                       const SizedBox(height: 12),
                       _buildTextField('판매처', _storeController),
                       const SizedBox(height: 12),
+                      _buildTextField('내용물 양', _netContentController, keyboardType: TextInputType.number),
+                      const SizedBox(height: 12),
                       _buildUnitDropdown(),
                       const SizedBox(height: 24),
                       _buildSectionTitle('치수'),
@@ -226,8 +228,6 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
                       _buildTextField('길이', _lengthController, keyboardType: TextInputType.number),
                       const SizedBox(height: 12),
                       _buildTextField('너비', _widthController, keyboardType: TextInputType.number),
-                      const SizedBox(height: 12),
-                      _buildTextField('무게', _weightController, keyboardType: TextInputType.number),
                       const SizedBox(height: 32),
                       SizedBox(
                         width: double.infinity,

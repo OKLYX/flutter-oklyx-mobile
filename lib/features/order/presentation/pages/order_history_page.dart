@@ -8,9 +8,11 @@ import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/dialogs/shipment_confirm_dialog.dart';
 import '../../domain/entities/order_item.dart';
+import '../../domain/entities/sync_target.dart';
 import '../bloc/order_list_bloc.dart';
 import '../bloc/order_list_event.dart';
 import '../bloc/order_list_state.dart';
+import '../widgets/sync_progress_dialog.dart';
 
 /// 주문관리 > 주문내역 페이지 (조회 + 동기화)
 ///
@@ -20,7 +22,8 @@ import '../bloc/order_list_state.dart';
 /// **기능(Frontend OrderContainer와 동일)**:
 /// - 판매자 필터 드롭다운 (기존 seller 기능 재사용)
 /// - 조회: GET /api/orders?sellerId=
-/// - 동기화: POST /api/orders/sync?sellerId= → 신규/수정/취소 건수 배너 표시
+/// - 동기화: 대상 채널 조회 → 계정 단위 순차 호출. 진행 다이얼로그([SyncProgressDialog])로
+///   차단 표시하고, 끝나면 신규/수정/취소 건수 배너 + 채널 상태 배너를 표시
 /// - 상태 필터: 6개 상태 버튼(건수 배지) — 선택 상태만 표시, 재선택 시 전체
 /// - 카드 항목(프론트 OrderTable과 동일): 주문번호 / 상품명 / 주문수량 / 취소 / 결제일
 class OrderHistoryPage extends StatelessWidget {
@@ -35,8 +38,17 @@ class OrderHistoryPage extends StatelessWidget {
   }
 }
 
-class _OrderHistoryView extends StatelessWidget {
+class _OrderHistoryView extends StatefulWidget {
   const _OrderHistoryView();
+
+  @override
+  State<_OrderHistoryView> createState() => _OrderHistoryViewState();
+}
+
+class _OrderHistoryViewState extends State<_OrderHistoryView> {
+  /// 진행 다이얼로그 중복 표시 방지. 동기화 중에는 상태가 채널마다 emit 되므로
+  /// 리스너가 여러 번 불리는데, 다이얼로그는 실행당 1번만 띄운다.
+  bool _syncDialogOpen = false;
 
   @override
   Widget build(BuildContext context) {
@@ -46,11 +58,16 @@ class _OrderHistoryView extends StatelessWidget {
       showDrawer: true,
       showAppBarDrawerButton: false,
       body: BlocConsumer<OrderListBloc, OrderListState>(
-        // 검색/동기화 중 발생한 일시적 오류는 SnackBar로 표시한다.
+        // 동기화 시작(다이얼로그) + 일시적 오류/다운로드 완료(SnackBar) 알림.
         listenWhen: (prev, curr) =>
-            curr is OrderListLoaded && curr.actionError != null,
+            curr is OrderListLoaded &&
+            (curr.isSyncing || curr.actionError != null),
         listener: (context, state) {
           final s = state as OrderListLoaded;
+          if (s.isSyncing) {
+            _showSyncDialog(context);
+            return;
+          }
           final message = s.actionError;
           if (message == null) return;
           ScaffoldMessenger.of(context)
@@ -80,6 +97,21 @@ class _OrderHistoryView extends StatelessWidget {
         },
       ),
     );
+  }
+
+  /// 동기화 진행 다이얼로그. 끝나도 자동으로 닫지 않는다 — 리포트를 보고 사용자가 닫는다.
+  void _showSyncDialog(BuildContext context) {
+    if (_syncDialogOpen) return;
+    _syncDialogOpen = true;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => BlocProvider.value(
+        // 다이얼로그는 별도 route → BLoC 을 .value 로 넘겨야 한다.
+        value: context.read<OrderListBloc>(),
+        child: const SyncProgressDialog(),
+      ),
+    ).then((_) => _syncDialogOpen = false);
   }
 }
 
@@ -218,6 +250,19 @@ class _LoadedBody extends StatelessWidget {
             const SizedBox(height: 8),
           ],
 
+          // 채널 상태 배너 — 서버가 낙인한 마지막 동기화 상태(PARTIAL/FAILED)만 표시한다.
+          // ⚠️ 사유 문구는 서버 lastSyncError 를 그대로 노출한다(가공 금지, PLAN D18).
+          if (s.nonSuccessTargets.isNotEmpty) ...[
+            _ChannelStatusBanner(
+              targets: s.nonSuccessTargets,
+              onRetry: busy
+                  ? null
+                  : () => bloc.add(
+                      SyncSelectedChannels(targets: s.nonSuccessTargets)),
+            ),
+            const SizedBox(height: 8),
+          ],
+
           // 상태 필터 버튼 (프론트 OrderStatusFilter). 같은 버튼 재선택 시 전체 해제.
           _StatusFilterBar(
             selectedStatus: s.selectedStatus,
@@ -313,6 +358,71 @@ class _OrderCard extends StatelessWidget {
         '$label $value',
         style: TextStyle(fontSize: 12, color: Colors.grey[700]),
       );
+}
+
+/// 마지막 동기화가 완료되지 않은 채널 배너 (PLAN D6·D14).
+///
+/// 소스는 서버 영속 상태(`syncTargets`)다 — 진행 리스트(`syncChannels`)로 그리면 PARTIAL 과
+/// 서버 사유 문구가 사라진다. 사유는 `lastSyncError` 를 그대로 노출한다(앱에서 만들지 않음).
+class _ChannelStatusBanner extends StatelessWidget {
+  final List<SyncTarget> targets;
+  final VoidCallback? onRetry;
+
+  const _ChannelStatusBanner({required this.targets, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.amber[50],
+        border: Border.all(color: Colors.amber.shade200),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '⚠️ 마지막 동기화가 완료되지 않은 채널 ${targets.length}개',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Colors.amber[900],
+            ),
+          ),
+          const SizedBox(height: 6),
+          ...targets.map(
+            (target) => Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text(
+                '· ${target.sellerName}·${target.platform} — ${_reason(target)}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: Colors.amber[900]),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton(
+              onPressed: onRetry,
+              child: const Text('해당 채널만 다시 조회'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 서버가 확정한 사유. lastSyncError 가 없는 PARTIAL 만 '부분 성공' 으로 폴백한다.
+  String _reason(SyncTarget target) {
+    if (target.lastSyncStatus == 'FAILED') {
+      return '(실패) ${target.lastSyncError ?? ''}'.trim();
+    }
+    return target.lastSyncError ?? '부분 성공';
+  }
 }
 
 class _ErrorRetry extends StatelessWidget {
