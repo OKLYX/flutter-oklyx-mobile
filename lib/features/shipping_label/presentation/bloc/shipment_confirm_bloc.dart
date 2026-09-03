@@ -48,14 +48,19 @@ class ShipmentConfirmBloc
     result.fold(
       (failure) =>
           emit(state.copyWith(isUploading: false, error: _errorMessage(failure))),
-      (res) => emit(state.copyWith(isUploading: false, result: res)),
+      (res) => emit(state.copyWith(
+        isUploading: false,
+        result: res,
+        hasSucceeded: state.hasSucceeded || res.succeeded > 0,
+      )),
     );
   }
 
   void _onReset(
       ResetShipmentConfirm event, Emitter<ShipmentConfirmState> emit) {
     // 전체 초기화 — [다른 파일 업로드] 시 result/file/error 비움.
-    emit(const ShipmentConfirmState());
+    // hasSucceeded 만 보존한다(1차 성공 후 2차가 전부 스킵이어도 재조회해야 함).
+    emit(ShipmentConfirmState(hasSucceeded: state.hasSucceeded));
   }
 
   // 프론트와 동일: 400 = 파싱/빈 파일, 403 = 권한, 그 외 고정 메시지(본문 미파싱).
