@@ -70,3 +70,20 @@ String getOrderStatusLabel(String status) =>
 /// (프론트 getCustomerName 과 동일 규칙).
 String getCustomerName(OrderItem order) =>
     order.receiverName ?? order.ordererName ?? '-';
+
+/// 검색 대상 칩. 기본은 고객명(PLAN D10).
+enum OrderSearchField { customer, orderNo }
+
+/// 공백 제거 + 소문자화 — '김 철수'와 '김철수'를 같게 본다.
+String _normalize(String v) => v.replaceAll(RegExp(r'\s+'), '').toLowerCase();
+
+/// 고객명은 주문자·수취인 **둘 다** 본다(선물 주문은 다르다). 빈 검색어는 전부 통과.
+bool matchesOrderSearch(OrderItem order, OrderSearchField field, String term) {
+  final needle = _normalize(term);
+  if (needle.isEmpty) return true;
+  if (field == OrderSearchField.orderNo) {
+    return _normalize(order.externalOrderId).contains(needle);
+  }
+  return [order.ordererName, order.receiverName]
+      .any((n) => n != null && _normalize(n).contains(needle));
+}

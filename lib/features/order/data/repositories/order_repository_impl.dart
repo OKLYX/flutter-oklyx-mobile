@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import '../../domain/entities/order_item.dart';
+import '../../domain/entities/order_period.dart';
 import '../../domain/entities/order_sync_result.dart';
 import '../../domain/entities/sync_target.dart';
 import '../../domain/repositories/order_repository.dart';
@@ -13,9 +14,17 @@ class OrderRepositoryImpl implements OrderRepository {
   OrderRepositoryImpl({required this.remoteDataSource});
 
   @override
-  Future<Either<Failure, List<OrderItem>>> getOrders({int? sellerId}) async {
+  Future<Either<Failure, List<OrderItem>>> getOrders({
+    int? sellerId,
+    String? from,
+    String? to,
+  }) async {
     try {
-      final orders = await remoteDataSource.getOrders(sellerId: sellerId);
+      final orders = await remoteDataSource.getOrders(
+        sellerId: sellerId,
+        from: from,
+        to: to,
+      );
       return Right(orders.cast<OrderItem>());
     } on DioException catch (e) {
       return Left(
@@ -61,6 +70,23 @@ class OrderRepositoryImpl implements OrderRepository {
       return Left(
         ServerFailure(
           e.message ?? 'Failed to fetch sync targets',
+          statusCode: e.response?.statusCode,
+        ),
+      );
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<OrderMonth>>> getOrderMonths() async {
+    try {
+      final months = await remoteDataSource.getOrderMonths();
+      return Right(months.cast<OrderMonth>());
+    } on DioException catch (e) {
+      return Left(
+        ServerFailure(
+          e.message ?? 'Failed to fetch order months',
           statusCode: e.response?.statusCode,
         ),
       );

@@ -1,4 +1,5 @@
 import '../../domain/entities/order_item.dart';
+import '../../domain/entities/order_period.dart';
 import '../../domain/entities/order_sync_result.dart';
 
 class OrderModel extends OrderItem {
@@ -59,6 +60,17 @@ class OrderSyncResultModel extends OrderSyncResult {
       orders: (json['orders'] as List<dynamic>? ?? [])
           .map((e) => OrderModel.fromJson(e as Map<String, dynamic>))
           .toList(),
+    );
+  }
+}
+
+class OrderMonthModel extends OrderMonth {
+  const OrderMonthModel({required super.ym, required super.count});
+
+  factory OrderMonthModel.fromJson(Map<String, dynamic> json) {
+    return OrderMonthModel(
+      ym: json['ym'] as String? ?? '',
+      count: (json['count'] as num?)?.toInt() ?? 0,
     );
   }
 }
