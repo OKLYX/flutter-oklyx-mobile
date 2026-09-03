@@ -14,6 +14,10 @@ import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/o
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/order_item.dart';
 
+// Platform display labels — same shape as product_listing_detail_page;
+// unknown codes fall back to the raw value.
+const Map<String, String> _platformLabels = {'COUPANG': '쿠팡'};
+
 /// 주문 상세 페이지
 ///
 /// **용도**: 주문내역 목록에서 선택한 단일 주문 항목의 전체 정보를 표시.
@@ -296,6 +300,15 @@ class _OrderSheetSection extends StatelessWidget {
   }) {
     final isEmpty = rows.isEmpty;
 
+    // Coupang safe numbers expire 48h after delivery and then come
+    // back empty. The row cards never render the phone (PII), so this
+    // banner is the only signal the user gets. No reissue/refetch button:
+    // Coupang has no OpenAPI endpoint for it and a refetch returns the
+    // same empty value — reissue happens in WING(반품관리) or via ARS.
+    // See PLAN.md D3~D6.
+    final hasMissingPhone = rows.any((r) => r.receiverPhone.trim().isEmpty);
+    final platformLabel = _platformLabels[order.platform] ?? order.platform;
+
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -312,6 +325,22 @@ class _OrderSheetSection extends StatelessWidget {
               '주문번호 ${order.externalOrderId} · ${rows.length}건',
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
+            if (hasMissingPhone) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  border: Border.all(color: Colors.amber.shade200),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$platformLabel에서 고객 안심번호를 재발행하십시오.',
+                  style: TextStyle(fontSize: 13, color: Colors.amber.shade900),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             if (isEmpty)
               const Padding(
