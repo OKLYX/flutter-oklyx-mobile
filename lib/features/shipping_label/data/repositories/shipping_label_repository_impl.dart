@@ -120,13 +120,13 @@ class ShippingLabelRepositoryImpl implements ShippingLabelRepository {
   @override
   Future<Either<Failure, ManualShipmentResult>> confirmManualShipment({
     required int orderItemId,
-    required int carrierId,
+    required String deliveryCompanyCode,
     required String invoiceNumber,
   }) async {
     try {
       final result = await remoteDataSource.confirmManualShipment(
         orderItemId: orderItemId,
-        carrierId: carrierId,
+        deliveryCompanyCode: deliveryCompanyCode,
         invoiceNumber: invoiceNumber,
       );
       return Right(result);
