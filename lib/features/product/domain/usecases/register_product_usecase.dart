@@ -12,11 +12,11 @@ class RegisterProductParams extends Equatable {
   final String? description;
   final int? price;
   final String? store;
-  final Unit? unit;
-  final double? volumeHeight;
-  final double? volumeLong;
-  final double? volumeShort;
-  final double? weight;
+  final Unit? netContentUnit;
+  final double? packageHeight;
+  final double? packageLength;
+  final double? packageWidth;
+  final double? netContent;
   final bool active;
 
   const RegisterProductParams({
@@ -26,11 +26,11 @@ class RegisterProductParams extends Equatable {
     this.description,
     this.price,
     this.store,
-    this.unit,
-    this.volumeHeight,
-    this.volumeLong,
-    this.volumeShort,
-    this.weight,
+    this.netContentUnit,
+    this.packageHeight,
+    this.packageLength,
+    this.packageWidth,
+    this.netContent,
     this.active = true,
   });
 
@@ -42,11 +42,11 @@ class RegisterProductParams extends Equatable {
     description,
     price,
     store,
-    unit,
-    volumeHeight,
-    volumeLong,
-    volumeShort,
-    weight,
+    netContentUnit,
+    packageHeight,
+    packageLength,
+    packageWidth,
+    netContent,
     active,
   ];
 
@@ -57,11 +57,11 @@ class RegisterProductParams extends Equatable {
     if (description != null) 'description': description,
     if (price != null) 'price': price,
     if (store != null) 'store': store,
-    if (unit != null) 'unit': unit!.serverValue,
-    if (volumeHeight != null) 'volumeHeight': volumeHeight,
-    if (volumeLong != null) 'volumeLong': volumeLong,
-    if (volumeShort != null) 'volumeShort': volumeShort,
-    if (weight != null) 'weight': weight,
+    if (netContentUnit != null) 'netContentUnit': netContentUnit!.serverValue,
+    if (packageHeight != null) 'packageHeight': packageHeight,
+    if (packageLength != null) 'packageLength': packageLength,
+    if (packageWidth != null) 'packageWidth': packageWidth,
+    if (netContent != null) 'netContent': netContent,
     'active': active,
   };
 }
