@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
+import '../../data/models/carrier_option.dart';
+import '../../data/models/manual_shipment_result.dart';
 import '../../data/models/shipment_confirm_result.dart';
 import '../../data/models/shipping_label_preview_row.dart';
 import '../repositories/shipping_label_repository.dart';
@@ -32,4 +34,20 @@ class ShippingLabelUseCase {
     List<ShippingLabelPreviewRow> rows,
   ) =>
       repository.exportSpreadsheet(rows);
+
+  Future<Either<Failure, List<CarrierOption>>> getCarrierOptions({
+    required String platform,
+  }) =>
+      repository.getCarrierOptions(platform: platform);
+
+  Future<Either<Failure, ManualShipmentResult>> confirmManualShipment({
+    required int orderItemId,
+    required int carrierId,
+    required String invoiceNumber,
+  }) =>
+      repository.confirmManualShipment(
+        orderItemId: orderItemId,
+        carrierId: carrierId,
+        invoiceNumber: invoiceNumber,
+      );
 }
