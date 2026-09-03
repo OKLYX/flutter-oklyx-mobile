@@ -137,6 +137,7 @@ import 'package:flutter_oklyn_mobile/features/shipping_label/data/datasources/sh
 import 'package:flutter_oklyn_mobile/features/shipping_label/data/repositories/shipping_label_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/domain/repositories/shipping_label_repository.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/domain/usecases/shipping_label_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/manual_shipment_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/order_sheet_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/shipping_label_preview_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/data/datasources/marketplace_account_remote_datasource.dart';
@@ -840,6 +841,12 @@ void _registerShippingLabelServices() {
   // BLoC (주문 상세의 단건 시트) as factory — 페이지마다 접힘 상태로 시작.
   getIt.registerFactory<OrderSheetBloc>(
     () => OrderSheetBloc(useCase: getIt<ShippingLabelUseCase>()),
+  );
+
+  // BLoC (주문 상세의 단건 발송처리) as factory — 주문마다 새 인스턴스.
+  // ⚠️ 싱글턴이면 이전 주문의 result 가 남아 입력이 잠긴 채로 열린다.
+  getIt.registerFactory<ManualShipmentBloc>(
+    () => ManualShipmentBloc(useCase: getIt<ShippingLabelUseCase>()),
   );
 }
 
