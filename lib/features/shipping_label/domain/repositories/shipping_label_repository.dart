@@ -37,7 +37,7 @@ abstract class ShippingLabelRepository {
   /// 한 박스 단건 발송처리(또는 송장수정) — 모드 판정은 서버가 한다(PLAN 2609_11 D3).
   Future<Either<Failure, ManualShipmentResult>> confirmManualShipment({
     required int orderItemId,
-    required int carrierId,
+    required String deliveryCompanyCode,
     required String invoiceNumber,
   });
 }

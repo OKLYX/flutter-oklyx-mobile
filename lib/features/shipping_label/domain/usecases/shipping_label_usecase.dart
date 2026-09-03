@@ -42,12 +42,12 @@ class ShippingLabelUseCase {
 
   Future<Either<Failure, ManualShipmentResult>> confirmManualShipment({
     required int orderItemId,
-    required int carrierId,
+    required String deliveryCompanyCode,
     required String invoiceNumber,
   }) =>
       repository.confirmManualShipment(
         orderItemId: orderItemId,
-        carrierId: carrierId,
+        deliveryCompanyCode: deliveryCompanyCode,
         invoiceNumber: invoiceNumber,
       );
 }

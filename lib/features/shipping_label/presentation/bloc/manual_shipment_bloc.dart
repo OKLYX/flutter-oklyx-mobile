@@ -56,21 +56,21 @@ class ManualShipmentBloc extends Bloc<ManualShipmentEvent, ManualShipmentState> 
     CarrierSelected event,
     Emitter<ManualShipmentState> emit,
   ) {
-    emit(state.copyWith(carrierId: event.carrierId));
+    emit(state.copyWith(carrierCode: event.carrierCode));
   }
 
   Future<void> _onSubmit(
     SubmitManualShipment event,
     Emitter<ManualShipmentState> emit,
   ) async {
-    final carrierId = state.carrierId;
-    if (carrierId == null || state.submitting) return;
+    final carrierCode = state.carrierCode;
+    if (carrierCode == null || state.submitting) return;
 
     emit(state.copyWith(submitting: true, clearError: true));
 
     final result = await useCase.confirmManualShipment(
       orderItemId: event.orderItemId,
-      carrierId: carrierId,
+      deliveryCompanyCode: carrierCode,
       invoiceNumber: event.invoiceNumber,
     );
     result.fold(
