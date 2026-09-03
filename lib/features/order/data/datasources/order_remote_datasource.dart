@@ -4,9 +4,11 @@ import '../models/order_model.dart';
 import '../models/sync_target_model.dart';
 
 abstract class OrderRemoteDataSource {
-  /// GET /api/orders?sellerId={sellerId}
+  /// GET /api/orders?sellerId={sellerId}&from={from}&to={to}
   /// Returns the order list (응답 data 는 OrderItem 배열).
-  Future<List<OrderModel>> getOrders({int? sellerId});
+  ///
+  /// [from]/[to] 는 'YYYY-MM-DD'. 둘 다 생략하면 서버 기본 창(최근 2주)을 탄다.
+  Future<List<OrderModel>> getOrders({int? sellerId, String? from, String? to});
 
   /// POST /api/orders/sync?accountId={accountId} 또는 ?sellerId={sellerId}
   /// 동기화 후 갱신된 주문 목록 + 건수 요약을 반환한다.
@@ -18,6 +20,10 @@ abstract class OrderRemoteDataSource {
   /// GET /api/orders/sync/targets?sellerId={sellerId}
   /// 동기화 대상 채널(활성 + COUPANG) 목록. 자격증명은 응답에 포함되지 않는다.
   Future<List<SyncTargetModel>> getSyncTargets({int? sellerId});
+
+  /// GET /api/orders/months → [{ym, count}] 최신순.
+  /// 파라미터 없음 — 판매자 필터와 무관한 전체 기준이다(라벨 '(데이터 없음)' 판정 전용).
+  Future<List<OrderMonthModel>> getOrderMonths();
 }
 
 class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
@@ -26,11 +32,22 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
   OrderRemoteDataSourceImpl({required this.dio});
 
   @override
-  Future<List<OrderModel>> getOrders({int? sellerId}) async {
+  Future<List<OrderModel>> getOrders({
+    int? sellerId,
+    String? from,
+    String? to,
+  }) async {
     try {
+      // null 은 빼고 조립한다 — {'from': null} 을 보내면 Dio 가 '?from=' 을 붙이고
+      // 서버는 400 이다(PLAN D5).
+      final params = <String, dynamic>{
+        if (sellerId != null) 'sellerId': sellerId,
+        if (from != null) 'from': from,
+        if (to != null) 'to': to,
+      };
       final response = await dio.get(
         '/api/orders',
-        queryParameters: sellerId != null ? {'sellerId': sellerId} : null,
+        queryParameters: params.isEmpty ? null : params,
       );
       // 백엔드 ResponseDTO 래퍼: response.data = { status, data: [...] }
       // 결과가 없을 때 data: null 로 내려올 수 있어 빈 리스트로 처리한다.
@@ -91,6 +108,20 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
           .toList();
     } on DioException catch (e) {
       throw Exception(e.message ?? 'Failed to fetch sync targets');
+    }
+  }
+
+  @override
+  Future<List<OrderMonthModel>> getOrderMonths() async {
+    try {
+      final response = await dio.get('/api/orders/months');
+      final data = response.data['data'];
+      if (data is! List) return [];
+      return data
+          .map((e) => OrderMonthModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw Exception(e.message ?? 'Failed to fetch order months');
     }
   }
 }

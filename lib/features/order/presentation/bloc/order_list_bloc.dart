@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/usecases/get_sellers_usecase.dart';
+import '../../domain/entities/order_period.dart';
 import '../../domain/entities/order_sync_result.dart';
 import '../../domain/entities/sync_target.dart';
 import '../../domain/usecases/order_usecase.dart';
@@ -34,6 +35,9 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
     on<RetryFailedChannels>(_onRetryFailed);
     on<SyncSelectedChannels>(_onSyncSelected);
     on<SelectStatus>(_onSelectStatus);
+    on<SelectPeriod>(_onSelectPeriod);
+    on<ChangeSearchField>(_onChangeSearchField);
+    on<ChangeSearchTerm>(_onChangeSearchTerm);
   }
 
   // Cancellation is cooperative: the in-flight account request is NOT aborted (the server keeps
@@ -47,15 +51,22 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
     final sellersResult = await getSellersUseCase();
     final sellers = sellersResult.fold((_) => <Seller>[], (list) => list);
 
+    // 기본값이 kRecentPeriod 라 from/to 를 보내지 않는다 = 서버 기본 창.
     final ordersResult = await orderUseCase.getOrders();
     // 첫 진입에 지난 동기화 실패를 배너로 낙인한다(조회 실패는 비치명적 — 빈 리스트).
     final targets = await _fetchTargets(null);
+    // 기간 라벨의 '(데이터 없음)' 판정용. 실패해도 화면을 막지 않는다 —
+    // 빈 집합이면 전 옵션이 '(데이터 없음)' 으로 보일 뿐이다.
+    final monthsResult = await orderUseCase.getOrderMonths();
+    final monthsWithData =
+        monthsResult.fold((_) => <String>{}, (rows) => rows.map((e) => e.ym).toSet());
     ordersResult.fold(
       (failure) => emit(OrderListError(message: failure.message)),
       (orders) => emit(OrderListLoaded(
         sellers: sellers,
         orders: orders,
         syncTargets: targets,
+        monthsWithData: monthsWithData,
       )),
     );
   }
@@ -78,6 +89,33 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
     ));
   }
 
+  /// 기간 선택 — 값만 바꾼다. 목록 반영은 [SearchOrders](조회 버튼)에서(PLAN D8).
+  void _onSelectPeriod(SelectPeriod event, Emitter<OrderListState> emit) {
+    final current = state;
+    if (current is! OrderListLoaded) return;
+    emit(current.copyWith(selectedPeriod: event.period));
+  }
+
+  /// 검색 대상 칩 변경 — 클라이언트 필터라 서버를 부르지 않는다.
+  void _onChangeSearchField(
+    ChangeSearchField event,
+    Emitter<OrderListState> emit,
+  ) {
+    final current = state;
+    if (current is! OrderListLoaded) return;
+    emit(current.copyWith(searchField: event.field));
+  }
+
+  /// 검색어 입력 — 클라이언트 필터라 서버를 부르지 않는다(PLAN D9).
+  void _onChangeSearchTerm(
+    ChangeSearchTerm event,
+    Emitter<OrderListState> emit,
+  ) {
+    final current = state;
+    if (current is! OrderListLoaded) return;
+    emit(current.copyWith(searchTerm: event.term));
+  }
+
   Future<void> _onSearch(
     SearchOrders event,
     Emitter<OrderListState> emit,
@@ -89,7 +127,12 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
     emit(current.copyWith(
         isSearching: true, clearActionError: true, clearSyncResult: true));
 
-    final result = await orderUseCase.getOrders(sellerId: current.selectedSellerId);
+    final range = toPeriodRange(current.selectedPeriod);
+    final result = await orderUseCase.getOrders(
+      sellerId: current.selectedSellerId,
+      from: range?.from,
+      to: range?.to,
+    );
     // 목록 스코프가 바뀌는 시점 = 배너 스코프가 바뀌는 시점.
     final targets = await _fetchTargets(current.selectedSellerId);
     if (emit.isDone) return;
@@ -100,8 +143,13 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
         actionError: failure.message,
         syncTargets: targets,
       )),
+      // 실패 경로에는 appliedPeriod 를 넣지 않는다 — 목록을 비우므로 배너는
+      // 마지막으로 성공 조회된 기간을 계속 따라가는 게 맞다.
       (orders) => emit(current.copyWith(
-          isSearching: false, orders: orders, syncTargets: targets)),
+          isSearching: false,
+          orders: orders,
+          syncTargets: targets,
+          appliedPeriod: current.selectedPeriod)),
     );
   }
 
@@ -202,7 +250,15 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
     }
 
     // 루프 응답의 orders 는 계정 스코프라 쓰지 않는다 — 끝나고 목록 1회 재조회(PLAN D11).
-    final orders = await orderUseCase.getOrders(sellerId: loaded.selectedSellerId);
+    // 🔴 기준은 appliedPeriod 다(selectedPeriod 가 아니다) — 동기화는 화면에 떠 있는 기간을
+    // 그대로 다시 읽는 것이라, 고르기만 한 기간이 [조회] 없이 반영되면 D8 이 깨진다.
+    // (동기화 창 자체는 14일 고정, PLAN D1.)
+    final range = toPeriodRange(loaded.appliedPeriod);
+    final orders = await orderUseCase.getOrders(
+      sellerId: loaded.selectedSellerId,
+      from: range?.from,
+      to: range?.to,
+    );
     // 채널의 진실은 서버 상태다. 위 루프의 success 는 HTTP 결과일 뿐이라 PARTIAL
     // (주문 조회는 됐고 취소 보정이 실패한 계정)을 못 잡는다 → 대상을 다시 조회해 배너를 낙인한다.
     final after = await _fetchTargets(loaded.selectedSellerId);

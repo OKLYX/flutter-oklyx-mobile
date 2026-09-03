@@ -8,6 +8,7 @@ import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/dialogs/shipment_confirm_dialog.dart';
 import '../../domain/entities/order_item.dart';
+import '../../domain/entities/order_period.dart';
 import '../../domain/entities/sync_target.dart';
 import '../bloc/order_list_bloc.dart';
 import '../bloc/order_list_event.dart';
@@ -49,6 +50,16 @@ class _OrderHistoryViewState extends State<_OrderHistoryView> {
   /// 진행 다이얼로그 중복 표시 방지. 동기화 중에는 상태가 채널마다 emit 되므로
   /// 리스너가 여러 번 불리는데, 다이얼로그는 실행당 1번만 띄운다.
   bool _syncDialogOpen = false;
+
+  /// 검색어 입력 컨트롤러. ⚠️ [_LoadedBody] 안에서 만들면 rebuild 마다 커서가 튄다 —
+  /// 여기(State)에서 만들어 주입한다.
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,7 +104,10 @@ class _OrderHistoryViewState extends State<_OrderHistoryView> {
           }
 
           final loaded = state as OrderListLoaded;
-          return _LoadedBody(state: loaded);
+          return _LoadedBody(
+            state: loaded,
+            searchController: _searchController,
+          );
         },
       ),
     );
@@ -117,14 +131,18 @@ class _OrderHistoryViewState extends State<_OrderHistoryView> {
 
 class _LoadedBody extends StatelessWidget {
   final OrderListState state;
+  final TextEditingController searchController;
 
-  const _LoadedBody({required this.state});
+  const _LoadedBody({required this.state, required this.searchController});
 
   @override
   Widget build(BuildContext context) {
     final s = state as OrderListLoaded;
     final bloc = context.read<OrderListBloc>();
     final busy = s.isSearching || s.isSyncing;
+    // getter 는 호출마다 리스트를 새로 만들고 그때마다 searchedOrders 까지 다시 돈다 —
+    // 아래 네 곳(총 N건 · isEmpty · itemCount · itemBuilder)이 쓰도록 한 번만 받는다.
+    final orders = s.filteredOrders;
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -178,6 +196,77 @@ class _LoadedBody extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
+                  // 기간 드롭다운 — 고른 값은 [조회] 를 눌러야 목록에 반영된다(PLAN D8).
+                  // ⚠️ items 는 State 밖에 캐시하지 말고 build 에서 만든다 —
+                  // monthsWithData 가 늦게 도착했을 때 라벨이 갱신되지 않는다.
+                  DropdownButtonFormField<String>(
+                    value: s.selectedPeriod,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: '기간',
+                      border: OutlineInputBorder(),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    items: buildPeriodOptions(monthsWithData: s.monthsWithData)
+                        .map((o) => DropdownMenuItem<String>(
+                              value: o.value,
+                              child: Text(
+                                o.label,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ))
+                        .toList(),
+                    onChanged: busy
+                        ? null
+                        : (value) => bloc.add(SelectPeriod(period: value!)),
+                  ),
+                  const SizedBox(height: 8),
+                  // 검색 — 클라이언트 필터라 서버를 부르지 않는다(PLAN D9).
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(
+                      spacing: 8,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('고객명'),
+                          selected: s.searchField == OrderSearchField.customer,
+                          onSelected: (_) => bloc.add(ChangeSearchField(
+                              field: OrderSearchField.customer)),
+                        ),
+                        ChoiceChip(
+                          label: const Text('주문번호'),
+                          selected: s.searchField == OrderSearchField.orderNo,
+                          onSelected: (_) => bloc.add(ChangeSearchField(
+                              field: OrderSearchField.orderNo)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: searchController,
+                    onChanged: (value) =>
+                        bloc.add(ChangeSearchTerm(term: value)),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.search, size: 18),
+                      hintText: s.searchField == OrderSearchField.orderNo
+                          ? '주문번호 검색'
+                          : '고객명 검색 (주문자·수취인)',
+                      suffixIcon: s.searchTerm.isEmpty
+                          ? null
+                          : IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                searchController.clear();
+                                bloc.add(ChangeSearchTerm(term: ''));
+                              },
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
                       Expanded(
@@ -217,7 +306,17 @@ class _LoadedBody extends StatelessWidget {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () => showShipmentConfirmDialog(context),
+                          onPressed: () async {
+                            final uploaded =
+                                await showShipmentConfirmDialog(context);
+                            // Guard isClosed: the page can be popped while the
+                            // dialog is open.
+                            if (uploaded == true && !bloc.isClosed) {
+                              // 백엔드가 배송지시로 바꾼 상태를 즉시 반영 —
+                              // 판매자 필터를 유지하는 SearchOrders 를 쓴다.
+                              bloc.add(SearchOrders());
+                            }
+                          },
                           icon: const Icon(Icons.upload_file, size: 18),
                           label: const Text('발송처리'),
                         ),
@@ -263,19 +362,46 @@ class _LoadedBody extends StatelessWidget {
             const SizedBox(height: 8),
           ],
 
+          // 과거 기간 안내 — **조회로 반영된** 기간(appliedPeriod)이 월일 때만 뜬다.
+          // 고르기만 하고 [조회] 를 안 눌렀으면 목록이 아직 안 바뀌었으므로 뜨지 않는다(PLAN D8).
+          if (isMonthPeriod(s.appliedPeriod)) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber[50],
+                border: Border.all(color: Colors.amber.shade200),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '최근 2주 이전 주문은 배송 상태가 최신이 아닐 수 있습니다 (동기화해도 갱신되지 않습니다).',
+                style: TextStyle(fontSize: 13, color: Colors.amber[900]),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+
           // 상태 필터 버튼 (프론트 OrderStatusFilter). 같은 버튼 재선택 시 전체 해제.
           _StatusFilterBar(
             selectedStatus: s.selectedStatus,
             counts: s.statusCounts,
             onSelect: (status) => bloc.add(SelectStatus(status: status)),
           ),
+          // 칩 라벨을 '추적불가' 로 줄인 대신, 그 상태를 고른 동안만 설명을 편다.
+          if (s.selectedStatus == 'NONE_TRACKING') ...[
+            const SizedBox(height: 8),
+            const Text(
+              '업체가 직접 배송해 배송 연동이 적용되지 않는 주문입니다 — 송장 추적이 불가합니다.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
           const SizedBox(height: 8),
 
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '총 ${s.filteredOrders.length}건',
+                '총 ${orders.length}건',
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
               if (s.lastSyncedAt != null)
@@ -288,16 +414,16 @@ class _LoadedBody extends StatelessWidget {
           const SizedBox(height: 8),
 
           Expanded(
-            child: s.filteredOrders.isEmpty
+            child: orders.isEmpty
                 ? const Center(child: Text('조회 결과가 없습니다.'))
                 : ListView.separated(
                     padding: const EdgeInsets.only(
                       bottom: kBottomNavigationBarHeight + 24,
                     ),
-                    itemCount: s.filteredOrders.length,
+                    itemCount: orders.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, index) =>
-                        _OrderCard(order: s.filteredOrders[index]),
+                        _OrderCard(order: orders[index]),
                   ),
           ),
         ],
