@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_oklyn_mobile/core/constants/app_constants.dart';
+import '../models/carrier_option.dart';
+import '../models/manual_shipment_result.dart';
 import '../models/shipment_confirm_result.dart';
 import '../models/shipping_label_preview_row.dart';
 
@@ -26,6 +28,18 @@ abstract class ShippingLabelRemoteDataSource {
   /// POST /api/admin/shipping-labels/v2/spreadsheet (body {rows:[...]})
   /// 편집된 rows → xlsx 바이너리 반환 (JSON 언래핑 없음).
   Future<Uint8List> exportSpreadsheet(List<ShippingLabelPreviewRow> rows);
+
+  /// GET /api/admin/shipping-labels/carrier-options?platform={platform}
+  /// 그 플랫폼에 코드가 등록된 활성 택배사(JSON 봉투) → data 언래핑. DB lookup 이라 타임아웃 연장 없음.
+  Future<List<CarrierOption>> getCarrierOptions({required String platform});
+
+  /// POST /api/admin/shipping-labels/confirm/manual (body {orderItemId, carrierId, invoiceNumber})
+  /// 한 박스 단건 발송처리(또는 송장수정) 결과(JSON 봉투) → data 언래핑.
+  Future<ManualShipmentResult> confirmManualShipment({
+    required int orderItemId,
+    required int carrierId,
+    required String invoiceNumber,
+  });
 }
 
 class ShippingLabelRemoteDataSourceImpl implements ShippingLabelRemoteDataSource {
@@ -105,5 +119,42 @@ class ShippingLabelRemoteDataSourceImpl implements ShippingLabelRemoteDataSource
       options: Options(responseType: ResponseType.bytes),
     );
     return response.data as Uint8List;
+  }
+
+  @override
+  Future<List<CarrierOption>> getCarrierOptions({
+    required String platform,
+  }) async {
+    // 쿠팡 호출이 아니라 DB lookup(수 건) → receiveTimeout 연장 불필요.
+    final response = await dio.get(
+      '/api/admin/shipping-labels/carrier-options',
+      queryParameters: {'platform': platform},
+    );
+    return (response.data['data'] as List)
+        .map((e) => CarrierOption.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<ManualShipmentResult> confirmManualShipment({
+    required int orderItemId,
+    required int carrierId,
+    required String invoiceNumber,
+  }) async {
+    final response = await dio.post(
+      '/api/admin/shipping-labels/confirm/manual',
+      data: {
+        'orderItemId': orderItemId,
+        'carrierId': carrierId,
+        'invoiceNumber': invoiceNumber,
+      },
+      options: Options(
+        // 서버가 쿠팡 송장업로드 API를 실호출 → confirmShipment 와 동일하게 개별 연장.
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+    return ManualShipmentResult.fromJson(
+        response.data['data'] as Map<String, dynamic>);
   }
 }

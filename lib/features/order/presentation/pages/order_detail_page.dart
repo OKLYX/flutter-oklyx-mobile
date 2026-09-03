@@ -7,7 +7,11 @@ import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/data/models/manual_shipment_result.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/data/models/shipping_label_preview_row.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/manual_shipment_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/manual_shipment_event.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/manual_shipment_state.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/order_sheet_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/order_sheet_event.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/order_sheet_state.dart';
@@ -69,29 +73,29 @@ class OrderDetailPage extends StatelessWidget {
     );
   }
 
-  // 송장 접수시트 섹션이 OrderSheetBloc 을 필요로 하므로 BuildContext 를 받는다.
+  // 송장 접수시트/발송처리 섹션이 BLoC 을 필요로 하므로 BuildContext 를 받는다.
   // order == null 분기는 조회할 order.id 가 없어 BlocProvider 자체를 만들지 않는다.
   Widget _buildContent(BuildContext context, OrderItem o) {
-    return BlocProvider<OrderSheetBloc>(
-      create: (_) => getIt<OrderSheetBloc>(),
+    final isCoupang = o.platform == 'COUPANG';
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<OrderSheetBloc>(create: (_) => getIt<OrderSheetBloc>()),
+        // ⚠️ 쿠팡 주문일 때만 만든다 — 게이트를 렌더에만 걸면 비-쿠팡 주문을 열 때마다
+        // ADMIN 전용 택배사 API 가 헛호출된다.
+        if (isCoupang)
+          BlocProvider<ManualShipmentBloc>(
+            create: (_) =>
+                getIt<ManualShipmentBloc>()..add(LoadCarrierOptions(o.platform)),
+          ),
+      ],
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _InfoCard(
-              title: '기본 정보',
-              rows: [
-                _InfoRow('플랫폼', o.platform),
-                _InfoRow('주문번호', o.externalOrderId),
-                _InfoRow('박스 ID', o.externalBoxId ?? '-'),
-                _InfoRow('아이템 ID', o.externalItemId),
-                _InfoRow('상품명', o.itemName ?? '-'),
-                _InfoRow('주문자', o.ordererName ?? '-'),
-                _InfoRow('수취인', o.receiverName ?? '-'),
-                _InfoRow('상태', o.status),
-              ],
-            ),
+            // ⚠️ BlocBuilder 는 이 카드 하나만 감싼다 — Column 이나 SingleChildScrollView 를
+            // 감싸면 전송할 때마다 송장시트 섹션까지 리빌드돼 편집 중이던 택배수량이 튄다.
+            _buildInfoCard(o, isCoupang: isCoupang),
             const SizedBox(height: 12),
             _InfoCard(
               title: '수량 정보',
@@ -111,6 +115,10 @@ class OrderDetailPage extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
+            if (isCoupang) ...[
+              _ManualShipmentSection(order: o),
+              const SizedBox(height: 12),
+            ],
             _OrderSheetSection(order: o),
             // ScaffoldWithNavBar 는 내비바를 오버레이하므로 하단 여백을 확보한다.
             SizedBox(
@@ -125,7 +133,33 @@ class OrderDetailPage extends StatelessWidget {
   }
 }
 
-/// ISO LocalDateTime → 'yyyy-MM-dd HH:mm'. null/파싱 실패 시 '-' 또는 원본 반환.
+//// 기본 정보 카드. 쿠팡 주문이면 `상태` 행만 단건 발송처리 결과를 따라간다 —
+/// 신규 업로드가 성공하면 서버가 `resultStatus: 'DEPARTURE'` 를 주므로 재조회 없이 반영한다(D4).
+Widget _buildInfoCard(OrderItem o, {required bool isCoupang}) {
+  List<_InfoRow> rows(String status) => [
+        _InfoRow('플랫폼', o.platform),
+        _InfoRow('주문번호', o.externalOrderId),
+        _InfoRow('박스 ID', o.externalBoxId ?? '-'),
+        _InfoRow('아이템 ID', o.externalItemId),
+        _InfoRow('상품명', o.itemName ?? '-'),
+        _InfoRow('주문자', o.ordererName ?? '-'),
+        _InfoRow('수취인', o.receiverName ?? '-'),
+        // 목록과 같은 한글 라벨 SSOT 를 쓴다(라벨표 사본 금지).
+        _InfoRow('상태', getOrderStatusLabel(status)),
+      ];
+
+  if (!isCoupang) {
+    return _InfoCard(title: '기본 정보', rows: rows(o.status));
+  }
+  return BlocBuilder<ManualShipmentBloc, ManualShipmentState>(
+    builder: (context, state) => _InfoCard(
+      title: '기본 정보',
+      rows: rows(state.result?.resultStatus ?? o.status),
+    ),
+  );
+}
+
+// ISO LocalDateTime → 'yyyy-MM-dd HH:mm'. null/파싱 실패 시 '-' 또는 원본 반환.
 String _formatDate(String? value) {
   if (value == null || value.isEmpty) return '-';
   final date = DateTime.tryParse(value);
@@ -189,6 +223,223 @@ class _InfoRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// 주문 상세 안 단건 발송처리 섹션 (인라인 확장 — 별도 화면/다이얼로그 없음).
+///
+/// **용도**: 택배사를 고르고 송장번호를 직접 입력해 이 주문의 박스 1개를 발송처리한다.
+/// 결과 파일(xlsx)이 없는 건, 다른 택배사로 보낸 건, 잘못 올린 운송장 정정에 쓴다.
+///
+/// ⚠️ 전송 단위는 화면에 보이는 이 라인이 아니라 **이 라인이 속한 박스 전체**다(PLAN 2609_11 D1) —
+/// 쿠팡은 박스의 모든 옵션에 같은 운송장번호를 보내야 받아준다.
+/// ⚠️ 신규 업로드 / 송장수정 **모드는 서버가 주문 상태로 결정**한다(D3). 여기서는 버튼 라벨만 바꾼다.
+/// ⚠️ 쿠팡이 응답을 준 뒤에는(성공·부분실패 모두) 입력을 잠근다(D14) — 재전송은
+/// DUPLICATE_INVOICE_NUMBER 를 부른다. 요청 자체가 실패했을 때는 잠그지 않는다(아무것도 안 갔다).
+/// ⚠️ 권한 게이트는 클라이언트에 두지 않는다. 다만 택배사 조회가 403 이면 섹션을 숨긴다 —
+/// 안 그러면 비-ADMIN 사용자에게 영원히 실패하는 `다시 시도` 버튼만 남는다.
+///
+/// 송장번호는 BLoC 상태로 올리지 않는다(글자마다 emit 하면 리빌드가 낭비다) →
+/// [TextEditingController] 를 들기 위해 StatefulWidget.
+class _ManualShipmentSection extends StatefulWidget {
+  final OrderItem order;
+
+  const _ManualShipmentSection({required this.order});
+
+  @override
+  State<_ManualShipmentSection> createState() => _ManualShipmentSectionState();
+}
+
+class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
+  final TextEditingController _invoiceController = TextEditingController();
+
+  @override
+  void dispose() {
+    _invoiceController.dispose(); // 누락 시 leak — 상세는 주문마다 새로 만들어진다.
+    super.dispose();
+  }
+
+  void _onInvoiceChanged(BuildContext context, String? currentError) {
+    // 입력을 고치면 직전 전송 실패 문구를 지운다(웹의 onChange 클리어와 같은 규칙).
+    if (currentError != null) {
+      context.read<ManualShipmentBloc>().add(const SubmitErrorCleared());
+    }
+    setState(() {}); // 버튼 활성 갱신 (글자마다 emit 하지 않는다)
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final shipped = isAlreadyShipped(widget.order.status);
+    return BlocBuilder<ManualShipmentBloc, ManualShipmentState>(
+      builder: (context, state) {
+        // ADMIN 이 아님 — 서버가 내린 판정을 그대로 반영한다.
+        if (state.optionsForbidden) return const SizedBox.shrink();
+
+        final locked = state.submitting || state.result != null;
+        final canSubmit = !locked &&
+            state.carrierId != null &&
+            _invoiceController.text.trim().isNotEmpty &&
+            state.options.isNotEmpty;
+
+        return Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  '발송처리',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '박스 ${widget.order.externalBoxId ?? '-'} 의 모든 옵션에 같은 운송장번호가 적용됩니다.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                ),
+                if (shipped) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    '이미 발송처리된 주문입니다. 입력한 운송장으로 송장번호를 수정합니다.',
+                    style: TextStyle(fontSize: 12, color: Colors.amber[800]),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                if (state.loadingOptions)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Center(
+                      child: SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  )
+                else
+                  DropdownButtonFormField<int>(
+                    // 목록에 없는 값을 넘기면 Dropdown 이 assert 로 죽는다 — 조회 실패로
+                    // options 가 비었는데 직전 선택이 남아 있는 경우를 막는다.
+                    value: state.options.any((o) => o.carrierId == state.carrierId)
+                        ? state.carrierId
+                        : null,
+                    decoration: const InputDecoration(
+                      labelText: '택배사',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    items: state.options
+                        .map((o) => DropdownMenuItem<int>(
+                              value: o.carrierId,
+                              child: Text(o.carrierName),
+                            ))
+                        .toList(),
+                    onChanged: locked || state.options.isEmpty
+                        ? null
+                        : (value) {
+                            if (value != null) {
+                              context
+                                  .read<ManualShipmentBloc>()
+                                  .add(CarrierSelected(value));
+                            }
+                          },
+                  ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _invoiceController,
+                  maxLength: 50, // 형식 검증은 하지 않는다(택배사마다 다르다, D15)
+                  enabled: !locked && state.options.isNotEmpty,
+                  onChanged: (_) => _onInvoiceChanged(context, state.errorMessage),
+                  decoration: const InputDecoration(
+                    labelText: '송장번호',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+                // 조회 실패와 '등록된 택배사 없음' 은 안내가 다르다 — 합치면 거짓 안내가 된다.
+                if (!state.loadingOptions && state.optionsLoadFailed)
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text('택배사 목록을 불러오지 못했습니다.',
+                            style: TextStyle(fontSize: 12)),
+                      ),
+                      TextButton(
+                        onPressed: () => context
+                            .read<ManualShipmentBloc>()
+                            .add(LoadCarrierOptions(widget.order.platform)),
+                        child: const Text('다시 시도'),
+                      ),
+                    ],
+                  )
+                else if (!state.loadingOptions && state.options.isEmpty)
+                  Text(
+                    '택배사 관리에서 이 플랫폼의 택배사 코드를 먼저 등록하세요.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                  ),
+                const SizedBox(height: 8),
+                ElevatedButton(
+                  onPressed: canSubmit
+                      ? () => context.read<ManualShipmentBloc>().add(
+                            SubmitManualShipment(
+                              orderItemId: widget.order.id,
+                              invoiceNumber: _invoiceController.text.trim(),
+                            ),
+                          )
+                      : null,
+                  child: state.submitting
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(shipped ? '송장 수정' : '발송처리'),
+                ),
+                if (state.errorMessage != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    state.errorMessage!,
+                    style: TextStyle(fontSize: 12, color: Colors.red[700]),
+                  ),
+                ],
+                if (state.result != null) ...[
+                  const SizedBox(height: 12),
+                  ..._buildResult(state.result!),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // 결과는 인라인으로 남긴다(SnackBar ❌ — 스크롤해서 다시 볼 수 있어야 한다).
+  List<Widget> _buildResult(ManualShipmentResult result) {
+    final widgets = <Widget>[];
+    if (result.succeeded > 0 && result.failed.isEmpty) {
+      widgets.add(Text(
+        '${result.isUpdateMode ? '송장 수정 완료' : '발송처리 완료'} — '
+        '박스 ${result.shipmentBoxId} · ${result.sentLines}건',
+        style: TextStyle(fontSize: 13, color: Colors.green[700]),
+      ));
+    }
+    // 실패는 쿠팡 원문(resultCode/message)을 가공 없이 노출한다(D6).
+    for (final failed in result.failed) {
+      widgets.add(Container(
+        margin: const EdgeInsets.only(top: 8),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.red[50],
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          '${failed.shipmentBoxId} · ${failed.resultCode} · ${failed.message}',
+          style: TextStyle(fontSize: 12, color: Colors.red[700]),
+        ),
+      ));
+    }
+    return widgets;
   }
 }
 

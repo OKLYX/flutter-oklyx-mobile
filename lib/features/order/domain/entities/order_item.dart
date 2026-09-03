@@ -65,6 +65,17 @@ const Map<String, String> _orderStatusLabels = {
 String getOrderStatusLabel(String status) =>
     _orderStatusLabels[status] ?? status;
 
+/// 이미 발송된(배송지시 이상) 상태 — 신규 업로드가 아니라 송장 "수정" 대상이다.
+/// 판정은 서버가 한다(PLAN 2609_11 D3). 화면에서는 버튼 라벨·안내문에만 쓴다.
+const List<String> kShippedStatuses = [
+  'DEPARTURE',
+  'DELIVERING',
+  'FINAL_DELIVERY',
+  'NONE_TRACKING',
+];
+
+bool isAlreadyShipped(String status) => kShippedStatuses.contains(status);
+
 /// 좁은 목록 카드용 단일 "고객" 표기. 택배가 향하는 쪽이 수취인이라 수취인이
 /// 우선이고, 선물 주문(주문자 != 수취인)은 상세 페이지에서 둘 다 보여준다
 /// (프론트 getCustomerName 과 동일 규칙).
