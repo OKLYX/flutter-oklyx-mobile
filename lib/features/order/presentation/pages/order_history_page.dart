@@ -320,7 +320,8 @@ class _OrderCard extends StatelessWidget {
         onTap: () => context.push(Routes.orderHistoryDetailPath, extra: order),
         child: Padding(
           padding: const EdgeInsets.all(12),
-          // 카드 항목은 프론트 OrderTable 컬럼과 동일: 주문번호 / 상품명 / 주문수량 / 취소 / 결제일.
+          // 카드 항목은 프론트 OrderTable 컬럼과 동일:
+          // 주문번호 / 고객명 / 상품명 / 주문수량 / 취소 / 결제일.
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -330,6 +331,13 @@ class _OrderCard extends StatelessWidget {
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '고객 ${getCustomerName(order)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 13, color: Colors.grey[800]),
               ),
               const SizedBox(height: 6),
               Text(order.itemName ?? '-', style: const TextStyle(fontSize: 13)),

@@ -10,6 +10,8 @@ class OrderItem {
   final String? externalBoxId;
   final String externalItemId;
   final String? itemName;
+  final String? ordererName;
+  final String? receiverName;
   final int orderCount;
   final int cancelCount;
   final int holdCount;
@@ -25,6 +27,8 @@ class OrderItem {
     this.externalBoxId,
     required this.externalItemId,
     this.itemName,
+    this.ordererName,
+    this.receiverName,
     required this.orderCount,
     required this.cancelCount,
     required this.holdCount,
@@ -58,3 +62,9 @@ const Map<String, String> _orderStatusLabels = {
 /// Returns the Korean label for an order status code; falls back to the raw value.
 String getOrderStatusLabel(String status) =>
     _orderStatusLabels[status] ?? status;
+
+/// 좁은 목록 카드용 단일 "고객" 표기. 택배가 향하는 쪽이 수취인이라 수취인이
+/// 우선이고, 선물 주문(주문자 != 수취인)은 상세 페이지에서 둘 다 보여준다
+/// (프론트 getCustomerName 과 동일 규칙).
+String getCustomerName(OrderItem order) =>
+    order.receiverName ?? order.ordererName ?? '-';

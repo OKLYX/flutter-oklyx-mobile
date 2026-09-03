@@ -29,7 +29,7 @@ const Map<String, String> _platformLabels = {'COUPANG': '쿠팡'};
 /// → 새로고침/딥링크 등으로 [order]가 null이면 목록으로 복귀.
 ///
 /// **표시 필드(프론트 OrderDetailsModal과 동일)**:
-/// 플랫폼 / 주문번호 / 박스 ID / 아이템 ID / 상품명 /
+/// 플랫폼 / 주문번호 / 박스 ID / 아이템 ID / 상품명 / 주문자 / 수취인 /
 /// 주문수량 / 취소수량 / 보류수량 / 구매가능수량 / 상태 / 결제일 / 마켓 계정 ID
 ///
 /// **UI**: 다른 상세 페이지(ProductListingDetailPage 등)와 동일한
@@ -87,6 +87,8 @@ class OrderDetailPage extends StatelessWidget {
                 _InfoRow('박스 ID', o.externalBoxId ?? '-'),
                 _InfoRow('아이템 ID', o.externalItemId),
                 _InfoRow('상품명', o.itemName ?? '-'),
+                _InfoRow('주문자', o.ordererName ?? '-'),
+                _InfoRow('수취인', o.receiverName ?? '-'),
                 _InfoRow('상태', o.status),
               ],
             ),
