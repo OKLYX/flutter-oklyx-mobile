@@ -1,3 +1,4 @@
+import '../../domain/entities/order_item.dart';
 import '../../domain/entities/sync_target.dart';
 
 abstract class OrderListEvent {}
@@ -37,4 +38,25 @@ class SelectStatus extends OrderListEvent {
   final String? status;
 
   SelectStatus({this.status});
+}
+
+/// 조회 기간 선택. ⚠️ 값만 바꾼다 — 반영은 [SearchOrders](조회 버튼)에서(PLAN D8).
+class SelectPeriod extends OrderListEvent {
+  final String period;
+
+  SelectPeriod({required this.period});
+}
+
+/// 검색 대상 칩 변경 (고객명 ↔ 주문번호). 즉시 필터.
+class ChangeSearchField extends OrderListEvent {
+  final OrderSearchField field;
+
+  ChangeSearchField({required this.field});
+}
+
+/// 검색어 입력. 즉시 필터 — 서버를 부르지 않는다(PLAN D9).
+class ChangeSearchTerm extends OrderListEvent {
+  final String term;
+
+  ChangeSearchTerm({required this.term});
 }

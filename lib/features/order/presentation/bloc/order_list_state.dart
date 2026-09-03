@@ -1,5 +1,6 @@
 import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import '../../domain/entities/order_item.dart';
+import '../../domain/entities/order_period.dart';
 import '../../domain/entities/order_sync_result.dart';
 import '../../domain/entities/sync_target.dart';
 
@@ -79,6 +80,23 @@ class OrderListLoaded extends OrderListState {
   /// 진행 리스트에는 PARTIAL 이 없어 서버 낙인과 lastSyncError 가 사라진다(PLAN D8/D18).
   final List<SyncTarget> syncTargets;
 
+  /// 드롭다운에 보이는 '고른 값'. [조회] 전엔 목록에 반영되지 않는다(PLAN D8).
+  final String selectedPeriod;
+
+  /// 🔴 지금 목록이 담고 있는 기간 — stale 배너는 이쪽을 본다.
+  /// [selectedPeriod] 로 배너를 그리면, 8월을 조회한 뒤 드롭다운만 '최근 2주'로 되돌렸을 때
+  /// 배너가 사라지는데 목록은 그대로 8월이다(반대 방향도 똑같이 어긋난다).
+  final String appliedPeriod;
+
+  /// 검색 대상 칩 (고객명 ↔ 주문번호).
+  final OrderSearchField searchField;
+
+  /// 검색어. 빈 문자열이 곧 '검색 없음'이다(clear 플래그 불필요).
+  final String searchTerm;
+
+  /// 주문이 있는 달('YYYY-MM') — 기간 라벨의 '(데이터 없음)' 판정용.
+  final Set<String> monthsWithData;
+
   OrderListLoaded({
     required this.sellers,
     this.selectedSellerId,
@@ -93,12 +111,23 @@ class OrderListLoaded extends OrderListState {
     this.syncDoneCount = 0,
     this.syncCanceled = false,
     this.syncTargets = const [],
+    this.selectedPeriod = kRecentPeriod,
+    this.appliedPeriod = kRecentPeriod,
+    this.searchField = OrderSearchField.customer,
+    this.searchTerm = '',
+    this.monthsWithData = const {},
   });
 
-  /// 상태별 주문 건수 (필터 버튼 배지용). 선택과 무관하게 전체 주문 기준.
+  /// 검색어·칩으로 거른 목록. [statusCounts]·[filteredOrders] 의 **공통 소스**다.
+  List<OrderItem> get searchedOrders => orders
+      .where((o) => matchesOrderSearch(o, searchField, searchTerm))
+      .toList();
+
+  /// 상태별 주문 건수 (필터 버튼 배지용). 상태 선택과 무관하지만 **검색은 반영**한다
+  /// — 배지가 목록과 어긋나면 안 된다(PLAN D13).
   Map<String, int> get statusCounts {
     final counts = <String, int>{};
-    for (final order in orders) {
+    for (final order in searchedOrders) {
       counts[order.status] = (counts[order.status] ?? 0) + 1;
     }
     return counts;
@@ -109,10 +138,10 @@ class OrderListLoaded extends OrderListState {
       .where((t) => t.lastSyncStatus != null && t.lastSyncStatus != 'SUCCESS')
       .toList();
 
-  /// 선택된 상태로 거른 주문 목록 (null = 전체).
+  /// 검색 결과를 선택된 상태로 다시 거른 목록 (null = 전체). 순서 = 검색 → 상태(PLAN D13).
   List<OrderItem> get filteredOrders => selectedStatus == null
-      ? orders
-      : orders.where((o) => o.status == selectedStatus).toList();
+      ? searchedOrders
+      : searchedOrders.where((o) => o.status == selectedStatus).toList();
 
   OrderListLoaded copyWith({
     List<Seller>? sellers,
@@ -132,6 +161,11 @@ class OrderListLoaded extends OrderListState {
     int? syncDoneCount,
     bool? syncCanceled,
     List<SyncTarget>? syncTargets,
+    String? selectedPeriod,
+    String? appliedPeriod,
+    OrderSearchField? searchField,
+    String? searchTerm,
+    Set<String>? monthsWithData,
   }) {
     return OrderListLoaded(
       sellers: sellers ?? this.sellers,
@@ -152,6 +186,12 @@ class OrderListLoaded extends OrderListState {
       syncDoneCount: syncDoneCount ?? this.syncDoneCount,
       syncCanceled: syncCanceled ?? this.syncCanceled,
       syncTargets: syncTargets ?? this.syncTargets,
+      selectedPeriod: selectedPeriod ?? this.selectedPeriod,
+      appliedPeriod: appliedPeriod ?? this.appliedPeriod,
+      searchField: searchField ?? this.searchField,
+      // '' 가 곧 "검색 없음" 이라 clear 플래그가 필요 없다.
+      searchTerm: searchTerm ?? this.searchTerm,
+      monthsWithData: monthsWithData ?? this.monthsWithData,
     );
   }
 }
