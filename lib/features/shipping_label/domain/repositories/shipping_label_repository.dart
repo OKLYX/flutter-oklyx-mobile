@@ -17,6 +17,11 @@ abstract class ShippingLabelRepository {
     int? sellerId,
   });
 
+  /// V2 단건 주문(상태 무관) 편집용 미리보기 행 조회.
+  Future<Either<Failure, List<ShippingLabelPreviewRow>>> previewRowsByOrder({
+    required int orderItemId,
+  });
+
   /// V2 편집된 rows → 접수용 xlsx 바이너리.
   Future<Either<Failure, Uint8List>> exportSpreadsheet(
     List<ShippingLabelPreviewRow> rows,

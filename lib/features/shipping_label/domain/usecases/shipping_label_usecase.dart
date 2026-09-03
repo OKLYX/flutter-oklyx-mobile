@@ -23,6 +23,11 @@ class ShippingLabelUseCase {
   }) =>
       repository.previewRows(sellerId: sellerId);
 
+  Future<Either<Failure, List<ShippingLabelPreviewRow>>> previewRowsByOrder({
+    required int orderItemId,
+  }) =>
+      repository.previewRowsByOrder(orderItemId: orderItemId);
+
   Future<Either<Failure, Uint8List>> exportSpreadsheet(
     List<ShippingLabelPreviewRow> rows,
   ) =>

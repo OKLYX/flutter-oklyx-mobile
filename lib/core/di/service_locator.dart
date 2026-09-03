@@ -137,6 +137,7 @@ import 'package:flutter_oklyn_mobile/features/shipping_label/data/datasources/sh
 import 'package:flutter_oklyn_mobile/features/shipping_label/data/repositories/shipping_label_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/domain/repositories/shipping_label_repository.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/domain/usecases/shipping_label_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/order_sheet_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/shipping_label_preview_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/data/datasources/marketplace_account_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/data/repositories/marketplace_account_repository_impl.dart';
@@ -834,6 +835,11 @@ void _registerShippingLabelServices() {
       useCase: getIt<ShippingLabelUseCase>(),
       getSellersUseCase: getIt<GetSellersUseCase>(),
     ),
+  );
+
+  // BLoC (주문 상세의 단건 시트) as factory — 페이지마다 접힘 상태로 시작.
+  getIt.registerFactory<OrderSheetBloc>(
+    () => OrderSheetBloc(useCase: getIt<ShippingLabelUseCase>()),
   );
 }
 
