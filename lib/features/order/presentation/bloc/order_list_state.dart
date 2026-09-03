@@ -65,13 +65,6 @@ class OrderListLoaded extends OrderListState {
   /// 선택된 상태 필터 (null = 전체). 프론트 OrderContainer.selectedStatus와 동일.
   final String? selectedStatus;
 
-  /// Shipping Label(주문목록) xlsx 다운로드 진행 중 여부.
-  final bool isDownloading;
-
-  /// 다운로드 성공 시 저장된 파일 경로 (transient — SnackBar 노출용).
-  /// [syncResult]와 동일하게 다음 액션 시작 시 clearDownloadResult 로 비운다.
-  final String? downloadSavedPath;
-
   /// 진행 다이얼로그 전용 — 이번 동기화 실행의 채널별 진행 상태.
   /// 진행률 분모는 반드시 이 리스트의 길이다(판매자 수 아님, PLAN D3).
   final List<ChannelProgress> syncChannels;
@@ -96,8 +89,6 @@ class OrderListLoaded extends OrderListState {
     this.syncResult,
     this.lastSyncedAt,
     this.selectedStatus,
-    this.isDownloading = false,
-    this.downloadSavedPath,
     this.syncChannels = const [],
     this.syncDoneCount = 0,
     this.syncCanceled = false,
@@ -137,9 +128,6 @@ class OrderListLoaded extends OrderListState {
     String? lastSyncedAt,
     String? selectedStatus,
     bool clearSelectedStatus = false,
-    bool? isDownloading,
-    String? downloadSavedPath,
-    bool clearDownloadResult = false,
     List<ChannelProgress>? syncChannels,
     int? syncDoneCount,
     bool? syncCanceled,
@@ -159,10 +147,6 @@ class OrderListLoaded extends OrderListState {
       selectedStatus: clearSelectedStatus
           ? null
           : (selectedStatus ?? this.selectedStatus),
-      isDownloading: isDownloading ?? this.isDownloading,
-      downloadSavedPath: clearDownloadResult
-          ? null
-          : (downloadSavedPath ?? this.downloadSavedPath),
       // clear* 플래그 불필요 — 네 값 모두 새 값을 대입해 초기화한다(빈 리스트/0/false).
       syncChannels: syncChannels ?? this.syncChannels,
       syncDoneCount: syncDoneCount ?? this.syncDoneCount,

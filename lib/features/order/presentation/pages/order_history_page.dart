@@ -61,18 +61,14 @@ class _OrderHistoryViewState extends State<_OrderHistoryView> {
         // 동기화 시작(다이얼로그) + 일시적 오류/다운로드 완료(SnackBar) 알림.
         listenWhen: (prev, curr) =>
             curr is OrderListLoaded &&
-            (curr.isSyncing ||
-                curr.actionError != null ||
-                curr.downloadSavedPath != null),
+            (curr.isSyncing || curr.actionError != null),
         listener: (context, state) {
           final s = state as OrderListLoaded;
           if (s.isSyncing) {
             _showSyncDialog(context);
             return;
           }
-          // actionError 우선, 없으면 다운로드 성공 메시지.
-          final message = s.actionError ??
-              (s.downloadSavedPath != null ? '주문목록을 저장했습니다.' : null);
+          final message = s.actionError;
           if (message == null) return;
           ScaffoldMessenger.of(context)
             ..hideCurrentSnackBar()
@@ -128,7 +124,7 @@ class _LoadedBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = state as OrderListLoaded;
     final bloc = context.read<OrderListBloc>();
-    final busy = s.isSearching || s.isSyncing || s.isDownloading;
+    final busy = s.isSearching || s.isSyncing;
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -201,40 +197,15 @@ class _LoadedBody extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  // 주문목록 다운로드 (Shipping Label): 쿠팡 INSTRUCT 주문 xlsx 를
-                  // 서버에서 실시간 생성해 기기 다운로드 폴더에 저장한다.
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: busy
-                              ? null
-                              : () => bloc.add(DownloadShippingLabel()),
-                          icon: s.isDownloading
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Icon(Icons.download, size: 18),
-                          label: Text(
-                              s.isDownloading ? '다운로드 중...' : '주문목록 다운로드'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // 주문목록 다운로드 V2 (임시 진입점): preview 페이지에서 택배수량 편집 후 다운로드.
-                  // ⚠️ V1 버튼은 마감 안전장치로 유지 — 검증 후 별도 작업에서 V1 제거 + 리네임.
+                  // 주문목록 다운로드: preview 페이지에서 택배수량 편집 후 다운로드.
                   Row(
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: () =>
                               context.push(Routes.shippingLabelPreviewPath),
-                          icon: const Icon(Icons.edit_note, size: 18),
-                          label: const Text('주문목록 다운로드 V2'),
+                          icon: const Icon(Icons.download, size: 18),
+                          label: const Text('주문목록 다운로드'),
                         ),
                       ),
                     ],

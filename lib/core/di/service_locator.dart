@@ -808,7 +808,7 @@ void _registerProductListingServices() {
 }
 
 // Shipping Label 은 Order 와 별개 도메인(백엔드 /api/admin/shipping-labels).
-// OrderListBloc 이 다운로드 오케스트레이션에 사용하므로 _registerOrderServices 앞에 등록한다.
+// 주문목록 다운로드(preview 페이지)·발송처리 다이얼로그가 사용한다.
 void _registerShippingLabelServices() {
   // Data Source
   getIt.registerSingleton<ShippingLabelRemoteDataSource>(
@@ -855,12 +855,10 @@ void _registerOrderServices() {
 
   // BLoC as factory to allow fresh state per page.
   // 판매자 드롭다운은 기존 seller 기능의 GetSellersUseCase 를 재사용한다.
-  // 주문목록 다운로드는 shipping_label 기능의 ShippingLabelUseCase 를 재사용한다.
   getIt.registerFactory<OrderListBloc>(
     () => OrderListBloc(
       orderUseCase: getIt<OrderUseCase>(),
       getSellersUseCase: getIt<GetSellersUseCase>(),
-      shippingLabelUseCase: getIt<ShippingLabelUseCase>(),
     ),
   );
 }

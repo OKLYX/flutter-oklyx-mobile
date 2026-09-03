@@ -93,8 +93,7 @@ class _PreviewView extends StatelessWidget {
     try {
       // saveAs: 시스템 저장 다이얼로그로 사용자가 위치 선택 → 실제 보이는 파일로 저장.
       // saveFile(bytes) 는 Android 에서 앱 전용 디렉토리에만 써서 다운로드 폴더에
-      // 안 보이므로 saveAs 를 사용(V1 다운로드와 동일 정책).
-      // Same filename convention as the V1 download (OrderListBloc).
+      // 안 보이므로 saveAs 를 사용(다운로드 폴더에 보이게 하기 위함).
       final now = DateTime.now();
       String two(int n) => n.toString().padLeft(2, '0');
       final today = '${now.year}${two(now.month)}${two(now.day)}';

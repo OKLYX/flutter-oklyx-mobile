@@ -1,9 +1,7 @@
-import 'package:file_saver/file_saver.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/usecases/get_sellers_usecase.dart';
-import 'package:flutter_oklyn_mobile/features/shipping_label/domain/usecases/shipping_label_usecase.dart';
 import '../../domain/entities/order_sync_result.dart';
 import '../../domain/entities/sync_target.dart';
 import '../../domain/usecases/order_usecase.dart';
@@ -23,12 +21,10 @@ import 'order_list_state.dart';
 class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
   final OrderUseCase orderUseCase;
   final GetSellersUseCase getSellersUseCase;
-  final ShippingLabelUseCase shippingLabelUseCase;
 
   OrderListBloc({
     required this.orderUseCase,
     required this.getSellersUseCase,
-    required this.shippingLabelUseCase,
   }) : super(OrderListInitial()) {
     on<LoadOrders>(_onLoad);
     on<SelectSeller>(_onSelectSeller);
@@ -38,7 +34,6 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
     on<RetryFailedChannels>(_onRetryFailed);
     on<SyncSelectedChannels>(_onSyncSelected);
     on<SelectStatus>(_onSelectStatus);
-    on<DownloadShippingLabel>(_onDownload);
   }
 
   // Cancellation is cooperative: the in-flight account request is NOT aborted (the server keeps
@@ -89,13 +84,10 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
   ) async {
     final current = state;
     if (current is! OrderListLoaded) return;
-    if (current.isSearching || current.isSyncing || current.isDownloading) return;
+    if (current.isSearching || current.isSyncing) return;
 
     emit(current.copyWith(
-        isSearching: true,
-        clearActionError: true,
-        clearSyncResult: true,
-        clearDownloadResult: true));
+        isSearching: true, clearActionError: true, clearSyncResult: true));
 
     final result = await orderUseCase.getOrders(sellerId: current.selectedSellerId);
     // 목록 스코프가 바뀌는 시점 = 배너 스코프가 바뀌는 시점.
@@ -116,7 +108,7 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
   Future<void> _onSync(SyncOrders event, Emitter<OrderListState> emit) async {
     final current = state;
     if (current is! OrderListLoaded) return;
-    if (current.isSearching || current.isSyncing || current.isDownloading) return;
+    if (current.isSearching || current.isSyncing) return;
 
     final targetsResult =
         await orderUseCase.getSyncTargets(sellerId: current.selectedSellerId);
@@ -165,7 +157,7 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
     if (start is! OrderListLoaded) return;
     // 재시도 경로에는 _onSync 의 가드가 없으므로 여기서 같은 가드를 다시 건다
     // (다이얼로그가 떠 있는 동안 상태가 바뀌었을 수 있다).
-    if (start.isSearching || start.isSyncing || start.isDownloading) return;
+    if (start.isSearching || start.isSyncing) return;
 
     _cancelRequested = false;
     var channels = targets
@@ -175,7 +167,6 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
       isSyncing: true,
       clearActionError: true,
       clearSyncResult: true,
-      clearDownloadResult: true,
       syncChannels: channels,
       syncDoneCount: 0,
       syncCanceled: false,
@@ -273,63 +264,5 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
     return message.startsWith(prefix)
         ? message.substring(prefix.length)
         : message;
-  }
-
-  /// 주문목록 다운로드: Shipping Label xlsx bytes 수신 → file_saver 로 기기
-  /// 다운로드 폴더에 저장 → 성공 경로를 transient 로 emit(SnackBar 노출).
-  Future<void> _onDownload(
-    DownloadShippingLabel event,
-    Emitter<OrderListState> emit,
-  ) async {
-    final current = state;
-    if (current is! OrderListLoaded) return;
-    if (current.isSearching || current.isSyncing || current.isDownloading) return;
-
-    emit(current.copyWith(
-        isDownloading: true, clearActionError: true, clearDownloadResult: true));
-
-    final result =
-        await shippingLabelUseCase.downloadSpreadsheet(sellerId: current.selectedSellerId);
-
-    await result.fold(
-      (failure) async => emit(current.copyWith(
-        isDownloading: false,
-        actionError: _downloadErrorMessage(failure),
-      )),
-      (bytes) async {
-        try {
-          final now = DateTime.now();
-          String two(int n) => n.toString().padLeft(2, '0');
-          final today = '${now.year}${two(now.month)}${two(now.day)}';
-          // saveAs: 시스템 저장 다이얼로그(SAF)로 사용자가 위치를 선택 → 실제 보이는
-          // 파일로 저장. saveFile(bytes) 는 Android 에서 앱 전용 디렉토리
-          // (getExternalFilesDir)에만 써서 다운로드 폴더에 안 보였음(→ saveAs 로 교체).
-          final path = await FileSaver.instance.saveAs(
-            name: '주문목록_$today',
-            bytes: bytes,
-            ext: 'xlsx',
-            mimeType: MimeType.microsoftExcel,
-          );
-          // 사용자가 다이얼로그를 취소하면 null → 성공/에러 아님, 조용히 종료.
-          if (path == null || path.isEmpty) {
-            emit(current.copyWith(isDownloading: false));
-          } else {
-            emit(current.copyWith(
-                isDownloading: false, downloadSavedPath: path));
-          }
-        } catch (_) {
-          emit(current.copyWith(
-              isDownloading: false, actionError: '파일 저장에 실패했습니다.'));
-        }
-      },
-    );
-  }
-
-  // 403(권한) 외에는 고정 메시지. 프론트와 동일하게 에러 본문은 파싱하지 않는다.
-  String _downloadErrorMessage(Failure failure) {
-    if (failure is ServerFailure && failure.statusCode == 403) {
-      return '권한이 없습니다. 관리자 계정으로 로그인해주세요.';
-    }
-    return '주문목록 다운로드에 실패했습니다. 다시 시도해주세요.';
   }
 }
