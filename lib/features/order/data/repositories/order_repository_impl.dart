@@ -62,6 +62,31 @@ class OrderRepositoryImpl implements OrderRepository {
   }
 
   @override
+  Future<Either<Failure, OrderSyncResult>> syncPeriod({
+    required int accountId,
+    required String from,
+    required String to,
+  }) async {
+    try {
+      final result = await remoteDataSource.syncPeriod(
+        accountId: accountId,
+        from: from,
+        to: to,
+      );
+      return Right(result);
+    } on DioException catch (e) {
+      return Left(
+        ServerFailure(
+          e.message ?? 'Failed to sync period',
+          statusCode: e.response?.statusCode,
+        ),
+      );
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, List<SyncTarget>>> getSyncTargets({int? sellerId}) async {
     try {
       final targets = await remoteDataSource.getSyncTargets(sellerId: sellerId);

@@ -38,11 +38,21 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
     on<SelectPeriod>(_onSelectPeriod);
     on<ChangeSearchField>(_onChangeSearchField);
     on<ChangeSearchTerm>(_onChangeSearchTerm);
+    on<BackfillPeriod>(_onBackfillPeriod);
+    on<DismissBackfillPrompt>(_onDismissBackfillPrompt);
   }
 
   // Cancellation is cooperative: the in-flight account request is NOT aborted (the server keeps
   // going anyway), we only stop before the next one (PLAN D12).
   bool _cancelRequested = false;
+
+  /// 이미 물어본 {판매자}:{기간} 조합. 승낙·거절 무관하게 한 번만 묻는다(PLAN D10).
+  /// BLoC 인스턴스에 두는 게 의도다 — 페이지를 벗어나면 초기화된다.
+  final Set<String> _askedPeriods = {};
+
+  /// 지금 진행 중인(또는 방금 끝난) 백필의 기간. null 이면 정기 동기화다.
+  /// 진행 다이얼로그의 [실패한 채널만 다시 조회] 가 어느 경로로 가야 하는지의 유일한 근거다.
+  String? _backfillPeriod;
 
   Future<void> _onLoad(LoadOrders event, Emitter<OrderListState> emit) async {
     emit(OrderListLoading());
@@ -145,11 +155,25 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
       )),
       // 실패 경로에는 appliedPeriod 를 넣지 않는다 — 목록을 비우므로 배너는
       // 마지막으로 성공 조회된 기간을 계속 따라가는 게 맞다.
-      (orders) => emit(current.copyWith(
+      // (빈 달 감지도 성공 fold 안에서만 한다 — 실패는 목록을 비우므로 묻지 않는다.)
+      (orders) {
+        // 이 emit 에서 appliedPeriod 로 승격되는 값이다.
+        final applied = current.selectedPeriod;
+        final key = '${current.selectedSellerId ?? 'all'}:$applied';
+        final shouldAsk = orders.isEmpty &&
+            isMonthPeriod(applied) &&
+            !_askedPeriods.contains(key);
+        if (shouldAsk) _askedPeriods.add(key); // 묻는 순간 기록
+        emit(current.copyWith(
           isSearching: false,
           orders: orders,
           syncTargets: targets,
-          appliedPeriod: current.selectedPeriod)),
+          appliedPeriod: applied,
+          backfillPrompt: shouldAsk ? _periodLabel(applied) : null,
+          // 🔴 없으면 이전 프롬프트가 남아 다시 뜬다.
+          clearBackfillPrompt: !shouldAsk,
+        ));
+      },
     );
   }
 
@@ -185,6 +209,10 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
         .map((c) => c.target)
         .toList();
     if (failed.isEmpty) return;
+    // 백필 실패분의 재시도는 그 기간으로 다시 백필한다(대상 재조회 없음).
+    // 여기서 _runSync 로 새면 14일 정기 동기화가 돌아 lastSyncedAt·배너가 갱신된다(PLAN D5 위반).
+    final period = _backfillPeriod;
+    if (period != null) return _runPeriodBackfill(period, failed, emit);
     await _runSync(failed, emit);
   }
 
@@ -207,6 +235,8 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
     // (다이얼로그가 떠 있는 동안 상태가 바뀌었을 수 있다).
     if (start.isSearching || start.isSyncing) return;
 
+    // 정기 동기화가 시작되면 백필 문맥은 끝난다(재시도 분기의 근거를 지운다).
+    _backfillPeriod = null;
     _cancelRequested = false;
     var channels = targets
         .map((t) => ChannelProgress(target: t, state: ChannelSyncState.pending))
@@ -293,6 +323,140 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
     ));
   }
 
+  /// 확인 다이얼로그의 [불러오기].
+  Future<void> _onBackfillPeriod(
+    BackfillPeriod event,
+    Emitter<OrderListState> emit,
+  ) async {
+    await _runPeriodBackfill(event.period, null, emit);
+  }
+
+  /// 다이얼로그를 닫았을 때(승낙·거절 무관). 상태의 backfillPrompt 만 비운다.
+  void _onDismissBackfillPrompt(
+    DismissBackfillPrompt event,
+    Emitter<OrderListState> emit,
+  ) {
+    final current = state;
+    if (current is! OrderListLoaded) return;
+    emit(current.copyWith(clearBackfillPrompt: true));
+  }
+
+  /// 기간 백필 — 계정 단위로 [period] 를 순차 호출하고, 끝나면 그 기간으로 목록을 재조회한다.
+  ///
+  /// [_runSync] 와 다른 점 넷:
+  /// ① 호출이 syncPeriod ② 끝나고 **백필한 기간**으로 재조회 ③ 배너(syncTargets)를 다시
+  /// 낙인하지 않는다(서버가 상태를 기록하지 않는다 — PLAN D5) ④ lastSyncedAt·syncResult·
+  /// syncTargets 를 갱신하지 않는다(백필이 "마지막 동기화"를 사칭하면 안 된다).
+  ///
+  /// [retryTargets] 가 있으면 대상을 다시 조회하지 않는다(진행 다이얼로그의 재시도 경로).
+  Future<void> _runPeriodBackfill(
+    String period,
+    List<SyncTarget>? retryTargets,
+    Emitter<OrderListState> emit,
+  ) async {
+    final start = state;
+    if (start is! OrderListLoaded) return;
+    if (start.isSearching || start.isSyncing) return; // _runSync 와 같은 가드
+    final range = toPeriodRange(period);
+    if (range == null) return; // kRecentPeriod 방어
+
+    List<SyncTarget> targets;
+    if (retryTargets != null) {
+      targets = retryTargets;
+    } else {
+      // 조회 스코프와 동일한 판매자 스코프로 대상을 잡는다(PLAN D12).
+      final targetsResult =
+          await orderUseCase.getSyncTargets(sellerId: start.selectedSellerId);
+      if (emit.isDone) return;
+      final fetched = targetsResult.fold((f) => null, (t) => t);
+      if (fetched == null) {
+        emit(start.copyWith(actionError: '동기화할 채널을 불러오지 못했습니다.'));
+        return;
+      }
+      if (fetched.isEmpty) {
+        emit(start.copyWith(actionError: '동기화할 채널이 없습니다.'));
+        return;
+      }
+      targets = fetched;
+    }
+
+    _backfillPeriod = period; // 재시도 분기의 근거
+    _cancelRequested = false;
+    var channels = targets
+        .map((t) => ChannelProgress(target: t, state: ChannelSyncState.pending))
+        .toList();
+    // isSyncing: true 로 시작하므로 페이지의 기존 리스너가 진행 다이얼로그를 띄운다(D13).
+    var loaded = start.copyWith(
+      isSyncing: true,
+      clearActionError: true,
+      clearSyncResult: true,
+      clearBackfillPrompt: true,
+      syncChannels: channels,
+      syncDoneCount: 0,
+      syncCanceled: false,
+    );
+    emit(loaded);
+
+    var newCount = 0;
+
+    for (var i = 0; i < targets.length; i++) {
+      if (_cancelRequested || emit.isDone) break;
+      channels = _mark(channels, i, ChannelSyncState.running);
+      emit(loaded = loaded.copyWith(syncChannels: channels));
+
+      final result = await orderUseCase.syncPeriod(
+        accountId: targets[i].accountId,
+        from: range.from,
+        to: range.to,
+      );
+      // 페이지 이탈로 bloc 이 닫힘 — 더 emit 하면 StateError.
+      if (emit.isDone) return;
+      result.fold(
+        (failure) => channels = _mark(
+            channels, i, ChannelSyncState.failed, _syncErrorMessage(failure)),
+        (sync) {
+          newCount += sync.newOrders;
+          channels = _mark(channels, i, ChannelSyncState.success);
+        },
+      );
+      emit(loaded = loaded.copyWith(
+          syncChannels: channels, syncDoneCount: i + 1));
+    }
+
+    // 끝나고 목록 1회 재조회 — 기준은 백필한 기간이다.
+    final orders = await orderUseCase.getOrders(
+      sellerId: loaded.selectedSellerId,
+      from: range.from,
+      to: range.to,
+    );
+    if (emit.isDone) return;
+
+    // 한 건이라도 담겼으면 드롭다운의 '(데이터 없음)' 을 걷어낸다(PLAN D15). emit 전에 await 한다.
+    Set<String>? refreshedMonths;
+    if (newCount > 0) {
+      final months = await orderUseCase.getOrderMonths();
+      if (emit.isDone) return;
+      refreshedMonths =
+          months.fold((_) => null, (m) => m.map((e) => e.ym).toSet());
+    }
+
+    final list = orders.fold((_) => loaded.orders, (o) => o);
+    final notifyEmpty = list.isEmpty && newCount == 0;
+    emit(loaded.copyWith(
+      isSyncing: false,
+      syncCanceled: _cancelRequested,
+      syncChannels: channels,
+      orders: list,
+      appliedPeriod: period,
+      // PLAN D11 — 가져왔는데도 비면 그 사실을 말해준다. 재질문은 없다(_askedPeriods 에 이미 있다).
+      // 🔴 copyWith 는 actionError ?? this.actionError 다 —
+      // null 을 넣어도 이전 문구가 살아남는다.
+      clearActionError: !notifyEmpty,
+      actionError: notifyEmpty ? '쿠팡에도 해당 기간 주문이 없습니다.' : null,
+      monthsWithData: refreshedMonths ?? loaded.monthsWithData,
+    ));
+  }
+
   /// 인덱스 [index] 행만 갱신한 새 리스트를 돌려준다.
   List<ChannelProgress> _mark(
     List<ChannelProgress> channels,
@@ -310,6 +474,16 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
   Future<List<SyncTarget>> _fetchTargets(int? sellerId) async {
     final result = await orderUseCase.getSyncTargets(sellerId: sellerId);
     return result.fold((_) => <SyncTarget>[], (targets) => targets);
+  }
+
+  /// 'YYYY-MM' → '2026년 8월'. 드롭다운 라벨을 재사용하되 '(데이터 없음)' 접미사는 뺀다.
+  String _periodLabel(String period) {
+    final parts = period.split('-');
+    if (parts.length != 2) return period;
+    final year = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    if (year == null || month == null) return period;
+    return '$year년 $month월';
   }
 
   // 데이터소스가 Exception 을 던지고 repository 가 e.toString() 으로 감싸므로

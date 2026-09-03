@@ -97,6 +97,10 @@ class OrderListLoaded extends OrderListState {
   /// 주문이 있는 달('YYYY-MM') — 기간 라벨의 '(데이터 없음)' 판정용.
   final Set<String> monthsWithData;
 
+  /// 백필을 물어볼 대상 라벨('2026년 8월'). null 이면 다이얼로그를 띄우지 않는다.
+  /// 월 조회 결과가 0건일 때만 1회 채워진다(PLAN D1·D10).
+  final String? backfillPrompt;
+
   OrderListLoaded({
     required this.sellers,
     this.selectedSellerId,
@@ -116,6 +120,7 @@ class OrderListLoaded extends OrderListState {
     this.searchField = OrderSearchField.customer,
     this.searchTerm = '',
     this.monthsWithData = const {},
+    this.backfillPrompt,
   });
 
   /// 검색어·칩으로 거른 목록. [statusCounts]·[filteredOrders] 의 **공통 소스**다.
@@ -166,6 +171,8 @@ class OrderListLoaded extends OrderListState {
     OrderSearchField? searchField,
     String? searchTerm,
     Set<String>? monthsWithData,
+    String? backfillPrompt,
+    bool clearBackfillPrompt = false,
   }) {
     return OrderListLoaded(
       sellers: sellers ?? this.sellers,
@@ -192,6 +199,10 @@ class OrderListLoaded extends OrderListState {
       // '' 가 곧 "검색 없음" 이라 clear 플래그가 필요 없다.
       searchTerm: searchTerm ?? this.searchTerm,
       monthsWithData: monthsWithData ?? this.monthsWithData,
+      // ⚠️ clear 플래그가 없으면 한 번 뜬 프롬프트가 영원히 사라지지 않는다(actionError 와 같은 함정).
+      backfillPrompt: clearBackfillPrompt
+          ? null
+          : (backfillPrompt ?? this.backfillPrompt),
     );
   }
 }

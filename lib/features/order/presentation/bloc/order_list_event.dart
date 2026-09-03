@@ -33,6 +33,16 @@ class SyncSelectedChannels extends OrderListEvent {
   SyncSelectedChannels({required this.targets});
 }
 
+/// 확인 다이얼로그에서 [불러오기] 를 눌렀을 때. 해당 기간을 계정 단위로 순차 백필한다.
+class BackfillPeriod extends OrderListEvent {
+  final String period; // 'YYYY-MM'
+
+  BackfillPeriod({required this.period});
+}
+
+/// 백필 확인 다이얼로그를 닫았을 때(승낙·거절 무관). 상태의 backfillPrompt 만 비운다.
+class DismissBackfillPrompt extends OrderListEvent {}
+
 /// 상태 필터 버튼 선택 (null = 전체). 같은 상태를 다시 누르면 해제(전체)된다.
 class SelectStatus extends OrderListEvent {
   final String? status;
