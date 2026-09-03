@@ -23,6 +23,15 @@ abstract class OrderRepository {
     int? accountId,
   });
 
+  /// 기간 백필 (빈 달을 쿠팡에서 불러오기)
+  /// POST /api/orders/sync/period?accountId={accountId}&from={from}&to={to}
+  /// 계정 1건 단위. 응답은 건수 요약만이고 목록은 포함되지 않는다.
+  Future<Either<Failure, OrderSyncResult>> syncPeriod({
+    required int accountId,
+    required String from,
+    required String to,
+  });
+
   /// 동기화 대상 채널 목록 (진행 표시·재시도·상태 배너용)
   /// GET /api/orders/sync/targets?sellerId={sellerId}
   Future<Either<Failure, List<SyncTarget>>> getSyncTargets({int? sellerId});

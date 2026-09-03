@@ -17,6 +17,14 @@ abstract class OrderRemoteDataSource {
   /// 스코프가 헷갈리므로 **하나만** 보낸다(accountId 가 있으면 그것만).
   Future<OrderSyncResultModel> syncOrders({int? sellerId, int? accountId});
 
+  /// POST /api/orders/sync/period?accountId={accountId}&from={from}&to={to}
+  /// 계정 1건의 지정 기간을 불러온다. 응답에 목록은 없다(건수 요약만).
+  Future<OrderSyncResultModel> syncPeriod({
+    required int accountId,
+    required String from,
+    required String to,
+  });
+
   /// GET /api/orders/sync/targets?sellerId={sellerId}
   /// 동기화 대상 채널(활성 + COUPANG) 목록. 자격증명은 응답에 포함되지 않는다.
   Future<List<SyncTargetModel>> getSyncTargets({int? sellerId});
@@ -90,6 +98,43 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
         throw Exception(body['message'].toString());
       }
       throw Exception(e.message ?? 'Failed to sync orders');
+    }
+  }
+
+  @override
+  Future<OrderSyncResultModel> syncPeriod({
+    required int accountId,
+    required String from,
+    required String to,
+  }) async {
+    try {
+      // 셋 다 필수라 조건부 조립이 필요 없다.
+      // syncOrders 와 동일하게 쿠팡 실시간 조회라 receiveTimeout 을 연장한다.
+      final response = await dio.post(
+        '/api/orders/sync/period',
+        queryParameters: {
+          'accountId': accountId,
+          'from': from,
+          'to': to,
+        },
+        options: Options(
+          receiveTimeout:
+              const Duration(seconds: AppConstants.coupangReceiveTimeout),
+        ),
+      );
+      final data = response.data['data'];
+      if (data is! Map<String, dynamic>) {
+        final message = response.data is Map ? response.data['message'] : null;
+        throw Exception(message?.toString() ?? 'Failed to sync period');
+      }
+      // 응답에 orders 가 없어도 fromJson 이 빈 리스트로 견딘다.
+      return OrderSyncResultModel.fromJson(data);
+    } on DioException catch (e) {
+      final body = e.response?.data;
+      if (body is Map && body['message'] != null) {
+        throw Exception(body['message'].toString());
+      }
+      throw Exception(e.message ?? 'Failed to sync period');
     }
   }
 

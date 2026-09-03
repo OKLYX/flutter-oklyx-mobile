@@ -29,6 +29,15 @@ class OrderUseCase {
     return repository.syncOrders(sellerId: sellerId, accountId: accountId);
   }
 
+  /// 계정 1건의 지정 기간을 쿠팡에서 백필한다(빈 달 불러오기).
+  Future<Either<Failure, OrderSyncResult>> syncPeriod({
+    required int accountId,
+    required String from,
+    required String to,
+  }) {
+    return repository.syncPeriod(accountId: accountId, from: from, to: to);
+  }
+
   Future<Either<Failure, List<SyncTarget>>> getSyncTargets({int? sellerId}) {
     return repository.getSyncTargets(sellerId: sellerId);
   }
