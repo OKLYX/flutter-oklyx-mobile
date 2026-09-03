@@ -18,14 +18,14 @@ class LoadCarrierOptions extends ManualShipmentEvent {
   List<Object?> get props => [platform];
 }
 
-/// 드롭다운 선택.
+/// 드롭다운 선택. 값은 마켓 코드 자체다(PLAN 2609_11 D2 개정).
 class CarrierSelected extends ManualShipmentEvent {
-  final int carrierId;
+  final String carrierCode;
 
-  const CarrierSelected(this.carrierId);
+  const CarrierSelected(this.carrierCode);
 
   @override
-  List<Object?> get props => [carrierId];
+  List<Object?> get props => [carrierCode];
 }
 
 /// 단건 발송처리(또는 송장수정) 전송 — 모드 판정은 서버가 한다(PLAN 2609_11 D3).

@@ -253,6 +253,10 @@ class _ManualShipmentSection extends StatefulWidget {
 class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
   final TextEditingController _invoiceController = TextEditingController();
 
+  /// 이미 발송처리된 주문은 입력칸을 감춰 둔다 — [송장 수정하기] 를 눌러야 열린다.
+  /// 실수로 정상 송장을 덮어쓰는 경로를 한 번 막는 것이라 미발송 주문에는 영향이 없다.
+  bool _editing = false;
+
   @override
   void dispose() {
     _invoiceController.dispose(); // 누락 시 leak — 상세는 주문마다 새로 만들어진다.
@@ -277,9 +281,11 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
 
         final locked = state.submitting || state.result != null;
         final canSubmit = !locked &&
-            state.carrierId != null &&
+            state.carrierCode != null &&
             _invoiceController.text.trim().isNotEmpty &&
             state.options.isNotEmpty;
+        // 미발송이면 늘 열려 있고, 발송된 건은 [송장 수정하기] 를 누른 뒤에만 열린다.
+        final formOpen = !shipped || _editing;
 
         return Card(
           margin: EdgeInsets.zero,
@@ -300,10 +306,20 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
                 if (shipped) ...[
                   const SizedBox(height: 8),
                   Text(
-                    '이미 발송처리된 주문입니다. 입력한 운송장으로 송장번호를 수정합니다.',
+                    formOpen
+                        ? '이미 발송처리된 주문입니다. 입력한 운송장으로 송장 수정을 요청합니다.'
+                        : '이미 발송처리된 주문입니다. 운송장을 고치려면 [송장 수정하기] 를 누르세요.',
                     style: TextStyle(fontSize: 12, color: Colors.amber[800]),
                   ),
                 ],
+                if (!formOpen) ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: locked ? null : () => setState(() => _editing = true),
+                    child: const Text('송장 수정하기'),
+                  ),
+                ],
+                if (formOpen) ...[
                 const SizedBox(height: 12),
                 if (state.loadingOptions)
                   const Padding(
@@ -317,21 +333,28 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
                     ),
                   )
                 else
-                  DropdownButtonFormField<int>(
+                  // 값은 마켓 코드 자체다(D2 개정) — 쿠팡은 택배사 목록 API 가 없어 코드표 전량이 온다.
+                  // 서버가 등록 택배사를 맨 위로 정렬해 주므로 여기서 다시 정렬하지 않는다.
+                  DropdownButtonFormField<String>(
                     // 목록에 없는 값을 넘기면 Dropdown 이 assert 로 죽는다 — 조회 실패로
                     // options 가 비었는데 직전 선택이 남아 있는 경우를 막는다.
-                    value: state.options.any((o) => o.carrierId == state.carrierId)
-                        ? state.carrierId
+                    value: state.options
+                            .any((o) => o.deliveryCompanyCode == state.carrierCode)
+                        ? state.carrierCode
                         : null,
+                    isExpanded: true, // 코드표가 길다 — 긴 이름이 overflow 하지 않게
                     decoration: const InputDecoration(
                       labelText: '택배사',
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
                     items: state.options
-                        .map((o) => DropdownMenuItem<int>(
-                              value: o.carrierId,
-                              child: Text(o.carrierName),
+                        .map((o) => DropdownMenuItem<String>(
+                              value: o.deliveryCompanyCode,
+                              child: Text(
+                                o.registered ? '${o.carrierName} (등록)' : o.carrierName,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ))
                         .toList(),
                     onChanged: locked || state.options.isEmpty
@@ -373,8 +396,9 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
                     ],
                   )
                 else if (!state.loadingOptions && state.options.isEmpty)
+                  // 쿠팡은 코드표 전량을 내려주므로 여기까지 오면 서버 쪽 문제다.
                   Text(
-                    '택배사 관리에서 이 플랫폼의 택배사 코드를 먼저 등록하세요.',
+                    '선택할 수 있는 택배사가 없습니다. 잠시 후 다시 시도해주세요.',
                     style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                   ),
                 const SizedBox(height: 8),
@@ -393,8 +417,9 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
                           width: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Text(shipped ? '송장 수정' : '발송처리'),
+                      : Text(shipped ? '송장 수정 요청' : '발송처리'),
                 ),
+                ],
                 if (state.errorMessage != null) ...[
                   const SizedBox(height: 8),
                   Text(
@@ -419,7 +444,7 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
     final widgets = <Widget>[];
     if (result.succeeded > 0 && result.failed.isEmpty) {
       widgets.add(Text(
-        '${result.isUpdateMode ? '송장 수정 완료' : '발송처리 완료'} — '
+        '${result.isUpdateMode ? '송장 수정 요청 완료' : '발송처리 완료'} — '
         '박스 ${result.shipmentBoxId} · ${result.sentLines}건',
         style: TextStyle(fontSize: 13, color: Colors.green[700]),
       ));

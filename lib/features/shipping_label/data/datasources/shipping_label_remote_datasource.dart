@@ -33,11 +33,11 @@ abstract class ShippingLabelRemoteDataSource {
   /// 그 플랫폼에 코드가 등록된 활성 택배사(JSON 봉투) → data 언래핑. DB lookup 이라 타임아웃 연장 없음.
   Future<List<CarrierOption>> getCarrierOptions({required String platform});
 
-  /// POST /api/admin/shipping-labels/confirm/manual (body {orderItemId, carrierId, invoiceNumber})
+  /// POST /api/admin/shipping-labels/confirm/manual (body {orderItemId, deliveryCompanyCode, invoiceNumber})
   /// 한 박스 단건 발송처리(또는 송장수정) 결과(JSON 봉투) → data 언래핑.
   Future<ManualShipmentResult> confirmManualShipment({
     required int orderItemId,
-    required int carrierId,
+    required String deliveryCompanyCode,
     required String invoiceNumber,
   });
 }
@@ -138,14 +138,14 @@ class ShippingLabelRemoteDataSourceImpl implements ShippingLabelRemoteDataSource
   @override
   Future<ManualShipmentResult> confirmManualShipment({
     required int orderItemId,
-    required int carrierId,
+    required String deliveryCompanyCode,
     required String invoiceNumber,
   }) async {
     final response = await dio.post(
       '/api/admin/shipping-labels/confirm/manual',
       data: {
         'orderItemId': orderItemId,
-        'carrierId': carrierId,
+        'deliveryCompanyCode': deliveryCompanyCode,
         'invoiceNumber': invoiceNumber,
       },
       options: Options(

@@ -16,7 +16,7 @@ import '../../data/models/manual_shipment_result.dart';
 class ManualShipmentState extends Equatable {
   final bool loadingOptions;
   final List<CarrierOption> options;
-  final int? carrierId;
+  final String? carrierCode;
   final bool submitting;
   final ManualShipmentResult? result;
 
@@ -30,7 +30,7 @@ class ManualShipmentState extends Equatable {
   const ManualShipmentState.initial()
       : loadingOptions = true,
         options = const [],
-        carrierId = null,
+        carrierCode = null,
         submitting = false,
         result = null,
         errorMessage = null,
@@ -40,7 +40,7 @@ class ManualShipmentState extends Equatable {
   const ManualShipmentState({
     required this.loadingOptions,
     required this.options,
-    required this.carrierId,
+    required this.carrierCode,
     required this.submitting,
     required this.result,
     required this.errorMessage,
@@ -52,7 +52,7 @@ class ManualShipmentState extends Equatable {
   ManualShipmentState copyWith({
     bool? loadingOptions,
     List<CarrierOption>? options,
-    int? carrierId,
+    String? carrierCode,
     bool? submitting,
     ManualShipmentResult? result,
     String? errorMessage,
@@ -63,7 +63,7 @@ class ManualShipmentState extends Equatable {
       ManualShipmentState(
         loadingOptions: loadingOptions ?? this.loadingOptions,
         options: options ?? this.options,
-        carrierId: carrierId ?? this.carrierId,
+        carrierCode: carrierCode ?? this.carrierCode,
         submitting: submitting ?? this.submitting,
         result: result ?? this.result,
         errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
@@ -75,7 +75,7 @@ class ManualShipmentState extends Equatable {
   List<Object?> get props => [
         loadingOptions,
         options,
-        carrierId,
+        carrierCode,
         submitting,
         result,
         errorMessage,
