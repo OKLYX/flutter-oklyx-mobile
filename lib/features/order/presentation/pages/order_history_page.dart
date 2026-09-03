@@ -51,6 +51,9 @@ class _OrderHistoryViewState extends State<_OrderHistoryView> {
   /// 리스너가 여러 번 불리는데, 다이얼로그는 실행당 1번만 띄운다.
   bool _syncDialogOpen = false;
 
+  /// 백필 확인 다이얼로그 중복 표시 방지 (_syncDialogOpen 과 같은 패턴).
+  bool _backfillDialogOpen = false;
+
   /// 검색어 입력 컨트롤러. ⚠️ [_LoadedBody] 안에서 만들면 rebuild 마다 커서가 튄다 —
   /// 여기(State)에서 만들어 주입한다.
   final TextEditingController _searchController = TextEditingController();
@@ -72,9 +75,16 @@ class _OrderHistoryViewState extends State<_OrderHistoryView> {
         // 동기화 시작(다이얼로그) + 일시적 오류/다운로드 완료(SnackBar) 알림.
         listenWhen: (prev, curr) =>
             curr is OrderListLoaded &&
-            (curr.isSyncing || curr.actionError != null),
+            (curr.isSyncing ||
+                curr.actionError != null ||
+                curr.backfillPrompt != null),
         listener: (context, state) {
           final s = state as OrderListLoaded;
+          // 진행 다이얼로그 검사보다 먼저 — 백필은 여기서 시작된다.
+          if (s.backfillPrompt != null && !_backfillDialogOpen) {
+            _showBackfillDialog(context, s);
+            return;
+          }
           if (s.isSyncing) {
             _showSyncDialog(context);
             return;
@@ -111,6 +121,41 @@ class _OrderHistoryViewState extends State<_OrderHistoryView> {
         },
       ),
     );
+  }
+
+  /// 빈 달 백필 확인 다이얼로그. 승낙하면 [BackfillPeriod] 로 그 기간을 불러온다(PLAN D2).
+  void _showBackfillDialog(BuildContext context, OrderListLoaded s) {
+    _backfillDialogOpen = true;
+    // await 뒤 context 사용 금지 → BLoC 을 미리 캡처한다.
+    final bloc = context.read<OrderListBloc>();
+    // 🔴 목록이 담고 있는 기간이다(selectedPeriod 아님).
+    final period = s.appliedPeriod;
+    showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('${s.backfillPrompt} 주문 데이터가 없습니다'),
+        content: const Text(
+          '쿠팡에서 이 기간의 주문을 불러올까요?\n계정 수에 따라 수십 초가 걸릴 수 있습니다.\n\n'
+          '· 이미 불러온 주문은 중복되지 않습니다.\n'
+          '· 이 기간의 취소 내역은 일부 반영되지 않을 수 있습니다.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('닫기'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('불러오기'),
+          ),
+        ],
+      ),
+    ).then((confirmed) {
+      _backfillDialogOpen = false;
+      if (bloc.isClosed) return;
+      bloc.add(DismissBackfillPrompt()); // 어느 쪽이든 상태를 비운다
+      if (confirmed == true) bloc.add(BackfillPeriod(period: period));
+    });
   }
 
   /// 동기화 진행 다이얼로그. 끝나도 자동으로 닫지 않는다 — 리포트를 보고 사용자가 닫는다.
