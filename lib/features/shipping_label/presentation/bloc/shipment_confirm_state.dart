@@ -12,12 +12,17 @@ class ShipmentConfirmState extends Equatable {
   final ShipmentConfirmResult? result;
   final String? error;
 
+  /// Sticky across a reset: true once any upload succeeded, so
+  /// the caller refetches the order list even if a later upload is all-skipped.
+  final bool hasSucceeded;
+
   const ShipmentConfirmState({
     this.fileName,
     this.fileBytes,
     this.isUploading = false,
     this.result,
     this.error,
+    this.hasSucceeded = false,
   });
 
   ShipmentConfirmState copyWith({
@@ -26,6 +31,7 @@ class ShipmentConfirmState extends Equatable {
     bool? isUploading,
     ShipmentConfirmResult? result,
     String? error,
+    bool? hasSucceeded,
     bool clearFile = false,
     bool clearResult = false,
     bool clearError = false,
@@ -36,9 +42,11 @@ class ShipmentConfirmState extends Equatable {
       isUploading: isUploading ?? this.isUploading,
       result: clearResult ? null : (result ?? this.result),
       error: clearError ? null : (error ?? this.error),
+      hasSucceeded: hasSucceeded ?? this.hasSucceeded,
     );
   }
 
   @override
-  List<Object?> get props => [fileName, fileBytes, isUploading, result, error];
+  List<Object?> get props =>
+      [fileName, fileBytes, isUploading, result, error, hasSucceeded];
 }

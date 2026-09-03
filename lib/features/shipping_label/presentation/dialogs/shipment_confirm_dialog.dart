@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
+// Status label SSOT — the order history filter chips use the same helper.
+import 'package:flutter_oklyn_mobile/features/order/domain/entities/order_item.dart';
 import '../../data/models/shipment_confirm_result.dart';
 import '../../domain/usecases/shipping_label_usecase.dart';
 import '../bloc/shipment_confirm_bloc.dart';
@@ -13,11 +15,14 @@ import '../bloc/shipment_confirm_state.dart';
 /// **용도**: 택배사가 운송장번호를 채운 결과 xlsx 를 업로드 → 서버가 주문번호로
 ///   매칭해 쿠팡 송장업로드(INSTRUCT→배송지시)를 배치 전송. 결과(성공/미매칭/실패)를 표시.
 /// **사용법**: `showShipmentConfirmDialog(context)` 헬퍼로 연다(BlocProvider 스코프 자동 제공).
+/// **반환값**: 업로드가 한 번이라도 성공하면 `true`, 아니면 `false`.
+///   바깥 탭·안드로이드 뒤로가기로 닫으면 `null` — 호출부는 목록을 재조회하지 않는다.
 /// **파일**: lib/features/shipping_label/presentation/dialogs/shipment_confirm_dialog.dart
 ///
 /// ⚠️ 주문내역 페이지에서만 사용. role 클라이언트 게이트 없음(백엔드 403 의존).
 /// ⚠️ 다이얼로그를 닫으면 BLoC 폐기 → 다음에 열면 초기 상태.
-Future<void> showShipmentConfirmDialog(BuildContext context) => showDialog(
+Future<bool?> showShipmentConfirmDialog(BuildContext context) =>
+    showDialog<bool>(
       context: context,
       builder: (_) => BlocProvider(
         create: (_) =>
@@ -55,7 +60,8 @@ class ShipmentConfirmDialog extends StatelessWidget {
                       ),
                       IconButton(
                         icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () =>
+                            Navigator.pop(context, state.hasSucceeded),
                       ),
                     ],
                   ),
@@ -96,6 +102,11 @@ class _UploadPanel extends StatelessWidget {
           '서버가 주문번호로 매칭해 쿠팡에 송장을 등록합니다.',
           style: TextStyle(fontSize: 13),
         ),
+        const SizedBox(height: 8),
+        const Text(
+          '이미 발송처리된 주문은 자동으로 제외됩니다.',
+          style: TextStyle(fontSize: 12, color: Colors.grey),
+        ),
         const SizedBox(height: 16),
         OutlinedButton.icon(
           onPressed: state.isUploading ? null : () => bloc.add(const PickFile()),
@@ -129,7 +140,7 @@ class _UploadPanel extends StatelessWidget {
   }
 }
 
-/// 결과 있음: 요약 + 미매칭 + 실패 상세.
+/// 결과 있음: 요약 + 미매칭 + 전송 제외 + 실패 상세.
 class _ResultPanel extends StatelessWidget {
   final ShipmentConfirmResult result;
 
@@ -137,6 +148,11 @@ class _ResultPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Group skipped orders by status so a 60-row file folds into 1~2 lines.
+    final skippedGroups = <String, List<String>>{};
+    for (final s in result.skipped) {
+      skippedGroups.putIfAbsent(s.status, () => []).add(s.orderId);
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -162,10 +178,12 @@ class _ResultPanel extends StatelessWidget {
               ),
             ),
             Text('미매칭 ${result.unmatched.length}건'),
+            Text('제외 ${result.skipped.length}건'),
           ],
         ),
         if (result.failed.isEmpty &&
             result.unmatched.isEmpty &&
+            result.skipped.isEmpty &&
             result.succeeded > 0) ...[
           const SizedBox(height: 12),
           Text(
@@ -192,6 +210,43 @@ class _ResultPanel extends StatelessWidget {
                           MaterialTapTargetSize.shrinkWrap,
                     ))
                 .toList(),
+          ),
+        ],
+        if (skippedGroups.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          const Text('전송 제외 (이미 발송처리됨)',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text(
+            '배송지시 이상으로 넘어간 주문 — 실패가 아닙니다.',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          ...skippedGroups.entries.map(
+            (e) => Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                      '${e.key.isEmpty ? '알 수 없음' : getOrderStatusLabel(e.key)}'
+                      ' · ${e.value.length}건',
+                      style:
+                          const TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: e.value
+                        .map((o) => Chip(
+                              label:
+                                  Text(o, style: const TextStyle(fontSize: 12)),
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ))
+                        .toList(),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
         if (result.failed.isNotEmpty) ...[
@@ -235,7 +290,7 @@ class _Actions extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, state.hasSucceeded),
             child: const Text('닫기'),
           ),
         ],

@@ -56,7 +56,9 @@ const Map<String, String> _orderStatusLabels = {
   'DEPARTURE': '배송지시',
   'DELIVERING': '배송중',
   'FINAL_DELIVERY': '배송완료',
-  'NONE_TRACKING': '업체 직접 배송(배송 연동 미적용), 추적불가',
+  // Short label so the status filter chip fits one line; the full explanation
+  // is shown under the filter bar when this status is selected.
+  'NONE_TRACKING': '추적불가',
 };
 
 /// Returns the Korean label for an order status code; falls back to the raw value.

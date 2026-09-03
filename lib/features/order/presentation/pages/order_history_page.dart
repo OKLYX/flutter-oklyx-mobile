@@ -217,7 +217,17 @@ class _LoadedBody extends StatelessWidget {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () => showShipmentConfirmDialog(context),
+                          onPressed: () async {
+                            final uploaded =
+                                await showShipmentConfirmDialog(context);
+                            // Guard isClosed: the page can be popped while the
+                            // dialog is open.
+                            if (uploaded == true && !bloc.isClosed) {
+                              // 백엔드가 배송지시로 바꾼 상태를 즉시 반영 —
+                              // 판매자 필터를 유지하는 SearchOrders 를 쓴다.
+                              bloc.add(SearchOrders());
+                            }
+                          },
                           icon: const Icon(Icons.upload_file, size: 18),
                           label: const Text('발송처리'),
                         ),
@@ -269,6 +279,14 @@ class _LoadedBody extends StatelessWidget {
             counts: s.statusCounts,
             onSelect: (status) => bloc.add(SelectStatus(status: status)),
           ),
+          // 칩 라벨을 '추적불가' 로 줄인 대신, 그 상태를 고른 동안만 설명을 편다.
+          if (s.selectedStatus == 'NONE_TRACKING') ...[
+            const SizedBox(height: 8),
+            const Text(
+              '업체가 직접 배송해 배송 연동이 적용되지 않는 주문입니다 — 송장 추적이 불가합니다.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
           const SizedBox(height: 8),
 
           Row(
