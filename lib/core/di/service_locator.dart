@@ -132,6 +132,7 @@ import 'package:flutter_oklyn_mobile/features/order/data/datasources/order_remot
 import 'package:flutter_oklyn_mobile/features/order/data/repositories/order_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/order/domain/repositories/order_repository.dart';
 import 'package:flutter_oklyn_mobile/features/order/domain/usecases/order_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_acknowledge_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/data/datasources/shipping_label_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/data/repositories/shipping_label_repository_impl.dart';
@@ -873,6 +874,12 @@ void _registerOrderServices() {
       orderUseCase: getIt<OrderUseCase>(),
       getSellersUseCase: getIt<GetSellersUseCase>(),
     ),
+  );
+
+  // BLoC (발주처리 전송) as factory — 화면·주문마다 새 인스턴스.
+  // ⚠️ 싱글턴이면 이전 화면의 result 가 남아 결과 SnackBar 가 다시 뜬다.
+  getIt.registerFactory<OrderAcknowledgeBloc>(
+    () => OrderAcknowledgeBloc(useCase: getIt<OrderUseCase>()),
   );
 }
 

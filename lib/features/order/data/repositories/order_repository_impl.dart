@@ -8,6 +8,7 @@ import '../../domain/entities/order_sync_scope.dart';
 import '../../domain/entities/sync_target.dart';
 import '../../domain/repositories/order_repository.dart';
 import '../datasources/order_remote_datasource.dart';
+import '../models/order_acknowledge_result.dart';
 
 class OrderRepositoryImpl implements OrderRepository {
   final OrderRemoteDataSource remoteDataSource;
@@ -115,6 +116,26 @@ class OrderRepositoryImpl implements OrderRepository {
       return Left(
         ServerFailure(
           e.message ?? 'Failed to fetch order months',
+          statusCode: e.response?.statusCode,
+        ),
+      );
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, OrderAcknowledgeResult>> acknowledgeOrders(
+    List<int> orderItemIds,
+  ) async {
+    try {
+      final result = await remoteDataSource.acknowledgeOrders(orderItemIds);
+      return Right(result);
+    } on DioException catch (e) {
+      // statusCode 를 살려 보낸다 — BLoC 이 403(ADMIN 아님)을 여기서만 알 수 있다.
+      return Left(
+        ServerFailure(
+          e.message ?? 'Failed to acknowledge orders',
           statusCode: e.response?.statusCode,
         ),
       );
