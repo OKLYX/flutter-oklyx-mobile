@@ -4,6 +4,7 @@ import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart
 import 'package:flutter_oklyn_mobile/features/seller/domain/usecases/get_sellers_usecase.dart';
 import '../../domain/entities/order_period.dart';
 import '../../domain/entities/order_sync_result.dart';
+import '../../domain/entities/order_sync_scope.dart';
 import '../../domain/entities/sync_target.dart';
 import '../../domain/usecases/order_usecase.dart';
 import 'order_list_event.dart';
@@ -53,6 +54,11 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
   /// 지금 진행 중인(또는 방금 끝난) 백필의 기간. null 이면 정기 동기화다.
   /// 진행 다이얼로그의 [실패한 채널만 다시 조회] 가 어느 경로로 가야 하는지의 유일한 근거다.
   String? _backfillPeriod;
+
+  /// 이번 실행의 조회 범위. [RetryFailedChannels] 가 같은 범위로 이어가기 위한 근거다
+  /// (공유 다이얼로그는 화면을 몰라 이벤트로 실을 수 없다 — _backfillPeriod 와 같은 성격).
+  /// ⚠️ "어느 화면인가"를 여기 심지 말 것 — registerFactory 를 싱글턴으로 바꾸는 순간 조용히 틀린다.
+  OrderSyncScope _lastSyncScope = OrderSyncScope.full;
 
   Future<void> _onLoad(LoadOrders event, Emitter<OrderListState> emit) async {
     emit(OrderListLoading());
@@ -195,7 +201,7 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
       emit(current.copyWith(actionError: '동기화할 채널이 없습니다.'));
       return;
     }
-    await _runSync(targets, emit);
+    await _runSync(targets, emit, scope: event.scope);
   }
 
   Future<void> _onRetryFailed(
@@ -213,7 +219,8 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
     // 여기서 _runSync 로 새면 14일 정기 동기화가 돌아 lastSyncedAt·배너가 갱신된다(PLAN D5 위반).
     final period = _backfillPeriod;
     if (period != null) return _runPeriodBackfill(period, failed, emit);
-    await _runSync(failed, emit);
+    // 재시도도 이번 실행과 같은 범위로 — 안 그러면 출고관리 재시도만 조용히 전 상태로 돌아간다.
+    await _runSync(failed, emit, scope: _lastSyncScope);
   }
 
   Future<void> _onSyncSelected(
@@ -221,14 +228,15 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
     Emitter<OrderListState> emit,
   ) async {
     if (event.targets.isEmpty) return;
-    await _runSync(event.targets, emit);
+    await _runSync(event.targets, emit, scope: event.scope);
   }
 
   /// 계정 단위 순차 동기화. 진행 상태를 emit 하며 돌고, 끝나면 목록과 배너를 갱신한다.
   Future<void> _runSync(
     List<SyncTarget> targets,
-    Emitter<OrderListState> emit,
-  ) async {
+    Emitter<OrderListState> emit, {
+    OrderSyncScope scope = OrderSyncScope.full,
+  }) async {
     final start = state;
     if (start is! OrderListLoaded) return;
     // 재시도 경로에는 _onSync 의 가드가 없으므로 여기서 같은 가드를 다시 건다
@@ -237,6 +245,8 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
 
     // 정기 동기화가 시작되면 백필 문맥은 끝난다(재시도 분기의 근거를 지운다).
     _backfillPeriod = null;
+    // 🔴 가드 뒤에서 대입한다 — 앞에 두면 돌지도 않은 동기화의 범위가 기억된다.
+    _lastSyncScope = scope;
     _cancelRequested = false;
     var channels = targets
         .map((t) => ChannelProgress(target: t, state: ChannelSyncState.pending))
@@ -260,8 +270,10 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
       channels = _mark(channels, i, ChannelSyncState.running);
       emit(loaded = loaded.copyWith(syncChannels: channels));
 
-      final result =
-          await orderUseCase.syncOrders(accountId: targets[i].accountId);
+      final result = await orderUseCase.syncOrders(
+        accountId: targets[i].accountId,
+        scope: scope,
+      );
       // 페이지 이탈로 bloc 이 닫힘 — 더 emit 하면 StateError.
       if (emit.isDone) return;
       result.fold(
