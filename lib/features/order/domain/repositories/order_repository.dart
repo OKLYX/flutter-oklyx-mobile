@@ -3,6 +3,7 @@ import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import '../entities/order_item.dart';
 import '../entities/order_period.dart';
 import '../entities/order_sync_result.dart';
+import '../entities/order_sync_scope.dart';
 import '../entities/sync_target.dart';
 
 abstract class OrderRepository {
@@ -18,9 +19,11 @@ abstract class OrderRepository {
   /// 주문 동기화 (외부 마켓플레이스 → 내부 DB)
   /// POST /api/orders/sync?accountId={accountId} 또는 ?sellerId={sellerId}
   /// [accountId] 를 주면 그 계정만 동기화한다(둘 중 하나만 전송).
+  /// [scope] 기본값은 전 상태 — 출고관리만 [OrderSyncScope.active].
   Future<Either<Failure, OrderSyncResult>> syncOrders({
     int? sellerId,
     int? accountId,
+    OrderSyncScope scope = OrderSyncScope.full,
   });
 
   /// 기간 백필 (빈 달을 쿠팡에서 불러오기)
