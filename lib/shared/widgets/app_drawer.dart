@@ -210,6 +210,16 @@ class AppDrawer extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(left: 16),
                 child: ListTile(
+                  title: const Text('출고관리'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.shipmentManagementPath);
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
                   title: const Text('주문내역'),
                   onTap: () {
                     Navigator.pop(context);
