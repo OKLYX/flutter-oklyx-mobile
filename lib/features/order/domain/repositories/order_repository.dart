@@ -1,5 +1,6 @@
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
+import '../../data/models/order_acknowledge_result.dart';
 import '../entities/order_item.dart';
 import '../entities/order_period.dart';
 import '../entities/order_sync_result.dart';
@@ -42,4 +43,11 @@ abstract class OrderRepository {
   /// 월별 주문 건수 (기간 드롭다운 라벨의 '(데이터 없음)' 판정용)
   /// GET /api/orders/months
   Future<Either<Failure, List<OrderMonth>>> getOrderMonths();
+
+  /// 발주처리 (결제완료 → 상품준비중)
+  /// POST /api/admin/orders/acknowledge  body: {"orderItemIds":[...]}
+  /// 라인 id 만 보낸다 — 박스 dedupe·상태 필터는 서버가 한다(PLAN 2609_17 D1·D2).
+  Future<Either<Failure, OrderAcknowledgeResult>> acknowledgeOrders(
+    List<int> orderItemIds,
+  );
 }
