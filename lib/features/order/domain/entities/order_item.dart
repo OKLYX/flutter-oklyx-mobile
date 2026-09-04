@@ -76,6 +76,15 @@ const List<String> kShippedStatuses = [
 
 bool isAlreadyShipped(String status) => kShippedStatuses.contains(status);
 
+/// 출고관리 화면 대상 — 아직 발송하지 않은 주문(PLAN 2609_15 D1).
+const List<String> kShipmentStatuses = ['ACCEPT', 'INSTRUCT'];
+
+/// 전량취소 여부 — 쿠팡은 전량취소된 주문도 원래 status(ACCEPT 등)를 그대로 둔다.
+/// 그래서 상태 코드가 아니라 수량으로 판정한다(프론트 OrderEntity.isFullyCanceled 와 동일 규칙).
+/// 부분취소(cancelCount < orderCount)는 원래 상태에 그대로 남는다.
+bool isFullyCanceled(OrderItem order) =>
+    order.cancelCount > 0 && order.cancelCount == order.orderCount;
+
 /// 좁은 목록 카드용 단일 "고객" 표기. 택배가 향하는 쪽이 수취인이라 수취인이
 /// 우선이고, 선물 주문(주문자 != 수취인)은 상세 페이지에서 둘 다 보여준다
 /// (프론트 getCustomerName 과 동일 규칙).
