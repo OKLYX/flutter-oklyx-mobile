@@ -29,6 +29,7 @@ class Routes {
   static const String salesProductsRegister = 'salesProductsRegister';
   static const String salesProductsDetail = 'salesProductsDetail';
   static const String salesProductsEdit = 'salesProductsEdit';
+  static const String shipmentManagement = 'shipmentManagement';
   static const String orderHistory = 'orderHistory';
   static const String orderHistoryDetail = 'orderHistoryDetail';
   static const String shippingLabelPreview = 'shippingLabelPreview';
@@ -66,6 +67,7 @@ class Routes {
   static const String salesProductsRegisterPath = '/sales-products/register';
   static const String salesProductsDetailPath = '/sales-products/detail/:id';
   static const String salesProductsEditPath = '/sales-products/edit/:id';
+  static const String shipmentManagementPath = '/orders/shipment';
   static const String orderHistoryPath = '/orders/history';
   static const String orderHistoryDetailPath = '/orders/history/detail';
   static const String shippingLabelPreviewPath = '/shipping-label/preview';

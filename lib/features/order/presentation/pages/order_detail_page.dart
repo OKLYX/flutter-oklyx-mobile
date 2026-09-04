@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
+import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/data/models/manual_shipment_result.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/data/models/shipping_label_preview_row.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/manual_shipment_bloc.dart';
@@ -110,7 +111,7 @@ class OrderDetailPage extends StatelessWidget {
             _InfoCard(
               title: '기타',
               rows: [
-                _InfoRow('결제일', _formatDate(o.paidAt)),
+                _InfoRow('결제일', formatOrderDateTime(o.paidAt)),
                 _InfoRow('마켓 계정 ID', '${o.marketplaceAccountId}'),
               ],
             ),
@@ -157,16 +158,6 @@ Widget _buildInfoCard(OrderItem o, {required bool isCoupang}) {
       rows: rows(state.result?.resultStatus ?? o.status),
     ),
   );
-}
-
-// ISO LocalDateTime → 'yyyy-MM-dd HH:mm'. null/파싱 실패 시 '-' 또는 원본 반환.
-String _formatDate(String? value) {
-  if (value == null || value.isEmpty) return '-';
-  final date = DateTime.tryParse(value);
-  if (date == null) return value;
-  String two(int n) => n.toString().padLeft(2, '0');
-  return '${date.year}-${two(date.month)}-${two(date.day)} '
-      '${two(date.hour)}:${two(date.minute)}';
 }
 
 /// 정보 카드 (제목 + 라벨/값 행 목록). 다른 상세 페이지와 동일한 스타일.

@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 
-import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
+import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
-import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/dialogs/shipment_confirm_dialog.dart';
 import '../../domain/entities/order_item.dart';
 import '../../domain/entities/order_period.dart';
 import '../../domain/entities/sync_target.dart';
 import '../bloc/order_list_bloc.dart';
 import '../bloc/order_list_event.dart';
 import '../bloc/order_list_state.dart';
+import '../widgets/order_card.dart';
+import '../widgets/order_status_filter_bar.dart';
 import '../widgets/sync_progress_dialog.dart';
 
 /// 주문관리 > 주문내역 페이지 (조회 + 동기화)
@@ -26,7 +26,12 @@ import '../widgets/sync_progress_dialog.dart';
 /// - 동기화: 대상 채널 조회 → 계정 단위 순차 호출. 진행 다이얼로그([SyncProgressDialog])로
 ///   차단 표시하고, 끝나면 신규/수정/취소 건수 배너 + 채널 상태 배너를 표시
 /// - 상태 필터: 6개 상태 버튼(건수 배지) — 선택 상태만 표시, 재선택 시 전체
+/// - 채널(계정) 필터: 목록과 동기화 범위를 함께 좁힌다(PLAN 2609_15 D7)
 /// - 카드 항목(프론트 OrderTable과 동일): 주문번호 / 상품명 / 주문수량 / 취소 / 결제일
+///
+/// ⚠️ 이 화면은 **조회 전용**이다. 주문목록 다운로드·발송처리는 출고관리
+/// ([ShipmentManagementPage])로 옮겼다(PLAN 2609_15 D4) — 여기에 되돌려 놓지 말 것.
+/// 주문 상세의 단건 발송처리 섹션은 조회 맥락의 행동이라 그대로 남는다(D5).
 class OrderHistoryPage extends StatelessWidget {
   const OrderHistoryPage({super.key});
 
@@ -57,6 +62,9 @@ class _OrderHistoryViewState extends State<_OrderHistoryView> {
   /// 검색어 입력 컨트롤러. ⚠️ [_LoadedBody] 안에서 만들면 rebuild 마다 커서가 튄다 —
   /// 여기(State)에서 만들어 주입한다.
   final TextEditingController _searchController = TextEditingController();
+
+  /// 채널(계정) 필터. null = 전체. BLoC 이 아니라 화면 로컬 state 다(PLAN 2609_15 D3·D7).
+  int? _selectedAccountId;
 
   @override
   void dispose() {
@@ -117,6 +125,9 @@ class _OrderHistoryViewState extends State<_OrderHistoryView> {
           return _LoadedBody(
             state: loaded,
             searchController: _searchController,
+            selectedAccountId: _selectedAccountId,
+            onSelectAccount: (accountId) =>
+                setState(() => _selectedAccountId = accountId),
           );
         },
       ),
@@ -177,17 +188,59 @@ class _OrderHistoryViewState extends State<_OrderHistoryView> {
 class _LoadedBody extends StatelessWidget {
   final OrderListState state;
   final TextEditingController searchController;
+  final int? selectedAccountId;
+  final void Function(int? accountId) onSelectAccount;
 
-  const _LoadedBody({required this.state, required this.searchController});
+  const _LoadedBody({
+    required this.state,
+    required this.searchController,
+    required this.selectedAccountId,
+    required this.onSelectAccount,
+  });
 
   @override
   Widget build(BuildContext context) {
     final s = state as OrderListLoaded;
     final bloc = context.read<OrderListBloc>();
     final busy = s.isSearching || s.isSyncing;
-    // getter 는 호출마다 리스트를 새로 만들고 그때마다 searchedOrders 까지 다시 돈다 —
-    // 아래 네 곳(총 N건 · isEmpty · itemCount · itemBuilder)이 쓰도록 한 번만 받는다.
-    final orders = s.filteredOrders;
+
+    // 채널 옵션 = 동기화 대상 ∪ 조회된 목록의 marketplaceAccountId(PLAN 2609_15 D7-a).
+    // 서버의 동기화 대상은 활성 계정만이라, 그것만으로 채우면 **비활성 채널의 과거 주문이
+    // 필터에서 사라진다**. 목록에만 있는 계정은 이름을 모르므로 '채널 #{id}' 로 표시한다.
+    final syncableIds = s.syncTargets.map((t) => t.accountId).toSet();
+    final extraIds = s.orders
+        .map((o) => o.marketplaceAccountId)
+        .where((id) => !syncableIds.contains(id))
+        .toSet()
+        .toList()
+      ..sort();
+    final accountOptions = <int, String>{
+      for (final target in s.syncTargets)
+        target.accountId: target.accountAlias ?? '채널 #${target.accountId}',
+      for (final id in extraIds) id: '채널 #$id',
+    };
+    // 고른 계정이 옵션에서 사라지면 드롭다운이 assert 로 죽는다 — 그때는 전체로 되돌린다.
+    final accountValue =
+        accountOptions.containsKey(selectedAccountId) ? selectedAccountId : null;
+    // 비활성 계정은 조회만 되고 동기화는 불가하다(서버 대상 목록에 없다).
+    final canSyncSelected =
+        accountValue == null || syncableIds.contains(accountValue);
+
+    // searchedOrders(검색까지 반영된 목록) 위에 채널만 얹고, 배지·목록·건수를 전부 여기서
+    // 파생한다. s.filteredOrders·s.statusCounts 를 그대로 쓰면 목록만 줄고 배지·건수는 안 줄어
+    // 화면이 어긋난다.
+    final chScoped = accountValue == null
+        ? s.searchedOrders
+        : s.searchedOrders
+            .where((o) => o.marketplaceAccountId == accountValue)
+            .toList();
+    final counts = <String, int>{};
+    for (final order in chScoped) {
+      counts[order.status] = (counts[order.status] ?? 0) + 1;
+    }
+    final orders = s.selectedStatus == null
+        ? chScoped
+        : chScoped.where((o) => o.status == s.selectedStatus).toList();
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -267,6 +320,53 @@ class _LoadedBody extends StatelessWidget {
                         : (value) => bloc.add(SelectPeriod(period: value!)),
                   ),
                   const SizedBox(height: 8),
+                  // 채널(계정) 필터 — 목록·배지·건수·동기화 범위를 함께 좁힌다
+                  // (PLAN 2609_15 D7). 화면 로컬 state 라 BLoC 이벤트가 없다.
+                  DropdownButtonFormField<int?>(
+                    value: accountValue,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: '채널',
+                      border: OutlineInputBorder(),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    items: [
+                      const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text('전체'),
+                      ),
+                      ...accountOptions.entries.map(
+                        (entry) => DropdownMenuItem<int?>(
+                          value: entry.key,
+                          child: Text(
+                            entry.value,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    ],
+                    onChanged: busy
+                        ? null
+                        : (value) {
+                            onSelectAccount(value);
+                            // 비활성 채널은 조회만 된다 — 동기화 버튼이 왜 꺼지는지 알린다.
+                            if (value == null || syncableIds.contains(value)) {
+                              return;
+                            }
+                            ScaffoldMessenger.of(context)
+                              ..hideCurrentSnackBar()
+                              ..showSnackBar(
+                                const SnackBar(
+                                  content: Text('동기화할 수 없는 채널입니다(비활성).'),
+                                  behavior: SnackBarBehavior.floating,
+                                  margin: EdgeInsets.only(
+                                      left: 16, right: 16, bottom: 70),
+                                ),
+                              );
+                          },
+                  ),
+                  const SizedBox(height: 8),
                   // 검색 — 클라이언트 필터라 서버를 부르지 않는다(PLAN D9).
                   Align(
                     alignment: Alignment.centerLeft,
@@ -316,7 +416,22 @@ class _LoadedBody extends StatelessWidget {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: busy ? null : () => bloc.add(SyncOrders()),
+                          // 채널 미선택이면 전 채널, 선택돼 있으면 그 채널만(D7).
+                          // 비활성 채널(대상 목록에 없음)은 동기화 자체가 불가하다.
+                          onPressed: busy || !canSyncSelected
+                              ? null
+                              : () {
+                                  if (accountValue == null) {
+                                    bloc.add(SyncOrders());
+                                    return;
+                                  }
+                                  bloc.add(SyncSelectedChannels(
+                                    targets: s.syncTargets
+                                        .where(
+                                            (t) => t.accountId == accountValue)
+                                        .toList(),
+                                  ));
+                                },
                           icon: s.isSyncing
                               ? const SizedBox(
                                   width: 16,
@@ -326,44 +441,6 @@ class _LoadedBody extends StatelessWidget {
                                 )
                               : const Icon(Icons.sync, size: 18),
                           label: Text(s.isSyncing ? '동기화 중...' : '동기화'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // 주문목록 다운로드: preview 페이지에서 택배수량 편집 후 다운로드.
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () =>
-                              context.push(Routes.shippingLabelPreviewPath),
-                          icon: const Icon(Icons.download, size: 18),
-                          label: const Text('주문목록 다운로드'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // 발송처리 (Shipping Label 업로드): 택배사 결과 xlsx → 쿠팡 송장업로드 배치.
-                  // OrderListBloc.busy 와 무관 — 별도 BLoC·다이얼로그.
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            final uploaded =
-                                await showShipmentConfirmDialog(context);
-                            // Guard isClosed: the page can be popped while the
-                            // dialog is open.
-                            if (uploaded == true && !bloc.isClosed) {
-                              // 백엔드가 배송지시로 바꾼 상태를 즉시 반영 —
-                              // 판매자 필터를 유지하는 SearchOrders 를 쓴다.
-                              bloc.add(SearchOrders());
-                            }
-                          },
-                          icon: const Icon(Icons.upload_file, size: 18),
-                          label: const Text('발송처리'),
                         ),
                       ),
                     ],
@@ -427,9 +504,9 @@ class _LoadedBody extends StatelessWidget {
           ],
 
           // 상태 필터 버튼 (프론트 OrderStatusFilter). 같은 버튼 재선택 시 전체 해제.
-          _StatusFilterBar(
+          OrderStatusFilterBar(
             selectedStatus: s.selectedStatus,
-            counts: s.statusCounts,
+            counts: counts,
             onSelect: (status) => bloc.add(SelectStatus(status: status)),
           ),
           // 칩 라벨을 '추적불가' 로 줄인 대신, 그 상태를 고른 동안만 설명을 편다.
@@ -451,7 +528,7 @@ class _LoadedBody extends StatelessWidget {
               ),
               if (s.lastSyncedAt != null)
                 Text(
-                  '마지막 동기화: ${_formatDate(s.lastSyncedAt)}',
+                  '마지막 동기화: ${formatOrderDateTime(s.lastSyncedAt)}',
                   style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
             ],
@@ -468,75 +545,13 @@ class _LoadedBody extends StatelessWidget {
                     itemCount: orders.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, index) =>
-                        _OrderCard(order: orders[index]),
+                        OrderCard(order: orders[index]),
                   ),
           ),
         ],
       ),
     );
   }
-}
-
-class _OrderCard extends StatelessWidget {
-  final OrderItem order;
-
-  const _OrderCard({required this.order});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        // 항목 탭 → 주문 상세 페이지로 이동 (선택한 OrderItem 을 extra 로 전달).
-        onTap: () => context.push(Routes.orderHistoryDetailPath, extra: order),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          // 카드 항목은 프론트 OrderTable 컬럼과 동일:
-          // 주문번호 / 고객명 / 상품명 / 주문수량 / 취소 / 결제일.
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                order.externalOrderId,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '고객 ${getCustomerName(order)}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 13, color: Colors.grey[800]),
-              ),
-              const SizedBox(height: 6),
-              Text(order.itemName ?? '-', style: const TextStyle(fontSize: 13)),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 12,
-                runSpacing: 4,
-                children: [
-                  _metric('주문수량', order.orderCount),
-                  _metric('취소', order.cancelCount),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '결제일 ${_formatDate(order.paidAt)}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _metric(String label, int value) => Text(
-        '$label $value',
-        style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-      );
 }
 
 /// 마지막 동기화가 완료되지 않은 채널 배너 (PLAN D6·D14).
@@ -623,118 +638,4 @@ class _ErrorRetry extends StatelessWidget {
       ),
     );
   }
-}
-
-/// 상태 필터 버튼 바 (프론트 OrderStatusFilter와 동일).
-///
-/// 6개 상태 버튼을 가로 스크롤로 배치하고, 각 버튼에 해당 상태의 건수 배지를
-/// 표시한다. 활성 버튼을 다시 누르면 [onSelect]에 null을 전달해 필터를
-/// 해제(전체)한다.
-class _StatusFilterBar extends StatelessWidget {
-  final String? selectedStatus;
-  final Map<String, int> counts;
-  final void Function(String? status) onSelect;
-
-  const _StatusFilterBar({
-    required this.selectedStatus,
-    required this.counts,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: kOrderStatuses.map((status) {
-          final isActive = selectedStatus == status;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: _StatusChip(
-              label: getOrderStatusLabel(status),
-              count: counts[status] ?? 0,
-              isActive: isActive,
-              onTap: () => onSelect(isActive ? null : status),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  final String label;
-  final int count;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _StatusChip({
-    required this.label,
-    required this.count,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final textColor = isActive ? Colors.white : Colors.grey[800];
-    return Material(
-      color: isActive ? Colors.blue[600] : Colors.white,
-      shape: StadiumBorder(
-        side: BorderSide(
-          color: isActive ? Colors.blue.shade600 : Colors.grey.shade300,
-        ),
-      ),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: textColor,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                decoration: BoxDecoration(
-                  color: isActive
-                      ? Colors.white.withValues(alpha: 0.25)
-                      : Colors.grey[100],
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '$count',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: isActive ? Colors.white : Colors.grey[600],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// ISO LocalDateTime → 'yyyy-MM-dd HH:mm'. null/파싱 실패 시 '-' 또는 원본 반환.
-String _formatDate(String? value) {
-  if (value == null || value.isEmpty) return '-';
-  final date = DateTime.tryParse(value);
-  if (date == null) return value;
-  String two(int n) => n.toString().padLeft(2, '0');
-  return '${date.year}-${two(date.month)}-${two(date.day)} '
-      '${two(date.hour)}:${two(date.minute)}';
 }
