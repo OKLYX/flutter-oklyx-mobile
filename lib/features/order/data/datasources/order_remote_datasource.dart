@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_oklyn_mobile/core/constants/app_constants.dart';
 import '../../domain/entities/order_sync_scope.dart';
+import '../models/order_acknowledge_result.dart';
 import '../models/order_model.dart';
 import '../models/sync_target_model.dart';
 
@@ -40,6 +41,11 @@ abstract class OrderRemoteDataSource {
   /// GET /api/orders/months → [{ym, count}] 최신순.
   /// 파라미터 없음 — 판매자 필터와 무관한 전체 기준이다(라벨 '(데이터 없음)' 판정 전용).
   Future<List<OrderMonthModel>> getOrderMonths();
+
+  /// POST /api/admin/orders/acknowledge  body: {"orderItemIds":[...]}
+  /// 발주처리(결제완료 → 상품준비중). 라인 id 만 보낸다 — 박스 dedupe·상태 필터는
+  /// 서버가 한다(PLAN 2609_17 D1·D2).
+  Future<OrderAcknowledgeResult> acknowledgeOrders(List<int> orderItemIds);
 }
 
 class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
@@ -185,5 +191,26 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
     } on DioException catch (e) {
       throw Exception(e.message ?? 'Failed to fetch order months');
     }
+  }
+
+  @override
+  Future<OrderAcknowledgeResult> acknowledgeOrders(
+    List<int> orderItemIds,
+  ) async {
+    // ⚠️ 이 메서드에만 try/catch 가 없다 — DioException 을 그대로 위로 올린다
+    // (shipping_label_remote_datasource 와 같은 형태). 형제 메서드처럼 plain Exception 으로
+    // 바꿔 던지면 OrderRepositoryImpl 의 `on DioException` 분기를 지나쳐
+    // statusCode 가 사라지고, BLoC 의 403 판정이 영원히 false 가 된다.
+    final response = await dio.post(
+      '/api/admin/orders/acknowledge',
+      data: {'orderItemIds': orderItemIds},
+      options: Options(
+        // 서버가 쿠팡 발주처리 API 를 실호출 → 기본 30초를 초과할 수 있어 개별 연장.
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+    return OrderAcknowledgeResult.fromJson(
+        response.data['data'] as Map<String, dynamic>);
   }
 }

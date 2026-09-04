@@ -18,6 +18,9 @@ import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/o
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/order_sheet_state.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/order_item.dart';
+import '../bloc/order_acknowledge_bloc.dart';
+import '../bloc/order_acknowledge_event.dart';
+import '../bloc/order_acknowledge_state.dart';
 
 // Platform display labels — same shape as product_listing_detail_page;
 // unknown codes fall back to the raw value.
@@ -85,8 +88,14 @@ class OrderDetailPage extends StatelessWidget {
         // ADMIN 전용 택배사 API 가 헛호출된다.
         if (isCoupang)
           BlocProvider<ManualShipmentBloc>(
-            create: (_) =>
-                getIt<ManualShipmentBloc>()..add(LoadCarrierOptions(o.platform)),
+            create: (_) => getIt<ManualShipmentBloc>()
+              ..add(LoadCarrierOptions(o.platform)),
+          ),
+        // 발주처리도 쿠팡 전용 — 같은 가드 안에 둔다(비-쿠팡 주문에 헛 인스턴스를 만들지 않는다).
+        // ⚠️ 진입 시 자동 전송하지 않는다(D4) — 이벤트는 버튼 핸들러에서만 발행한다.
+        if (isCoupang)
+          BlocProvider<OrderAcknowledgeBloc>(
+            create: (_) => getIt<OrderAcknowledgeBloc>(),
           ),
       ],
       child: SingleChildScrollView(
@@ -117,6 +126,9 @@ class OrderDetailPage extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             if (isCoupang) ...[
+              // 발주(ACCEPT→INSTRUCT) → 발송(INSTRUCT→DEPARTURE) 순서가 화면 순서와 맞는다.
+              _AcknowledgeSection(order: o),
+              const SizedBox(height: 12),
               _ManualShipmentSection(order: o),
               const SizedBox(height: 12),
             ],
@@ -134,8 +146,9 @@ class OrderDetailPage extends StatelessWidget {
   }
 }
 
-//// 기본 정보 카드. 쿠팡 주문이면 `상태` 행만 단건 발송처리 결과를 따라간다 —
-/// 신규 업로드가 성공하면 서버가 `resultStatus: 'DEPARTURE'` 를 주므로 재조회 없이 반영한다(D4).
+//// 기본 정보 카드. 쿠팡 주문이면 `상태` 행만 이 화면에서 한 전송 결과를 따라간다 —
+/// 발송처리는 서버가 `resultStatus: 'DEPARTURE'` 를 주고(2609_11 D4), 발주처리는 성공 시
+/// `INSTRUCT` 로 해석한다. 둘 다 재조회 없이 반영한다.
 Widget _buildInfoCard(OrderItem o, {required bool isCoupang}) {
   List<_InfoRow> rows(String status) => [
         _InfoRow('플랫폼', o.platform),
@@ -152,10 +165,18 @@ Widget _buildInfoCard(OrderItem o, {required bool isCoupang}) {
   if (!isCoupang) {
     return _InfoCard(title: '기본 정보', rows: rows(o.status));
   }
+  // 발송(DEPARTURE)이 발주(INSTRUCT)보다 뒤 단계 — 나중 단계가 이긴다.
+  // ⚠️ 발주 성공 판정은 `succeeded > 0` 이다. 쿠팡 거절도 200 + failed 라 `result != null`
+  // 만으로 판정하면 실패한 주문이 상품준비중으로 보인다(D15).
   return BlocBuilder<ManualShipmentBloc, ManualShipmentState>(
-    builder: (context, state) => _InfoCard(
-      title: '기본 정보',
-      rows: rows(state.result?.resultStatus ?? o.status),
+    builder: (context, manual) =>
+        BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
+      builder: (context, ack) {
+        final acknowledged = ack.result != null && ack.result!.succeeded > 0;
+        final status = manual.result?.resultStatus ??
+            (acknowledged ? 'INSTRUCT' : o.status);
+        return _InfoCard(title: '기본 정보', rows: rows(status));
+      },
     ),
   );
 }
@@ -214,6 +235,120 @@ class _InfoRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// 주문 상세 안 발주처리 섹션 (인라인 확장 — 별도 화면/다이얼로그 없음).
+///
+/// **용도**: 이 주문이 속한 **박스 전체**를 결제완료 → 상품준비중으로 전환한다.
+/// 물건을 확인하고 바로 발주할 때 쓴다(PLAN 2609_17 D14).
+///
+/// ⚠️ 전송 단위는 화면의 이 라인이 아니라 **이 라인이 속한 박스 전체**다(D1) —
+/// 라인 id 만 보내고 박스 dedupe·상태 필터는 서버가 한다.
+/// ⚠️ 되돌릴 수 없다 — 확인 다이얼로그를 반드시 거치고, 자동 재시도를 넣지 말 것(D15).
+/// ⚠️ 성공 판정은 `succeeded > 0` 이다. 쿠팡이 거절해도 200 + `failed` 라
+/// `result != null` 만으로 성공을 판정하면 실패를 완료로 보여준다(D15).
+/// ⚠️ 권한 게이트는 클라이언트에 두지 않는다. 다만 403 을 받으면 섹션을 숨긴다 —
+/// 서버가 내린 판정을 반영하는 것이라 이중 판정이 아니다(단건 발송처리와 같은 규칙).
+class _AcknowledgeSection extends StatelessWidget {
+  final OrderItem order;
+
+  const _AcknowledgeSection({required this.order});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
+      builder: (context, state) {
+        // 결제완료 쿠팡 주문에만 노출한다(D2·D10·D14). 403 이면 진입점을 숨긴다.
+        if (order.platform != 'COUPANG' ||
+            order.status != 'ACCEPT' ||
+            state.forbidden) {
+          return const SizedBox.shrink();
+        }
+
+        final result = state.result;
+        final acknowledged = result != null && result.succeeded > 0;
+        // 쿠팡이 거절한 경우(200 + failed) — 원문을 그대로 보여주고 버튼은 다시 열어 둔다.
+        final rejected = result != null && result.succeeded == 0;
+        final failureText = rejected && result.failed.isNotEmpty
+            ? '${result.failed.first.resultCode}: ${result.failed.first.message}'
+            : state.errorMessage;
+
+        return Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  '발주처리',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                if (acknowledged)
+                  Text(
+                    '발주처리 완료',
+                    style: TextStyle(fontSize: 13, color: Colors.green[800]),
+                  )
+                else ...[
+                  Text(
+                    '이 주문의 배송건(박스 ${order.externalBoxId ?? '-'}) 전체가 '
+                    '상품준비중으로 전환됩니다. 되돌릴 수 없습니다.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: state.submitting
+                        ? null
+                        : () => _confirmAndSubmit(context),
+                    child: state.submitting
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('발주처리'),
+                  ),
+                ],
+                if (failureText != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    failureText,
+                    style: TextStyle(fontSize: 12, color: Colors.red[700]),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// 되돌릴 수 없는 작업이라 확인을 반드시 거친다. 일괄과 **같은 UseCase·같은 엔드포인트**다(D6).
+  Future<void> _confirmAndSubmit(BuildContext context) async {
+    final bloc = context.read<OrderAcknowledgeBloc>();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('발주처리'),
+        content: const Text('이 주문을 발주처리합니다. 되돌릴 수 없습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('취소'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('발주처리'),
+          ),
+        ],
+      ),
+    );
+    // 다이얼로그가 열려 있는 사이 페이지를 벗어날 수 있다.
+    if (ok != true || bloc.isClosed) return;
+    bloc.add(AcknowledgeRequested([order.id]));
   }
 }
 
@@ -306,110 +441,114 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
                 if (!formOpen) ...[
                   const SizedBox(height: 12),
                   OutlinedButton(
-                    onPressed: locked ? null : () => setState(() => _editing = true),
+                    onPressed:
+                        locked ? null : () => setState(() => _editing = true),
                     child: const Text('송장 수정하기'),
                   ),
                 ],
                 if (formOpen) ...[
-                const SizedBox(height: 12),
-                if (state.loadingOptions)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Center(
-                      child: SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                  const SizedBox(height: 12),
+                  if (state.loadingOptions)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Center(
+                        child: SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                       ),
+                    )
+                  else
+                    // 값은 마켓 코드 자체다(D2 개정) — 쿠팡은 택배사 목록 API 가 없어 코드표 전량이 온다.
+                    // 서버가 등록 택배사를 맨 위로 정렬해 주므로 여기서 다시 정렬하지 않는다.
+                    DropdownButtonFormField<String>(
+                      // 목록에 없는 값을 넘기면 Dropdown 이 assert 로 죽는다 — 조회 실패로
+                      // options 가 비었는데 직전 선택이 남아 있는 경우를 막는다.
+                      value: state.options.any(
+                              (o) => o.deliveryCompanyCode == state.carrierCode)
+                          ? state.carrierCode
+                          : null,
+                      isExpanded: true, // 코드표가 길다 — 긴 이름이 overflow 하지 않게
+                      decoration: const InputDecoration(
+                        labelText: '택배사',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      items: state.options
+                          .map((o) => DropdownMenuItem<String>(
+                                value: o.deliveryCompanyCode,
+                                child: Text(
+                                  o.registered
+                                      ? '${o.carrierName} (등록)'
+                                      : o.carrierName,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ))
+                          .toList(),
+                      onChanged: locked || state.options.isEmpty
+                          ? null
+                          : (value) {
+                              if (value != null) {
+                                context
+                                    .read<ManualShipmentBloc>()
+                                    .add(CarrierSelected(value));
+                              }
+                            },
                     ),
-                  )
-                else
-                  // 값은 마켓 코드 자체다(D2 개정) — 쿠팡은 택배사 목록 API 가 없어 코드표 전량이 온다.
-                  // 서버가 등록 택배사를 맨 위로 정렬해 주므로 여기서 다시 정렬하지 않는다.
-                  DropdownButtonFormField<String>(
-                    // 목록에 없는 값을 넘기면 Dropdown 이 assert 로 죽는다 — 조회 실패로
-                    // options 가 비었는데 직전 선택이 남아 있는 경우를 막는다.
-                    value: state.options
-                            .any((o) => o.deliveryCompanyCode == state.carrierCode)
-                        ? state.carrierCode
-                        : null,
-                    isExpanded: true, // 코드표가 길다 — 긴 이름이 overflow 하지 않게
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _invoiceController,
+                    maxLength: 50, // 형식 검증은 하지 않는다(택배사마다 다르다, D15)
+                    enabled: !locked && state.options.isNotEmpty,
+                    onChanged: (_) =>
+                        _onInvoiceChanged(context, state.errorMessage),
                     decoration: const InputDecoration(
-                      labelText: '택배사',
+                      labelText: '송장번호',
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
-                    items: state.options
-                        .map((o) => DropdownMenuItem<String>(
-                              value: o.deliveryCompanyCode,
-                              child: Text(
-                                o.registered ? '${o.carrierName} (등록)' : o.carrierName,
-                                overflow: TextOverflow.ellipsis,
+                  ),
+                  // 조회 실패와 '등록된 택배사 없음' 은 안내가 다르다 — 합치면 거짓 안내가 된다.
+                  if (!state.loadingOptions && state.optionsLoadFailed)
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text('택배사 목록을 불러오지 못했습니다.',
+                              style: TextStyle(fontSize: 12)),
+                        ),
+                        TextButton(
+                          onPressed: () => context
+                              .read<ManualShipmentBloc>()
+                              .add(LoadCarrierOptions(widget.order.platform)),
+                          child: const Text('다시 시도'),
+                        ),
+                      ],
+                    )
+                  else if (!state.loadingOptions && state.options.isEmpty)
+                    // 쿠팡은 코드표 전량을 내려주므로 여기까지 오면 서버 쪽 문제다.
+                    Text(
+                      '선택할 수 있는 택배사가 없습니다. 잠시 후 다시 시도해주세요.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    ),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: canSubmit
+                        ? () => context.read<ManualShipmentBloc>().add(
+                              SubmitManualShipment(
+                                orderItemId: widget.order.id,
+                                invoiceNumber: _invoiceController.text.trim(),
                               ),
-                            ))
-                        .toList(),
-                    onChanged: locked || state.options.isEmpty
-                        ? null
-                        : (value) {
-                            if (value != null) {
-                              context
-                                  .read<ManualShipmentBloc>()
-                                  .add(CarrierSelected(value));
-                            }
-                          },
-                  ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _invoiceController,
-                  maxLength: 50, // 형식 검증은 하지 않는다(택배사마다 다르다, D15)
-                  enabled: !locked && state.options.isNotEmpty,
-                  onChanged: (_) => _onInvoiceChanged(context, state.errorMessage),
-                  decoration: const InputDecoration(
-                    labelText: '송장번호',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                ),
-                // 조회 실패와 '등록된 택배사 없음' 은 안내가 다르다 — 합치면 거짓 안내가 된다.
-                if (!state.loadingOptions && state.optionsLoadFailed)
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text('택배사 목록을 불러오지 못했습니다.',
-                            style: TextStyle(fontSize: 12)),
-                      ),
-                      TextButton(
-                        onPressed: () => context
-                            .read<ManualShipmentBloc>()
-                            .add(LoadCarrierOptions(widget.order.platform)),
-                        child: const Text('다시 시도'),
-                      ),
-                    ],
-                  )
-                else if (!state.loadingOptions && state.options.isEmpty)
-                  // 쿠팡은 코드표 전량을 내려주므로 여기까지 오면 서버 쪽 문제다.
-                  Text(
-                    '선택할 수 있는 택배사가 없습니다. 잠시 후 다시 시도해주세요.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-                  ),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  onPressed: canSubmit
-                      ? () => context.read<ManualShipmentBloc>().add(
-                            SubmitManualShipment(
-                              orderItemId: widget.order.id,
-                              invoiceNumber: _invoiceController.text.trim(),
-                            ),
+                            )
+                        : null,
+                    child: state.submitting
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                      : null,
-                  child: state.submitting
-                      ? const SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(shipped ? '송장 수정 요청' : '발송처리'),
-                ),
+                        : Text(shipped ? '송장 수정 요청' : '발송처리'),
+                  ),
                 ],
                 if (state.errorMessage != null) ...[
                   const SizedBox(height: 8),

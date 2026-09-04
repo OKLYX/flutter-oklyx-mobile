@@ -1,5 +1,6 @@
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
+import '../../data/models/order_acknowledge_result.dart';
 import '../entities/order_item.dart';
 import '../entities/order_period.dart';
 import '../entities/order_sync_result.dart';
@@ -51,5 +52,12 @@ class OrderUseCase {
 
   Future<Either<Failure, List<OrderMonth>>> getOrderMonths() {
     return repository.getOrderMonths();
+  }
+
+  /// 발주처리 — 일괄(출고관리)과 개별(주문 상세)이 같은 엔드포인트를 쓴다(D6).
+  Future<Either<Failure, OrderAcknowledgeResult>> acknowledgeOrders(
+    List<int> orderItemIds,
+  ) {
+    return repository.acknowledgeOrders(orderItemIds);
   }
 }
