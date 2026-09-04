@@ -4,6 +4,7 @@ import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import '../../domain/entities/order_item.dart';
 import '../../domain/entities/order_period.dart';
 import '../../domain/entities/order_sync_result.dart';
+import '../../domain/entities/order_sync_scope.dart';
 import '../../domain/entities/sync_target.dart';
 import '../../domain/repositories/order_repository.dart';
 import '../datasources/order_remote_datasource.dart';
@@ -42,11 +43,13 @@ class OrderRepositoryImpl implements OrderRepository {
   Future<Either<Failure, OrderSyncResult>> syncOrders({
     int? sellerId,
     int? accountId,
+    OrderSyncScope scope = OrderSyncScope.full,
   }) async {
     try {
       final result = await remoteDataSource.syncOrders(
         sellerId: sellerId,
         accountId: accountId,
+        scope: scope,
       );
       return Right(result);
     } on DioException catch (e) {

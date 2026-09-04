@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_oklyn_mobile/core/constants/app_constants.dart';
+import '../../domain/entities/order_sync_scope.dart';
 import '../models/order_model.dart';
 import '../models/sync_target_model.dart';
 
@@ -15,7 +16,14 @@ abstract class OrderRemoteDataSource {
   ///
   /// ⚠️ 서버 우선순위는 accountId > sellerId 다. 둘을 함께 보내면 응답 목록의
   /// 스코프가 헷갈리므로 **하나만** 보낸다(accountId 가 있으면 그것만).
-  Future<OrderSyncResultModel> syncOrders({int? sellerId, int? accountId});
+  ///
+  /// [scope] 는 조회할 주문 상태 범위. 기본 [OrderSyncScope.full] = 전 상태(오늘과 동일).
+  /// 출고관리만 [OrderSyncScope.active] 를 준다.
+  Future<OrderSyncResultModel> syncOrders({
+    int? sellerId,
+    int? accountId,
+    OrderSyncScope scope = OrderSyncScope.full,
+  });
 
   /// POST /api/orders/sync/period?accountId={accountId}&from={from}&to={to}
   /// 계정 1건의 지정 기간을 불러온다. 응답에 목록은 없다(건수 요약만).
@@ -70,7 +78,11 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
   }
 
   @override
-  Future<OrderSyncResultModel> syncOrders({int? sellerId, int? accountId}) async {
+  Future<OrderSyncResultModel> syncOrders({
+    int? sellerId,
+    int? accountId,
+    OrderSyncScope scope = OrderSyncScope.full,
+  }) async {
     try {
       // body 없이 query param 으로 전송한다. 계정 단위 호출이면 accountId 만,
       // 아니면 sellerId 만 (서버 우선순위 accountId > sellerId).
@@ -78,8 +90,13 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
       // 계정 1건 기준의 타임아웃이므로 전체 동기화보다 오히려 여유가 있다.
       final response = await dio.post(
         '/api/orders/sync',
+        // scope 는 full 이면 키 자체를 보내지 않는다 — 구버전 서버에 붙어도 요청 모양이 같다.
+        // sellerId 경로(구매목록·전체)는 항상 전 상태다(PLAN D4).
         queryParameters: accountId != null
-            ? {'accountId': accountId}
+            ? {
+                'accountId': accountId,
+                if (scope != OrderSyncScope.full) 'scope': scope.wireValue,
+              }
             : (sellerId != null ? {'sellerId': sellerId} : null),
         options: Options(
           receiveTimeout:
