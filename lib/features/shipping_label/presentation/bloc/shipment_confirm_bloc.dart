@@ -17,6 +17,7 @@ class ShipmentConfirmBloc
     on<PickFile>(_onPickFile);
     on<UploadShipment>(_onUpload);
     on<ResetShipmentConfirm>(_onReset);
+    on<SelectResultBucket>(_onSelectBucket);
   }
 
   Future<void> _onPickFile(
@@ -35,6 +36,7 @@ class ShipmentConfirmBloc
       fileBytes: file.bytes,
       clearResult: true,
       clearError: true,
+      clearBucket: true,
     ));
   }
 
@@ -46,12 +48,15 @@ class ShipmentConfirmBloc
     emit(state.copyWith(isUploading: true, clearError: true));
     final result = await useCase.confirmShipment(bytes: bytes, filename: name);
     result.fold(
-      (failure) =>
-          emit(state.copyWith(isUploading: false, error: _errorMessage(failure))),
+      (failure) => emit(
+          state.copyWith(isUploading: false, error: _errorMessage(failure))),
+      // A second upload in the same dialog must not carry the previous
+      // selection onto new numbers (PLAN 2609_12 D5).
       (res) => emit(state.copyWith(
         isUploading: false,
         result: res,
         hasSucceeded: state.hasSucceeded || res.succeeded > 0,
+        clearBucket: true,
       )),
     );
   }
@@ -61,6 +66,15 @@ class ShipmentConfirmBloc
     // 전체 초기화 — [다른 파일 업로드] 시 result/file/error 비움.
     // hasSucceeded 만 보존한다(1차 성공 후 2차가 전부 스킵이어도 재조회해야 함).
     emit(ShipmentConfirmState(hasSucceeded: state.hasSucceeded));
+  }
+
+  void _onSelectBucket(
+      SelectResultBucket event, Emitter<ShipmentConfirmState> emit) {
+    final isSame = state.selectedBucket == event.bucket;
+    emit(state.copyWith(
+      selectedBucket: isSame ? null : event.bucket,
+      clearBucket: isSame,
+    ));
   }
 
   // 프론트와 동일: 400 = 파싱/빈 파일, 403 = 권한, 그 외 고정 메시지(본문 미파싱).
