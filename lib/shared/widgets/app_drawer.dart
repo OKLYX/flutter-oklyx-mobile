@@ -29,156 +29,6 @@ class AppDrawer extends StatelessWidget {
                 ),
           ExpansionTile(
             shape: const Border(),
-            title: const Text('상품관리'),
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: ListTile(
-                  title: const Text('상품등록'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.go(Routes.productRegisterPath);
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: ListTile(
-                  title: const Text('상품조회'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.go(Routes.productSearchPath);
-                  },
-                ),
-              ),
-            ],
-          ),
-          ExpansionTile(
-            shape: const Border(),
-            title: const Text('입출고관리'),
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: ListTile(
-                  title: const Text('입출고 관리'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.go(Routes.stockInOutPath);
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: ListTile(
-                  title: const Text('입출고 조회'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.go(Routes.stockSearchPath);
-                  },
-                ),
-              ),
-            ],
-          ),
-          ExpansionTile(
-            shape: const Border(),
-            title: const Text('회원관리'),
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: ListTile(
-                  title: const Text('회원등록'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.go(Routes.userRegisterPath);
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: ListTile(
-                  title: const Text('회원관리'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.go(Routes.userManagePath);
-                  },
-                ),
-              ),
-            ],
-          ),
-          ExpansionTile(
-            shape: const Border(),
-            title: const Text('비용관리'),
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: ListTile(
-                  title: const Text('택배비'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.go(Routes.carrierRatePath);
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: ListTile(
-                  title: const Text('택배사 관리'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.go(Routes.carrierPath);
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: ListTile(
-                  title: const Text('상자비'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.go(Routes.packageSearchPath);
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: ListTile(
-                  title: const Text('카테고리'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.go(Routes.categoryListPath);
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: ListTile(
-                  title: const Text('수수료'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.go(Routes.commissionRatePath);
-                  },
-                ),
-              ),
-            ],
-          ),
-          ExpansionTile(
-            shape: const Border(),
-            title: const Text('판매자'),
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: ListTile(
-                  title: const Text('판매자 관리'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.go(Routes.sellerPath);
-                  },
-                ),
-              ),
-            ],
-          ),
-          ExpansionTile(
-            shape: const Border(),
             title: const Text('판매상품'),
             children: [
               Padding(
@@ -251,6 +101,156 @@ class AppDrawer extends StatelessWidget {
                   onTap: () {
                     Navigator.pop(context);
                     context.go(Routes.listToShopPath);
+                  },
+                ),
+              ),
+            ],
+          ),
+          ExpansionTile(
+            shape: const Border(),
+            title: const Text('상품관리'),
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('상품등록'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.productRegisterPath);
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('상품조회'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.productSearchPath);
+                  },
+                ),
+              ),
+            ],
+          ),
+          ExpansionTile(
+            shape: const Border(),
+            title: const Text('입출고관리'),
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('입출고 관리'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.stockInOutPath);
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('입출고 조회'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.stockSearchPath);
+                  },
+                ),
+              ),
+            ],
+          ),
+          ExpansionTile(
+            shape: const Border(),
+            title: const Text('비용관리'),
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('택배비'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.carrierRatePath);
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('택배사 관리'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.carrierPath);
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('상자비'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.packageSearchPath);
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('카테고리'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.categoryListPath);
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('수수료'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.commissionRatePath);
+                  },
+                ),
+              ),
+            ],
+          ),
+          ExpansionTile(
+            shape: const Border(),
+            title: const Text('판매자 관리'),
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('판매자 관리'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.sellerPath);
+                  },
+                ),
+              ),
+            ],
+          ),
+          ExpansionTile(
+            shape: const Border(),
+            title: const Text('회원관리'),
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('회원등록'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.userRegisterPath);
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('회원관리'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.userManagePath);
                   },
                 ),
               ),
