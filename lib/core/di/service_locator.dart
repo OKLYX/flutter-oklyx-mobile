@@ -164,16 +164,6 @@ import 'package:flutter_oklyn_mobile/features/claim/data/repositories/claim_repo
 import 'package:flutter_oklyn_mobile/features/claim/domain/repositories/claim_repository.dart';
 import 'package:flutter_oklyn_mobile/features/claim/domain/usecases/claim_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/claim/presentation/bloc/claim_list_bloc.dart';
-import 'package:flutter_oklyn_mobile/features/thumbnail/data/datasources/thumbnail_remote_datasource.dart';
-import 'package:flutter_oklyn_mobile/features/thumbnail/data/datasources/impl/thumbnail_remote_datasource_impl.dart';
-import 'package:flutter_oklyn_mobile/features/thumbnail/data/repositories/thumbnail_repository_impl.dart';
-import 'package:flutter_oklyn_mobile/features/thumbnail/domain/repositories/thumbnail_repository.dart';
-import 'package:flutter_oklyn_mobile/features/thumbnail/domain/usecases/get_product_thumbnails_usecase.dart';
-import 'package:flutter_oklyn_mobile/features/thumbnail/domain/usecases/generate_thumbnail_usecase.dart';
-import 'package:flutter_oklyn_mobile/features/thumbnail/domain/usecases/override_thumbnail_usecase.dart';
-import 'package:flutter_oklyn_mobile/features/thumbnail/domain/usecases/delete_thumbnail_usecase.dart';
-import 'package:flutter_oklyn_mobile/features/thumbnail/domain/usecases/get_default_template_fields_usecase.dart';
-import 'package:flutter_oklyn_mobile/features/thumbnail/presentation/bloc/product_thumbnail_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -196,7 +186,6 @@ void setupServiceLocator() {
   _registerOrderServices();
   _registerClaimServices();
   _registerPurchaseListServices();
-  _registerThumbnailServices();
   _registerErrorHandling();
 }
 
@@ -960,48 +949,6 @@ void _registerPurchaseListServices() {
       addManualItemUseCase: getIt<AddManualItemUseCase>(),
       getSellersUseCase: getIt<GetSellersUseCase>(),
       orderUseCase: getIt<OrderUseCase>(),
-    ),
-  );
-}
-
-void _registerThumbnailServices() {
-  // Data Source
-  getIt.registerSingleton<ThumbnailRemoteDataSource>(
-    ThumbnailRemoteDataSourceImpl(dioClient: getIt<DioClient>()),
-  );
-
-  // Repository
-  getIt.registerSingleton<ThumbnailRepository>(
-    ThumbnailRepositoryImpl(remoteDataSource: getIt<ThumbnailRemoteDataSource>()),
-  );
-
-  // Use Cases
-  getIt.registerSingleton<GetProductThumbnailsUseCase>(
-    GetProductThumbnailsUseCase(repository: getIt<ThumbnailRepository>()),
-  );
-  getIt.registerSingleton<GenerateThumbnailUseCase>(
-    GenerateThumbnailUseCase(repository: getIt<ThumbnailRepository>()),
-  );
-  getIt.registerSingleton<OverrideThumbnailUseCase>(
-    OverrideThumbnailUseCase(repository: getIt<ThumbnailRepository>()),
-  );
-  getIt.registerSingleton<DeleteThumbnailUseCase>(
-    DeleteThumbnailUseCase(repository: getIt<ThumbnailRepository>()),
-  );
-  getIt.registerSingleton<GetDefaultTemplateFieldsUseCase>(
-    GetDefaultTemplateFieldsUseCase(repository: getIt<ThumbnailRepository>()),
-  );
-
-  // BLoC as factory to allow fresh state per page.
-  // 판매자 목록은 기존 seller 기능의 GetSellersUseCase 를 재사용한다(중복 등록 금지).
-  getIt.registerFactory<ProductThumbnailBloc>(
-    () => ProductThumbnailBloc(
-      getProductThumbnailsUseCase: getIt<GetProductThumbnailsUseCase>(),
-      generateThumbnailUseCase: getIt<GenerateThumbnailUseCase>(),
-      overrideThumbnailUseCase: getIt<OverrideThumbnailUseCase>(),
-      deleteThumbnailUseCase: getIt<DeleteThumbnailUseCase>(),
-      getDefaultTemplateFieldsUseCase: getIt<GetDefaultTemplateFieldsUseCase>(),
-      getSellersUseCase: getIt<GetSellersUseCase>(),
     ),
   );
 }

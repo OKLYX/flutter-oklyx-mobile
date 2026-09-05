@@ -46,9 +46,6 @@ import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_create_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/pages/product_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/pages/product_register_page.dart';
-import 'package:flutter_oklyn_mobile/features/thumbnail/presentation/pages/product_thumbnail_page.dart';
-import 'package:flutter_oklyn_mobile/features/thumbnail/presentation/bloc/product_thumbnail_bloc.dart';
-import 'package:flutter_oklyn_mobile/features/thumbnail/presentation/bloc/product_thumbnail_event.dart';
 import 'package:flutter_oklyn_mobile/features/stock/presentation/pages/stock_in_out_page.dart';
 import 'package:flutter_oklyn_mobile/features/stock/presentation/pages/stock_search_page.dart';
 import 'package:flutter_oklyn_mobile/features/user/domain/entities/user.dart';
@@ -148,33 +145,6 @@ class AppRouter {
         final productId = int.parse(state.pathParameters['productId']!);
         return NoTransitionPage(
           child: ProductDetailPage(productId: productId),
-        );
-      },
-    ),
-    GoRoute(
-      name: Routes.productThumbnail,
-      path: Routes.productThumbnailPath,
-      pageBuilder: (context, state) {
-        final productId = int.parse(state.pathParameters['productId']!);
-        // brand / productName passed as GoRouter `extra` (Map) for generation
-        // pre-fill; null on a cold deep link (backend renders defaults).
-        final extra = state.extra as Map<String, dynamic>?;
-        final brand = extra?['brand'] as String?;
-        final productName = extra?['productName'] as String?;
-        return NoTransitionPage(
-          child: BlocProvider<ProductThumbnailBloc>(
-            create: (context) => GetIt.instance<ProductThumbnailBloc>()
-              ..add(LoadThumbnails(
-                productId: productId,
-                productBrand: brand,
-                productName: productName,
-              )),
-            child: ProductThumbnailPage(
-              productId: productId,
-              productBrand: brand,
-              productName: productName,
-            ),
-          ),
         );
       },
     ),
