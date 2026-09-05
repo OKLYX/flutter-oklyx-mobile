@@ -58,4 +58,38 @@ class ClaimRepositoryImpl implements ClaimRepository {
       return Left(ServerFailure(e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, ClaimActionResult>> executeAction(
+    int claimId,
+    ClaimActionRequest request,
+  ) async {
+    try {
+      // null 필드는 toJson 이 제거한다 — 빈 문자열을 보내면 서버의 requires 검증이 통과한다.
+      final result = await remoteDataSource.executeAction(claimId, request.toJson());
+      return Right(result);
+    } on DioException catch (e) {
+      return Left(_toActionFailure(e));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  /// 액션 실패 응답 → [ClaimActionFailure].
+  ///
+  /// 🔴 조회 경로처럼 `ServerFailure(e.message)` 로 뭉개면 안 된다 — 409(이미 처리된 접수)를
+  /// 400 과 구분하지 못하고, 502 에서 보여줄 쿠팡 원문(`data.resultCode`/`data.resultMessage`)이
+  /// 사라진다. 웹(03)이 읽는 경로와 같은 자리를 읽는다.
+  ClaimActionFailure _toActionFailure(DioException e) {
+    final body = e.response?.data;
+    final envelope = body is Map ? body : const {};
+    final payload = envelope['data'];
+    final raw = payload is Map ? payload : const {};
+    return ClaimActionFailure(
+      envelope['message'] as String? ?? e.message ?? '처리에 실패했습니다.',
+      statusCode: e.response?.statusCode,
+      resultCode: raw['resultCode'] as String?,
+      resultMessage: raw['resultMessage'] as String?,
+    );
+  }
 }

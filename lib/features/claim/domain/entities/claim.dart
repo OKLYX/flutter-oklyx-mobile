@@ -65,6 +65,26 @@ const faultTypeLabel = <String, String>{};
 /// 맵을 직접 읽으면 미지정 값이 null 이 되어 빈칸으로 보인다.
 String faultTypeText(String? v) => v == null ? '-' : (faultTypeLabel[v] ?? v);
 
+/// 교환 회수상태 원문 → 한글 라벨 (FEATURE_2609_21 / 05).
+///
+/// 서버는 회수상태를 **정규화하지 않고 원문 그대로** 내려준다 — 라벨은 클라이언트가 붙인다.
+/// 웹(06)의 `COLLECT_STATUS_LABEL` 과 **같은 문자열**이어야 한다(두 화면이 같은 값을 다르게
+/// 부르면 사용자는 둘 중 하나를 버그로 읽는다).
+///
+/// ⚠️ 이 표는 D19 위반이 아니다 — D19 가 막는 것은 *서버로 되돌려 보내는 값*(거부 사유 코드)의
+/// 상수다. 회수상태는 **표시 전용**이라 틀린 값이 쿠팡으로 나가지 않는다.
+const collectStatusLabel = <String, String>{
+  'BeforeDirection': '회수 연동 전',
+  'CompleteCollect': '업체 전달 완료',
+};
+
+/// 회수상태 표시용 텍스트. 미지정 값은 원문 그대로, null 은 '-'.
+///
+/// ⚠️ 화면은 [collectStatusLabel] 을 직접 읽지 말고 반드시 이 함수를 쓴다 —
+/// 맵을 직접 읽으면 미지정 값이 null 이 되어 빈칸으로 보인다([faultTypeText] 와 같은 규칙).
+String collectStatusText(String? v) =>
+    v == null ? '-' : (collectStatusLabel[v] ?? v);
+
 /// 상태 → 한글 라벨. 목록 카드·상세·필터 칩이 공유하는 유일한 라벨표다.
 const claimStatusLabel = <ClaimStatus, String>{
   ClaimStatus.received: '접수',
@@ -90,24 +110,129 @@ const claimTypeLabel = <ClaimType, String>{
 String getClaimTypeLabel(ClaimType type) => claimTypeLabel[type] ?? type.wire;
 
 /// 반품에서 실제로 나타나는 상태만 칩으로 낸다(PLAN §3.1).
-/// `IN_PROGRESS`·`REJECTED`·`WITHDRAWN` 은 교환 전용이라 반품 목록에는 등장하지 않는다.
+/// `rejected` 만 교환 전용이다 — 반품도 `inProgress`(입고완료·상태 매핑 정정),
+/// `withdrawn`(철회 이력으로 종결), `stale`(추적 강제 종결)을 갖는다.
 const returnStatusFilters = <ClaimStatus>[
   ClaimStatus.received,
+  ClaimStatus.inProgress,
   ClaimStatus.done,
   ClaimStatus.pendingReview,
+  ClaimStatus.withdrawn,
+  ClaimStatus.stale,
 ];
 
 /// 교환에서 실제로 나타나는 상태만 칩으로 낸다(PLAN §3.1).
 /// `pendingReview` 는 반품 전용이라 여기 없다 — 두 목록이 다른 것이 의도다.
-///
-/// ⚠️ `stale` 칩은 [returnStatusFilters] 와 **함께** 채운다(05 부록의 몫) — 지금은 양쪽 모두 없다.
 const exchangeStatusFilters = <ClaimStatus>[
   ClaimStatus.received,
   ClaimStatus.inProgress,
   ClaimStatus.done,
   ClaimStatus.rejected,
   ClaimStatus.withdrawn,
+  ClaimStatus.stale,
 ];
+
+/// 서버가 내려준 "지금 이 클레임에서 누를 수 있는 액션" 1개 (FEATURE_2609_21 D1).
+///
+/// 🔴 **판정은 서버가 한다.** 화면은 이 목록을 렌더만 하고 `platformStatus`/`platform` 으로
+/// 분기하지 않는다 — 앱에 분기를 두면 같은 클레임에 대해 웹과 앱이 다른 답을 준다.
+class ClaimAction {
+  /// 서버 코드 원문('RETURN_APPROVE' 등). **enum 으로 좁히지 않는다** —
+  /// 교환 4종이 붙는 날 구버전 앱이 파싱에서 죽는다. 모르는 코드는 들고 다니다 그대로 돌려보낸다.
+  final String action;
+
+  /// 서버가 준 표시명(D18). 앱이 코드→라벨 상수를 만들지 말 것.
+  final String label;
+
+  /// 추가 입력 종류: `NONE` | `INVOICE` | `REJECT_CODE`.
+  /// **모르는 값이면 버튼을 그리지 않는다** — 폼을 만들 수 없기 때문(PLAN §8).
+  final String requires;
+
+  /// 값 선택이 필요한 액션의 선택지(D19). 반품 3액션은 항상 빈 목록이다.
+  final List<ActionChoice> choices;
+
+  /// 되돌릴 수 없는 액션 — 2단 확인의 근거(D10).
+  final bool irreversible;
+
+  const ClaimAction({
+    required this.action,
+    required this.label,
+    required this.requires,
+    this.choices = const [],
+    this.irreversible = false,
+  });
+}
+
+/// 액션이 값 선택을 요구할 때의 선택지 1개(D19). 코드·라벨 모두 서버가 준다.
+class ActionChoice {
+  final String code;
+  final String label;
+
+  const ActionChoice({required this.code, required this.label});
+}
+
+/// [ClaimAction.requires] 의 알려진 값.
+///
+/// ⚠️ [supported] = **이 앱이 입력 폼을 만들 수 있는** 값이다. 여기 없는 값(서버가 나중에 늘리는
+/// 것)은 버튼을 그리지 않는다 — 폼을 만들 수 없기 때문이다(PLAN §8).
+/// `REJECT_CODE` 는 07 에서 거부 사유 시트가 생기며 들어왔다.
+abstract final class ClaimActionRequires {
+  static const none = 'NONE';
+  static const invoice = 'INVOICE';
+  static const rejectCode = 'REJECT_CODE';
+
+  static const supported = <String>{none, invoice, rejectCode};
+}
+
+/// `POST /api/admin/claims/{claimId}/actions` 요청 바디.
+///
+/// 🔴 null 필드는 **JSON 에서 뺀다**(`toJson` 이 제거) — 빈 문자열을 실어 보내면 서버의
+/// `requires` 검증이 "값이 있다"로 읽어 엉뚱한 전송이 된다.
+///
+/// ⚠️ 택배사는 **마켓 코드**(`deliveryCompanyCode`)다 — 우리 `carrier` 테이블 id 가 아니다
+/// (2609_11 D2 개정과 같은 계약). 목록은 발송처리와 같은 원천을 쓴다.
+class ClaimActionRequest {
+  final String action;
+  final String? deliveryCompanyCode;
+  final String? invoiceNumber;
+  final String? regNumber;
+  final String? rejectCode;
+
+  const ClaimActionRequest({
+    required this.action,
+    this.deliveryCompanyCode,
+    this.invoiceNumber,
+    this.regNumber,
+    this.rejectCode,
+  });
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'action': action,
+        'deliveryCompanyCode': deliveryCompanyCode,
+        'invoiceNumber': invoiceNumber,
+        'regNumber': regNumber,
+        'rejectCode': rejectCode,
+      }..removeWhere((_, v) => v == null);
+}
+
+/// 액션 실행 결과. 성공 판정은 HTTP 가 아니라 [succeeded] 다.
+///
+/// [resultCode]·[resultMessage] 는 **쿠팡 원문**(D15) — 번역·요약하지 말 것.
+class ClaimActionResult {
+  final int claimId;
+  final String action;
+  final bool succeeded;
+  final String? resultCode;
+  final String? resultMessage;
+
+  const ClaimActionResult({
+    required this.claimId,
+    required this.action,
+    required this.succeeded,
+    this.resultCode,
+    this.resultMessage,
+  });
+}
 
 /// 클레임 1건. 목록·상세가 같은 객체를 쓴다(상세 API 재조회 없음 — 주문 상세와 동일).
 class Claim {
@@ -134,6 +259,11 @@ class Claim {
   final String? collectInvoiceNo;
   final String? collectCarrierCode;
 
+  /// 교환 회수상태 **원문**('BeforeDirection' 등 — 05 가 정규화하지 않는다).
+  /// 반품에서는 항상 null 이고, 구버전 서버·다음 동기화 전인 기존 행도 null 이다 → **nullable**.
+  /// 표시는 [collectStatusText] 로만 한다.
+  final String? collectStatus;
+
   /// 교환 재발송 송장. 반품에서는 항상 null 이다(교환 전용 — 06).
   final String? reshipInvoiceNo;
   final String? reshipCarrierCode;
@@ -145,6 +275,10 @@ class Claim {
 
   /// false = 주문 라인 미연결(D12). 매칭에 실패해도 클레임 자체는 저장된다.
   final bool linked;
+
+  /// 서버가 판정한 실행 가능 액션(D1). **상세에서만 쓴다**(D9 — 목록 카드는 그리지 않는다).
+  /// 비어 있으면 액션 영역 자체를 만들지 않는다. 비-ADMIN 사용자에게는 서버가 빈 목록을 준다.
+  final List<ClaimAction> availableActions;
 
   const Claim({
     required this.id,
@@ -162,6 +296,7 @@ class Claim {
     this.returnShippingCharge,
     this.collectInvoiceNo,
     this.collectCarrierCode,
+    this.collectStatus,
     this.reshipInvoiceNo,
     this.reshipCarrierCode,
     this.requesterName,
@@ -170,5 +305,6 @@ class Claim {
     this.sellerName,
     this.orderItemId,
     required this.linked,
+    this.availableActions = const [],
   });
 }

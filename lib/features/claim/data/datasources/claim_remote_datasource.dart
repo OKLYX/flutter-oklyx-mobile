@@ -16,7 +16,18 @@ abstract class ClaimRemoteDataSource {
   });
 
   /// GET /api/claims/{id}
+  ///
+  /// 액션 실행 뒤 상세를 다시 그리는 유일한 경로다(D8) — 낙관적 갱신을 하지 않으므로
+  /// `availableActions` 는 서버가 다시 판정한 값이어야 한다.
   Future<ClaimModel> getClaim(int id);
+
+  /// POST /api/admin/claims/{claimId}/actions
+  ///
+  /// ⚠️ 조회는 `/api/claims`(인증만), 액션은 `/api/admin/claims`(ADMIN) 이다 — 경로가 다르다.
+  ///
+  /// 🔴 다른 메서드와 달리 [DioException] 을 **그대로 던진다.** 상태 코드(409≠400)와 502 의
+  /// 쿠팡 원문이 화면 분기의 근거인데, `Exception(e.message)` 로 감싸면 둘 다 사라진다.
+  Future<ClaimActionResultModel> executeAction(int claimId, Map<String, dynamic> body);
 }
 
 class ClaimRemoteDataSourceImpl implements ClaimRemoteDataSource {
@@ -69,5 +80,20 @@ class ClaimRemoteDataSourceImpl implements ClaimRemoteDataSource {
     } on DioException catch (e) {
       throw Exception(e.message ?? 'Failed to fetch claim');
     }
+  }
+
+  @override
+  Future<ClaimActionResultModel> executeAction(
+    int claimId,
+    Map<String, dynamic> body,
+  ) async {
+    // 쿠팡 왕복이지만 타임아웃·재시도는 기존 Dio 설정 그대로 둔다 — 되돌릴 수 없는 쓰기에
+    // 액션 전용 retry 를 붙이면 중복 전송이 된다.
+    final response = await dio.post('/api/admin/claims/$claimId/actions', data: body);
+    final data = response.data['data'];
+    if (data is! Map<String, dynamic>) {
+      throw Exception('Failed to execute claim action');
+    }
+    return ClaimActionResultModel.fromJson(data);
   }
 }
