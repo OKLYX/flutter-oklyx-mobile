@@ -90,23 +90,26 @@ const claimTypeLabel = <ClaimType, String>{
 String getClaimTypeLabel(ClaimType type) => claimTypeLabel[type] ?? type.wire;
 
 /// 반품에서 실제로 나타나는 상태만 칩으로 낸다(PLAN §3.1).
-/// `IN_PROGRESS`·`REJECTED`·`WITHDRAWN` 은 교환 전용이라 반품 목록에는 등장하지 않는다.
+/// `rejected` 만 교환 전용이다 — 반품도 `inProgress`(입고완료·상태 매핑 정정),
+/// `withdrawn`(철회 이력으로 종결), `stale`(추적 강제 종결)을 갖는다.
 const returnStatusFilters = <ClaimStatus>[
   ClaimStatus.received,
+  ClaimStatus.inProgress,
   ClaimStatus.done,
   ClaimStatus.pendingReview,
+  ClaimStatus.withdrawn,
+  ClaimStatus.stale,
 ];
 
 /// 교환에서 실제로 나타나는 상태만 칩으로 낸다(PLAN §3.1).
 /// `pendingReview` 는 반품 전용이라 여기 없다 — 두 목록이 다른 것이 의도다.
-///
-/// ⚠️ `stale` 칩은 [returnStatusFilters] 와 **함께** 채운다(05 부록의 몫) — 지금은 양쪽 모두 없다.
 const exchangeStatusFilters = <ClaimStatus>[
   ClaimStatus.received,
   ClaimStatus.inProgress,
   ClaimStatus.done,
   ClaimStatus.rejected,
   ClaimStatus.withdrawn,
+  ClaimStatus.stale,
 ];
 
 /// 클레임 1건. 목록·상세가 같은 객체를 쓴다(상세 API 재조회 없음 — 주문 상세와 동일).
