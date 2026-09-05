@@ -227,6 +227,17 @@ class AppDrawer extends StatelessWidget {
                   },
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  // 라벨은 지금부터 '반품/교환' — 교환 탭이 붙어도 메뉴 이름이 바뀌지 않는다.
+                  title: const Text('반품/교환'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.claimListPath);
+                  },
+                ),
+              ),
             ],
           ),
           ExpansionTile(
