@@ -22,6 +22,19 @@ abstract class ClaimRepository {
   /// GET /api/claims/{id}
   ///
   /// ⚠️ 목록 화면의 상세 진입은 이 API 를 쓰지 않는다(`extra` 전달, 주문 상세와 동일).
-  /// 딥링크 등 후속에서 필요할 때를 위한 계약이다.
+  /// **액션 실행 뒤 상세를 다시 그리는 경로**가 이 메서드다(FEATURE_2609_21 D8).
   Future<Either<Failure, Claim>> getClaim(int id);
+
+  /// 클레임 처리 액션 실행
+  /// POST /api/admin/claims/{claimId}/actions
+  ///
+  /// [request] 의 `action` 은 서버가 `availableActions` 로 방금 내려준 코드 그대로다 —
+  /// 앱이 문자열을 지어내지 않는다.
+  ///
+  /// 실패는 [ClaimActionFailure] 로 온다(상태 코드 + 502 쿠팡 원문 보존) —
+  /// 화면은 400/409/502/403 을 그 값으로 가른다.
+  Future<Either<Failure, ClaimActionResult>> executeAction(
+    int claimId,
+    ClaimActionRequest request,
+  );
 }
