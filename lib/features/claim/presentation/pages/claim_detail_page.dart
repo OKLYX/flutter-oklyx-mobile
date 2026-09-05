@@ -134,6 +134,9 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
                 _InfoRow('사유', c.reasonText ?? c.reasonCode ?? '-'),
                 // ⚠️ 맵을 직접 읽지 않는다 — 미지정 값이 빈칸이 된다.
                 _InfoRow('귀책', faultTypeText(c.faultType)),
+                // 회수상태(05) — 이 한 줄이 "왜 재발송 버튼이 없나"를 화면에서 설명한다.
+                // ⚠️ 반품 카드에는 넣지 않는다(반품은 항상 null 이라 '-' 만 늘어난다).
+                _InfoRow('회수상태', collectStatusText(c.collectStatus)),
                 _InfoRow('회수송장',
                     invoiceText(c.collectCarrierCode, c.collectInvoiceNo)),
               ],

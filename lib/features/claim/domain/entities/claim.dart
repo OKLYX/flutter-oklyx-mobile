@@ -65,6 +65,26 @@ const faultTypeLabel = <String, String>{};
 /// 맵을 직접 읽으면 미지정 값이 null 이 되어 빈칸으로 보인다.
 String faultTypeText(String? v) => v == null ? '-' : (faultTypeLabel[v] ?? v);
 
+/// 교환 회수상태 원문 → 한글 라벨 (FEATURE_2609_21 / 05).
+///
+/// 서버는 회수상태를 **정규화하지 않고 원문 그대로** 내려준다 — 라벨은 클라이언트가 붙인다.
+/// 웹(06)의 `COLLECT_STATUS_LABEL` 과 **같은 문자열**이어야 한다(두 화면이 같은 값을 다르게
+/// 부르면 사용자는 둘 중 하나를 버그로 읽는다).
+///
+/// ⚠️ 이 표는 D19 위반이 아니다 — D19 가 막는 것은 *서버로 되돌려 보내는 값*(거부 사유 코드)의
+/// 상수다. 회수상태는 **표시 전용**이라 틀린 값이 쿠팡으로 나가지 않는다.
+const collectStatusLabel = <String, String>{
+  'BeforeDirection': '회수 연동 전',
+  'CompleteCollect': '업체 전달 완료',
+};
+
+/// 회수상태 표시용 텍스트. 미지정 값은 원문 그대로, null 은 '-'.
+///
+/// ⚠️ 화면은 [collectStatusLabel] 을 직접 읽지 말고 반드시 이 함수를 쓴다 —
+/// 맵을 직접 읽으면 미지정 값이 null 이 되어 빈칸으로 보인다([faultTypeText] 와 같은 규칙).
+String collectStatusText(String? v) =>
+    v == null ? '-' : (collectStatusLabel[v] ?? v);
+
 /// 상태 → 한글 라벨. 목록 카드·상세·필터 칩이 공유하는 유일한 라벨표다.
 const claimStatusLabel = <ClaimStatus, String>{
   ClaimStatus.received: '접수',
@@ -153,14 +173,15 @@ class ActionChoice {
 
 /// [ClaimAction.requires] 의 알려진 값.
 ///
-/// ⚠️ [supported] = **이 앱이 입력 폼을 만들 수 있는** 값이다. `REJECT_CODE`(교환 거부 사유)는
-/// 07 에서 폼이 생기기 전까지 여기 없다 — 서버가 내려도 버튼을 그리지 않는 것이 맞다.
+/// ⚠️ [supported] = **이 앱이 입력 폼을 만들 수 있는** 값이다. 여기 없는 값(서버가 나중에 늘리는
+/// 것)은 버튼을 그리지 않는다 — 폼을 만들 수 없기 때문이다(PLAN §8).
+/// `REJECT_CODE` 는 07 에서 거부 사유 시트가 생기며 들어왔다.
 abstract final class ClaimActionRequires {
   static const none = 'NONE';
   static const invoice = 'INVOICE';
   static const rejectCode = 'REJECT_CODE';
 
-  static const supported = <String>{none, invoice};
+  static const supported = <String>{none, invoice, rejectCode};
 }
 
 /// `POST /api/admin/claims/{claimId}/actions` 요청 바디.
@@ -238,6 +259,11 @@ class Claim {
   final String? collectInvoiceNo;
   final String? collectCarrierCode;
 
+  /// 교환 회수상태 **원문**('BeforeDirection' 등 — 05 가 정규화하지 않는다).
+  /// 반품에서는 항상 null 이고, 구버전 서버·다음 동기화 전인 기존 행도 null 이다 → **nullable**.
+  /// 표시는 [collectStatusText] 로만 한다.
+  final String? collectStatus;
+
   /// 교환 재발송 송장. 반품에서는 항상 null 이다(교환 전용 — 06).
   final String? reshipInvoiceNo;
   final String? reshipCarrierCode;
@@ -270,6 +296,7 @@ class Claim {
     this.returnShippingCharge,
     this.collectInvoiceNo,
     this.collectCarrierCode,
+    this.collectStatus,
     this.reshipInvoiceNo,
     this.reshipCarrierCode,
     this.requesterName,

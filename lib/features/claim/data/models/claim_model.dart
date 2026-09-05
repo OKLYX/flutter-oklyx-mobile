@@ -24,6 +24,7 @@ class ClaimModel extends Claim {
     super.returnShippingCharge,
     super.collectInvoiceNo,
     super.collectCarrierCode,
+    super.collectStatus,
     super.reshipInvoiceNo,
     super.reshipCarrierCode,
     super.requesterName,
@@ -52,6 +53,8 @@ class ClaimModel extends Claim {
       returnShippingCharge: (json['returnShippingCharge'] as num?)?.toInt(),
       collectInvoiceNo: json['collectInvoiceNo'] as String?,
       collectCarrierCode: json['collectCarrierCode'] as String?,
+      // 교환 전용 · 원문 그대로(05). 구버전 서버 응답에는 필드가 없다 → null.
+      collectStatus: json['collectStatus'] as String?,
       reshipInvoiceNo: json['reshipInvoiceNo'] as String?,
       reshipCarrierCode: json['reshipCarrierCode'] as String?,
       requesterName: json['requesterName'] as String?,
