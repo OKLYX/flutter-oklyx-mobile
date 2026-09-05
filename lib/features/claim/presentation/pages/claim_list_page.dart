@@ -10,15 +10,16 @@ import '../bloc/claim_list_event.dart';
 import '../bloc/claim_list_state.dart';
 import '../widgets/claim_card.dart';
 import '../widgets/claim_status_filter_bar.dart';
+import '../widgets/claim_type_tabs.dart';
 
-/// 주문관리 > 반품/교환 페이지 (FEATURE_2609_18 Stage A — **반품 조회 전용**).
+/// 주문관리 > 반품/교환 페이지 (FEATURE_2609_18 — 조회 전용).
 ///
 /// **기능**:
+/// - 반품 / 교환 탭 전환 (`ClaimTypeTabs`) — **서버 재조회**를 부른다
 /// - 판매자 / 기간 / 검색어를 고르고 [조회] 로 서버 재조회 (`GET /api/claims`)
-/// - 상태 칩: 클라이언트 필터(건수 배지) — 서버를 부르지 않는다
+/// - 상태 칩: 클라이언트 필터(건수 배지) — 서버를 부르지 않는다. 후보는 탭마다 다르다
 /// - 카드 탭 → 클레임 상세(`extra` 전달, 상세 API 재조회 없음)
 ///
-/// ⚠️ **교환 탭은 없다** — Stage A 는 반품만이다. 탭과 그 state 는 08 이 추가한다.
 /// ⚠️ **처리 버튼(승인·입고확인)을 만들지 말 것** — 조회 전용이다(PLAN D4).
 /// ⚠️ 기간 드롭다운은 `buildPeriodOptions()` 를 **인자 없이** 부른다 —
 /// 클레임에는 월별 건수 API 가 없어 '(데이터 없음)' 을 판정할 근거가 없다.
@@ -116,6 +117,13 @@ class _LoadedBody extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 반품 ↔ 교환 — 칩과 달리 서버를 다시 부른다(조회 중에는 잠근다).
+          ClaimTypeTabs(
+            value: s.claimType,
+            enabled: !s.isSearching,
+            onChanged: (t) => bloc.add(SelectClaimType(type: t)),
+          ),
+          const SizedBox(height: 12),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(12),
@@ -221,9 +229,11 @@ class _LoadedBody extends StatelessWidget {
           const SizedBox(height: 8),
 
           // 상태 칩 — 클라이언트 필터. 같은 칩 재선택 시 전체 해제.
+          // 후보 목록은 탭마다 다르다(state 파생 — 화면이 분기를 들지 않는다).
           ClaimStatusFilterBar(
             selectedStatus: s.selectedStatus,
             counts: s.statusCounts,
+            statuses: s.statusFilters,
             onSelect: (status) => bloc.add(SelectStatus(status: status)),
           ),
           const SizedBox(height: 8),
@@ -242,8 +252,8 @@ class _LoadedBody extends StatelessWidget {
                         child: Text(
                           // 문구 2종을 구분한다 — 칩으로 0건인지, 기간에 아예 없는지.
                           s.selectedStatus != null
-                              ? '이 상태의 반품이 없습니다.'
-                              : '해당 기간에 반품 내역이 없습니다.',
+                              ? '이 상태의 ${s.typeLabel}이 없습니다.'
+                              : '해당 기간에 ${s.typeLabel} 내역이 없습니다.',
                         ),
                       )
                     : ListView.separated(

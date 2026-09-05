@@ -10,7 +10,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 /// `IN_PROGRESS`·`PENDING_REVIEW`
 /// 에서 반드시 실패한다. 직렬화·역직렬화는 **오직 `wire` 값**을 근거로 한다.
 
-/// 클레임 종류. Stage A 는 반품만 조회한다 — 교환 탭은 후속(08)이 붙인다.
+/// 클레임 종류. 목록 화면의 탭 축이다(반품 ↔ 교환) — 서버 조회 파라미터로 그대로 나간다.
 enum ClaimType {
   returnClaim('RETURN'),
   exchange('EXCHANGE');
@@ -79,13 +79,34 @@ const claimStatusLabel = <ClaimStatus, String>{
 String getClaimStatusLabel(ClaimStatus status) =>
     claimStatusLabel[status] ?? status.wire;
 
+/// 종류 → 한글 라벨. 탭 라벨·빈 상태 문구·상세 제목이 공유하는 단 하나의 명칭표다.
+///
+/// ⚠️ 화면에서 '반품'/'교환' 문자열을 직접 쓰지 말 것 — 세 곳에 흩어지면 탭마다 단어가 갈린다.
+const claimTypeLabel = <ClaimType, String>{
+  ClaimType.returnClaim: '반품',
+  ClaimType.exchange: '교환',
+};
+
+String getClaimTypeLabel(ClaimType type) => claimTypeLabel[type] ?? type.wire;
+
 /// 반품에서 실제로 나타나는 상태만 칩으로 낸다(PLAN §3.1).
 /// `IN_PROGRESS`·`REJECTED`·`WITHDRAWN` 은 교환 전용이라 반품 목록에는 등장하지 않는다.
-/// 교환 상태 칩은 08 이 추가한다.
 const returnStatusFilters = <ClaimStatus>[
   ClaimStatus.received,
   ClaimStatus.done,
   ClaimStatus.pendingReview,
+];
+
+/// 교환에서 실제로 나타나는 상태만 칩으로 낸다(PLAN §3.1).
+/// `pendingReview` 는 반품 전용이라 여기 없다 — 두 목록이 다른 것이 의도다.
+///
+/// ⚠️ `stale` 칩은 [returnStatusFilters] 와 **함께** 채운다(05 부록의 몫) — 지금은 양쪽 모두 없다.
+const exchangeStatusFilters = <ClaimStatus>[
+  ClaimStatus.received,
+  ClaimStatus.inProgress,
+  ClaimStatus.done,
+  ClaimStatus.rejected,
+  ClaimStatus.withdrawn,
 ];
 
 /// 클레임 1건. 목록·상세가 같은 객체를 쓴다(상세 API 재조회 없음 — 주문 상세와 동일).
@@ -108,9 +129,14 @@ class Claim {
   final String? reasonCode;
   final String? reasonText;
   final String? faultType;
+  /// ⚠️ 교환에서는 **항상 null** 이다(06) — 교환 배송비를 이 필드로 읽지 말 것.
   final int? returnShippingCharge;
   final String? collectInvoiceNo;
   final String? collectCarrierCode;
+
+  /// 교환 재발송 송장. 반품에서는 항상 null 이다(교환 전용 — 06).
+  final String? reshipInvoiceNo;
+  final String? reshipCarrierCode;
   final String? requesterName;
   final DateTime receivedAt;
   final int? sellerId;
@@ -136,6 +162,8 @@ class Claim {
     this.returnShippingCharge,
     this.collectInvoiceNo,
     this.collectCarrierCode,
+    this.reshipInvoiceNo,
+    this.reshipCarrierCode,
     this.requesterName,
     required this.receivedAt,
     this.sellerId,

@@ -24,6 +24,8 @@ class ClaimModel extends Claim {
     super.returnShippingCharge,
     super.collectInvoiceNo,
     super.collectCarrierCode,
+    super.reshipInvoiceNo,
+    super.reshipCarrierCode,
     super.requesterName,
     required super.receivedAt,
     super.sellerId,
@@ -49,6 +51,8 @@ class ClaimModel extends Claim {
       returnShippingCharge: (json['returnShippingCharge'] as num?)?.toInt(),
       collectInvoiceNo: json['collectInvoiceNo'] as String?,
       collectCarrierCode: json['collectCarrierCode'] as String?,
+      reshipInvoiceNo: json['reshipInvoiceNo'] as String?,
+      reshipCarrierCode: json['reshipCarrierCode'] as String?,
       requesterName: json['requesterName'] as String?,
       // 서버는 ISO LocalDateTime 문자열을 준다. 파싱 실패해도 화면이 죽지 않게 epoch 로 떨어뜨린다.
       receivedAt: DateTime.tryParse(json['receivedAt'] as String? ?? '') ??
@@ -60,7 +64,7 @@ class ClaimModel extends Claim {
     );
   }
 
-  /// 모르는 종류는 Stage A 범위인 반품으로 둔다 — 목록이 통째로 비는 것보다 낫다.
+  /// 모르는 종류는 기본 탭인 반품으로 둔다 — 목록이 통째로 비는 것보다 낫다.
   static ClaimType _parseType(String? v) {
     for (final t in ClaimType.values) {
       if (t.wire == v) return t;
