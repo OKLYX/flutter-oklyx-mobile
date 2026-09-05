@@ -36,3 +36,11 @@ class SelectStatus extends ClaimListEvent {
 
   SelectStatus({this.status});
 }
+
+/// 반품 ↔ 교환 전환. **서버를 다시 부른다**(type 은 서버 파라미터다) —
+/// 상태 칩([SelectStatus])이 클라이언트 필터인 것과 반대다.
+class SelectClaimType extends ClaimListEvent {
+  final ClaimType type;
+
+  SelectClaimType({required this.type});
+}
