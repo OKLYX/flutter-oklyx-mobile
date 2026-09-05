@@ -10,7 +10,7 @@ import '../../domain/entities/claim.dart';
 // unknown codes fall back to the raw value.
 const Map<String, String> _platformLabels = {'COUPANG': '쿠팡'};
 
-/// 클레임 상세 페이지 (FEATURE_2609_18 Stage A).
+/// 클레임 상세 페이지 (FEATURE_2609_18).
 ///
 /// **데이터 출처**: 주문 상세와 동일하게 목록에서 받은 [Claim] 을 go_router `extra` 로
 /// 전달받아 그대로 표시한다(상세 API 재조회 없음).
@@ -18,7 +18,8 @@ const Map<String, String> _platformLabels = {'COUPANG': '쿠팡'};
 ///
 /// ⚠️ `build` 중에 `context.go`/`pop` 으로 **자동 이동하지 않는다** — 빌드 중 네비게이션은
 /// 예외를 던진다. 사용자가 버튼을 눌러 돌아간다.
-/// ⚠️ **처리 버튼(승인·입고확인)을 만들지 말 것** — Stage A 는 조회 전용이다(PLAN D4).
+/// ⚠️ **처리 버튼(승인·입고확인·재발송 송장)을 만들지 말 것** — 조회 전용이다(PLAN D4).
+/// ⚠️ 반품/교환은 8할이 같아 **페이지를 나누지 않는다** — [Claim.claimType] 한 축으로만 분기한다.
 class ClaimDetailPage extends StatelessWidget {
   final Claim? claim;
 
@@ -27,7 +28,10 @@ class ClaimDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithNavBar(
-      title: '반품 상세',
+      // ⚠️ claim 은 여기서 nullable 이다(_buildContent 안이 아니다) — null 분기가 필요하다.
+      title: claim == null
+          ? '반품/교환 상세'
+          : '${getClaimTypeLabel(claim!.claimType)} 상세',
       navBarIndex: 2,
       showDrawer: true,
       onBackPressed: () => context.go(Routes.claimListPath),
@@ -55,6 +59,15 @@ class ClaimDetailPage extends StatelessWidget {
   }
 
   Widget _buildContent(BuildContext context, Claim c) {
+    // 교환은 반품비가 항상 null 이라 그 행을 아예 그리지 않는다(06).
+    final isExchange = c.claimType == ClaimType.exchange;
+
+    // 회수·재발송 송장이 같은 조립을 쓰게 하는 지역 함수. 둘 다 없으면 '-'.
+    String invoiceText(String? carrier, String? invoice) {
+      final text = '${carrier ?? ''} ${invoice ?? ''}'.trim();
+      return text.isEmpty ? '-' : text;
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -90,27 +103,44 @@ class ClaimDetailPage extends StatelessWidget {
                 : '주문 라인에 연결되지 않은 접수입니다 — 상품·판매자 정보가 비어 있을 수 있습니다.',
           ),
           const SizedBox(height: 12),
-          _InfoCard(
-            title: '처리',
-            rows: [
-              _InfoRow('사유', c.reasonText ?? c.reasonCode ?? '-'),
-              // ⚠️ 맵을 직접 읽지 않는다 — 미지정 값이 빈칸이 된다.
-              _InfoRow('귀책', faultTypeText(c.faultType)),
-              _InfoRow(
-                '반품비',
-                c.returnShippingCharge == null
-                    ? '-'
-                    : '${c.returnShippingCharge}원',
-              ),
-              _InfoRow(
-                '회수송장',
-                c.collectInvoiceNo == null
-                    ? '-'
-                    : '${c.collectCarrierCode ?? ''} ${c.collectInvoiceNo}'
-                        .trim(),
-              ),
-            ],
-          ),
+          if (isExchange) ...[
+            // 교환은 회수(고객→판매자)와 재발송(판매자→고객)이 별개 흐름이라 카드를 나눈다.
+            _InfoCard(
+              title: '회수',
+              rows: [
+                _InfoRow('사유', c.reasonText ?? c.reasonCode ?? '-'),
+                // ⚠️ 맵을 직접 읽지 않는다 — 미지정 값이 빈칸이 된다.
+                _InfoRow('귀책', faultTypeText(c.faultType)),
+                _InfoRow('회수송장',
+                    invoiceText(c.collectCarrierCode, c.collectInvoiceNo)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // ⚠️ 값이 비어도 숨기지 않는다 — '아직 재발송 안 됨'과 '재발송 개념이 없음'은 다르다.
+            _InfoCard(
+              title: '재발송',
+              rows: [
+                _InfoRow('재발송송장',
+                    invoiceText(c.reshipCarrierCode, c.reshipInvoiceNo)),
+              ],
+            ),
+          ] else
+            _InfoCard(
+              title: '처리',
+              rows: [
+                _InfoRow('사유', c.reasonText ?? c.reasonCode ?? '-'),
+                // ⚠️ 맵을 직접 읽지 않는다 — 미지정 값이 빈칸이 된다.
+                _InfoRow('귀책', faultTypeText(c.faultType)),
+                _InfoRow(
+                  '반품비',
+                  c.returnShippingCharge == null
+                      ? '-'
+                      : '${c.returnShippingCharge}원',
+                ),
+                _InfoRow('회수송장',
+                    invoiceText(c.collectCarrierCode, c.collectInvoiceNo)),
+              ],
+            ),
           // ScaffoldWithNavBar 는 내비바를 오버레이하므로 하단 여백을 확보한다.
           SizedBox(
             height: kBottomNavigationBarHeight +

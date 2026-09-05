@@ -46,6 +46,9 @@ class ClaimListLoaded extends ClaimListState {
   final bool isSearching;
   final String? actionError;
 
+  /// 지금 보고 있는 탭(반품 / 교환). **서버 조회 파라미터**라 바뀌면 재조회가 따라온다.
+  final ClaimType claimType;
+
   ClaimListLoaded({
     required this.claims,
     required this.sellers,
@@ -56,7 +59,16 @@ class ClaimListLoaded extends ClaimListState {
     this.searchTerm = '',
     this.isSearching = false,
     this.actionError,
+    this.claimType = ClaimType.returnClaim,
   });
+
+  /// 이 탭에서 보여줄 상태 칩. 칩 목록은 탭마다 다르다.
+  List<ClaimStatus> get statusFilters => claimType == ClaimType.exchange
+      ? exchangeStatusFilters
+      : returnStatusFilters;
+
+  /// 빈 상태·에러 문구에 쓰는 명칭('반품' / '교환').
+  String get typeLabel => getClaimTypeLabel(claimType);
 
   /// 화면에 그릴 목록 — 상태 칩만 얹는다(검색·기간·판매자는 이미 서버가 걸렀다).
   List<Claim> get visible => selectedStatus == null
@@ -87,6 +99,8 @@ class ClaimListLoaded extends ClaimListState {
     String? actionError,
     // ⚠️ `??` 관례상 null 을 넘겨서는 못 지운다 — 명시적 clear 플래그가 필요하다.
     bool clearActionError = false,
+    // ⚠️ null 이 될 수 없는 축이라 clear 플래그가 없다.
+    ClaimType? claimType,
   }) {
     return ClaimListLoaded(
       claims: claims ?? this.claims,
@@ -103,6 +117,7 @@ class ClaimListLoaded extends ClaimListState {
       searchTerm: searchTerm ?? this.searchTerm,
       isSearching: isSearching ?? this.isSearching,
       actionError: clearActionError ? null : (actionError ?? this.actionError),
+      claimType: claimType ?? this.claimType,
     );
   }
 }
