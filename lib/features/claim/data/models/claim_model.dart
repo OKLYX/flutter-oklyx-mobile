@@ -32,6 +32,7 @@ class ClaimModel extends Claim {
     super.sellerName,
     super.orderItemId,
     required super.linked,
+    super.availableActions,
   });
 
   factory ClaimModel.fromJson(Map<String, dynamic> json) {
@@ -61,7 +62,47 @@ class ClaimModel extends Claim {
       sellerName: json['sellerName'] as String?,
       orderItemId: (json['orderItemId'] as num?)?.toInt(),
       linked: json['linked'] as bool? ?? false,
+      // 구버전 서버(필드 없음)·비-ADMIN(빈 목록) 모두 빈 리스트로 떨어진다 — 크래시 없음.
+      availableActions: _parseActions(json['availableActions']),
     );
+  }
+
+  /// 실행 가능 액션 파싱(FEATURE_2609_21 D1).
+  ///
+  /// 🔴 `action`·`requires` 는 **문자열 그대로** 둔다 — enum 으로 좁히면 서버가 값을 늘리는 날
+  /// (교환 4종) 구버전 앱이 파싱에서 죽는다. 모르는 값의 처리는 화면이 정한다(버튼을 안 그린다).
+  static List<ClaimAction> _parseActions(dynamic raw) {
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map<String, dynamic>>()
+        .map(
+          (e) => ClaimAction(
+            action: e['action'] as String? ?? '',
+            label: e['label'] as String? ?? '',
+            requires: e['requires'] as String? ?? '',
+            choices: _parseChoices(e['choices']),
+            irreversible: e['irreversible'] == true,
+          ),
+        )
+        // 코드가 비면 서버에 되돌려 보낼 식별자가 없다 — 그릴 수 없는 버튼이다.
+        .where((a) => a.action.isNotEmpty)
+        .toList();
+  }
+
+  /// 선택지는 반품 3액션에서 항상 빈 배열이지만 지금 파싱한다 —
+  /// 07(교환 거부 사유)에서 모델을 다시 열면 그 사이 웹·앱 모델이 갈린다.
+  static List<ActionChoice> _parseChoices(dynamic raw) {
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map<String, dynamic>>()
+        .map(
+          (e) => ActionChoice(
+            code: e['code'] as String? ?? '',
+            label: e['label'] as String? ?? '',
+          ),
+        )
+        .where((c) => c.code.isNotEmpty)
+        .toList();
   }
 
   /// 모르는 종류는 기본 탭인 반품으로 둔다 — 목록이 통째로 비는 것보다 낫다.
@@ -70,5 +111,29 @@ class ClaimModel extends Claim {
       if (t.wire == v) return t;
     }
     return ClaimType.returnClaim;
+  }
+}
+
+/// `POST /api/admin/claims/{id}/actions` 응답 → [ClaimActionResult].
+///
+/// ⚠️ 502(쿠팡 거절) 응답도 **같은 모양**으로 `data` 에 실려 온다 — 성공/실패에서 서로 다른
+/// 스키마를 파싱하지 않는다. 실패 경로의 파싱은 Repository 가 한다(상태 코드가 필요하므로).
+class ClaimActionResultModel extends ClaimActionResult {
+  const ClaimActionResultModel({
+    required super.claimId,
+    required super.action,
+    required super.succeeded,
+    super.resultCode,
+    super.resultMessage,
+  });
+
+  factory ClaimActionResultModel.fromJson(Map<String, dynamic> json) {
+    return ClaimActionResultModel(
+      claimId: (json['claimId'] as num?)?.toInt() ?? 0,
+      action: json['action'] as String? ?? '',
+      succeeded: json['succeeded'] == true,
+      resultCode: json['resultCode'] as String?,
+      resultMessage: json['resultMessage'] as String?,
+    );
   }
 }

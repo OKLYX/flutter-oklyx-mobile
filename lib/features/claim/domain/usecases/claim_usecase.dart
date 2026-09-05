@@ -29,4 +29,11 @@ class ClaimUseCase {
   }
 
   Future<Either<Failure, Claim>> getClaim(int id) => repository.getClaim(id);
+
+  /// 처리 액션 실행 (ADMIN 전용 — 모바일엔 role 게이트가 없어 서버 403 이 유일한 방어선, D13).
+  Future<Either<Failure, ClaimActionResult>> executeAction(
+    int claimId,
+    ClaimActionRequest request,
+  ) =>
+      repository.executeAction(claimId, request);
 }

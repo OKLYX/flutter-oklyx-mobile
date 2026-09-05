@@ -5,6 +5,7 @@ import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/claim.dart';
+import '../widgets/claim_action_sheet.dart';
 
 // Platform display labels — same shape as order_detail_page;
 // unknown codes fall back to the raw value.
@@ -18,26 +19,48 @@ const Map<String, String> _platformLabels = {'COUPANG': '쿠팡'};
 ///
 /// ⚠️ `build` 중에 `context.go`/`pop` 으로 **자동 이동하지 않는다** — 빌드 중 네비게이션은
 /// 예외를 던진다. 사용자가 버튼을 눌러 돌아간다.
-/// ⚠️ **처리 버튼(승인·입고확인·재발송 송장)을 만들지 말 것** — 조회 전용이다(PLAN D4).
 /// ⚠️ 반품/교환은 8할이 같아 **페이지를 나누지 않는다** — [Claim.claimType] 한 축으로만 분기한다.
-class ClaimDetailPage extends StatelessWidget {
+///
+/// **처리 액션**(FEATURE_2609_21): 상세 하단의 [ClaimActionSheet] 가 서버의
+/// [Claim.availableActions] 를 버튼으로 그린다 — 무엇을 보여줄지는 **서버가 정한다**(D1).
+/// 액션 뒤 단건 재조회 결과를 담을 소유자가 필요해 이 페이지는 [StatefulWidget] 이고,
+/// 카드·액션 영역 전부 로컬 [_claim] 을 읽는다.
+/// ⚠️ 목록(`ClaimListBloc`)은 건드리지 않는다 — 상세에서 그 인스턴스에 닿을 수 없고, 액션이
+/// 바꾸는 값(`availableActions`)은 목록 카드가 그리지 않는다(04 Step 5).
+class ClaimDetailPage extends StatefulWidget {
   final Claim? claim;
 
   const ClaimDetailPage({super.key, this.claim});
 
   @override
+  State<ClaimDetailPage> createState() => _ClaimDetailPageState();
+}
+
+class _ClaimDetailPageState extends State<ClaimDetailPage> {
+  /// 화면이 그리는 클레임. 시작값은 목록이 `extra` 로 넘긴 객체이고,
+  /// 액션 성공(또는 409) 뒤 단건 재조회 결과로 교체된다(D8).
+  Claim? _claim;
+
+  @override
+  void initState() {
+    super.initState();
+    _claim = widget.claim;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final claim = _claim;
     return ScaffoldWithNavBar(
       // ⚠️ claim 은 여기서 nullable 이다(_buildContent 안이 아니다) — null 분기가 필요하다.
       title: claim == null
           ? '반품/교환 상세'
-          : '${getClaimTypeLabel(claim!.claimType)} 상세',
+          : '${getClaimTypeLabel(claim.claimType)} 상세',
       navBarIndex: 2,
       showDrawer: true,
       onBackPressed: () => context.go(Routes.claimListPath),
       body: claim == null
           ? _buildMissing(context)
-          : _buildContent(context, claim!),
+          : _buildContent(context, claim),
     );
   }
 
@@ -141,6 +164,15 @@ class ClaimDetailPage extends StatelessWidget {
                     invoiceText(c.collectCarrierCode, c.collectInvoiceNo)),
               ],
             ),
+          // 액션 영역 — 서버가 준 목록이 비면 영역 자체를 만들지 않는다(위 여백도 함께 빠진다).
+          if (c.availableActions.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ClaimActionSheet(
+              claim: c,
+              // 재조회 결과를 로컬 상태로 받는다. 낙관적 갱신은 하지 않는다(D7).
+              onActionDone: (updated) => setState(() => _claim = updated),
+            ),
+          ],
           // ScaffoldWithNavBar 는 내비바를 오버레이하므로 하단 여백을 확보한다.
           SizedBox(
             height: kBottomNavigationBarHeight +

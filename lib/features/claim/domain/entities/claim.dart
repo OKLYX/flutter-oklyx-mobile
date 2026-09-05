@@ -112,6 +112,107 @@ const exchangeStatusFilters = <ClaimStatus>[
   ClaimStatus.stale,
 ];
 
+/// 서버가 내려준 "지금 이 클레임에서 누를 수 있는 액션" 1개 (FEATURE_2609_21 D1).
+///
+/// 🔴 **판정은 서버가 한다.** 화면은 이 목록을 렌더만 하고 `platformStatus`/`platform` 으로
+/// 분기하지 않는다 — 앱에 분기를 두면 같은 클레임에 대해 웹과 앱이 다른 답을 준다.
+class ClaimAction {
+  /// 서버 코드 원문('RETURN_APPROVE' 등). **enum 으로 좁히지 않는다** —
+  /// 교환 4종이 붙는 날 구버전 앱이 파싱에서 죽는다. 모르는 코드는 들고 다니다 그대로 돌려보낸다.
+  final String action;
+
+  /// 서버가 준 표시명(D18). 앱이 코드→라벨 상수를 만들지 말 것.
+  final String label;
+
+  /// 추가 입력 종류: `NONE` | `INVOICE` | `REJECT_CODE`.
+  /// **모르는 값이면 버튼을 그리지 않는다** — 폼을 만들 수 없기 때문(PLAN §8).
+  final String requires;
+
+  /// 값 선택이 필요한 액션의 선택지(D19). 반품 3액션은 항상 빈 목록이다.
+  final List<ActionChoice> choices;
+
+  /// 되돌릴 수 없는 액션 — 2단 확인의 근거(D10).
+  final bool irreversible;
+
+  const ClaimAction({
+    required this.action,
+    required this.label,
+    required this.requires,
+    this.choices = const [],
+    this.irreversible = false,
+  });
+}
+
+/// 액션이 값 선택을 요구할 때의 선택지 1개(D19). 코드·라벨 모두 서버가 준다.
+class ActionChoice {
+  final String code;
+  final String label;
+
+  const ActionChoice({required this.code, required this.label});
+}
+
+/// [ClaimAction.requires] 의 알려진 값.
+///
+/// ⚠️ [supported] = **이 앱이 입력 폼을 만들 수 있는** 값이다. `REJECT_CODE`(교환 거부 사유)는
+/// 07 에서 폼이 생기기 전까지 여기 없다 — 서버가 내려도 버튼을 그리지 않는 것이 맞다.
+abstract final class ClaimActionRequires {
+  static const none = 'NONE';
+  static const invoice = 'INVOICE';
+  static const rejectCode = 'REJECT_CODE';
+
+  static const supported = <String>{none, invoice};
+}
+
+/// `POST /api/admin/claims/{claimId}/actions` 요청 바디.
+///
+/// 🔴 null 필드는 **JSON 에서 뺀다**(`toJson` 이 제거) — 빈 문자열을 실어 보내면 서버의
+/// `requires` 검증이 "값이 있다"로 읽어 엉뚱한 전송이 된다.
+///
+/// ⚠️ 택배사는 **마켓 코드**(`deliveryCompanyCode`)다 — 우리 `carrier` 테이블 id 가 아니다
+/// (2609_11 D2 개정과 같은 계약). 목록은 발송처리와 같은 원천을 쓴다.
+class ClaimActionRequest {
+  final String action;
+  final String? deliveryCompanyCode;
+  final String? invoiceNumber;
+  final String? regNumber;
+  final String? rejectCode;
+
+  const ClaimActionRequest({
+    required this.action,
+    this.deliveryCompanyCode,
+    this.invoiceNumber,
+    this.regNumber,
+    this.rejectCode,
+  });
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'action': action,
+        'deliveryCompanyCode': deliveryCompanyCode,
+        'invoiceNumber': invoiceNumber,
+        'regNumber': regNumber,
+        'rejectCode': rejectCode,
+      }..removeWhere((_, v) => v == null);
+}
+
+/// 액션 실행 결과. 성공 판정은 HTTP 가 아니라 [succeeded] 다.
+///
+/// [resultCode]·[resultMessage] 는 **쿠팡 원문**(D15) — 번역·요약하지 말 것.
+class ClaimActionResult {
+  final int claimId;
+  final String action;
+  final bool succeeded;
+  final String? resultCode;
+  final String? resultMessage;
+
+  const ClaimActionResult({
+    required this.claimId,
+    required this.action,
+    required this.succeeded,
+    this.resultCode,
+    this.resultMessage,
+  });
+}
+
 /// 클레임 1건. 목록·상세가 같은 객체를 쓴다(상세 API 재조회 없음 — 주문 상세와 동일).
 class Claim {
   final int id;
@@ -149,6 +250,10 @@ class Claim {
   /// false = 주문 라인 미연결(D12). 매칭에 실패해도 클레임 자체는 저장된다.
   final bool linked;
 
+  /// 서버가 판정한 실행 가능 액션(D1). **상세에서만 쓴다**(D9 — 목록 카드는 그리지 않는다).
+  /// 비어 있으면 액션 영역 자체를 만들지 않는다. 비-ADMIN 사용자에게는 서버가 빈 목록을 준다.
+  final List<ClaimAction> availableActions;
+
   const Claim({
     required this.id,
     required this.platform,
@@ -173,5 +278,6 @@ class Claim {
     this.sellerName,
     this.orderItemId,
     required this.linked,
+    this.availableActions = const [],
   });
 }
