@@ -32,6 +32,8 @@ class Routes {
   static const String shipmentManagement = 'shipmentManagement';
   static const String orderHistory = 'orderHistory';
   static const String orderHistoryDetail = 'orderHistoryDetail';
+  static const String claimList = 'claimList';
+  static const String claimDetail = 'claimDetail';
   static const String shippingLabelPreview = 'shippingLabelPreview';
   static const String notFound = 'notFound';
 
@@ -70,6 +72,8 @@ class Routes {
   static const String shipmentManagementPath = '/orders/shipment';
   static const String orderHistoryPath = '/orders/history';
   static const String orderHistoryDetailPath = '/orders/history/detail';
+  static const String claimListPath = '/orders/claims';
+  static const String claimDetailPath = '/orders/claims/detail';
   static const String shippingLabelPreviewPath = '/shipping-label/preview';
   static const String notFoundPath = '/404';
 
