@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter/services.dart';
@@ -424,6 +425,7 @@ class _ImageSection extends StatefulWidget {
 
 class _ImageSectionState extends State<_ImageSection> {
   final _picker = ImagePicker();
+  bool _isDownloading = false;
 
   Future<Uint8List?> _loadProductImage(int productId) async {
     try {
@@ -453,6 +455,53 @@ class _ImageSectionState extends State<_ImageSection> {
         SnackBar(content: Text('이미지 선택 실패: $e')),
       );
     }
+  }
+
+  /// Save the original image to a user-picked location.
+  ///
+  /// saveAs opens the system dialog so the file lands where the user can find it
+  /// (saveFile writes to the app-private dir on Android). Cancel returns null → no SnackBar.
+  Future<void> _downloadImage(BuildContext context, dynamic product) async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _isDownloading = true);
+    try {
+      final bytes = await _loadProductImage(product.id as int);
+      if (bytes == null) {
+        _notify(messenger, '이미지를 불러오지 못했습니다.');
+        return;
+      }
+      final isPng = product.imageUrl
+          .toString()
+          .toLowerCase()
+          .split('?')
+          .first
+          .endsWith('.png');
+      final path = await FileSaver.instance.saveAs(
+        name: '상품이미지_${product.id}',
+        bytes: bytes,
+        ext: isPng ? 'png' : 'jpg',
+        mimeType: isPng ? MimeType.png : MimeType.jpeg,
+      );
+      if (path == null || path.isEmpty) return;
+      _notify(messenger, '이미지를 저장했습니다.');
+    } catch (_) {
+      _notify(messenger, '이미지 저장에 실패했습니다.');
+    } finally {
+      if (mounted) setState(() => _isDownloading = false);
+    }
+  }
+
+  // Floating + bottom margin so the nav bar overlay doesn't cover it.
+  void _notify(ScaffoldMessengerState messenger, String message) {
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
+        ),
+      );
   }
 
   Widget _buildPlaceholder({bool showPlus = false}) {
@@ -561,6 +610,37 @@ class _ImageSectionState extends State<_ImageSection> {
                         color: Colors.white,
                         size: 18,
                       ),
+                    ),
+                  ),
+                ),
+              if (hasImage && !isLoading)
+                Positioned(
+                  top: 36,
+                  right: 4,
+                  child: GestureDetector(
+                    onTap: _isDownloading
+                        ? null
+                        : () => _downloadImage(context, product),
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
+                      ),
+                      padding: const EdgeInsets.all(4),
+                      child: _isDownloading
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.download,
+                              color: Colors.white,
+                              size: 18,
+                            ),
                     ),
                   ),
                 ),
