@@ -5,6 +5,9 @@ import 'package:get_it/get_it.dart';
 
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/auth/presentation/pages/login_page.dart';
+import 'package:flutter_oklyn_mobile/features/claim/domain/entities/claim.dart';
+import 'package:flutter_oklyn_mobile/features/claim/presentation/pages/claim_list_page.dart';
+import 'package:flutter_oklyn_mobile/features/claim/presentation/pages/claim_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_event.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_detail_bloc.dart';
@@ -497,6 +500,26 @@ class AppRouter {
             final order = state.extra as OrderItem?;
             return NoTransitionPage(
               child: OrderDetailPage(order: order),
+            );
+          },
+        ),
+      ],
+    ),
+    GoRoute(
+      name: Routes.claimList,
+      path: Routes.claimListPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: ClaimListPage(),
+      ),
+      routes: [
+        GoRoute(
+          name: Routes.claimDetail,
+          path: 'detail',
+          pageBuilder: (context, state) {
+            // 목록에서 extra 로 전달한 Claim 사용 (상세 재조회 없음, 주문 상세와 동일).
+            final claim = state.extra as Claim?;
+            return NoTransitionPage(
+              child: ClaimDetailPage(claim: claim),
             );
           },
         ),

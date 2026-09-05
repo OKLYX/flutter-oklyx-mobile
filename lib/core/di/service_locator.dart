@@ -159,6 +159,11 @@ import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/reco
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/adjust_manual_qty_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/add_manual_item_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/claim/data/datasources/claim_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/claim/data/repositories/claim_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/claim/domain/repositories/claim_repository.dart';
+import 'package:flutter_oklyn_mobile/features/claim/domain/usecases/claim_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/claim/presentation/bloc/claim_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/thumbnail/data/datasources/thumbnail_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/thumbnail/data/datasources/impl/thumbnail_remote_datasource_impl.dart';
 import 'package:flutter_oklyn_mobile/features/thumbnail/data/repositories/thumbnail_repository_impl.dart';
@@ -189,6 +194,7 @@ void setupServiceLocator() {
   _registerProductListingServices();
   _registerShippingLabelServices();
   _registerOrderServices();
+  _registerClaimServices();
   _registerPurchaseListServices();
   _registerThumbnailServices();
   _registerErrorHandling();
@@ -880,6 +886,32 @@ void _registerOrderServices() {
   // ⚠️ 싱글턴이면 이전 화면의 result 가 남아 결과 SnackBar 가 다시 뜬다.
   getIt.registerFactory<OrderAcknowledgeBloc>(
     () => OrderAcknowledgeBloc(useCase: getIt<OrderUseCase>()),
+  );
+}
+
+void _registerClaimServices() {
+  // Data Source
+  getIt.registerSingleton<ClaimRemoteDataSource>(
+    ClaimRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
+  );
+
+  // Repository
+  getIt.registerSingleton<ClaimRepository>(
+    ClaimRepositoryImpl(remoteDataSource: getIt<ClaimRemoteDataSource>()),
+  );
+
+  // Use Case
+  getIt.registerSingleton<ClaimUseCase>(
+    ClaimUseCase(repository: getIt<ClaimRepository>()),
+  );
+
+  // BLoC as factory to allow fresh state per page.
+  // 판매자 드롭다운은 기존 seller 기능의 GetSellersUseCase 를 재사용한다.
+  getIt.registerFactory<ClaimListBloc>(
+    () => ClaimListBloc(
+      claimUseCase: getIt<ClaimUseCase>(),
+      getSellersUseCase: getIt<GetSellersUseCase>(),
+    ),
   );
 }
 

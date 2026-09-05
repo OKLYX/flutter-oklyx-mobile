@@ -26,8 +26,12 @@ class OrderMonth {
 ///
 /// 주문이 없는 달은 **지우지 않고 '(데이터 없음)'** 을 붙인다(PLAN D18) — 지우면 그 달을 고를 수 없고
 /// 후속 기능(2609_10)의 백필 진입점까지 사라진다. [monthsWithData] 는 'YYYY-MM' 집합.
+///
+/// ⚠️ [monthsWithData] 가 **null 이면 데이터 유무를 아예 표시하지 않는다** — 월별 건수 API 가 없는
+/// 화면(반품/교환, 2609_18)이 쓴다. `const {}` 를 넘기면 전 달에 '(데이터 없음)' 이 붙어 거짓
+/// 정보가 되므로, 건수를 모르는 화면은 인자를 생략하거나 null 을 넘긴다.
 List<OrderPeriodOption> buildPeriodOptions({
-  Set<String> monthsWithData = const {},
+  Set<String>? monthsWithData,
   DateTime? today,
   int months = 12,
 }) {
@@ -42,7 +46,9 @@ List<OrderPeriodOption> buildPeriodOptions({
     final base = '${d.year}년 ${d.month}월';
     options.add(OrderPeriodOption(
       value: value,
-      label: monthsWithData.contains(value) ? base : '$base (데이터 없음)',
+      label: (monthsWithData == null || monthsWithData.contains(value))
+          ? base
+          : '$base (데이터 없음)',
     ));
   }
   return options;
