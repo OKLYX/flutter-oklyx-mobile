@@ -56,6 +56,9 @@ const Map<String, String> _orderStatusLabels = {
   'DEPARTURE': '배송지시',
   'DELIVERING': '배송중',
   'FINAL_DELIVERY': '배송완료',
+  // 전량취소된 주문의 표시용 — 마켓 status 는 그대로지만 취소 결과가 이 코드를 내려준다
+  // (FEATURE_2609_25, 웹 OrderEntity 와 같은 라벨).
+  'CANCELLED': '취소',
   // Short label so the status filter chip fits one line; the full explanation
   // is shown under the filter bar when this status is selected.
   'NONE_TRACKING': '추적불가',
