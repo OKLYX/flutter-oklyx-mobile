@@ -138,17 +138,18 @@ class OrderDetailPage extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             if (isCoupang) ...[
-              // 발주(ACCEPT→INSTRUCT) → 취소 → 발송(INSTRUCT→DEPARTURE) 순서가 화면 순서와 맞는다.
-              // ⚠️ 전량취소해도 로컬 status 는 그대로라(D7) 두 섹션이 계속 열려 있다 —
-              // 두 위젯 **안을 고치지 않고** 바깥에서 감싸 숨긴다. 부분취소는 감추지 않는다(D19).
-              _HideWhenFullyCancelled(child: _AcknowledgeSection(order: o)),
-              const SizedBox(height: 12),
-              _CancelSection(order: o),
-              const SizedBox(height: 12),
-              _HideWhenFullyCancelled(child: _ManualShipmentSection(order: o)),
+              // 발송처리·주문취소는 배타적 선택이라 세로로 쌓지 않고 좌우 탭으로 묶는다.
+              // ⚠️ 전량취소해도 로컬 status 는 그대로라(D7) 섹션이 계속 열려 있다 —
+              // 위젯 **안을 고치지 않고** 바깥에서(탭 게이트·래퍼) 숨긴다. 부분취소는 감추지 않는다(D19).
+              _ActionTabs(order: o),
               const SizedBox(height: 12),
             ],
             _OrderSheetSection(order: o),
+            // 발주(ACCEPT→INSTRUCT)는 발송·취소의 앞 단계라 탭에 섞지 않고 화면 하단에 따로 둔다.
+            if (isCoupang) ...[
+              const SizedBox(height: 12),
+              _HideWhenFullyCancelled(child: _AcknowledgeSection(order: o)),
+            ],
             // ScaffoldWithNavBar 는 내비바를 오버레이하므로 하단 여백을 확보한다.
             SizedBox(
               height: kBottomNavigationBarHeight +
@@ -286,6 +287,93 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
+/// 발송처리 / 주문 취소 전환 탭 — 목록 화면의 `ClaimTypeTabs` 와 같은 관용구(`SegmentedButton`).
+///
+/// **용도**: 한 주문에 대해 서로 배타적인 두 액션을 좌우 탭으로 가른다.
+/// 왼쪽 발송처리가 기본값이다 — 주문 대부분이 발송으로 끝나고, 취소는 되돌릴 수 없어
+/// 한 번 더 누르게 두는 편이 안전하다.
+///
+/// ⚠️ 두 패널은 [Offstage] 로 **계속 살려 둔다** — 탭을 오갈 때 입력하던 송장번호·취소 수량이
+/// 날아가지 않게(두 섹션 모두 state 를 위젯 안에 든다). [IndexedStack] 은 숨긴 쪽 높이만큼
+/// 빈 칸을 남겨 쓰지 않는다.
+/// ⚠️ 쓸 수 없는 탭은 지우지 않고 **비활성**으로 남긴다 — 지우면 사용자가 사라진 이유를 알 수 없다.
+/// 권한(403)·상태 게이트는 두 섹션 위젯이 이미 각자 들고 있고, 여기서는 탭 활성 판정에만 쓴다.
+class _ActionTabs extends StatefulWidget {
+  final OrderItem order;
+
+  const _ActionTabs({required this.order});
+
+  @override
+  State<_ActionTabs> createState() => _ActionTabsState();
+}
+
+enum _ActionTab { shipment, cancel }
+
+class _ActionTabsState extends State<_ActionTabs> {
+  _ActionTab _selected = _ActionTab.shipment; // 기본 = 왼쪽(발송처리)
+
+  @override
+  Widget build(BuildContext context) {
+    final order = widget.order;
+    return BlocBuilder<OrderCancelBloc, OrderCancelState>(
+      builder: (context, cancel) =>
+          BlocBuilder<ManualShipmentBloc, ManualShipmentState>(
+        builder: (context, manual) {
+          // 섹션 위젯 안 게이트와 같은 판정을 밖에서 한 번 더 쓴다(사본이 아니라 같은 근거).
+          final fullyCancelled = _isFullyCancelledByResult(cancel.result);
+          final canShip = !manual.optionsForbidden && !fullyCancelled;
+          final canCancel = !cancel.forbidden &&
+              (order.status == 'ACCEPT' || order.status == 'INSTRUCT');
+          if (!canShip && !canCancel) return const SizedBox.shrink();
+
+          // 고른 탭을 쓸 수 없으면 남은 탭을 보여준다 — 파생값이라 setState 로 되돌리지 않는다.
+          final selected = _selected == _ActionTab.shipment && !canShip
+              ? _ActionTab.cancel
+              : _selected == _ActionTab.cancel && !canCancel
+                  ? _ActionTab.shipment
+                  : _selected;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<_ActionTab>(
+                  segments: [
+                    ButtonSegment<_ActionTab>(
+                      value: _ActionTab.shipment,
+                      label: const Text('발송처리'),
+                      enabled: canShip,
+                    ),
+                    ButtonSegment<_ActionTab>(
+                      value: _ActionTab.cancel,
+                      label: const Text('주문 취소'),
+                      enabled: canCancel,
+                    ),
+                  ],
+                  selected: {selected},
+                  showSelectedIcon: false,
+                  onSelectionChanged: (set) =>
+                      setState(() => _selected = set.first),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Offstage(
+                offstage: selected != _ActionTab.shipment,
+                child: _ManualShipmentSection(order: order),
+              ),
+              Offstage(
+                offstage: selected != _ActionTab.cancel,
+                child: _CancelSection(order: order),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
 /// 주문 상세 안 발주처리 섹션 (인라인 확장 — 별도 화면/다이얼로그 없음).
 ///
 /// **용도**: 이 주문이 속한 **박스 전체**를 결제완료 → 상품준비중으로 전환한다.
@@ -346,17 +434,21 @@ class _AcknowledgeSection extends StatelessWidget {
                     style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                   ),
                   const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: state.submitting
-                        ? null
-                        : () => _confirmAndSubmit(context),
-                    child: state.submitting
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('발주처리'),
+                  // 버튼만 왼쪽 정렬 — 카드는 화면 폭을 쓰되 버튼은 늘리지 않는다(웹 하단 바와 같은 배치).
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: ElevatedButton(
+                      onPressed: state.submitting
+                          ? null
+                          : () => _confirmAndSubmit(context),
+                      child: state.submitting
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('발주처리'),
+                    ),
                   ),
                 ],
                 if (failureText != null) ...[
