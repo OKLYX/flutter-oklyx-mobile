@@ -59,10 +59,8 @@ import 'package:flutter_oklyn_mobile/shared/pages/splash_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/user_manage_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/user_register_page.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/pages/product_listing_search_page.dart';
-import 'package:flutter_oklyn_mobile/features/product_listing/presentation/pages/product_listing_register_page.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/pages/product_listing_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/pages/product_listing_edit_page.dart';
-import 'package:flutter_oklyn_mobile/features/product_listing/presentation/bloc/product_listing_create_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/pages/order_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/order/domain/entities/order_item.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/pages/order_history_page.dart';
@@ -416,16 +414,6 @@ class AppRouter {
         child: ProductListingSearchPage(),
       ),
       routes: [
-        GoRoute(
-          name: Routes.salesProductsRegister,
-          path: 'register',
-          pageBuilder: (context, state) => NoTransitionPage(
-            child: BlocProvider<ProductListingCreateBloc>(
-              create: (context) => GetIt.instance<ProductListingCreateBloc>(),
-              child: const ProductListingRegisterPage(),
-            ),
-          ),
-        ),
         GoRoute(
           name: 'salesProductsDetail',
           path: 'detail/:id',
