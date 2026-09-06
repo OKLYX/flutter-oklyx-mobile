@@ -137,14 +137,15 @@ class OrderDetailPage extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            if (isCoupang) ...[
-              // 발송처리·주문취소는 배타적 선택이라 세로로 쌓지 않고 좌우 탭으로 묶는다.
-              // ⚠️ 전량취소해도 로컬 status 는 그대로라(D7) 섹션이 계속 열려 있다 —
-              // 위젯 **안을 고치지 않고** 바깥에서(탭 게이트·래퍼) 숨긴다. 부분취소는 감추지 않는다(D19).
-              _ActionTabs(order: o),
-              const SizedBox(height: 12),
-            ],
-            _OrderSheetSection(order: o),
+            // 송장시트·발송처리·주문취소는 한 번에 하나만 쓰는 배타적 선택이라 좌우 탭으로 묶는다.
+            // ⚠️ 전량취소해도 로컬 status 는 그대로라(D7) 섹션이 계속 열려 있다 —
+            // 위젯 **안을 고치지 않고** 바깥에서(탭 게이트·래퍼) 숨긴다. 부분취소는 감추지 않는다(D19).
+            // ⚠️ 비-쿠팡 주문은 발송·취소 BLoC 을 아예 만들지 않으므로(위 provider 가드) 탭을 쓰지
+            // 않고 시트 섹션만 그대로 둔다 — 탭 위젯이 없는 BLoC 을 읽으면 죽는다.
+            if (isCoupang)
+              _ActionTabs(order: o)
+            else
+              _OrderSheetSection(order: o),
             // 발주(ACCEPT→INSTRUCT)는 발송·취소의 앞 단계라 탭에 섞지 않고 화면 하단에 따로 둔다.
             if (isCoupang) ...[
               const SizedBox(height: 12),
@@ -287,11 +288,13 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-/// 발송처리 / 주문 취소 전환 탭 — 목록 화면의 `ClaimTypeTabs` 와 같은 관용구(`SegmentedButton`).
+/// 송장시트 / 발송처리 / 주문 취소 전환 탭 — 목록 화면의 `ClaimTypeTabs` 와 같은
+/// 관용구(`SegmentedButton`).
 ///
-/// **용도**: 한 주문에 대해 서로 배타적인 두 액션을 좌우 탭으로 가른다.
-/// 왼쪽 발송처리가 기본값이다 — 주문 대부분이 발송으로 끝나고, 취소는 되돌릴 수 없어
-/// 한 번 더 누르게 두는 편이 안전하다.
+/// **용도**: 한 주문에 대해 한 번에 하나만 쓰는 세 액션을 좌우 탭으로 가른다.
+/// 왼쪽부터 송장시트 · 발송처리 · 주문취소 순이고 **기본 선택은 발송처리**다 —
+/// 주문 대부분이 발송으로 끝나고, 취소는 되돌릴 수 없어 한 번 더 누르게 두는 편이 안전하다.
+/// ⚠️ 시트 조회는 쿠팡 실시간 호출이라 탭을 열어도 자동으로 부르지 않는다(섹션 안 버튼에서만).
 ///
 /// ⚠️ 두 패널은 [Offstage] 로 **계속 살려 둔다** — 탭을 오갈 때 입력하던 송장번호·취소 수량이
 /// 날아가지 않게(두 섹션 모두 state 를 위젯 안에 든다). [IndexedStack] 은 숨긴 쪽 높이만큼
@@ -307,7 +310,7 @@ class _ActionTabs extends StatefulWidget {
   State<_ActionTabs> createState() => _ActionTabsState();
 }
 
-enum _ActionTab { shipment, cancel }
+enum _ActionTab { sheet, shipment, cancel }
 
 class _ActionTabsState extends State<_ActionTabs> {
   _ActionTab _selected = _ActionTab.shipment; // 기본 = 왼쪽(발송처리)
@@ -324,14 +327,19 @@ class _ActionTabsState extends State<_ActionTabs> {
           final canShip = !manual.optionsForbidden && !fullyCancelled;
           final canCancel = !cancel.forbidden &&
               (order.status == 'ACCEPT' || order.status == 'INSTRUCT');
-          if (!canShip && !canCancel) return const SizedBox.shrink();
+          // 시트 탭은 늘 열려 있다 — 권한(403)·플랫폼 안내는 섹션이 자기 안에서 처리한다.
+          // 여기서 막으면 비-ADMIN 에게 아무 탭도 안 보인다.
+          final available = {
+            _ActionTab.sheet: true,
+            _ActionTab.shipment: canShip,
+            _ActionTab.cancel: canCancel,
+          };
 
-          // 고른 탭을 쓸 수 없으면 남은 탭을 보여준다 — 파생값이라 setState 로 되돌리지 않는다.
-          final selected = _selected == _ActionTab.shipment && !canShip
-              ? _ActionTab.cancel
-              : _selected == _ActionTab.cancel && !canCancel
-                  ? _ActionTab.shipment
-                  : _selected;
+          // 고른 탭을 쓸 수 없으면 왼쪽부터 첫 번째로 쓸 수 있는 탭을 보여준다 —
+          // 파생값이라 setState 로 되돌리지 않는다.
+          final selected = available[_selected]!
+              ? _selected
+              : _ActionTab.values.firstWhere((t) => available[t]!);
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -340,6 +348,10 @@ class _ActionTabsState extends State<_ActionTabs> {
                 width: double.infinity,
                 child: SegmentedButton<_ActionTab>(
                   segments: [
+                    const ButtonSegment<_ActionTab>(
+                      value: _ActionTab.sheet,
+                      label: Text('송장시트'),
+                    ),
                     ButtonSegment<_ActionTab>(
                       value: _ActionTab.shipment,
                       label: const Text('발송처리'),
@@ -358,6 +370,10 @@ class _ActionTabsState extends State<_ActionTabs> {
                 ),
               ),
               const SizedBox(height: 12),
+              Offstage(
+                offstage: selected != _ActionTab.sheet,
+                child: _OrderSheetSection(order: order),
+              ),
               Offstage(
                 offstage: selected != _ActionTab.shipment,
                 child: _ManualShipmentSection(order: order),
