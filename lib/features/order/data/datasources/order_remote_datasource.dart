@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_oklyn_mobile/core/constants/app_constants.dart';
 import '../../domain/entities/order_sync_scope.dart';
+import '../models/cancel_reason_option.dart';
 import '../models/order_acknowledge_result.dart';
+import '../models/order_cancel_result.dart';
 import '../models/order_model.dart';
 import '../models/sync_target_model.dart';
 
@@ -46,6 +48,19 @@ abstract class OrderRemoteDataSource {
   /// 발주처리(결제완료 → 상품준비중). 라인 id 만 보낸다 — 박스 dedupe·상태 필터는
   /// 서버가 한다(PLAN 2609_17 D1·D2).
   Future<OrderAcknowledgeResult> acknowledgeOrders(List<int> orderItemIds);
+
+  /// GET /api/admin/orders/cancel-reasons → [{code,label}]
+  /// 취소 사유 목록. **목록의 소유자는 서버다** — 모바일에 코드→라벨 상수를 두지 않는다
+  /// (PLAN 2609_25 D4).
+  Future<List<CancelReasonOption>> getCancelReasons();
+
+  /// POST /api/admin/orders/cancel  body: {"lines":[{orderItemId,quantity}],"reason":"..."}
+  /// 발송 전 주문 취소(결제완료 → 즉시취소, 상품준비중 → 출고중지).
+  /// 계정→주문번호→박스 그룹핑과 상태 필터는 서버가 한다(D1·D2).
+  Future<OrderCancelResult> cancelOrders(
+    List<Map<String, dynamic>> lines,
+    String reason,
+  );
 }
 
 class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
@@ -211,6 +226,38 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
       ),
     );
     return OrderAcknowledgeResult.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<List<CancelReasonOption>> getCancelReasons() async {
+    // ⚠️ 다른 조회 메서드와 달리 try/catch 로 감싸지 않는다 — 이 엔드포인트도 ADMIN 전용이라
+    // USER 계정은 여기서 먼저 403 을 받는다. plain Exception 으로 바꿔 던지면 statusCode 가
+    // 사라져 BLoC 이 403 을 "로드 실패" 로 오인하고 섹션을 계속 띄운다.
+    final response = await dio.get('/api/admin/orders/cancel-reasons');
+    final data = response.data['data'];
+    if (data is! List) return [];
+    return data
+        .map((e) => CancelReasonOption.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<OrderCancelResult> cancelOrders(
+    List<Map<String, dynamic>> lines,
+    String reason,
+  ) async {
+    // ⚠️ acknowledgeOrders 와 같은 규칙 — DioException 을 그대로 위로 올려 403 판정을 살린다.
+    final response = await dio.post(
+      '/api/admin/orders/cancel',
+      data: {'lines': lines, 'reason': reason},
+      options: Options(
+        // 서버가 쿠팡 취소 API 를 실호출 → 기본 30초를 초과할 수 있어 개별 연장.
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+    return OrderCancelResult.fromJson(
         response.data['data'] as Map<String, dynamic>);
   }
 }

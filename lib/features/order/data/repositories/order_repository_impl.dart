@@ -8,7 +8,9 @@ import '../../domain/entities/order_sync_scope.dart';
 import '../../domain/entities/sync_target.dart';
 import '../../domain/repositories/order_repository.dart';
 import '../datasources/order_remote_datasource.dart';
+import '../models/cancel_reason_option.dart';
 import '../models/order_acknowledge_result.dart';
+import '../models/order_cancel_result.dart';
 
 class OrderRepositoryImpl implements OrderRepository {
   final OrderRemoteDataSource remoteDataSource;
@@ -138,6 +140,46 @@ class OrderRepositoryImpl implements OrderRepository {
           e.message ?? 'Failed to acknowledge orders',
           statusCode: e.response?.statusCode,
         ),
+      );
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<CancelReasonOption>>> getCancelReasons() async {
+    try {
+      final reasons = await remoteDataSource.getCancelReasons();
+      return Right(reasons);
+    } on DioException catch (e) {
+      // statusCode 를 살려 보낸다 — 이 조회도 ADMIN 전용이라 403 이 섹션 숨김 신호다.
+      return Left(
+        ServerFailure(
+          e.message ?? 'Failed to fetch cancel reasons',
+          statusCode: e.response?.statusCode,
+        ),
+      );
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, OrderCancelResult>> cancelOrders(
+    List<Map<String, dynamic>> lines,
+    String reason,
+  ) async {
+    try {
+      final result = await remoteDataSource.cancelOrders(lines, reason);
+      return Right(result);
+    } on DioException catch (e) {
+      // 400 은 사유가 여럿(수량 초과·빈 요청·라인 없음)이라 서버 본문 message 를 살린다.
+      final body = e.response?.data;
+      final message = body is Map && body['message'] != null
+          ? body['message'].toString()
+          : (e.message ?? 'Failed to cancel orders');
+      return Left(
+        ServerFailure(message, statusCode: e.response?.statusCode),
       );
     } on Exception catch (e) {
       return Left(ServerFailure(e.toString()));

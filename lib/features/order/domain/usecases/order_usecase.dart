@@ -1,6 +1,8 @@
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
+import '../../data/models/cancel_reason_option.dart';
 import '../../data/models/order_acknowledge_result.dart';
+import '../../data/models/order_cancel_result.dart';
 import '../entities/order_item.dart';
 import '../entities/order_period.dart';
 import '../entities/order_sync_result.dart';
@@ -59,5 +61,18 @@ class OrderUseCase {
     List<int> orderItemIds,
   ) {
     return repository.acknowledgeOrders(orderItemIds);
+  }
+
+  /// 취소 사유 목록 — 라벨의 소유자는 서버다(PLAN 2609_25 D4).
+  Future<Either<Failure, List<CancelReasonOption>>> getCancelReasons() {
+    return repository.getCancelReasons();
+  }
+
+  /// 발송 전 주문 취소 — 라인×수량 배열로 보낸다(주문 상세는 길이 1, D1·D6).
+  Future<Either<Failure, OrderCancelResult>> cancelOrders(
+    List<Map<String, dynamic>> lines,
+    String reason,
+  ) {
+    return repository.cancelOrders(lines, reason);
   }
 }

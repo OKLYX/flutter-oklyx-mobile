@@ -1,6 +1,8 @@
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
+import '../../data/models/cancel_reason_option.dart';
 import '../../data/models/order_acknowledge_result.dart';
+import '../../data/models/order_cancel_result.dart';
 import '../entities/order_item.dart';
 import '../entities/order_period.dart';
 import '../entities/order_sync_result.dart';
@@ -49,5 +51,16 @@ abstract class OrderRepository {
   /// 라인 id 만 보낸다 — 박스 dedupe·상태 필터는 서버가 한다(PLAN 2609_17 D1·D2).
   Future<Either<Failure, OrderAcknowledgeResult>> acknowledgeOrders(
     List<int> orderItemIds,
+  );
+
+  /// 취소 사유 목록 (서버 소유, PLAN 2609_25 D4)
+  /// GET /api/admin/orders/cancel-reasons
+  Future<Either<Failure, List<CancelReasonOption>>> getCancelReasons();
+
+  /// 발송 전 주문 취소 (결제완료 → 즉시취소 / 상품준비중 → 출고중지)
+  /// POST /api/admin/orders/cancel  body: {"lines":[{orderItemId,quantity}],"reason":"..."}
+  Future<Either<Failure, OrderCancelResult>> cancelOrders(
+    List<Map<String, dynamic>> lines,
+    String reason,
   );
 }
