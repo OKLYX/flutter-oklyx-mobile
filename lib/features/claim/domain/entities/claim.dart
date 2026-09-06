@@ -54,10 +54,17 @@ ClaimStatus parseClaimStatus(String? v) {
 
 /// 귀책 코드 → 한글 라벨.
 ///
-/// **빈 맵으로 시작한다** — 쿠팡 `faultByType` 의 실제 값 집합이 아직 확인되지 않았고,
-/// 추측한 매핑은 틀린 라벨을 보여준다. 02(웹)의 `FAULT_TYPE_LABEL` 과 같은 정책이다
-/// (웹/앱의 귀책 표기가 갈리면 안 된다). 실값이 확인되면 여기와 웹을 **함께** 채운다.
-const faultTypeLabel = <String, String>{};
+/// `VENDOR` 는 운영 데이터로 확인된 값이고(2026-09-06), `CUSTOMER`·`COUPANG` 은 반품비를
+/// 물 수 있는 나머지 두 주체다. 표에 없는 값은 원문 그대로 보여준다 — 미확인 코드가
+/// 빈칸이 되는 것보다 코드 자체가 보이는 편이 낫다.
+///
+/// ⚠️ 웹(`FAULT_TYPE_LABEL`)과 **같은 문자열**이어야 한다 — 같은 코드를 두 화면이 다르게
+/// 부르면 사용자는 둘 중 하나를 버그로 읽는다.
+const faultTypeLabel = <String, String>{
+  'VENDOR': '판매자',
+  'CUSTOMER': '고객',
+  'COUPANG': '쿠팡',
+};
 
 /// 귀책 표시용 텍스트. 미지정 값은 원문 그대로, null 은 '-'.
 ///
