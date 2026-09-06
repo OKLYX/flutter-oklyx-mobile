@@ -18,9 +18,14 @@ import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/o
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/order_sheet_state.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/order_item.dart';
+import '../../data/models/cancel_reason_option.dart';
+import '../../data/models/order_cancel_result.dart';
 import '../bloc/order_acknowledge_bloc.dart';
 import '../bloc/order_acknowledge_event.dart';
 import '../bloc/order_acknowledge_state.dart';
+import '../bloc/order_cancel_bloc.dart';
+import '../bloc/order_cancel_event.dart';
+import '../bloc/order_cancel_state.dart';
 
 // Platform display labels — same shape as product_listing_detail_page;
 // unknown codes fall back to the raw value.
@@ -97,6 +102,13 @@ class OrderDetailPage extends StatelessWidget {
           BlocProvider<OrderAcknowledgeBloc>(
             create: (_) => getIt<OrderAcknowledgeBloc>(),
           ),
+        // 주문 취소도 쿠팡 전용 — 같은 가드 안에 둔다. 사유 목록만 생성 시 1회 조회하고
+        // (ADMIN 전용이라 여기서 403 이 먼저 온다), 전송은 버튼 핸들러에서만 발행한다(D12).
+        if (isCoupang)
+          BlocProvider<OrderCancelBloc>(
+            create: (_) =>
+                getIt<OrderCancelBloc>()..add(const CancelReasonsRequested()),
+          ),
       ],
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -126,10 +138,14 @@ class OrderDetailPage extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             if (isCoupang) ...[
-              // 발주(ACCEPT→INSTRUCT) → 발송(INSTRUCT→DEPARTURE) 순서가 화면 순서와 맞는다.
-              _AcknowledgeSection(order: o),
+              // 발주(ACCEPT→INSTRUCT) → 취소 → 발송(INSTRUCT→DEPARTURE) 순서가 화면 순서와 맞는다.
+              // ⚠️ 전량취소해도 로컬 status 는 그대로라(D7) 두 섹션이 계속 열려 있다 —
+              // 두 위젯 **안을 고치지 않고** 바깥에서 감싸 숨긴다. 부분취소는 감추지 않는다(D19).
+              _HideWhenFullyCancelled(child: _AcknowledgeSection(order: o)),
               const SizedBox(height: 12),
-              _ManualShipmentSection(order: o),
+              _CancelSection(order: o),
+              const SizedBox(height: 12),
+              _HideWhenFullyCancelled(child: _ManualShipmentSection(order: o)),
               const SizedBox(height: 12),
             ],
             _OrderSheetSection(order: o),
@@ -166,19 +182,51 @@ Widget _buildInfoCard(OrderItem o, {required bool isCoupang}) {
     return _InfoCard(title: '기본 정보', rows: rows(o.status));
   }
   // 발송(DEPARTURE)이 발주(INSTRUCT)보다 뒤 단계 — 나중 단계가 이긴다.
+  // 취소는 그보다 더 뒤 단계라 가장 바깥에서 이긴다(2609_25 D14).
   // ⚠️ 발주 성공 판정은 `succeeded > 0` 이다. 쿠팡 거절도 200 + failed 라 `result != null`
   // 만으로 판정하면 실패한 주문이 상품준비중으로 보인다(D15).
-  return BlocBuilder<ManualShipmentBloc, ManualShipmentState>(
-    builder: (context, manual) =>
-        BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
-      builder: (context, ack) {
-        final acknowledged = ack.result != null && ack.result!.succeeded > 0;
-        final status = manual.result?.resultStatus ??
-            (acknowledged ? 'INSTRUCT' : o.status);
-        return _InfoCard(title: '기본 정보', rows: rows(status));
-      },
+  return BlocBuilder<OrderCancelBloc, OrderCancelState>(
+    builder: (context, cancel) => BlocBuilder<ManualShipmentBloc,
+        ManualShipmentState>(
+      builder: (context, manual) =>
+          BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
+        builder: (context, ack) {
+          final acknowledged = ack.result != null && ack.result!.succeeded > 0;
+          final status = _isFullyCancelledByResult(cancel.result)
+              ? 'CANCELLED'
+              : (manual.result?.resultStatus ??
+                  (acknowledged ? 'INSTRUCT' : o.status));
+          return _InfoCard(title: '기본 정보', rows: rows(status));
+        },
+      ),
     ),
   );
+}
+
+/// 이 화면에서 방금 낸 취소가 **전량취소**였는지 — 정보 카드 상태 행과 발주/발송 섹션 숨김이
+/// 같은 판정을 쓰도록 한 곳에 둔다. 서버가 전량취소 라인에만 `CANCELLED` 를 내려준다(D14).
+///
+/// ⚠️ `isFullyCanceled(order)` 헬퍼를 쓰지 말 것 — `cancelCount` 만 보므로 출고중지(hold)로
+/// 전량취소된 건을 놓친다. 그 헬퍼는 주문 목록 취소 필터가 함께 쓰므로 이번 스코프에서 고치지 않는다.
+bool _isFullyCancelledByResult(OrderCancelResult? result) =>
+    result != null && result.cancelled.any((l) => l.resultStatus == 'CANCELLED');
+
+/// 전량취소되면 감출 섹션 래퍼 — 발주처리·발송처리 위젯 **내부를 고치지 않기 위한** 바깥 게이트.
+/// 부분취소는 잔여 수량을 그대로 발송해야 하므로 감추지 않는다(D19).
+class _HideWhenFullyCancelled extends StatelessWidget {
+  final Widget child;
+
+  const _HideWhenFullyCancelled({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<OrderCancelBloc, OrderCancelState>(
+      buildWhen: (prev, curr) => prev.result != curr.result,
+      builder: (context, state) => _isFullyCancelledByResult(state.result)
+          ? const SizedBox.shrink()
+          : child,
+    );
+  }
 }
 
 /// 정보 카드 (제목 + 라벨/값 행 목록). 다른 상세 페이지와 동일한 스타일.
@@ -349,6 +397,311 @@ class _AcknowledgeSection extends StatelessWidget {
     // 다이얼로그가 열려 있는 사이 페이지를 벗어날 수 있다.
     if (ok != true || bloc.isClosed) return;
     bloc.add(AcknowledgeRequested([order.id]));
+  }
+}
+
+/// 주문 상세 안 발송 전 주문 취소 섹션 (인라인 확장 — 별도 화면/다이얼로그 없음).
+///
+/// **용도**: 사유와 수량을 골라 **이 주문 라인**을 취소한다 — 결제완료는 즉시취소,
+/// 상품준비중은 출고중지로 접수된다(PLAN 2609_25 D2).
+///
+/// ⚠️ 취소 단위는 박스가 아니라 **라인(옵션) × 수량**이다 — 발주처리·발송처리와 다르다.
+/// 계정→주문번호→박스 그룹핑은 서버가 한다(D1).
+/// ⚠️ 되돌릴 수 없고 **쿠팡 판매자 점수가 하락한다** — 확인 다이얼로그를 반드시 거치고
+/// 자동 재시도를 넣지 말 것(D13).
+/// ⚠️ 사유 라벨을 코드에 두지 않는다 — 목록의 소유자는 서버다(D4).
+/// ⚠️ 전량취소 판정은 `purchasableQty == 0` 이다. `isFullyCanceled` 헬퍼는 `cancelCount` 만 보므로
+/// 출고중지로 전량취소된 주문을 놓친다(그 헬퍼는 목록 필터가 함께 써서 고치지 않는다).
+/// ⚠️ 권한 게이트는 클라이언트에 두지 않는다. 다만 403(사유 조회 포함)이면 섹션을 숨긴다 —
+/// 서버가 내린 판정을 반영하는 것이라 이중 판정이 아니다.
+///
+/// 수량은 BLoC 상태로 올리지 않는다 → [TextEditingController] 를 들기 위해 StatefulWidget.
+class _CancelSection extends StatefulWidget {
+  final OrderItem order;
+
+  const _CancelSection({required this.order});
+
+  @override
+  State<_CancelSection> createState() => _CancelSectionState();
+}
+
+class _CancelSectionState extends State<_CancelSection> {
+  late final TextEditingController _quantityController;
+
+  /// 서버가 내려준 사유 `code`. 라벨은 상태의 목록에서 찾는다(하드코딩 금지, D4).
+  String? _reasonCode;
+
+  @override
+  void initState() {
+    super.initState();
+    // 기본값 = 취소 가능 수량 전량(D3).
+    _quantityController =
+        TextEditingController(text: '${widget.order.purchasableQty}');
+  }
+
+  @override
+  void dispose() {
+    _quantityController.dispose(); // 누락 시 leak — 상세는 주문마다 새로 만들어진다.
+    super.dispose();
+  }
+
+  int? get _quantity => int.tryParse(_quantityController.text.trim());
+
+  @override
+  Widget build(BuildContext context) {
+    final order = widget.order;
+    return BlocConsumer<OrderCancelBloc, OrderCancelState>(
+      // 결과가 처음 도착한 순간에만 알린다 — 리빌드마다 띄우면 SnackBar 가 반복된다.
+      listenWhen: (prev, curr) =>
+          prev.result != curr.result && curr.result != null,
+      listener: (context, state) {
+        final result = state.result!;
+        if (result.cancelled.isEmpty) return;
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          // ScaffoldWithNavBar 가 하단 내비바를 오버레이한다 — floating + 여백이 필수다.
+          ..showSnackBar(SnackBar(
+            content: Text('취소 접수 완료 — ${result.succeededQty}개'),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
+          ));
+      },
+      builder: (context, state) {
+        // 결제완료·상품준비중 쿠팡 주문에만 노출한다(D2·D10). 403 이면 진입점을 숨긴다.
+        if (order.platform != 'COUPANG' ||
+            (order.status != 'ACCEPT' && order.status != 'INSTRUCT') ||
+            state.forbidden) {
+          return const SizedBox.shrink();
+        }
+
+        final result = state.result;
+        final succeeded = result != null && result.cancelled.isNotEmpty;
+        // 취소 후 남은 수량은 서버가 라인별로 내려준다(D14). 정보 카드에는 넣지 않는다.
+        final remainingQty = succeeded
+            ? result.cancelled.first.resultPurchasableQty
+            : order.purchasableQty;
+        // 쿠팡이 접수한 뒤에는 입력을 잠근다 — 같은 라인을 두 번 보내면 그만큼 더 취소된다.
+        final locked = state.submitting || succeeded;
+        final quantity = _quantity;
+        final quantityValid =
+            quantity != null && quantity >= 1 && quantity <= remainingQty;
+        final canSubmit = !locked &&
+            !state.reasonsFailed &&
+            _reasonCode != null &&
+            quantityValid;
+
+        return Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  '주문 취소',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                // 아직 아무것도 취소하지 않았는데 취소 가능 수량이 0 이면 입력 자체를 띄우지 않는다.
+                if (!succeeded && order.purchasableQty == 0)
+                  Text(
+                    '취소 가능한 수량이 없습니다 (이미 취소된 주문)',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                  )
+                else ...[
+                  Text(
+                    '취소 가능 $remainingQty개',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                  ),
+                  const SizedBox(height: 12),
+                  if (state.loadingReasons)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Center(
+                        child: SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    )
+                  else if (state.reasonsFailed)
+                    // 막다른 길로 두지 않는다 — 자동 재시도는 없고 버튼 1개만 둔다(D4).
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text('사유 목록을 불러오지 못했습니다.',
+                              style: TextStyle(fontSize: 12)),
+                        ),
+                        TextButton(
+                          onPressed: () => context
+                              .read<OrderCancelBloc>()
+                              .add(const CancelReasonsRequested()),
+                          child: const Text('다시 시도'),
+                        ),
+                      ],
+                    )
+                  else
+                    DropdownButtonFormField<String>(
+                      // 목록에 없는 값을 넘기면 Dropdown 이 assert 로 죽는다.
+                      value: state.reasons.any((r) => r.code == _reasonCode)
+                          ? _reasonCode
+                          : null,
+                      isExpanded: true, // 라벨이 길다 — overflow 방지
+                      decoration: const InputDecoration(
+                        labelText: '취소 사유',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      items: state.reasons
+                          .map((r) => DropdownMenuItem<String>(
+                                value: r.code,
+                                child: Text(
+                                  r.label,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ))
+                          .toList(),
+                      onChanged: locked || state.reasons.isEmpty
+                          ? null
+                          : (value) => setState(() => _reasonCode = value),
+                    ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _quantityController,
+                    keyboardType: TextInputType.number,
+                    enabled: !locked,
+                    // 파싱값을 화면 상태로 올려야 버튼 활성/비활성이 즉시 갱신된다
+                    // (build 안에서 controller.text 만 읽으면 입력해도 버튼이 안 열린다).
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      labelText: '취소 수량',
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                      errorText: quantityValid
+                          ? null
+                          : '1~$remainingQty 사이로 입력하세요',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '결제완료는 즉시 취소, 상품준비중은 출고중지로 접수됩니다.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                  ),
+                  Text(
+                    '⚠️ 되돌릴 수 없으며 쿠팡 판매자 점수가 하락합니다.',
+                    style: TextStyle(fontSize: 12, color: Colors.red[700]),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed:
+                        canSubmit ? () => _confirmAndSubmit(context, state) : null,
+                    child: state.submitting
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('주문 취소'),
+                  ),
+                ],
+                if (succeeded) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    '취소 접수 완료 — ${result.succeededQty}개 '
+                    '(${_receiptTypeLabel(result.cancelled.first.receiptType)})',
+                    style: TextStyle(fontSize: 13, color: Colors.green[700]),
+                  ),
+                ],
+                // 쿠팡이 거절한 건은 원문 그대로 노출하고 버튼은 다시 열어 둔다(D16).
+                for (final failed in result?.failed ?? const <FailedLine>[]) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    '${failed.code ?? '-'}: ${failed.message ?? '-'}',
+                    style: TextStyle(fontSize: 12, color: Colors.red[700]),
+                  ),
+                ],
+                // 스킵·전송불가 사유는 서버 문구를 그대로 쓴다(모바일에서 새로 짓지 않는다).
+                for (final skipped in [
+                  ...?result?.skipped,
+                  ...?result?.unsupported,
+                ]) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    skipped.reason ?? '전송하지 않았습니다.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                  ),
+                ],
+                if (state.errorMessage != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    state.errorMessage!,
+                    style: TextStyle(fontSize: 12, color: Colors.red[700]),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// 되돌릴 수 없고 판매자 점수가 깎이는 작업이라 확인을 반드시 거친다(D13).
+  Future<void> _confirmAndSubmit(
+    BuildContext context,
+    OrderCancelState state,
+  ) async {
+    final bloc = context.read<OrderCancelBloc>();
+    final quantity = _quantity;
+    final code = _reasonCode;
+    if (quantity == null || code == null) return;
+    final label = state.reasons
+        .firstWhere(
+          (r) => r.code == code,
+          orElse: () => CancelReasonOption(code: code, label: code),
+        )
+        .label;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('주문 취소'),
+        content: Text('$quantity개를 "$label" 사유로 취소합니다.\n'
+            '되돌릴 수 없고 판매자 점수가 하락합니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('닫기'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('주문 취소'),
+          ),
+        ],
+      ),
+    );
+    // 다이얼로그가 열려 있는 사이 페이지를 벗어날 수 있다.
+    if (ok != true || bloc.isClosed) return;
+    bloc.add(CancelRequested(
+      [
+        {'orderItemId': widget.order.id, 'quantity': quantity}
+      ],
+      code,
+    ));
+  }
+
+  /// 쿠팡 접수 유형 라벨 — 모르는 값은 원문 폴백.
+  String _receiptTypeLabel(String? receiptType) {
+    switch (receiptType) {
+      case 'CANCEL':
+        return '즉시취소';
+      case 'STOP_SHIPMENT':
+        return '출고중지 접수';
+      default:
+        return receiptType ?? '-';
+    }
   }
 }
 
