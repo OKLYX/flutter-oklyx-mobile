@@ -17,6 +17,7 @@ import '../bloc/order_list_bloc.dart';
 import '../bloc/order_list_event.dart';
 import '../bloc/order_list_state.dart';
 import '../widgets/order_card.dart';
+import '../widgets/order_search_bar.dart';
 import '../widgets/order_status_filter_bar.dart';
 import '../widgets/sync_progress_dialog.dart';
 
@@ -37,6 +38,9 @@ import '../widgets/sync_progress_dialog.dart';
 /// ⚠️ [OrderListBloc] 은 `registerFactory` 라 주문내역과 **인스턴스를 공유하지 않는다** —
 /// 두 화면의 선택 상태가 이어질 거라 기대하지 말 것.
 /// ⚠️ 기간 선택 UI 없음(D8) — 기본 창(14일)만 쓴다. `SelectPeriod` 를 호출하지 않는다.
+/// - 검색은 주문내역과 **같은 규칙**을 쓴다(공용 [OrderSearchBar] + 기존 `ChangeSearchField`·
+///   `ChangeSearchTerm` 이벤트, 신규 이벤트 금지). 서버 창은 14일 그대로이고 검색은 그 안에서만
+///   걸리는 클라이언트 필터다.
 /// ❌ 채널 필터를 BLoC 이벤트로 만들지 말 것 — 화면 로컬 state 다(D3).
 class ShipmentManagementPage extends StatelessWidget {
   const ShipmentManagementPage({super.key});
@@ -86,6 +90,15 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
   /// 발주처리로 선택한 order_item id. BLoC 이 아니라 화면 state 다(2609_15 D3 과 같은 판단).
   /// 목록이 바뀌면(필터·조회·동기화) 선택은 무효라 초기화한다.
   final Set<int> _selectedIds = {};
+
+  /// 검색어 입력 컨트롤러. 값 자체는 BLoC(`searchTerm`)이 갖고, 이건 입력칸 표시·[X] 지우기용이다.
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   void _toggleSelect(int id) => setState(() => _selectedIds.contains(id)
       ? _selectedIds.remove(id)
@@ -149,6 +162,7 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
 
             return _LoadedBody(
               state: state as OrderListLoaded,
+              searchController: _searchController,
               selectedAccountId: _selectedAccountId,
               onSelectAccount: (accountId) => setState(() {
                 _selectedAccountId = accountId;
@@ -275,6 +289,10 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
 
 class _LoadedBody extends StatelessWidget {
   final OrderListLoaded state;
+
+  /// 화면(State)이 소유·dispose 하는 검색 입력 컨트롤러.
+  final TextEditingController searchController;
+
   final int? selectedAccountId;
   final void Function(int? accountId) onSelectAccount;
 
@@ -291,6 +309,7 @@ class _LoadedBody extends StatelessWidget {
 
   const _LoadedBody({
     required this.state,
+    required this.searchController,
     required this.selectedAccountId,
     required this.onSelectAccount,
     required this.selectedIds,
@@ -314,11 +333,13 @@ class _LoadedBody extends StatelessWidget {
 
     // s.filteredOrders 는 전 상태 기준이다. 출고관리 범위를 먼저 좁히고, 배지도 이 목록으로 센다
     // — s.statusCounts 를 쓰면 취소·배송 건까지 세어 목록과 배지가 어긋난다.
+    // 순서는 주문내역과 같다: 채널 → 검색 → 상태. 배지 건수도 검색 결과를 센다.
     final scoped = s.orders
         .where((o) => kShipmentStatuses.contains(o.status))
         .where((o) => !o.cancelled) // 전량취소는 발송 대상 아님 (서버 판정, D26)
         .where((o) =>
             accountValue == null || o.marketplaceAccountId == accountValue)
+        .where((o) => matchesOrderSearch(o, s.searchField, s.searchTerm))
         .toList();
     final counts = <OrderStatus, int>{
       for (final status in kShipmentStatuses)
@@ -428,6 +449,22 @@ class _LoadedBody extends StatelessWidget {
                       ),
                     ],
                     onChanged: busy ? null : onSelectAccount,
+                  ),
+                  const SizedBox(height: 8),
+                  // 검색 — 클라이언트 필터라 서버를 부르지 않는다(주문내역과 같은 규칙).
+                  // 목록이 줄어들면 화면 밖 건이 전송되지 않게 선택을 버린다.
+                  OrderSearchBar(
+                    controller: searchController,
+                    field: s.searchField,
+                    term: s.searchTerm,
+                    onFieldChanged: (f) {
+                      onClearSelection();
+                      bloc.add(ChangeSearchField(field: f));
+                    },
+                    onTermChanged: (t) {
+                      onClearSelection();
+                      bloc.add(ChangeSearchTerm(term: t));
+                    },
                   ),
                   const SizedBox(height: 8),
                   Row(
