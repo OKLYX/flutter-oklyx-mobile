@@ -64,7 +64,7 @@ class OrderListLoaded extends OrderListState {
   final String? lastSyncedAt;
 
   /// 선택된 상태 필터 (null = 전체). 프론트 OrderContainer.selectedStatus와 동일.
-  final String? selectedStatus;
+  final OrderStatus? selectedStatus;
 
   /// 진행 다이얼로그 전용 — 이번 동기화 실행의 채널별 진행 상태.
   /// 진행률 분모는 반드시 이 리스트의 길이다(판매자 수 아님, PLAN D3).
@@ -130,8 +130,8 @@ class OrderListLoaded extends OrderListState {
 
   /// 상태별 주문 건수 (필터 버튼 배지용). 상태 선택과 무관하지만 **검색은 반영**한다
   /// — 배지가 목록과 어긋나면 안 된다(PLAN D13).
-  Map<String, int> get statusCounts {
-    final counts = <String, int>{};
+  Map<OrderStatus, int> get statusCounts {
+    final counts = <OrderStatus, int>{};
     for (final order in searchedOrders) {
       counts[order.status] = (counts[order.status] ?? 0) + 1;
     }
@@ -160,7 +160,7 @@ class OrderListLoaded extends OrderListState {
     OrderSyncResult? syncResult,
     bool clearSyncResult = false,
     String? lastSyncedAt,
-    String? selectedStatus,
+    OrderStatus? selectedStatus,
     bool clearSelectedStatus = false,
     List<ChannelProgress>? syncChannels,
     int? syncDoneCount,

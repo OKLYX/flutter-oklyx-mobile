@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import 'package:flutter_oklyn_mobile/features/order/domain/entities/order_item.dart';
+
 /// 송장업로드 실패 박스 상세 (백엔드 FailedBox 대응).
 class FailedBox extends Equatable {
   final String shipmentBoxId;
@@ -24,16 +26,17 @@ class FailedBox extends Equatable {
 
 /// 전송 제외 주문 (백엔드 SkippedOrder 대응).
 ///
-/// [status] 는 판정에 쓴 쿠팡 코드 원문(예: DEPARTURE) — 한글 라벨 변환은 화면 몫이다.
+/// [status] 는 판정에 쓴 **중립 상태**([OrderStatus], FEATURE_2609_26 D4) — 한글 라벨
+/// 변환은 화면 몫이다(`getOrderStatusLabel`).
 class SkippedOrder extends Equatable {
   final String orderId;
-  final String status;
+  final OrderStatus status;
 
   const SkippedOrder({required this.orderId, required this.status});
 
   factory SkippedOrder.fromJson(Map<String, dynamic> json) => SkippedOrder(
         orderId: json['orderId']?.toString() ?? '',
-        status: json['status']?.toString() ?? '',
+        status: orderStatusFrom(json['status']?.toString()),
       );
 
   @override

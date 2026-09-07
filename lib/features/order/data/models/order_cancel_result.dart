@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../domain/entities/order_item.dart';
+
 /// 발송 전 주문 취소 결과 (POST /api/admin/orders/cancel).
 ///
 /// 백엔드 `OrderCancelResult` record 와 1:1. 실패 사유는 쿠팡 원문 그대로 담는다
@@ -89,8 +91,8 @@ class CancelledLine extends Equatable {
   /// 취소 후 남은 취소 가능 수량 = orderCount − (cancel + hold).
   final int resultPurchasableQty;
 
-  /// 전량취소면 `CANCELLED`, 아니면 기존 status(취소해도 마켓 status 는 그대로다).
-  final String resultStatus;
+  /// 전량취소면 [OrderStatus.cancelled], 아니면 취소 후의 중립 상태다.
+  final OrderStatus resultStatus;
 
   /// 쿠팡 접수번호.
   final String? receiptId;
@@ -115,7 +117,7 @@ class CancelledLine extends Equatable {
         resultCancelCount: json['resultCancelCount'] as int? ?? 0,
         resultHoldCount: json['resultHoldCount'] as int? ?? 0,
         resultPurchasableQty: json['resultPurchasableQty'] as int? ?? 0,
-        resultStatus: json['resultStatus']?.toString() ?? '',
+        resultStatus: orderStatusFrom(json['resultStatus']?.toString()),
         receiptId: json['receiptId']?.toString(),
         receiptType: json['receiptType']?.toString(),
       );

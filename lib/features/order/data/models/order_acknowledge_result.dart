@@ -5,7 +5,7 @@ import 'package:flutter_oklyn_mobile/features/shipping_label/data/models/shipmen
 /// 발주처리 결과 (POST /api/admin/orders/acknowledge).
 ///
 /// 백엔드 `OrderAcknowledgeResult` record 와 1:1. 실패 사유는 쿠팡 원문 그대로 담는다
-/// (PLAN 2609_17 D8·D15) — 이미 INSTRUCT 인 박스를 보내면 200 + [failed] 로 온다.
+/// (PLAN 2609_17 D8·D15) — 이미 상품준비중인 박스를 보내면 200 + [failed] 로 온다.
 ///
 /// ⚠️ 실패·스킵 타입을 새로 만들지 않는다. 백엔드가 `ShipmentConfirmResult.FailedBox`/
 /// `SkippedOrder` 를 그대로 재사용하므로 모바일도 shipping_label 모델을 import 한다.

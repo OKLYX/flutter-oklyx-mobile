@@ -18,7 +18,13 @@ class OrderModel extends OrderItem {
     required super.holdCount,
     required super.purchasableQty,
     required super.status,
+    super.platformStatus,
+    super.cancelled,
     super.paidAt,
+    super.unitPrice,
+    super.lineAmount,
+    super.discountAmount,
+    super.platformDiscountAmount,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
@@ -36,8 +42,17 @@ class OrderModel extends OrderItem {
       cancelCount: (json['cancelCount'] as num?)?.toInt() ?? 0,
       holdCount: (json['holdCount'] as num?)?.toInt() ?? 0,
       purchasableQty: (json['purchasableQty'] as num?)?.toInt() ?? 0,
-      status: json['status'] as String? ?? '',
+      // 모르는 상태값은 unknown 으로 접는다 — 앱이 서버보다 늦게 배포될 수 있다.
+      status: orderStatusFrom(json['status'] as String?),
+      platformStatus: json['platformStatus'] as String?,
+      cancelled: json['cancelled'] as bool? ?? false,
       paidAt: json['paidAt'] as String?,
+      // 금액은 서버가 BigDecimal 로 내려 소수점이 붙을 수 있다 — num 으로 받아 정수화한다.
+      unitPrice: (json['unitPrice'] as num?)?.toInt(),
+      lineAmount: (json['lineAmount'] as num?)?.toInt(),
+      discountAmount: (json['discountAmount'] as num?)?.toInt(),
+      platformDiscountAmount:
+          (json['platformDiscountAmount'] as num?)?.toInt(),
     );
   }
 }

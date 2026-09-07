@@ -28,16 +28,18 @@ import '../../domain/entities/order_item.dart';
 /// )
 /// ```
 ///
+/// ⚠️ [statuses]·[counts] 의 키는 중립 상태 [OrderStatus] 다 — 플랫폼 원문 코드 문자열이 아니다
+/// (FEATURE_2609_26 D4).
 /// ⚠️ [counts] 는 **목록과 같은 소스**에서 파생한 값이어야 한다 — 배지와 목록이 다른 집합을
 /// 세면 화면이 어긋난다.
 /// ❌ 라벨표 사본 금지 — 한글 라벨은 `getOrderStatusLabel` 하나뿐이다.
 class OrderStatusFilterBar extends StatelessWidget {
-  final String? selectedStatus;
-  final Map<String, int> counts;
-  final void Function(String? status) onSelect;
+  final OrderStatus? selectedStatus;
+  final Map<OrderStatus, int> counts;
+  final void Function(OrderStatus? status) onSelect;
 
   /// 후보 상태. 기본값이 현행(전 상태)이라 주문내역은 표시 무변경.
-  final List<String> statuses;
+  final List<OrderStatus> statuses;
 
   const OrderStatusFilterBar({
     super.key,
