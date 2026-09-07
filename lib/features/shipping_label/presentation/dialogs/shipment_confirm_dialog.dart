@@ -15,7 +15,7 @@ import '../bloc/shipment_confirm_state.dart';
 /// 발송처리(운송장 업로드) 다이얼로그.
 ///
 /// **용도**: 택배사가 운송장번호를 채운 결과 xlsx 를 업로드 → 서버가 주문번호로
-///   매칭해 쿠팡 송장업로드(INSTRUCT→배송지시)를 배치 전송. 결과(성공/미매칭/실패)를 표시.
+///   매칭해 쿠팡 송장업로드(상품준비중→발송처리)를 배치 전송. 결과(성공/미매칭/실패)를 표시.
 /// **사용법**: `showShipmentConfirmDialog(context)` 헬퍼로 연다(BlocProvider 스코프 자동 제공).
 /// **반환값**: 업로드가 한 번이라도 성공하면 `true`, 아니면 `false`.
 ///   바깥 탭·안드로이드 뒤로가기로 닫으면 `null` — 호출부는 목록을 재조회하지 않는다.
@@ -349,17 +349,17 @@ class _ResultPanel extends StatelessWidget {
       );
 
   Widget _skippedDetail() {
-    String label(String s) => s.isEmpty ? '알 수 없음' : getOrderStatusLabel(s);
+    String label(OrderStatus s) => getOrderStatusLabel(s);
 
-    // Sort and summary both key on the raw status code — if they diverge the
-    // reader sees "배송지시 12" above a table that starts with 배송중.
+    // Sort and summary both key on the neutral status — if they diverge the
+    // reader sees "발송처리 12" above a table that starts with 배송중.
     final rows = [...result.skipped]..sort((a, b) {
-        final byStatus = a.status.compareTo(b.status);
+        final byStatus = a.status.index.compareTo(b.status.index);
         return byStatus != 0 ? byStatus : a.orderId.compareTo(b.orderId);
       });
 
     // Walking the sorted rows counts runs without a group map.
-    final codes = <String>[];
+    final codes = <OrderStatus>[];
     final counts = <int>[];
     for (final r in rows) {
       if (codes.isNotEmpty && codes.last == r.status) {
@@ -377,7 +377,7 @@ class _ResultPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _title('전송 제외'),
-        _caption('이미 배송지시된 상태입니다.'),
+        _caption('이미 발송처리된 상태입니다.'),
         const SizedBox(height: 8),
         Text(
           summary,

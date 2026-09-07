@@ -234,7 +234,7 @@ class _LoadedBody extends StatelessWidget {
         : s.searchedOrders
             .where((o) => o.marketplaceAccountId == accountValue)
             .toList();
-    final counts = <String, int>{};
+    final counts = <OrderStatus, int>{};
     for (final order in chScoped) {
       counts[order.status] = (counts[order.status] ?? 0) + 1;
     }
@@ -509,14 +509,6 @@ class _LoadedBody extends StatelessWidget {
             counts: counts,
             onSelect: (status) => bloc.add(SelectStatus(status: status)),
           ),
-          // 칩 라벨을 '추적불가' 로 줄인 대신, 그 상태를 고른 동안만 설명을 편다.
-          if (s.selectedStatus == 'NONE_TRACKING') ...[
-            const SizedBox(height: 8),
-            const Text(
-              '업체가 직접 배송해 배송 연동이 적용되지 않는 주문입니다 — 송장 추적이 불가합니다.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
           const SizedBox(height: 8),
 
           Row(

@@ -27,8 +27,8 @@ import '../widgets/sync_progress_dialog.dart';
 /// (PLAN 2609_15 D1·D4).
 ///
 /// **필수 규칙**:
-/// - 목록·배지는 [kShipmentStatuses] 로 좁히고 전량취소([isFullyCanceled])는 제외한다.
-///   화면에서 리터럴 상태 배열이나 자체 취소 판정을 만들지 말 것.
+/// - 목록·배지는 [kShipmentStatuses] 로 좁히고 전량취소(서버가 내려주는 `cancelled`)는 제외한다.
+///   화면에서 리터럴 상태 배열이나 자체 취소 판정을 만들지 말 것(PLAN 2609_26 D26).
 /// - 동기화 오케스트레이션은 기존 [OrderListBloc] 이벤트를 그대로 쓴다(신규 이벤트 금지, D6).
 /// - 목록 카드·상태 칩은 공유 위젯([OrderCard]·[OrderStatusFilterBar])을 쓴다.
 ///
@@ -60,11 +60,11 @@ class ShipmentManagementPage extends StatelessWidget {
 
 /// 발주처리 선택 가능 판정 (PLAN 2609_17 D2·D10).
 ///
-/// 결제완료(`ACCEPT`)·쿠팡·박스 ID 보유 셋을 모두 만족해야 한다. **화이트리스트**인 것이
+/// 결제완료([OrderStatus.paid])·쿠팡·박스 ID 보유 셋을 모두 만족해야 한다. **화이트리스트**인 것이
 /// 발송처리(2609_07 D1)의 블랙리스트와 반대 방향인 이유: 발주처리는 되돌릴 수 없어
 /// "모르는 상태면 안 보낸다" 가 맞다(발송처리는 안 보내면 발송 누락이라 반대).
 bool _isSelectable(OrderItem order) =>
-    order.status == 'ACCEPT' &&
+    order.status == OrderStatus.paid &&
     order.platform == 'COUPANG' &&
     (order.externalBoxId?.isNotEmpty ?? false);
 
@@ -316,11 +316,11 @@ class _LoadedBody extends StatelessWidget {
     // — s.statusCounts 를 쓰면 취소·배송 건까지 세어 목록과 배지가 어긋난다.
     final scoped = s.orders
         .where((o) => kShipmentStatuses.contains(o.status))
-        .where((o) => !isFullyCanceled(o)) // 전량취소는 발송 대상 아님
+        .where((o) => !o.cancelled) // 전량취소는 발송 대상 아님 (서버 판정, D26)
         .where((o) =>
             accountValue == null || o.marketplaceAccountId == accountValue)
         .toList();
-    final counts = <String, int>{
+    final counts = <OrderStatus, int>{
       for (final status in kShipmentStatuses)
         status: scoped.where((o) => o.status == status).length,
     };

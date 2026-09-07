@@ -4,6 +4,7 @@ import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
@@ -146,7 +147,7 @@ class OrderDetailPage extends StatelessWidget {
               _ActionTabs(order: o)
             else
               _OrderSheetSection(order: o),
-            // 발주(ACCEPT→INSTRUCT)는 발송·취소의 앞 단계라 탭에 섞지 않고 화면 하단에 따로 둔다.
+            // 발주(결제완료→상품준비중)는 발송·취소의 앞 단계라 탭에 섞지 않고 화면 하단에 따로 둔다.
             if (isCoupang) ...[
               const SizedBox(height: 12),
               _HideWhenFullyCancelled(child: _AcknowledgeSection(order: o)),
@@ -165,10 +166,10 @@ class OrderDetailPage extends StatelessWidget {
 }
 
 //// 기본 정보 카드. 쿠팡 주문이면 `상태` 행만 이 화면에서 한 전송 결과를 따라간다 —
-/// 발송처리는 서버가 `resultStatus: 'DEPARTURE'` 를 주고(2609_11 D4), 발주처리는 성공 시
-/// `INSTRUCT` 로 해석한다. 둘 다 재조회 없이 반영한다.
+/// 발송처리는 서버가 `resultStatus: SHIPPED` 를 주고(2609_11 D4), 발주처리는 성공 시
+/// [OrderStatus.preparing] 으로 해석한다. 둘 다 재조회 없이 반영한다.
 Widget _buildInfoCard(OrderItem o, {required bool isCoupang}) {
-  List<_InfoRow> rows(String status) => [
+  List<_InfoRow> rows(OrderStatus status) => [
         _InfoRow('플랫폼', o.platform),
         _InfoRow('주문번호', o.externalOrderId),
         _InfoRow('박스 ID', o.externalBoxId ?? '-'),
@@ -177,13 +178,18 @@ Widget _buildInfoCard(OrderItem o, {required bool isCoupang}) {
         _InfoRow('주문자', o.ordererName ?? '-'),
         _InfoRow('수취인', o.receiverName ?? '-'),
         // 목록과 같은 한글 라벨 SSOT 를 쓴다(라벨표 사본 금지).
-        _InfoRow('상태', getOrderStatusLabel(status)),
+        _InfoRow('상태', _statusText(o, status)),
+        // 주문 시점 금액 스냅샷 — 백필되지 않은 과거 주문은 '—' 다(0 으로 표시 금지, D9·D10).
+        _InfoRow('단가', _amountText(o.unitPrice)),
+        _InfoRow('상품금액', _amountText(o.lineAmount)),
+        _InfoRow('할인금액', _amountText(o.discountAmount)),
+        _InfoRow('플랫폼 부담 할인', _amountText(o.platformDiscountAmount)),
       ];
 
   if (!isCoupang) {
     return _InfoCard(title: '기본 정보', rows: rows(o.status));
   }
-  // 발송(DEPARTURE)이 발주(INSTRUCT)보다 뒤 단계 — 나중 단계가 이긴다.
+  // 발송(SHIPPED)이 발주(PREPARING)보다 뒤 단계 — 나중 단계가 이긴다.
   // 취소는 그보다 더 뒤 단계라 가장 바깥에서 이긴다(2609_25 D14).
   // ⚠️ 발주 성공 판정은 `succeeded > 0` 이다. 쿠팡 거절도 200 + failed 라 `result != null`
   // 만으로 판정하면 실패한 주문이 상품준비중으로 보인다(D15).
@@ -195,9 +201,9 @@ Widget _buildInfoCard(OrderItem o, {required bool isCoupang}) {
         builder: (context, ack) {
           final acknowledged = ack.result != null && ack.result!.succeeded > 0;
           final status = _isFullyCancelledByResult(cancel.result)
-              ? 'CANCELLED'
+              ? OrderStatus.cancelled
               : (manual.result?.resultStatus ??
-                  (acknowledged ? 'INSTRUCT' : o.status));
+                  (acknowledged ? OrderStatus.preparing : o.status));
           return _InfoCard(title: '기본 정보', rows: rows(status));
         },
       ),
@@ -208,10 +214,28 @@ Widget _buildInfoCard(OrderItem o, {required bool isCoupang}) {
 /// 이 화면에서 방금 낸 취소가 **전량취소**였는지 — 정보 카드 상태 행과 발주/발송 섹션 숨김이
 /// 같은 판정을 쓰도록 한 곳에 둔다. 서버가 전량취소 라인에만 `CANCELLED` 를 내려준다(D14).
 ///
-/// ⚠️ `isFullyCanceled(order)` 헬퍼를 쓰지 말 것 — `cancelCount` 만 보므로 출고중지(hold)로
-/// 전량취소된 건을 놓친다. 그 헬퍼는 주문 목록 취소 필터가 함께 쓰므로 이번 스코프에서 고치지 않는다.
+/// ⚠️ 목록의 `order.cancelled`(서버 판정, D26)와 근거가 다르다 — 이쪽은 **방금 낸 취소 결과**
+/// 기준의 낙관적 갱신이라 아직 재조회하지 않은 시점을 메운다. 둘을 합치지 말 것.
 bool _isFullyCancelledByResult(OrderCancelResult? result) =>
-    result != null && result.cancelled.any((l) => l.resultStatus == 'CANCELLED');
+    result != null &&
+    result.cancelled.any((l) => l.resultStatus == OrderStatus.cancelled);
+
+/// 상태 행 문구. `NONE_TRACKING`(업체 직접배송)은 백엔드가 `SHIPPED` 로 접어서(D5) 상태만으로는
+/// 추적 불가를 알 수 없다 — **상세의 이 행에서만** 원문을 보고 괄호로 덧붙인다.
+///
+/// ❌ 목록 카드·상태 칩에 되살리지 말 것(칩은 6개 중립 상태뿐이다).
+String _statusText(OrderItem o, OrderStatus status) {
+  final label = getOrderStatusLabel(status);
+  final untracked =
+      status == OrderStatus.shipped && o.platformStatus == 'NONE_TRACKING';
+  return untracked ? '$label (추적불가)' : label;
+}
+
+/// 금액 행 문구. null 은 **'—'** 다 — 0 으로 표시하면 "할인 없음"과 "모름"이 같아 보인다(D9).
+String _amountText(int? amount) =>
+    amount == null ? '—' : '${_amountFormat.format(amount)}원';
+
+final _amountFormat = NumberFormat('###,##0', 'ko_KR');
 
 /// 전량취소되면 감출 섹션 래퍼 — 발주처리·발송처리 위젯 **내부를 고치지 않기 위한** 바깥 게이트.
 /// 부분취소는 잔여 수량을 그대로 발송해야 하므로 감추지 않는다(D19).
@@ -326,7 +350,8 @@ class _ActionTabsState extends State<_ActionTabs> {
           final fullyCancelled = _isFullyCancelledByResult(cancel.result);
           final canShip = !manual.optionsForbidden && !fullyCancelled;
           final canCancel = !cancel.forbidden &&
-              (order.status == 'ACCEPT' || order.status == 'INSTRUCT');
+              (order.status == OrderStatus.paid ||
+                  order.status == OrderStatus.preparing);
           // 시트 탭은 늘 열려 있다 — 권한(403)·플랫폼 안내는 섹션이 자기 안에서 처리한다.
           // 여기서 막으면 비-ADMIN 에게 아무 탭도 안 보인다.
           final available = {
@@ -413,7 +438,7 @@ class _AcknowledgeSection extends StatelessWidget {
       builder: (context, state) {
         // 결제완료 쿠팡 주문에만 노출한다(D2·D10·D14). 403 이면 진입점을 숨긴다.
         if (order.platform != 'COUPANG' ||
-            order.status != 'ACCEPT' ||
+            order.status != OrderStatus.paid ||
             state.forbidden) {
           return const SizedBox.shrink();
         }
@@ -518,8 +543,7 @@ class _AcknowledgeSection extends StatelessWidget {
 /// ⚠️ 되돌릴 수 없고 **쿠팡 판매자 점수가 하락한다** — 확인 다이얼로그를 반드시 거치고
 /// 자동 재시도를 넣지 말 것(D13).
 /// ⚠️ 사유 라벨을 코드에 두지 않는다 — 목록의 소유자는 서버다(D4).
-/// ⚠️ 전량취소 판정은 `purchasableQty == 0` 이다. `isFullyCanceled` 헬퍼는 `cancelCount` 만 보므로
-/// 출고중지로 전량취소된 주문을 놓친다(그 헬퍼는 목록 필터가 함께 써서 고치지 않는다).
+/// ⚠️ 전량취소 판정은 `purchasableQty == 0` 이다 — 수량으로 다시 세지 말 것.
 /// ⚠️ 권한 게이트는 클라이언트에 두지 않는다. 다만 403(사유 조회 포함)이면 섹션을 숨긴다 —
 /// 서버가 내린 판정을 반영하는 것이라 이중 판정이 아니다.
 ///
@@ -577,7 +601,8 @@ class _CancelSectionState extends State<_CancelSection> {
       builder: (context, state) {
         // 결제완료·상품준비중 쿠팡 주문에만 노출한다(D2·D10). 403 이면 진입점을 숨긴다.
         if (order.platform != 'COUPANG' ||
-            (order.status != 'ACCEPT' && order.status != 'INSTRUCT') ||
+            (order.status != OrderStatus.paid &&
+                order.status != OrderStatus.preparing) ||
             state.forbidden) {
           return const SizedBox.shrink();
         }

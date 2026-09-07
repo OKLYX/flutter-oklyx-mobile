@@ -12,7 +12,7 @@ class SelectSeller extends PurchaseListEvent {
   SelectSeller({this.sellerId});
 }
 
-/// 재적재 버튼: ACCEPT 주문 기준으로 목록 재생성 (수동수량/구매기록 유지)
+/// 재적재 버튼: 결제완료(PAID) 주문 기준으로 목록 재생성 (수동수량/구매기록 유지)
 class ExtractPurchaseList extends PurchaseListEvent {}
 
 /// 상품 카드 펼침/접힘 토글 (재조회 없음)
