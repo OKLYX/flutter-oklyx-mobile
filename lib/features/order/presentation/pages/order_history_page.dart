@@ -15,6 +15,22 @@ import '../widgets/order_card.dart';
 import '../widgets/order_status_filter_bar.dart';
 import '../widgets/sync_progress_dialog.dart';
 
+/// 칩 순서 고정 — 기존 둘은 자리를 지키고 새 둘을 뒤에 붙인다(PLAN 2609_27 D3).
+const _searchFieldLabels = <OrderSearchField, String>{
+  OrderSearchField.customer: '고객명',
+  OrderSearchField.orderNo: '주문번호',
+  OrderSearchField.product: '상품명',
+  OrderSearchField.all: '전체',
+};
+
+/// hint 는 칩마다 바뀐다. 삼항 중첩 대신 맵 하나(PLAN 2609_27 D8).
+const _searchHints = <OrderSearchField, String>{
+  OrderSearchField.customer: '고객명 검색 (주문자·수취인)',
+  OrderSearchField.orderNo: '주문번호 검색',
+  OrderSearchField.product: '상품명 검색',
+  OrderSearchField.all: '고객명·주문번호·상품명 검색',
+};
+
 /// 주문관리 > 주문내역 페이지 (조회 + 동기화)
 ///
 /// **용도**: Coupang 등 외부 마켓플레이스에서 동기화된 주문 목록 조회 및 동기화.
@@ -372,20 +388,15 @@ class _LoadedBody extends StatelessWidget {
                     alignment: Alignment.centerLeft,
                     child: Wrap(
                       spacing: 8,
-                      children: [
-                        ChoiceChip(
-                          label: const Text('고객명'),
-                          selected: s.searchField == OrderSearchField.customer,
-                          onSelected: (_) => bloc.add(ChangeSearchField(
-                              field: OrderSearchField.customer)),
-                        ),
-                        ChoiceChip(
-                          label: const Text('주문번호'),
-                          selected: s.searchField == OrderSearchField.orderNo,
-                          onSelected: (_) => bloc.add(ChangeSearchField(
-                              field: OrderSearchField.orderNo)),
-                        ),
-                      ],
+                      runSpacing: 4,
+                      children: _searchFieldLabels.entries
+                          .map((e) => ChoiceChip(
+                                label: Text(e.value),
+                                selected: s.searchField == e.key,
+                                onSelected: (_) =>
+                                    bloc.add(ChangeSearchField(field: e.key)),
+                              ))
+                          .toList(),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -397,9 +408,7 @@ class _LoadedBody extends StatelessWidget {
                       isDense: true,
                       border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.search, size: 18),
-                      hintText: s.searchField == OrderSearchField.orderNo
-                          ? '주문번호 검색'
-                          : '고객명 검색 (주문자·수취인)',
+                      hintText: _searchHints[s.searchField],
                       suffixIcon: s.searchTerm.isEmpty
                           ? null
                           : IconButton(
