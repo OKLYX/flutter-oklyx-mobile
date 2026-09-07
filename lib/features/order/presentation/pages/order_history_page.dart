@@ -12,24 +12,9 @@ import '../bloc/order_list_bloc.dart';
 import '../bloc/order_list_event.dart';
 import '../bloc/order_list_state.dart';
 import '../widgets/order_card.dart';
+import '../widgets/order_search_bar.dart';
 import '../widgets/order_status_filter_bar.dart';
 import '../widgets/sync_progress_dialog.dart';
-
-/// 칩 순서 고정 — 기존 둘은 자리를 지키고 새 둘을 뒤에 붙인다(PLAN 2609_27 D3).
-const _searchFieldLabels = <OrderSearchField, String>{
-  OrderSearchField.customer: '고객명',
-  OrderSearchField.orderNo: '주문번호',
-  OrderSearchField.product: '상품명',
-  OrderSearchField.all: '전체',
-};
-
-/// hint 는 칩마다 바뀐다. 삼항 중첩 대신 맵 하나(PLAN 2609_27 D8).
-const _searchHints = <OrderSearchField, String>{
-  OrderSearchField.customer: '고객명 검색 (주문자·수취인)',
-  OrderSearchField.orderNo: '주문번호 검색',
-  OrderSearchField.product: '상품명 검색',
-  OrderSearchField.all: '고객명·주문번호·상품명 검색',
-};
 
 /// 주문관리 > 주문내역 페이지 (조회 + 동기화)
 ///
@@ -384,41 +369,13 @@ class _LoadedBody extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   // 검색 — 클라이언트 필터라 서버를 부르지 않는다(PLAN D9).
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: _searchFieldLabels.entries
-                          .map((e) => ChoiceChip(
-                                label: Text(e.value),
-                                selected: s.searchField == e.key,
-                                onSelected: (_) =>
-                                    bloc.add(ChangeSearchField(field: e.key)),
-                              ))
-                          .toList(),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
+                  OrderSearchBar(
                     controller: searchController,
-                    onChanged: (value) =>
-                        bloc.add(ChangeSearchTerm(term: value)),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.search, size: 18),
-                      hintText: _searchHints[s.searchField],
-                      suffixIcon: s.searchTerm.isEmpty
-                          ? null
-                          : IconButton(
-                              icon: const Icon(Icons.clear, size: 18),
-                              onPressed: () {
-                                searchController.clear();
-                                bloc.add(ChangeSearchTerm(term: ''));
-                              },
-                            ),
-                    ),
+                    field: s.searchField,
+                    term: s.searchTerm,
+                    onFieldChanged: (f) =>
+                        bloc.add(ChangeSearchField(field: f)),
+                    onTermChanged: (t) => bloc.add(ChangeSearchTerm(term: t)),
                   ),
                   const SizedBox(height: 8),
                   Row(
