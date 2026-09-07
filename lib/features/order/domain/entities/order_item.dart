@@ -130,19 +130,43 @@ const List<OrderStatus> kShipmentStatuses = [
 String getCustomerName(OrderItem order) =>
     order.receiverName ?? order.ordererName ?? '-';
 
-/// 검색 대상 칩. 기본은 고객명(PLAN D10).
-enum OrderSearchField { customer, orderNo }
+/// 검색 대상 칩. 기본은 고객명 그대로 — 순서·기본값을 바꾸지 않는다(PLAN 2609_27 D3).
+enum OrderSearchField { customer, orderNo, product, all }
 
 /// 공백 제거 + 소문자화 — '김 철수'와 '김철수'를 같게 본다.
+/// 상품명에도 **같은 규칙**을 쓴다(PLAN 2609_27 D5): '코코아 분말' == '코코아분말'.
 String _normalize(String v) => v.replaceAll(RegExp(r'\s+'), '').toLowerCase();
 
-/// 고객명은 주문자·수취인 **둘 다** 본다(선물 주문은 다르다). 빈 검색어는 전부 통과.
+/// 주문자·수취인 **둘 다** 본다 — 선물 주문은 이름이 다르다.
+bool _matchesCustomer(OrderItem order, String needle) =>
+    [order.ordererName, order.receiverName]
+        .any((n) => n != null && _normalize(n).contains(needle));
+
+bool _matchesOrderNo(OrderItem order, String needle) =>
+    _normalize(order.externalOrderId).contains(needle);
+
+/// itemName 은 채널 원문(상품명 + 옵션명 한 덩어리)이고 nullable 이다 —
+/// null 라인은 상품명으로는 절대 걸리지 않는다(PLAN 2609_27 D6).
+bool _matchesProduct(OrderItem order, String needle) {
+  final name = order.itemName;
+  return name != null && _normalize(name).contains(needle);
+}
+
+/// 빈 검색어는 전부 통과(기존 동작 유지).
 bool matchesOrderSearch(OrderItem order, OrderSearchField field, String term) {
   final needle = _normalize(term);
   if (needle.isEmpty) return true;
-  if (field == OrderSearchField.orderNo) {
-    return _normalize(order.externalOrderId).contains(needle);
+  switch (field) {
+    case OrderSearchField.orderNo:
+      return _matchesOrderNo(order, needle);
+    case OrderSearchField.product:
+      return _matchesProduct(order, needle);
+    // '전체' = 셋 중 하나라도 걸리면 통과(PLAN 2609_27 D4).
+    case OrderSearchField.all:
+      return _matchesCustomer(order, needle) ||
+          _matchesOrderNo(order, needle) ||
+          _matchesProduct(order, needle);
+    case OrderSearchField.customer:
+      return _matchesCustomer(order, needle);
   }
-  return [order.ordererName, order.receiverName]
-      .any((n) => n != null && _normalize(n).contains(needle));
 }
