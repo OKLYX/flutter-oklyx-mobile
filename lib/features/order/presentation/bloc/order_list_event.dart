@@ -60,7 +60,7 @@ class DismissBackfillPrompt extends OrderListEvent {}
 
 /// 상태 필터 버튼 선택 (null = 전체). 같은 상태를 다시 누르면 해제(전체)된다.
 class SelectStatus extends OrderListEvent {
-  final String? status;
+  final OrderStatus? status;
 
   SelectStatus({this.status});
 }

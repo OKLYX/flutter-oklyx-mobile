@@ -16,8 +16,26 @@ class OrderItem {
   final int cancelCount;
   final int holdCount;
   final int purchasableQty;
-  final String status;
+
+  /// 플랫폼 중립 상태 — 화면·필터·전송 판정은 이 값만 본다(FEATURE_2609_26 D4).
+  final OrderStatus status;
+
+  /// 플랫폼 원문 상태(쿠팡 `ACCEPT` 등). 거울 행이 없으면 null.
+  /// 표시·분기에 쓰지 말 것 — 예외는 상세의 추적불가 표기 하나다(D5).
+  final String? platformStatus;
+
+  /// 전량취소 여부 — **서버가 판정한다**(cancel + hold >= order, PLAN D26).
+  /// 앱에서 수량으로 다시 판정하지 말 것.
+  final bool cancelled;
+
   final String? paidAt;
+
+  /// 주문 시점 금액 스냅샷 (PLAN D9·D10). 과거 주문은 백필된 만큼만 채워지므로 nullable 이다.
+  /// ⚠️ null 을 0 으로 바꿔 표시하지 말 것 — "모름"과 "0원"은 다르다.
+  final int? unitPrice;
+  final int? lineAmount;
+  final int? discountAmount;
+  final int? platformDiscountAmount;
 
   const OrderItem({
     required this.id,
@@ -34,59 +52,77 @@ class OrderItem {
     required this.holdCount,
     required this.purchasableQty,
     required this.status,
+    this.platformStatus,
+    this.cancelled = false,
     this.paidAt,
+    this.unitPrice,
+    this.lineAmount,
+    this.discountAmount,
+    this.platformDiscountAmount,
   });
 }
 
-/// Coupang order status codes in workflow sequence; used for the status filter
-/// buttons (프론트 OrderEntity.ORDER_STATUSES와 동일).
-const List<String> kOrderStatuses = [
-  'ACCEPT',
-  'INSTRUCT',
-  'DEPARTURE',
-  'DELIVERING',
-  'FINAL_DELIVERY',
-  'NONE_TRACKING',
+/// 플랫폼 중립 주문 상태 (백엔드 `OrderStatus` 와 1:1, FEATURE_2609_26 D5).
+///
+/// [OrderStatus.unknown] 은 서버에만 있는 값을 받았을 때의 자리다 — 앱이 서버보다 늦게
+/// 배포될 수 있어 파싱이 예외를 던지면 목록 전체가 죽는다.
+enum OrderStatus { paid, preparing, shipped, delivering, delivered, cancelled, unknown }
+
+/// 응답 문자열 → 중립 상태. 모르는 값은 [OrderStatus.unknown] 이다(예외·null 금지).
+///
+/// ❌ 쿠팡 코드(ACCEPT 등)를 여기서 매핑하지 말 것 — 플랫폼 매핑의 소유자는 백엔드다.
+OrderStatus orderStatusFrom(String? raw) => switch (raw) {
+      'PAID' => OrderStatus.paid,
+      'PREPARING' => OrderStatus.preparing,
+      'SHIPPED' => OrderStatus.shipped,
+      'DELIVERING' => OrderStatus.delivering,
+      'DELIVERED' => OrderStatus.delivered,
+      'CANCELLED' => OrderStatus.cancelled,
+      _ => OrderStatus.unknown,
+    };
+
+/// 상태 필터 칩 후보 — 워크플로 순서.
+///
+/// ⚠️ 프론트와 **구조가 다르다**: 웹은 진행 5값 + 별도 취소 필터, 모바일은 취소를 포함한
+/// 6값 통합이다(동작은 같다). 라벨·집합을 웹에서 그대로 옮기지 말 것.
+const List<OrderStatus> kOrderStatuses = [
+  OrderStatus.paid,
+  OrderStatus.preparing,
+  OrderStatus.shipped,
+  OrderStatus.delivering,
+  OrderStatus.delivered,
+  OrderStatus.cancelled,
 ];
 
-// Maps Coupang order status codes to Korean display labels (프론트와 동일).
-const Map<String, String> _orderStatusLabels = {
-  'ACCEPT': '결제완료',
-  'INSTRUCT': '상품준비중',
-  'DEPARTURE': '배송지시',
-  'DELIVERING': '배송중',
-  'FINAL_DELIVERY': '배송완료',
-  // 전량취소된 주문의 표시용 — 마켓 status 는 그대로지만 취소 결과가 이 코드를 내려준다
-  // (FEATURE_2609_25, 웹 OrderEntity 와 같은 라벨).
-  'CANCELLED': '취소',
-  // Short label so the status filter chip fits one line; the full explanation
-  // is shown under the filter bar when this status is selected.
-  'NONE_TRACKING': '추적불가',
+// Maps neutral order statuses to Korean display labels (프론트와 동일).
+const Map<OrderStatus, String> _orderStatusLabels = {
+  OrderStatus.paid: '결제완료',
+  OrderStatus.preparing: '상품준비중',
+  OrderStatus.shipped: '발송처리',
+  OrderStatus.delivering: '배송중',
+  OrderStatus.delivered: '배송완료',
+  OrderStatus.cancelled: '취소',
 };
 
-/// Returns the Korean label for an order status code; falls back to the raw value.
-String getOrderStatusLabel(String status) =>
-    _orderStatusLabels[status] ?? status;
+/// Returns the Korean label for a neutral order status.
+String getOrderStatusLabel(OrderStatus status) =>
+    _orderStatusLabels[status] ?? '알 수 없음';
 
-/// 이미 발송된(배송지시 이상) 상태 — 신규 업로드가 아니라 송장 "수정" 대상이다.
+/// 이미 발송된(발송처리 이상) 상태 — 신규 업로드가 아니라 송장 "수정" 대상이다.
 /// 판정은 서버가 한다(PLAN 2609_11 D3). 화면에서는 버튼 라벨·안내문에만 쓴다.
-const List<String> kShippedStatuses = [
-  'DEPARTURE',
-  'DELIVERING',
-  'FINAL_DELIVERY',
-  'NONE_TRACKING',
+const List<OrderStatus> kShippedStatuses = [
+  OrderStatus.shipped,
+  OrderStatus.delivering,
+  OrderStatus.delivered,
 ];
 
-bool isAlreadyShipped(String status) => kShippedStatuses.contains(status);
+bool isAlreadyShipped(OrderStatus status) => kShippedStatuses.contains(status);
 
 /// 출고관리 화면 대상 — 아직 발송하지 않은 주문(PLAN 2609_15 D1).
-const List<String> kShipmentStatuses = ['ACCEPT', 'INSTRUCT'];
-
-/// 전량취소 여부 — 쿠팡은 전량취소된 주문도 원래 status(ACCEPT 등)를 그대로 둔다.
-/// 그래서 상태 코드가 아니라 수량으로 판정한다(프론트 OrderEntity.isFullyCanceled 와 동일 규칙).
-/// 부분취소(cancelCount < orderCount)는 원래 상태에 그대로 남는다.
-bool isFullyCanceled(OrderItem order) =>
-    order.cancelCount > 0 && order.cancelCount == order.orderCount;
+const List<OrderStatus> kShipmentStatuses = [
+  OrderStatus.paid,
+  OrderStatus.preparing,
+];
 
 /// 좁은 목록 카드용 단일 "고객" 표기. 택배가 향하는 쪽이 수취인이라 수취인이
 /// 우선이고, 선물 주문(주문자 != 수취인)은 상세 페이지에서 둘 다 보여준다

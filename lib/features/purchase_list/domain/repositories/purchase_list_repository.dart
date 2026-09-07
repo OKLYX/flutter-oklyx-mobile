@@ -7,7 +7,7 @@ abstract class PurchaseListRepository {
   /// Active purchase list (items + unmapped orders) for an optional seller.
   Future<Either<Failure, PurchaseListResult>> getList(int? sellerId);
 
-  /// Re-extract from ACCEPT orders (idempotent); returns the refreshed result.
+  /// Re-extract from 결제완료(PAID) orders (idempotent); returns the refreshed result.
   Future<Either<Failure, PurchaseListResult>> extract(int? sellerId);
 
   /// Completed purchases (remainingQty <= 0 && purchasedQty > 0), read-only.

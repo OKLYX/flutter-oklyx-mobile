@@ -1,11 +1,13 @@
 import 'package:equatable/equatable.dart';
 
+import 'package:flutter_oklyn_mobile/features/order/domain/entities/order_item.dart';
 import 'shipment_confirm_result.dart';
 
 /// 단건 발송처리 결과 (백엔드 ManualShipmentResult 대응).
 ///
 /// [mode] 는 서버가 주문 상태로 정한다(PLAN 2609_11 D3): 'CREATE'(신규 업로드) | 'UPDATE'(송장수정).
-/// [resultStatus] 는 CREATE 성공 시 'DEPARTURE', 그 외 null → 상세 화면의 상태 행 갱신에 쓴다(D4).
+/// [resultStatus] 는 CREATE 성공 시 [OrderStatus.shipped], 그 외 null → 상세 화면의 상태 행
+/// 갱신에 쓴다(D4).
 /// [failed] 는 일괄 발송처리와 같은 [FailedBox] 를 재사용한다(쿠팡 원문 그대로, D6).
 class ManualShipmentResult extends Equatable {
   final String orderId;
@@ -14,7 +16,7 @@ class ManualShipmentResult extends Equatable {
   final int sentLines;
   final int succeeded;
   final List<FailedBox> failed;
-  final String? resultStatus;
+  final OrderStatus? resultStatus;
 
   const ManualShipmentResult({
     required this.orderId,
@@ -36,7 +38,9 @@ class ManualShipmentResult extends Equatable {
         failed: (json['failed'] as List? ?? [])
             .map((e) => FailedBox.fromJson(e as Map<String, dynamic>))
             .toList(),
-        resultStatus: json['resultStatus']?.toString(),
+        resultStatus: json['resultStatus'] == null
+            ? null
+            : orderStatusFrom(json['resultStatus']?.toString()),
       );
 
   /// 송장 수정 모드 여부 — 성공 배너 문구를 가른다.
