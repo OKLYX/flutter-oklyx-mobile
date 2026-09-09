@@ -157,6 +157,7 @@ import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/get_
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/extract_purchase_list_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/get_completed_purchase_list_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/record_purchase_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/get_recent_purchases_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/adjust_manual_qty_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/add_manual_item_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_list_bloc.dart';
@@ -942,6 +943,10 @@ void _registerPurchaseListServices() {
   );
   getIt.registerSingleton<AddManualItemUseCase>(
     AddManualItemUseCase(repository: getIt<PurchaseListRepository>()),
+  );
+  // 최근 구매이력은 BLoC 이 아니라 입고 카드 위젯이 직접 부른다(PLAN 2609_29 D9).
+  getIt.registerSingleton<GetRecentPurchasesUseCase>(
+    GetRecentPurchasesUseCase(repository: getIt<PurchaseListRepository>()),
   );
 
   // BLoC as factory to allow fresh state per page.
