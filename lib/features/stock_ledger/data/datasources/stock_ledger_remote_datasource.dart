@@ -8,7 +8,7 @@ import '../models/record_movement_params.dart';
 
 /// 실물 재고 원장 API (`/api/admin/stock/**`, PLAN 2609_28 D19 — ADMIN 전용).
 ///
-/// ⚠️ 옛 `/api/stock`(StockLog)과 경로가 다르다. 이 기능은 그쪽을 호출하지 않는다.
+/// 옛 재고 스택은 PLAN 2609_28 D21 로 제거됐다 — 호출 경로는 이 하나뿐이다.
 abstract class StockLedgerRemoteDataSource {
   Future<List<StockBalanceModel>> balances(int? productId, int? sellerId, String? keyword);
 
