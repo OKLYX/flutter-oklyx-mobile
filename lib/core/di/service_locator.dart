@@ -161,6 +161,17 @@ import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/get_
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/adjust_manual_qty_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/add_manual_item_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/stock_ledger/data/datasources/stock_ledger_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/stock_ledger/data/datasources/stock_ledger_remote_datasource_impl.dart';
+import 'package:flutter_oklyn_mobile/features/stock_ledger/data/repositories/stock_ledger_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/repositories/stock_ledger_repository.dart';
+import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/usecases/confirm_outbound_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/usecases/get_balances_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/usecases/get_movements_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/usecases/get_outbound_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/usecases/get_stock_candidates_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/usecases/record_movement_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock_ledger/presentation/bloc/stock_ledger_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/claim/data/datasources/claim_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/claim/data/repositories/claim_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/claim/domain/repositories/claim_repository.dart';
@@ -188,6 +199,7 @@ void setupServiceLocator() {
   _registerOrderServices();
   _registerClaimServices();
   _registerPurchaseListServices();
+  _registerStockLedgerServices();
   _registerErrorHandling();
 }
 
@@ -961,6 +973,55 @@ void _registerPurchaseListServices() {
       addManualItemUseCase: getIt<AddManualItemUseCase>(),
       getSellersUseCase: getIt<GetSellersUseCase>(),
       orderUseCase: getIt<OrderUseCase>(),
+    ),
+  );
+}
+
+/// 실물 재고 원장 (FEATURE_2609_28) — 옛 StockLog(`_registerStockServices`)와 별개 기능이다.
+void _registerStockLedgerServices() {
+  // Data Source
+  getIt.registerSingleton<StockLedgerRemoteDataSource>(
+    StockLedgerRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
+  );
+
+  // Repository
+  getIt.registerSingleton<StockLedgerRepository>(
+    StockLedgerRepositoryImpl(
+      remoteDataSource: getIt<StockLedgerRemoteDataSource>(),
+    ),
+  );
+
+  // Use Cases
+  getIt.registerSingleton<GetBalancesUseCase>(
+    GetBalancesUseCase(repository: getIt<StockLedgerRepository>()),
+  );
+  getIt.registerSingleton<GetMovementsUseCase>(
+    GetMovementsUseCase(repository: getIt<StockLedgerRepository>()),
+  );
+  getIt.registerSingleton<RecordMovementUseCase>(
+    RecordMovementUseCase(repository: getIt<StockLedgerRepository>()),
+  );
+  getIt.registerSingleton<GetStockCandidatesUseCase>(
+    GetStockCandidatesUseCase(repository: getIt<StockLedgerRepository>()),
+  );
+  getIt.registerSingleton<GetOutboundUseCase>(
+    GetOutboundUseCase(repository: getIt<StockLedgerRepository>()),
+  );
+  getIt.registerSingleton<ConfirmOutboundUseCase>(
+    ConfirmOutboundUseCase(repository: getIt<StockLedgerRepository>()),
+  );
+
+  // BLoC as factory — 재고 화면 3종이 각각 새 인스턴스를 받는다.
+  // 판매자 드롭다운은 기존 seller 기능의 GetSellersUseCase 를 재사용한다.
+  getIt.registerFactory<StockLedgerBloc>(
+    () => StockLedgerBloc(
+      getBalancesUseCase: getIt<GetBalancesUseCase>(),
+      getMovementsUseCase: getIt<GetMovementsUseCase>(),
+      recordMovementUseCase: getIt<RecordMovementUseCase>(),
+      getStockCandidatesUseCase: getIt<GetStockCandidatesUseCase>(),
+      getOutboundUseCase: getIt<GetOutboundUseCase>(),
+      confirmOutboundUseCase: getIt<ConfirmOutboundUseCase>(),
+      getSellersUseCase: getIt<GetSellersUseCase>(),
     ),
   );
 }
