@@ -9,7 +9,7 @@ import '../entities/stock_movement.dart';
 
 /// 실물 재고 원장 API (`/api/admin/stock/**`, PLAN 2609_28).
 ///
-/// ⚠️ 옛 `/api/stock`(StockLog)과 다른 기능이다 — 이쪽만 판매자 축과 사유 코드를 가진다.
+/// 판매자 축과 사유 코드를 가진 실물 원장이다(옛 재고 스택은 PLAN 2609_28 D21 로 제거됨).
 abstract class StockLedgerRepository {
   /// (물품 × 판매자) 잔량. [sellerId] 생략 = 전 판매자, [keyword] = 상품명 부분일치.
   Future<Either<Failure, List<StockBalance>>> balances({

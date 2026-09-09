@@ -30,17 +30,6 @@ import 'package:flutter_oklyn_mobile/features/product/domain/usecases/delete_pro
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_register_bloc.dart';
-import 'package:flutter_oklyn_mobile/features/stock/data/datasources/stock_remote_datasource.dart';
-import 'package:flutter_oklyn_mobile/features/stock/data/datasources/stock_remote_datasource_impl.dart';
-import 'package:flutter_oklyn_mobile/features/stock/data/repositories/stock_repository_impl.dart';
-import 'package:flutter_oklyn_mobile/features/stock/domain/repositories/stock_repository.dart';
-import 'package:flutter_oklyn_mobile/features/stock/domain/usecases/create_stock_usecase.dart';
-import 'package:flutter_oklyn_mobile/features/stock/domain/usecases/get_stock_usecase.dart';
-import 'package:flutter_oklyn_mobile/features/stock/domain/usecases/create_batch_stock_usecase.dart';
-import 'package:flutter_oklyn_mobile/features/stock/domain/usecases/get_stock_logs_usecase.dart';
-import 'package:flutter_oklyn_mobile/features/stock/presentation/bloc/stock_bloc.dart';
-import 'package:flutter_oklyn_mobile/features/stock/presentation/bloc/stock_in_out_bloc/stock_in_out_bloc.dart';
-import 'package:flutter_oklyn_mobile/features/stock/presentation/bloc/stock_search_bloc/stock_search_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/user/data/datasources/user_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/user/data/repositories/user_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/user/domain/repositories/user_repository.dart';
@@ -185,7 +174,6 @@ void setupServiceLocator() {
   _registerNetworkServices();
   _registerAuthServices();
   _registerProductServices();
-  _registerStockServices();
   _registerUserServices();
   _registerCategoryServices();
   _registerPackageServices();
@@ -320,55 +308,6 @@ void _registerProductServices() {
     () => ProductRegisterBloc(
       registerProductUseCase: getIt<RegisterProductUseCase>(),
       checkBarcodeUseCase: getIt<CheckBarcodeUseCase>(),
-    ),
-  );
-}
-
-void _registerStockServices() {
-  // Datasources
-  getIt.registerSingleton<StockRemoteDatasource>(
-    StockRemoteDatasourceImpl(getIt<DioClient>()),
-  );
-
-  // Repositories
-  getIt.registerSingleton<StockRepository>(
-    StockRepositoryImpl(getIt<StockRemoteDatasource>()),
-  );
-
-  // Use cases
-  getIt.registerSingleton<GetStockUseCase>(
-    GetStockUseCase(getIt<StockRepository>()),
-  );
-  getIt.registerSingleton<CreateStockUseCase>(
-    CreateStockUseCase(getIt<StockRepository>()),
-  );
-  getIt.registerSingleton<CreateBatchStockUseCase>(
-    CreateBatchStockUseCase(getIt<StockRepository>()),
-  );
-  getIt.registerSingleton<GetStockLogsUseCase>(
-    GetStockLogsUseCase(getIt<StockRepository>()),
-  );
-
-  // BLoC — registerFactory to create fresh instance per ProductDetailPage
-  getIt.registerFactory<StockBloc>(
-    () => StockBloc(
-      getStockUseCase: getIt<GetStockUseCase>(),
-      createStockUseCase: getIt<CreateStockUseCase>(),
-    ),
-  );
-
-  // StockInOutBloc as factory to allow fresh state per page
-  getIt.registerFactory<StockInOutBloc>(
-    () => StockInOutBloc(
-      getStockUseCase: getIt<GetStockUseCase>(),
-      createBatchStockUseCase: getIt<CreateBatchStockUseCase>(),
-    ),
-  );
-
-  // StockSearchBloc as factory to allow fresh state per page
-  getIt.registerFactory<StockSearchBloc>(
-    () => StockSearchBloc(
-      getStockLogsUseCase: getIt<GetStockLogsUseCase>(),
     ),
   );
 }
@@ -977,7 +916,7 @@ void _registerPurchaseListServices() {
   );
 }
 
-/// 실물 재고 원장 (FEATURE_2609_28) — 옛 StockLog(`_registerStockServices`)와 별개 기능이다.
+/// 실물 재고 원장 (FEATURE_2609_28). 옛 재고 스택은 PLAN 2609_28 D21 로 제거됐다.
 void _registerStockLedgerServices() {
   // Data Source
   getIt.registerSingleton<StockLedgerRemoteDataSource>(
