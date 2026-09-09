@@ -8,7 +8,7 @@ class ExtractPurchaseListUseCase {
 
   ExtractPurchaseListUseCase({required this.repository});
 
-  Future<Either<Failure, PurchaseListResult>> call(int? sellerId) {
-    return repository.extract(sellerId);
+  Future<Either<Failure, PurchaseListResult>> call() {
+    return repository.extract();
   }
 }

@@ -9,18 +9,17 @@ import '../bloc/purchase_list_state.dart';
 import '../widgets/add_manual_item_dialog.dart';
 import '../widgets/completed_purchase_filter.dart';
 import '../widgets/purchase_product_card.dart';
-import '../widgets/seller_filter_dropdown.dart';
 import '../widgets/unmapped_orders_section.dart';
 
 /// 구매목록 페이지 (하단 탭 3번째, `/list-to-shop`).
 ///
 /// **용도**: 프론트 구매목록(dashboard/purchase/list)을 모바일로 이식.
 /// **기능**:
-/// - 판매자 필터 드롭다운 (기존 seller 기능 재사용) — 선택 시 즉시 재조회
-/// - 재적재 / 주문동기화(기존 order 기능 재사용) → 목록 갱신 + 동기화 결과 배너
-/// - 탭: 구매목록 / 구매완료내역(읽기전용, 지연 로드)
+/// - 툴바: [주문내역 동기화](동기화 + 재적재 한 번에) · [수동 추가]
+///   🔴 판매자 드롭다운·[재적재] 는 없다(PLAN 2609_29 D11·D12)
+/// - 탭: 구매목록 / 구매완료내역(지연 로드, 기간 필터만)
 /// - 미매핑주문 섹션 (옵션 미등록 주문 안내)
-/// - 상품 카드 펼침 → 라인별 구매기록 + 수동수량 교체 (인라인 폼)
+/// - 상품 카드 펼침 → 입고 카드 + 최근 구매이력 + 채널 칩 + 주문 줄 (두 탭 동일, D21)
 /// - 수동항목 추가 (상품 검색·선택 + 수량)
 class PurchaseListPage extends StatelessWidget {
   const PurchaseListPage({super.key});
@@ -45,20 +44,23 @@ class _PurchaseListView extends StatelessWidget {
       showDrawer: true,
       showAppBarDrawerButton: false,
       body: BlocConsumer<PurchaseListBloc, PurchaseListState>(
-        // 조회/재적재/동기화/액션 중 발생한 일시적 오류는 SnackBar로 표시한다.
+        // 일시적 오류와 입고 결과 안내(stockRecorded)를 SnackBar로 표시한다.
         listenWhen: (prev, curr) =>
-            curr is PurchaseListLoaded && curr.actionError != null,
+            curr is PurchaseListLoaded &&
+            (curr.actionError != null || curr.stockRecorded != null),
         listener: (context, state) {
-          final message = (state as PurchaseListLoaded).actionError;
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(
-              SnackBar(
-                content: Text(message ?? '요청에 실패했습니다.'),
-                behavior: SnackBarBehavior.floating,
-                margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-              ),
-            );
+          final loaded = state as PurchaseListLoaded;
+          if (loaded.actionError != null) {
+            _snack(context, loaded.actionError!);
+          }
+          if (loaded.stockRecorded != null) {
+            if (loaded.stockRecorded == false) {
+              _snack(context,
+                  '재고는 반영되지 않았습니다 — 실물이 줄었다면 재고 화면에서 조정하세요');
+            }
+            // ⚠️ 1회성 안내다 — 소비 즉시 지운다(안 지우면 다음 리빌드에 또 뜬다).
+            context.read<PurchaseListBloc>().add(ClearStockNotice());
+          }
         },
         builder: (context, state) {
           if (state is PurchaseListInitial || state is PurchaseListLoading) {
@@ -76,6 +78,19 @@ class _PurchaseListView extends StatelessWidget {
       ),
     );
   }
+
+  /// 하단 네비게이션이 오버레이라 floating + bottom:70 이 필수다.
+  void _snack(BuildContext context, String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
+        ),
+      );
+  }
 }
 
 class _LoadedBody extends StatelessWidget {
@@ -86,7 +101,7 @@ class _LoadedBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bloc = context.read<PurchaseListBloc>();
-    final busy = state.isRefreshing || state.isExtracting || state.isSyncing;
+    final busy = state.isRefreshing || state.isSyncing;
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -102,7 +117,7 @@ class _LoadedBody extends StatelessWidget {
           Expanded(
             child: state.activeTab == PurchaseTab.active
                 ? _ActiveTabBody(state: state, busy: busy)
-                : _CompletedTabBody(state: state),
+                : _CompletedTabBody(state: state, busy: busy),
           ),
         ],
       ),
@@ -148,26 +163,7 @@ class _ActiveTabBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 판매자 필터 + 재적재 (구매목록 탭 전용)
-        Row(
-          children: [
-            Expanded(
-              child: SellerFilterDropdown(
-                sellers: state.sellers,
-                selectedSellerId: state.selectedSellerId,
-                enabled: !busy,
-                onChanged: (value) => bloc.add(SelectSeller(sellerId: value)),
-              ),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: busy ? null : () => bloc.add(ExtractPurchaseList()),
-              child: Text(state.isExtracting ? '동기화 중...' : '동기화'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        // 주문동기화 + 수동추가 (구매목록 탭 전용)
+        // 툴바: 주문내역 동기화 + 수동 추가 (판매자 드롭다운·재적재 없음)
         Row(
           children: [
             Expanded(
@@ -180,7 +176,7 @@ class _ActiveTabBody extends StatelessWidget {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.sync, size: 18),
-                label: Text(state.isSyncing ? '동기화 중...' : '주문동기화'),
+                label: Text(state.isSyncing ? '동기화 중...' : '주문내역 동기화'),
               ),
             ),
             const SizedBox(width: 8),
@@ -200,7 +196,7 @@ class _ActiveTabBody extends StatelessWidget {
                           ),
                         ),
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('수동추가'),
+                label: const Text('수동 추가'),
               ),
             ),
           ],
@@ -244,6 +240,7 @@ class _ActiveTabBody extends StatelessWidget {
         const SizedBox(height: 8),
         // 항목 리스트 + 미매핑 섹션을 하나의 스크롤 영역으로 합쳐
         // 마지막 항목/섹션이 플로팅 하단바에 가리지 않도록 bottom 패딩을 둔다.
+        // 키보드가 올라와도 입력칸이 가리지 않도록 viewInsets 만큼 더 띄운다.
         Expanded(
           child: CustomScrollView(
             slivers: [
@@ -261,38 +258,41 @@ class _ActiveTabBody extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final item = state.items[index];
                     return PurchaseProductCard(
+                      key: ValueKey(item.productId),
                       item: item,
+                      sellers: state.sellers,
                       expanded: item.productId == state.expandedProductId,
                       busy: busy,
                       onToggle: () =>
                           bloc.add(ToggleExpand(productId: item.productId)),
-                      onRecordPurchase: (
-                        itemId,
-                        purchasedOn,
-                        quantity, {
-                        totalAmount,
-                        unitPrice,
-                        reflectToBasePrice = true,
+                      onRecordPurchase: ({
+                        required int productId,
+                        required int sellerId,
+                        required String purchasedOn,
+                        required int quantity,
+                        double? totalAmount,
+                        double? unitPrice,
+                        required bool reflectToBasePrice,
                       }) =>
                           bloc.add(RecordPurchase(
-                        itemId: itemId,
+                        productId: productId,
+                        sellerId: sellerId,
                         purchasedOn: purchasedOn,
                         quantity: quantity,
                         totalAmount: totalAmount,
                         unitPrice: unitPrice,
                         reflectToBasePrice: reflectToBasePrice,
                       )),
-                      onAdjustManual: (itemId, manualQty) => bloc.add(
-                        AdjustManualQty(itemId: itemId, manualQty: manualQty),
-                      ),
                     );
                   },
                 ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.only(
+                  padding: EdgeInsets.only(
                     top: 8,
-                    bottom: kBottomNavigationBarHeight + 24,
+                    bottom: kBottomNavigationBarHeight +
+                        24 +
+                        MediaQuery.of(context).viewInsets.bottom,
                   ),
                   child: UnmappedOrdersSection(orders: state.unmappedOrders),
                 ),
@@ -307,8 +307,9 @@ class _ActiveTabBody extends StatelessWidget {
 
 class _CompletedTabBody extends StatelessWidget {
   final PurchaseListLoaded state;
+  final bool busy;
 
-  const _CompletedTabBody({required this.state});
+  const _CompletedTabBody({required this.state, required this.busy});
 
   @override
   Widget build(BuildContext context) {
@@ -318,23 +319,21 @@ class _CompletedTabBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         CompletedPurchaseFilter(
-          sellers: state.sellers,
-          sellerId: state.completedSellerId,
           from: state.completedFrom,
           to: state.completedTo,
           isLoading: state.isLoadingCompleted,
-          onApply: (sellerId, from, to) => bloc.add(
-            ApplyCompletedFilter(sellerId: sellerId, from: from, to: to),
+          onApply: (from, to) => bloc.add(
+            ApplyCompletedFilter(from: from, to: to),
           ),
           onReset: () => bloc.add(ResetCompletedFilter()),
         ),
         const SizedBox(height: 8),
-        Expanded(child: _buildList(bloc)),
+        Expanded(child: _buildList(context, bloc)),
       ],
     );
   }
 
-  Widget _buildList(PurchaseListBloc bloc) {
+  Widget _buildList(BuildContext context, PurchaseListBloc bloc) {
     if (state.isLoadingCompleted) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -343,28 +342,42 @@ class _CompletedTabBody extends StatelessWidget {
       return const Center(child: Text('구매완료 내역이 없습니다.'));
     }
     return ListView.separated(
-      padding: const EdgeInsets.only(bottom: kBottomNavigationBarHeight + 24),
+      padding: EdgeInsets.only(
+        bottom: kBottomNavigationBarHeight +
+            24 +
+            MediaQuery.of(context).viewInsets.bottom,
+      ),
       itemCount: items.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final item = items[index];
+        // 완료 탭도 구매목록 탭과 **같은 카드**를 쓴다(D21) — 추가 입고·정정이 가능하다.
         return PurchaseProductCard(
+          key: ValueKey(item.productId),
           item: item,
+          sellers: state.sellers,
           expanded: item.productId == state.expandedCompletedProductId,
-          busy: false,
-          readOnly: true,
+          busy: busy,
           onToggle: () =>
               bloc.add(ToggleExpandCompleted(productId: item.productId)),
-          // 읽기전용 탭에서는 폼이 숨겨지므로 호출되지 않는다.
-          onRecordPurchase: (
-            _,
-            __,
-            ___, {
-            totalAmount,
-            unitPrice,
-            reflectToBasePrice = true,
-          }) {},
-          onAdjustManual: (_, __) {},
+          onRecordPurchase: ({
+            required int productId,
+            required int sellerId,
+            required String purchasedOn,
+            required int quantity,
+            double? totalAmount,
+            double? unitPrice,
+            required bool reflectToBasePrice,
+          }) =>
+              bloc.add(RecordPurchase(
+            productId: productId,
+            sellerId: sellerId,
+            purchasedOn: purchasedOn,
+            quantity: quantity,
+            totalAmount: totalAmount,
+            unitPrice: unitPrice,
+            reflectToBasePrice: reflectToBasePrice,
+          )),
         );
       },
     );
