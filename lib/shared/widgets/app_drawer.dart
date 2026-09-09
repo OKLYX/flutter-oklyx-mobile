@@ -124,12 +124,12 @@ class AppDrawer extends StatelessWidget {
           ),
           ExpansionTile(
             shape: const Border(),
-            title: const Text('입출고관리'),
+            title: const Text('재고관리'),
             children: [
               Padding(
                 padding: const EdgeInsets.only(left: 16),
                 child: ListTile(
-                  title: const Text('입출고 관리'),
+                  title: const Text('입고·조정'),
                   onTap: () {
                     Navigator.pop(context);
                     context.go(Routes.stockInOutPath);
@@ -139,7 +139,17 @@ class AppDrawer extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(left: 16),
                 child: ListTile(
-                  title: const Text('입출고 조회'),
+                  title: const Text('출고 확인'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.stockOutboundPath);
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('재고 조회'),
                   onTap: () {
                     Navigator.pop(context);
                     context.go(Routes.stockSearchPath);

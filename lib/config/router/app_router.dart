@@ -46,8 +46,9 @@ import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_create_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/pages/product_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/pages/product_register_page.dart';
-import 'package:flutter_oklyn_mobile/features/stock/presentation/pages/stock_in_out_page.dart';
-import 'package:flutter_oklyn_mobile/features/stock/presentation/pages/stock_search_page.dart';
+import 'package:flutter_oklyn_mobile/features/stock_ledger/presentation/pages/stock_balance_page.dart';
+import 'package:flutter_oklyn_mobile/features/stock_ledger/presentation/pages/stock_entry_page.dart';
+import 'package:flutter_oklyn_mobile/features/stock_ledger/presentation/pages/stock_outbound_page.dart';
 import 'package:flutter_oklyn_mobile/features/user/domain/entities/user.dart';
 import 'package:flutter_oklyn_mobile/features/user/presentation/pages/user_edit_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/dashboard_page.dart';
@@ -146,18 +147,26 @@ class AppRouter {
         );
       },
     ),
+    // 재고 화면 3종 (FEATURE_2609_28 D22) — 옛 입출고 경로를 그대로 이어받는다.
     GoRoute(
       name: Routes.stockInOut,
       path: Routes.stockInOutPath,
       pageBuilder: (context, state) => const NoTransitionPage(
-        child: StockInOutPage(),
+        child: StockEntryPage(),
+      ),
+    ),
+    GoRoute(
+      name: Routes.stockOutbound,
+      path: Routes.stockOutboundPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: StockOutboundPage(),
       ),
     ),
     GoRoute(
       name: Routes.stockSearch,
       path: Routes.stockSearchPath,
       pageBuilder: (context, state) => const NoTransitionPage(
-        child: StockSearchPage(),
+        child: StockBalancePage(),
       ),
     ),
     GoRoute(
