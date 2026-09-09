@@ -10,8 +10,18 @@ class RecordPurchaseUseCase {
   Future<Either<Failure, void>> call(
     int itemId,
     String purchasedOn,
-    int quantity,
-  ) {
-    return repository.recordPurchase(itemId, purchasedOn, quantity);
+    int quantity, {
+    double? totalAmount,
+    double? unitPrice,
+    bool reflectToBasePrice = true,
+  }) {
+    return repository.recordPurchase(
+      itemId,
+      purchasedOn,
+      quantity,
+      totalAmount: totalAmount,
+      unitPrice: unitPrice,
+      reflectToBasePrice: reflectToBasePrice,
+    );
   }
 }

@@ -71,12 +71,21 @@ class PurchaseListRepositoryImpl implements PurchaseListRepository {
   Future<Either<Failure, void>> recordPurchase(
     int itemId,
     String purchasedOn,
-    int quantity,
-  ) async {
+    int quantity, {
+    double? totalAmount,
+    double? unitPrice,
+    bool reflectToBasePrice = true,
+  }) async {
     try {
       await remoteDataSource.recordPurchase(
         itemId,
-        RecordPurchaseParams(purchasedOn: purchasedOn, quantity: quantity),
+        RecordPurchaseParams(
+          purchasedOn: purchasedOn,
+          quantity: quantity,
+          totalAmount: totalAmount,
+          unitPrice: unitPrice,
+          reflectToBasePrice: reflectToBasePrice,
+        ),
       );
       return const Right(null);
     } on DioException catch (e) {

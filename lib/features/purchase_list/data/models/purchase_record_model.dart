@@ -5,13 +5,27 @@ class PurchaseRecordModel extends PurchaseRecord {
     required int id,
     required String purchasedOn,
     required int quantity,
-  }) : super(id: id, purchasedOn: purchasedOn, quantity: quantity);
+    double? totalAmount,
+    double? unitPrice,
+    bool reflectToBasePrice = true,
+  }) : super(
+          id: id,
+          purchasedOn: purchasedOn,
+          quantity: quantity,
+          totalAmount: totalAmount,
+          unitPrice: unitPrice,
+          reflectToBasePrice: reflectToBasePrice,
+        );
 
   factory PurchaseRecordModel.fromJson(Map<String, dynamic> json) {
     return PurchaseRecordModel(
       id: json['id'] as int,
       purchasedOn: json['purchasedOn'] as String,
       quantity: json['quantity'] as int,
+      // ⚠️ Do NOT default to 0 — null is "amount unknown" (PLAN 2609_28 D1).
+      totalAmount: (json['totalAmount'] as num?)?.toDouble(),
+      unitPrice: (json['unitPrice'] as num?)?.toDouble(),
+      reflectToBasePrice: json['reflectToBasePrice'] as bool? ?? true,
     );
   }
 }
