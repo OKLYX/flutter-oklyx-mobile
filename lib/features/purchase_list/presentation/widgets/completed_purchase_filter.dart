@@ -1,25 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
-import 'seller_filter_dropdown.dart';
 
-/// 구매완료내역 탭의 필터 바: 판매자 + 구매일 기간(시작/종료).
+/// 구매완료내역 탭의 필터 바: 구매일 기간(시작/종료).
 ///
-/// 프론트 CompletedPurchaseFilter와 동일하게 '조회' 버튼으로 적용한다(즉시 재조회 X).
-/// 입력값은 위젯 로컬 상태로 들고 있다가 [onApply]로 한 번에 전달하며, 부모의
-/// 적용값([sellerId]/[from]/[to])이 바뀌면(조회/초기화 후) 로컬 상태를 재동기화한다.
-/// 날짜를 비우면 해당 경계 없음(=전체 기간)으로 전달한다.
+/// 🔴 판매자 드롭다운은 없다(PLAN 2609_29 D11·D21) — 서버가 `/completed` 의
+/// sellerId 파라미터를 없앴고, 완료 목록도 항상 전체다.
+///
+/// '조회' 버튼으로 적용한다(즉시 재조회 X). 입력값은 위젯 로컬 상태로 들고 있다가
+/// [onApply]로 한 번에 전달하며, 부모의 적용값([from]/[to])이 바뀌면(조회/초기화 후)
+/// 로컬 상태를 재동기화한다. 날짜를 비우면 해당 경계 없음(=전체 기간)으로 전달한다.
 class CompletedPurchaseFilter extends StatefulWidget {
-  final List<Seller> sellers;
-  final int? sellerId;
   final String from;
   final String to;
   final bool isLoading;
-  final void Function(int? sellerId, String from, String to) onApply;
+  final void Function(String from, String to) onApply;
   final VoidCallback onReset;
 
   const CompletedPurchaseFilter({
-    required this.sellers,
-    required this.sellerId,
     required this.from,
     required this.to,
     required this.isLoading,
@@ -34,14 +30,12 @@ class CompletedPurchaseFilter extends StatefulWidget {
 }
 
 class _CompletedPurchaseFilterState extends State<CompletedPurchaseFilter> {
-  int? _sellerId;
   String _from = '';
   String _to = '';
 
   @override
   void initState() {
     super.initState();
-    _sellerId = widget.sellerId;
     _from = widget.from;
     _to = widget.to;
   }
@@ -50,10 +44,7 @@ class _CompletedPurchaseFilterState extends State<CompletedPurchaseFilter> {
   void didUpdateWidget(CompletedPurchaseFilter oldWidget) {
     super.didUpdateWidget(oldWidget);
     // 적용값이 바뀌면(조회/초기화 후) 로컬 입력값을 재동기화한다.
-    if (oldWidget.sellerId != widget.sellerId ||
-        oldWidget.from != widget.from ||
-        oldWidget.to != widget.to) {
-      _sellerId = widget.sellerId;
+    if (oldWidget.from != widget.from || oldWidget.to != widget.to) {
       _from = widget.from;
       _to = widget.to;
     }
@@ -103,13 +94,6 @@ class _CompletedPurchaseFilterState extends State<CompletedPurchaseFilter> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SellerFilterDropdown(
-          sellers: widget.sellers,
-          selectedSellerId: _sellerId,
-          enabled: !widget.isLoading,
-          onChanged: (value) => setState(() => _sellerId = value),
-        ),
-        const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
@@ -145,7 +129,7 @@ class _CompletedPurchaseFilterState extends State<CompletedPurchaseFilter> {
               child: ElevatedButton(
                 onPressed: widget.isLoading
                     ? null
-                    : () => widget.onApply(_sellerId, _from, _to),
+                    : () => widget.onApply(_from, _to),
                 child: Text(widget.isLoading ? '조회 중...' : '조회'),
               ),
             ),

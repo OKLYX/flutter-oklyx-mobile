@@ -8,7 +8,7 @@ class GetPurchaseListUseCase {
 
   GetPurchaseListUseCase({required this.repository});
 
-  Future<Either<Failure, PurchaseListResult>> call(int? sellerId) {
-    return repository.getList(sellerId);
+  Future<Either<Failure, PurchaseListResult>> call() {
+    return repository.getList();
   }
 }
