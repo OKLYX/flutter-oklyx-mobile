@@ -266,11 +266,21 @@ class _ActiveTabBody extends StatelessWidget {
                       busy: busy,
                       onToggle: () =>
                           bloc.add(ToggleExpand(productId: item.productId)),
-                      onRecordPurchase: (itemId, purchasedOn, quantity) =>
+                      onRecordPurchase: (
+                        itemId,
+                        purchasedOn,
+                        quantity, {
+                        totalAmount,
+                        unitPrice,
+                        reflectToBasePrice = true,
+                      }) =>
                           bloc.add(RecordPurchase(
                         itemId: itemId,
                         purchasedOn: purchasedOn,
                         quantity: quantity,
+                        totalAmount: totalAmount,
+                        unitPrice: unitPrice,
+                        reflectToBasePrice: reflectToBasePrice,
                       )),
                       onAdjustManual: (itemId, manualQty) => bloc.add(
                         AdjustManualQty(itemId: itemId, manualQty: manualQty),
@@ -346,7 +356,14 @@ class _CompletedTabBody extends StatelessWidget {
           onToggle: () =>
               bloc.add(ToggleExpandCompleted(productId: item.productId)),
           // 읽기전용 탭에서는 폼이 숨겨지므로 호출되지 않는다.
-          onRecordPurchase: (_, __, ___) {},
+          onRecordPurchase: (
+            _,
+            __,
+            ___, {
+            totalAmount,
+            unitPrice,
+            reflectToBasePrice = true,
+          }) {},
           onAdjustManual: (_, __) {},
         );
       },

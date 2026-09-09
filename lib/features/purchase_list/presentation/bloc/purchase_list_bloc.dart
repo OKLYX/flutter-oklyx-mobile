@@ -330,6 +330,9 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
       event.itemId,
       event.purchasedOn,
       event.quantity,
+      totalAmount: event.totalAmount,
+      unitPrice: event.unitPrice,
+      reflectToBasePrice: event.reflectToBasePrice,
     );
     await result.fold(
       (failure) async => emit(current.copyWith(

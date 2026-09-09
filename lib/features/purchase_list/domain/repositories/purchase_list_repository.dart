@@ -19,11 +19,17 @@ abstract class PurchaseListRepository {
   );
 
   /// Record a purchase against a line. [quantity] may be negative for corrections.
+  ///
+  /// Pass at most one of [totalAmount]/[unitPrice] — the server derives the other
+  /// and rejects both-present (PLAN 2609_28 D1/D2). Both null = amount unknown.
   Future<Either<Failure, void>> recordPurchase(
     int itemId,
     String purchasedOn,
-    int quantity,
-  );
+    int quantity, {
+    double? totalAmount,
+    double? unitPrice,
+    bool reflectToBasePrice = true,
+  });
 
   /// Replace the manual quantity of a line with an absolute value (0+).
   Future<Either<Failure, void>> adjustManualQty(int itemId, int manualQty);

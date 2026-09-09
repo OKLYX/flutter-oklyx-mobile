@@ -23,15 +23,24 @@ class ToggleExpand extends PurchaseListEvent {
 }
 
 /// 라인에 구매 기록 (수량 음수 허용 = 정정). 성공 시 목록 재조회.
+///
+/// 금액은 총액/단가 중 하나만 채워 보낸다 — 나머지는 서버가 계산한다(PLAN 2609_28 D1/D2).
+/// 둘 다 null 이면 "금액 미상" 행으로 저장된다. 검증·환산은 서버가 정본이라 BLoC 은 전달만 한다.
 class RecordPurchase extends PurchaseListEvent {
   final int itemId;
   final String purchasedOn; // YYYY-MM-DD
   final int quantity;
+  final double? totalAmount;
+  final double? unitPrice;
+  final bool reflectToBasePrice;
 
   RecordPurchase({
     required this.itemId,
     required this.purchasedOn,
     required this.quantity,
+    this.totalAmount,
+    this.unitPrice,
+    this.reflectToBasePrice = true,
   });
 }
 
