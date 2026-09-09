@@ -16,8 +16,14 @@ class PurchaseProductCard extends StatelessWidget {
   /// 읽기전용(완료 탭)이면 라인 인라인 폼을 숨긴다.
   final bool readOnly;
   final VoidCallback onToggle;
-  final void Function(int itemId, String purchasedOn, int quantity)
-      onRecordPurchase;
+  final void Function(
+    int itemId,
+    String purchasedOn,
+    int quantity, {
+    double? totalAmount,
+    double? unitPrice,
+    bool reflectToBasePrice,
+  }) onRecordPurchase;
   final void Function(int itemId, int manualQty) onAdjustManual;
 
   const PurchaseProductCard({
