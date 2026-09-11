@@ -10,6 +10,7 @@ import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_event.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_state.dart';
 import 'product_thumbnail.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 /// 수동항목 추가 다이얼로그.
 ///
@@ -177,7 +178,7 @@ class _AddManualItemViewState extends State<_AddManualItemView> {
                           return ListTile(
                             dense: true,
                             selected: selected,
-                            selectedTileColor: Colors.blue[50],
+                            selectedTileColor: AppColors.infoSurface,
                             leading: ProductThumbnail(
                                 productId: product.id, size: 40),
                             title: Text(
@@ -191,7 +192,7 @@ class _AddManualItemViewState extends State<_AddManualItemView> {
                                 : null,
                             trailing: selected
                                 ? const Icon(Icons.check_circle,
-                                    color: Colors.blue)
+                                    color: AppColors.brandMain)
                                 : null,
                             onTap: () => setState(() => _selected = product),
                           );

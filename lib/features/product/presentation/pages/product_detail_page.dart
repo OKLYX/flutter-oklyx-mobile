@@ -184,15 +184,17 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       },
       child: Scaffold(
         key: _scaffoldKey,
-        drawerScrimColor: Colors.black.withOpacity(0.3),
+        drawerScrimColor: Theme.of(context)
+            .colorScheme
+            .scrim
+            .withValues(alpha: 0.3),
         appBar: AppBar(
           automaticallyImplyLeading: false,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            icon: const Icon(Icons.arrow_back),
             onPressed: () => context.go(Routes.productSearchPath),
           ),
           title: const Text('상품상세'),
-          backgroundColor: Colors.white,
           elevation: 0,
           actions: [
             BlocBuilder<ProductDetailBloc, ProductDetailState>(
@@ -202,11 +204,11 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.black),
+                        icon: const Icon(Icons.edit),
                         onPressed: () => _productDetailBloc.add(const EditModeToggled()),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.black),
+                        icon: const Icon(Icons.delete),
                         onPressed: () => _showDeleteDialog(context),
                       ),
                     ],
@@ -231,7 +233,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             ),
           ],
         ),
-        backgroundColor: Colors.grey[100],
         body: Stack(
           children: [
             BlocBuilder<ProductDetailBloc, ProductDetailState>(
@@ -341,7 +342,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     state is ProductDetailImageUploading ||
                     state is ProductDetailImageDeleting) {
                   return Container(
-                    color: Colors.black.withOpacity(0.3),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .scrim
+                        .withValues(alpha: 0.3),
                     child: const Center(
                       child: CircularProgressIndicator(),
                     ),
@@ -484,12 +488,12 @@ class _ImageSectionState extends State<_ImageSection> {
       width: 200,
       height: 200,
       decoration: BoxDecoration(
-        color: Colors.grey[300],
+        color: Theme.of(context).colorScheme.outlineVariant,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(
         showPlus ? Icons.add : Icons.image,
-        color: Colors.grey[500],
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
         size: 60,
       ),
     );
@@ -529,7 +533,7 @@ class _ImageSectionState extends State<_ImageSection> {
                       return ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: Container(
-                          color: Colors.grey[300],
+                          color: Theme.of(context).colorScheme.outlineVariant,
                           child: const Center(
                             child: CircularProgressIndicator(),
                           ),
@@ -576,13 +580,13 @@ class _ImageSectionState extends State<_ImageSection> {
                         .add(const DeleteImageRequested()),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.black54,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         shape: BoxShape.circle,
                       ),
                       padding: const EdgeInsets.all(4),
-                      child: const Icon(
+                      child: Icon(
                         Icons.delete,
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.surface,
                         size: 18,
                       ),
                     ),
@@ -597,23 +601,23 @@ class _ImageSectionState extends State<_ImageSection> {
                         ? null
                         : () => _downloadImage(context, product),
                     child: Container(
-                      decoration: const BoxDecoration(
-                        color: Colors.black54,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         shape: BoxShape.circle,
                       ),
                       padding: const EdgeInsets.all(4),
                       child: _isDownloading
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 18,
                               height: 18,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.white,
+                                color: Theme.of(context).colorScheme.surface,
                               ),
                             )
-                          : const Icon(
+                          : Icon(
                               Icons.download,
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.surface,
                               size: 18,
                             ),
                     ),
@@ -624,7 +628,10 @@ class _ImageSectionState extends State<_ImageSection> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
-                      color: Colors.black38,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .scrim
+                          .withValues(alpha: 0.38),
                       child: const Center(
                         child: CircularProgressIndicator(),
                       ),
@@ -684,7 +691,7 @@ class _EditableBasicInfoCard extends StatelessWidget {
                 'Barcode: ${product.barcodeId}',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.grey[600],
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
           ],
@@ -971,13 +978,19 @@ class _EditableDetailsCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: product.active ? Colors.green[100] : Colors.grey[300],
+                    color: product.active
+                        ? AppColors.successSurface
+                        : Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     product.active ? '활성' : '비활성',
                     style: TextStyle(
-                      color: product.active ? Colors.green : Colors.grey[600],
+                      color: product.active
+                          ? AppColors.brandGreen
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 12,
                     ),
                   ),
@@ -1015,7 +1028,10 @@ class _TimestampsCard extends StatelessWidget {
                 const Text('생성: '),
                 Text(
                   product.createdDate,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
@@ -1025,7 +1041,10 @@ class _TimestampsCard extends StatelessWidget {
                 const Text('수정: '),
                 Text(
                   product.modifiedDate,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),

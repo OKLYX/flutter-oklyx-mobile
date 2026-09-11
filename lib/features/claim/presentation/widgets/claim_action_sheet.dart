@@ -165,7 +165,10 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
         padding: const EdgeInsets.only(top: 8),
         child: Text(
           '택배사 목록을 불러오는 중입니다…',
-          style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       );
     }
@@ -177,7 +180,10 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
             Expanded(
               child: Text(
                 _carriersError!,
-                style: TextStyle(fontSize: 12, color: Colors.red[700]),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.error,
+                ),
               ),
             ),
             TextButton(
@@ -193,7 +199,10 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
         padding: const EdgeInsets.only(top: 8),
         child: Text(
           '선택할 수 있는 택배사가 없습니다. 잠시 후 다시 시도해주세요.',
-          style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       );
     }
@@ -473,7 +482,12 @@ Future<bool> showClaimConfirmDialog(
           Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
           ...details.map(
-            (line) => Text(line, style: TextStyle(color: Colors.grey[700])),
+            (line) => Text(
+              line,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
           const SizedBox(height: 12),
           Text(warning),
@@ -581,7 +595,10 @@ class _InvoiceSheetState extends State<_InvoiceSheet> {
             const SizedBox(height: 4),
             Text(
               widget.subtitle!,
-              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
           const SizedBox(height: 16),

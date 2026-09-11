@@ -10,6 +10,7 @@ import '../bloc/product_listing_detail_bloc.dart';
 import '../bloc/product_listing_detail_event.dart';
 import '../bloc/product_listing_detail_state.dart';
 import '../product_listing_refresh.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 /// 판매상품 상세 페이지
 ///
@@ -118,8 +119,8 @@ class _ProductListingDetailView extends StatelessWidget {
                       ElevatedButton(
                         onPressed: () => _onEdit(context),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue[600],
-                          foregroundColor: Colors.white,
+                          backgroundColor: AppColors.brandMain,
+                          foregroundColor: AppColors.foregroundLight,
                         ),
                         child: const Text('수정'),
                       ),
@@ -127,8 +128,9 @@ class _ProductListingDetailView extends StatelessWidget {
                       ElevatedButton(
                         onPressed: () => _onDelete(context, loaded),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red[600],
-                          foregroundColor: Colors.white,
+                          backgroundColor: Theme.of(context).colorScheme.error,
+                          foregroundColor:
+                              Theme.of(context).colorScheme.onError,
                         ),
                         child: const Text('삭제'),
                       ),
@@ -229,7 +231,10 @@ class _DeleteConfirmationDialog extends StatelessWidget {
         ),
         FilledButton(
           onPressed: onConfirm,
-          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          style: FilledButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.error,
+            foregroundColor: Theme.of(context).colorScheme.onError,
+          ),
           child: const Text('삭제'),
         ),
       ],
@@ -280,7 +285,10 @@ class _InfoRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 2),
           Text(
@@ -319,7 +327,10 @@ class _OptionsCard extends StatelessWidget {
             if (options.isEmpty)
               Text(
                 '등록된 옵션이 없습니다.',
-                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               )
             else ...[
               Row(
@@ -388,7 +399,10 @@ class _ProductsCell extends StatelessWidget {
     if (items.isEmpty) {
       return Text(
         '-',
-        style: TextStyle(fontSize: 13, color: Colors.grey[400]),
+        style: TextStyle(
+          fontSize: 13,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       );
     }
     return Column(
@@ -399,7 +413,10 @@ class _ProductsCell extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 2),
               child: Text(
                 '${p.productName} × ${p.quantity}개',
-                style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           )
@@ -423,7 +440,9 @@ class _Cell extends StatelessWidget {
       style: TextStyle(
         fontSize: 13,
         fontWeight: header ? FontWeight.w600 : FontWeight.normal,
-        color: header ? Colors.black : Colors.grey[800],
+        color: header
+            ? Theme.of(context).colorScheme.onSurface
+            : Theme.of(context).colorScheme.onSurfaceVariant,
       ),
     );
   }

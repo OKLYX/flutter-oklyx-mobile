@@ -20,6 +20,7 @@ import '../widgets/order_card.dart';
 import '../widgets/order_search_bar.dart';
 import '../widgets/order_status_filter_bar.dart';
 import '../widgets/sync_progress_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 /// 주문관리 > 출고관리 페이지 (미발송 주문 작업대)
 ///
@@ -359,13 +360,13 @@ class _LoadedBody extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.blue[50],
-              border: Border.all(color: Colors.blue.shade100),
+              color: AppColors.infoSurface,
+              border: Border.all(color: AppColors.infoSurface),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(
+            child: const Text(
               '목록은 최근 14일 기준입니다. 접수시트는 30일까지 포함합니다.',
-              style: TextStyle(fontSize: 13, color: Colors.blue[900]),
+              style: TextStyle(fontSize: 13, color: AppColors.infoForeground),
             ),
           ),
           const SizedBox(height: 8),
@@ -568,14 +569,20 @@ class _LoadedBody extends StatelessWidget {
               children: [
                 Text(
                   '총 ${visible.length}건',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const Spacer(),
                 // 전체선택은 두지 않는다(D17) — 화면 밖 일괄 선택이 되어 D7 과 어긋난다.
                 if (selectedIds.isNotEmpty && !ackState.forbidden) ...[
                   Text(
                     '선택 ${selectedIds.length}건',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(

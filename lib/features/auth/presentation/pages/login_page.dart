@@ -32,7 +32,6 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: Colors.white,
         body: BlocBuilder<AuthBloc, AuthState>(
           builder: (context, state) => BlocListener<AuthBloc, AuthState>(
             listener: (context, state) {
@@ -88,8 +87,10 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(8),
-                                      borderSide:
-                                          const BorderSide(color: Colors.grey),
+                                      borderSide: BorderSide(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .outline),
                                     ),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(8),
@@ -117,8 +118,10 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(8),
-                                      borderSide:
-                                          const BorderSide(color: Colors.grey),
+                                      borderSide: BorderSide(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .outline),
                                     ),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(8),
@@ -135,7 +138,7 @@ class _LoginPageState extends State<LoginPage> {
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.brandMain,
-                            foregroundColor: Colors.black,
+                            foregroundColor: AppColors.foregroundLight,
                           ),
                           onPressed: state is! AuthLoading
                               ? () {
@@ -158,7 +161,7 @@ class _LoginPageState extends State<LoginPage> {
                                   child: CircularProgressIndicator(
                                       strokeWidth: 2,
                                       valueColor: AlwaysStoppedAnimation<Color>(
-                                          Colors.black)),
+                                          AppColors.foregroundLight)),
                                 )
                               : const Text('LOGIN'),
                         ),

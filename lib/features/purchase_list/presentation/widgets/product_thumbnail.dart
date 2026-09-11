@@ -77,7 +77,7 @@ class _ProductThumbnailState extends State<ProductThumbnail> {
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return Container(
-                color: Colors.grey[200],
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: const Center(
                   child: SizedBox(
                     width: 16,
@@ -104,8 +104,12 @@ class _ProductThumbnailState extends State<ProductThumbnail> {
 
   Widget _placeholder() {
     return Container(
-      color: Colors.grey[300],
-      child: Icon(Icons.image, color: Colors.grey[500], size: widget.size * 0.5),
+      color: Theme.of(context).colorScheme.outlineVariant,
+      child: Icon(
+        Icons.image,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+        size: widget.size * 0.5,
+      ),
     );
   }
 }

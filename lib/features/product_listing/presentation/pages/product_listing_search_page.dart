@@ -10,6 +10,7 @@ import '../bloc/product_listing_list_bloc.dart';
 import '../bloc/product_listing_list_event.dart';
 import '../bloc/product_listing_list_state.dart';
 import '../product_listing_refresh.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 /// 판매상품 조회 페이지 (목록 + 검색)
 ///
@@ -165,7 +166,11 @@ class _ProductListingSearchViewState extends State<_ProductListingSearchView> {
                         alignment: Alignment.centerLeft,
                         child: Text(
                           '${state.listings.length}개의 결과',
-                          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       );
                     }
@@ -295,7 +300,9 @@ class _ProductListingCard extends StatelessWidget {
                                 '상품 ID: ${listing.platformProductId}',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.grey[600],
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -308,7 +315,11 @@ class _ProductListingCard extends StatelessWidget {
                           '카테고리: ${listing.categoryName ?? '-'}  ·  '
                           '배송사: ${listing.carrierName ?? '-'}  ·  '
                           '패키지: ${listing.packageType ?? '-'}',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -318,7 +329,7 @@ class _ProductListingCard extends StatelessWidget {
                   IconButton(
                     icon: Icon(
                       isExpanded ? Icons.expand_less : Icons.expand_more,
-                      color: Colors.grey[700],
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                     onPressed: onToggle,
                   ),
@@ -349,26 +360,29 @@ class _OptionsSection extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.grey[100],
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
           '등록된 옵션이 없습니다.',
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       );
     }
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey[100],
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Column(
         children: [
-          Row(
-            children: const [
+          const Row(
+            children: [
               Expanded(flex: 3, child: _HeaderCell('옵션명')),
               Expanded(flex: 2, child: _HeaderCell('판매가', alignEnd: true)),
               Expanded(flex: 2, child: _HeaderCell('마진', alignEnd: true)),
@@ -452,7 +466,10 @@ class _BodyCell extends StatelessWidget {
     return Text(
       text,
       textAlign: alignEnd ? TextAlign.end : TextAlign.start,
-      style: TextStyle(fontSize: 12, color: Colors.grey[800]),
+      style: TextStyle(
+        fontSize: 12,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );
@@ -469,14 +486,14 @@ class _Badge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.blue[50],
+        color: AppColors.infoSurface,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         text,
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 11,
-          color: Colors.blue[700],
+          color: AppColors.infoForeground,
           fontWeight: FontWeight.w500,
         ),
       ),

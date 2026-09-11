@@ -53,7 +53,10 @@ class _SellerListItemState extends State<SellerListItem> {
                         const SizedBox(height: 4),
                         Text(
                           '사업자: ${widget.seller.businessRegistration}',
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ],
                     ),

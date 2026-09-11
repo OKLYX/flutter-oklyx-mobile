@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/entities/claim.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 /// 클레임 상태 칩 바 — 건수 배지를 단 칩을 가로 스크롤로 배치한다.
 ///
@@ -75,12 +76,15 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textColor = isActive ? Colors.white : Colors.grey[800];
+    final scheme = Theme.of(context).colorScheme;
+    // Brand yellow is light: the active chip needs a dark label.
+    final textColor =
+        isActive ? AppColors.foregroundLight : scheme.onSurfaceVariant;
     return Material(
-      color: isActive ? Colors.blue[600] : Colors.white,
+      color: isActive ? AppColors.brandMain : scheme.surface,
       shape: StadiumBorder(
         side: BorderSide(
-          color: isActive ? Colors.blue.shade600 : Colors.grey.shade300,
+          color: isActive ? AppColors.brandMain : scheme.outlineVariant,
         ),
       ),
       child: InkWell(
@@ -104,8 +108,8 @@ class _StatusChip extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                 decoration: BoxDecoration(
                   color: isActive
-                      ? Colors.white.withValues(alpha: 0.25)
-                      : Colors.grey[100],
+                      ? AppColors.foregroundLight.withValues(alpha: 0.12)
+                      : scheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -113,7 +117,7 @@ class _StatusChip extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: isActive ? Colors.white : Colors.grey[600],
+                    color: textColor,
                   ),
                 ),
               ),

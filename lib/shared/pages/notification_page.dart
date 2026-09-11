@@ -35,14 +35,15 @@ class _NotificationPageState extends State<NotificationPage> {
     children: [
       Scaffold(
         key: _scaffoldKey,
-        drawerScrimColor: Colors.black.withOpacity(0.3),
+        drawerScrimColor: Theme.of(context)
+            .colorScheme
+            .scrim
+            .withValues(alpha: 0.3),
         appBar: AppBar(
           automaticallyImplyLeading: false,
           title: const Text('알림'),
-          backgroundColor: Colors.white,
           elevation: 0,
         ),
-        backgroundColor: Colors.grey[100],
         body: const Center(
           child: Text('Notification Page'),
         ),
@@ -65,7 +66,9 @@ class _NotificationPageState extends State<NotificationPage> {
                 BottomNavigationBarItem(
                   icon: Icon(
                     Icons.menu,
-                    color: isDrawerOpen ? AppColors.brandMain : Colors.black87,
+                    color: isDrawerOpen
+                        ? AppColors.brandMain
+                        : Theme.of(context).colorScheme.onSurface,
                   ),
                   label: '',
                 ),

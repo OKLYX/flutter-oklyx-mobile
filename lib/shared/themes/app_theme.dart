@@ -10,10 +10,10 @@ import 'app_colors.dart';
 /// **Usage**: `MaterialApp.router(theme: AppTheme.light, darkTheme: AppTheme.dark, ...)`
 /// **File**: lib/shared/themes/app_theme.dart
 ///
-/// ⚠️ Default mode is light: many existing pages still hardcode
-/// `Colors.white`/`Colors.black`, which would not adapt under a forced dark
-/// theme. `darkTheme` is defined for future migration; flip `themeMode` to
-/// `ThemeMode.system` only after those hardcoded colors are themed.
+/// ⚠️ Default mode is still light (`main.dart`). Pages no longer hardcode
+/// `Colors.*` — they read `colorScheme` / `AppColors` — so `darkTheme` is now
+/// reachable; flip `themeMode` to `ThemeMode.system` in a separate change once
+/// every screen has been reviewed under the dark palette.
 class AppTheme {
   AppTheme._();
 

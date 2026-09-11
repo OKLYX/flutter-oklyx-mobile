@@ -5,6 +5,7 @@ import '../../domain/entities/sync_target.dart';
 import '../bloc/order_list_bloc.dart';
 import '../bloc/order_list_event.dart';
 import '../bloc/order_list_state.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 /// 주문 동기화 진행 다이얼로그 (채널별 진행률 + 완료 리포트)
 ///
@@ -103,7 +104,10 @@ class SyncProgressDialog extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       '진행 중인 채널은 끝까지 조회한 뒤 멈춥니다.',
-                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ],
@@ -151,7 +155,7 @@ class _ChannelRow extends StatelessWidget {
         children: [
           Row(
             children: [
-              SizedBox(width: 18, child: Center(child: _icon())),
+              SizedBox(width: 18, child: Center(child: _icon(context))),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -169,7 +173,10 @@ class _ChannelRow extends StatelessWidget {
                 channel.error!,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 11, color: Colors.red[700]),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context).colorScheme.error,
+                ),
               ),
             ),
         ],
@@ -177,10 +184,13 @@ class _ChannelRow extends StatelessWidget {
     );
   }
 
-  Widget _icon() {
+  Widget _icon(BuildContext context) {
     switch (channel.state) {
       case ChannelSyncState.pending:
-        return Text('·', style: TextStyle(color: Colors.grey[400]));
+        return Text(
+          '·',
+          style: TextStyle(color: Theme.of(context).colorScheme.outlineVariant),
+        );
       case ChannelSyncState.running:
         return const SizedBox(
           width: 12,
@@ -188,9 +198,13 @@ class _ChannelRow extends StatelessWidget {
           child: CircularProgressIndicator(strokeWidth: 2),
         );
       case ChannelSyncState.success:
-        return Icon(Icons.check, size: 16, color: Colors.green[600]);
+        return const Icon(Icons.check, size: 16, color: AppColors.brandGreen);
       case ChannelSyncState.failed:
-        return Icon(Icons.close, size: 16, color: Colors.red[600]);
+        return Icon(
+          Icons.close,
+          size: 16,
+          color: Theme.of(context).colorScheme.error,
+        );
     }
   }
 }

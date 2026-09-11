@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
 import '../../domain/entities/claim.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 /// 클레임 1건 카드 (반품/교환 목록의 행 하나).
 ///
@@ -59,15 +60,16 @@ class ClaimCard extends StatelessWidget {
                     const SizedBox(width: 6),
                     _Badge(
                       text: '주문 미연결',
-                      color: Colors.grey[600]!,
-                      background: Colors.grey[200]!,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      background:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
                     ),
                   ],
                   const SizedBox(width: 6),
                   _Badge(
                     text: getClaimStatusLabel(claim.status),
-                    color: Colors.blue[800]!,
-                    background: Colors.blue[50]!,
+                    color: AppColors.infoForeground,
+                    background: AppColors.infoSurface,
                   ),
                 ],
               ),
@@ -85,11 +87,17 @@ class ClaimCard extends StatelessWidget {
                 children: [
                   Text(
                     '수량 ${claim.quantity}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   Text(
                     '사유 ${claim.reasonText ?? claim.reasonCode ?? '-'}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -97,7 +105,10 @@ class ClaimCard extends StatelessWidget {
               Text(
                 '접수일 '
                 '${formatOrderDateTime(claim.receivedAt.toIso8601String())}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),

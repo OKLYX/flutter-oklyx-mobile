@@ -35,7 +35,10 @@ class _DashboardPageState extends State<DashboardPage> {
         children: [
           Scaffold(
             key: _scaffoldKey,
-            drawerScrimColor: Colors.black.withOpacity(0.3),
+            drawerScrimColor: Theme.of(context)
+                .colorScheme
+                .scrim
+                .withValues(alpha: 0.3),
             appBar: AppBar(
               automaticallyImplyLeading: false,
               centerTitle: true,
@@ -46,10 +49,8 @@ class _DashboardPageState extends State<DashboardPage> {
                   fit: BoxFit.contain,
                 ),
               ),
-              backgroundColor: Colors.white,
               elevation: 0,
             ),
-            backgroundColor: Colors.grey[100],
             drawer: const AppDrawer(),
             body: const Center(
               child: Text('Dashboard Page'),
@@ -75,7 +76,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         Icons.menu,
                         color: isDrawerOpen
                             ? AppColors.brandMain
-                            : Colors.black87,
+                            : Theme.of(context).colorScheme.onSurface,
                       ),
                       label: '',
                     ),

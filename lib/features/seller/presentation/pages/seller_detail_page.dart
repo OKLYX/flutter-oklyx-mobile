@@ -62,7 +62,10 @@ class _SellerDetailPageState extends State<SellerDetailPage> {
             child: const Text('취소'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
             onPressed: () {
               Navigator.pop(ctx);
               _sellerDetailBloc.add(const ConfirmDeleteSeller());
@@ -225,7 +228,7 @@ class _BasicInfoCard extends StatelessWidget {
               'ID: ${seller.id}',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey[600],
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -314,7 +317,7 @@ class _EditableBasicInfoCard extends StatelessWidget {
               'ID: ${seller.id}',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey[600],
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -350,7 +353,10 @@ class _ActionCard extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.error,
+                  foregroundColor: Theme.of(context).colorScheme.onError,
+                ),
                 onPressed: onDeletePressed,
                 child: const Text('삭제'),
               ),
@@ -423,7 +429,10 @@ class _TimestampsCard extends StatelessWidget {
                 const Text('생성: '),
                 Text(
                   seller.createdDate,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
@@ -433,7 +442,10 @@ class _TimestampsCard extends StatelessWidget {
                 const Text('수정: '),
                 Text(
                   seller.modifiedDate,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),

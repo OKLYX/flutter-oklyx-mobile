@@ -10,6 +10,7 @@ import '../widgets/add_manual_item_dialog.dart';
 import '../widgets/completed_purchase_filter.dart';
 import '../widgets/purchase_product_card.dart';
 import '../widgets/unmapped_orders_section.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 /// 구매목록 페이지 (하단 탭 3번째, `/list-to-shop`).
 ///
@@ -207,15 +208,18 @@ class _ActiveTabBody extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.green[50],
-              border: Border.all(color: Colors.green.shade200),
+              color: AppColors.successSurface,
+              border: Border.all(color: AppColors.successBorder),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               '동기화 완료 — 신규 ${state.syncResult!.newOrders}건, '
               '수정 ${state.syncResult!.updatedOrders}건, '
               '취소 ${state.syncResult!.canceledUpdated}건',
-              style: TextStyle(fontSize: 13, color: Colors.green[800]),
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.successForeground,
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -227,7 +231,10 @@ class _ActiveTabBody extends StatelessWidget {
               state.unmappedOrders.isEmpty
                   ? '${state.items.length}건'
                   : '${state.items.length}건 (미등록 주문 ${state.unmappedOrders.length}건)',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             if (state.isRefreshing)
               const SizedBox(

@@ -174,7 +174,10 @@ class _LoadedBody extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             '총 ${rows.length}건',
-            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 8),
           Expanded(
@@ -242,7 +245,10 @@ class _PreviewRowCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               _addressHead,
-              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 4),
             Text(row.productName, style: const TextStyle(fontSize: 13)),
@@ -251,7 +257,10 @@ class _PreviewRowCard extends StatelessWidget {
               children: [
                 Text(
                   '내품수량 ${row.quantity}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const Spacer(),
                 const Text('택배수량', style: TextStyle(fontSize: 12)),
