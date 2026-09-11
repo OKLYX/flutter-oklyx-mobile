@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/entities/unmapped_order.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 /// 미매핑주문 섹션 (프론트 UnmappedOrdersSection와 동일).
 ///
@@ -20,8 +21,8 @@ class UnmappedOrdersSection extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.amber[50],
-        border: Border.all(color: Colors.amber.shade300),
+        color: AppColors.warningSurface,
+        border: Border.all(color: AppColors.warningBorder),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -29,23 +30,23 @@ class UnmappedOrdersSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.warning_amber_rounded,
-                  size: 18, color: Colors.amber[800]),
+              const Icon(Icons.warning_amber_rounded,
+                  size: 18, color: AppColors.warningForeground),
               const SizedBox(width: 6),
               Text(
                 '미등록 주문 ${orders.length}건',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: Colors.amber[900],
+                  color: AppColors.warningForeground,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 4),
-          Text(
+          const Text(
             '옵션이 등록되지 않아 구성품 전개가 불가한 주문입니다. 옵션을 등록해 주세요.',
-            style: TextStyle(fontSize: 12, color: Colors.amber[900]),
+            style: TextStyle(fontSize: 12, color: AppColors.warningForeground),
           ),
           const SizedBox(height: 8),
           ...orders.map(
@@ -65,8 +66,10 @@ class UnmappedOrdersSection extends StatelessWidget {
                         ),
                         Text(
                           '옵션ID ${o.externalItemId} · 주문 ${o.orderCount}건',
-                          style:
-                              TextStyle(fontSize: 11, color: Colors.grey[700]),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ],
                     ),
@@ -74,10 +77,10 @@ class UnmappedOrdersSection extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     '총 주문수량 ${o.purchasableQty}',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: Colors.amber[900],
+                      color: AppColors.warningForeground,
                     ),
                   ),
                 ],

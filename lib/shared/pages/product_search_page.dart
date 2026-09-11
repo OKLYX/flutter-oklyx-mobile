@@ -81,7 +81,7 @@ class _ProductSearchViewState extends State<_ProductSearchView> {
     navBarIndex: 2,
     showDrawer: true,
     showAppBarDrawerButton: false,
-    backgroundColor: Colors.white,
+    backgroundColor: Theme.of(context).colorScheme.surface,
     body: Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -199,7 +199,7 @@ class _ProductCardState extends State<_ProductCard> {
                       return Container(
                         width: 110,
                         height: 110,
-                        color: Colors.grey[300],
+                        color: Theme.of(context).colorScheme.outlineVariant,
                         child: const Center(
                           child: CircularProgressIndicator(strokeWidth: 2),
                         ),
@@ -214,7 +214,7 @@ class _ProductCardState extends State<_ProductCard> {
                         child: Container(
                           width: 110,
                           height: 110,
-                          color: Colors.grey[400],
+                          color: Theme.of(context).colorScheme.outlineVariant,
                           child: Image.memory(
                             snapshot.data!,
                             width: 110,
@@ -228,8 +228,11 @@ class _ProductCardState extends State<_ProductCard> {
                     return Container(
                       width: 110,
                       height: 110,
-                      color: Colors.grey[300],
-                      child: Icon(Icons.image, color: Colors.grey[500]),
+                      color: Theme.of(context).colorScheme.outlineVariant,
+                      child: Icon(
+                        Icons.image,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     );
                   },
                 )
@@ -237,8 +240,11 @@ class _ProductCardState extends State<_ProductCard> {
                 Container(
                   width: 110,
                   height: 110,
-                  color: Colors.grey[300],
-                  child: Icon(Icons.image, color: Colors.grey[500]),
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                  child: Icon(
+                    Icons.image,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               const SizedBox(width: 12),
               Expanded(
@@ -259,9 +265,9 @@ class _ProductCardState extends State<_ProductCard> {
                         widget.product.brand!.isNotEmpty) ...[
                       Text(
                         '브랜드: ${widget.product.brand}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Colors.black,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -271,9 +277,9 @@ class _ProductCardState extends State<_ProductCard> {
                     if (widget.product.barcodeId != null)
                       Text(
                         'Barcode: ${widget.product.barcodeId}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Colors.black,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -283,10 +289,10 @@ class _ProductCardState extends State<_ProductCard> {
                     if (widget.product.price != null)
                       Text(
                         '가격: ${widget.product.price} 원',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
-                          color: Colors.black,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                   ],

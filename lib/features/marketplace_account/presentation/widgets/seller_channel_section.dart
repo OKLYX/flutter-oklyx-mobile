@@ -8,6 +8,7 @@ import 'package:flutter_oklyn_mobile/features/marketplace_account/presentation/b
 import 'package:flutter_oklyn_mobile/features/marketplace_account/presentation/dialogs/channel_details_dialog.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/presentation/dialogs/channel_form_dialog.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/presentation/widgets/platform_options.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 /// 판매자 행을 펼쳤을 때 노출되는 판매채널(MarketplaceAccount) 섹션.
 ///
@@ -114,7 +115,10 @@ class _SellerChannelSectionView extends StatelessWidget {
             child: const Text('취소'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
             onPressed: () {
               Navigator.of(dialogContext).pop();
               bloc.add(DeleteChannelRequested(channel.id));
@@ -143,8 +147,12 @@ class _SellerChannelSectionView extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
         decoration: BoxDecoration(
-          color: Colors.grey.shade50,
-          border: Border(top: BorderSide(color: Colors.grey.shade200)),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          border: Border(
+            top: BorderSide(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,7 +268,9 @@ class _StatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: isActive ? Colors.green.shade100 : Colors.grey.shade200,
+        color: isActive
+            ? AppColors.successSurface
+            : Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -268,7 +278,9 @@ class _StatusChip extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w500,
-          color: isActive ? Colors.green.shade800 : Colors.grey.shade700,
+          color: isActive
+              ? AppColors.successForeground
+              : Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );
@@ -284,12 +296,15 @@ class _MessageBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isError ? Colors.red.shade50 : Colors.white,
-        border: Border.all(color: isError ? Colors.red.shade200 : Colors.grey.shade200),
+        color: isError ? scheme.errorContainer : scheme.surface,
+        border: Border.all(
+          color: isError ? scheme.error : scheme.outlineVariant,
+        ),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -299,7 +314,9 @@ class _MessageBox extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,
-              color: isError ? Colors.red.shade700 : Colors.grey.shade600,
+              color: isError
+                  ? scheme.onErrorContainer
+                  : scheme.onSurfaceVariant,
             ),
           ),
           if (onRetry != null) ...[

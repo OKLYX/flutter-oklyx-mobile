@@ -11,6 +11,7 @@ import '../bloc/stock_ledger_event.dart';
 import '../bloc/stock_ledger_state.dart';
 import '../widgets/outbound_order_card.dart';
 import '../widgets/stock_error_retry.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 /// 출고 확인 페이지 (`/stock/outbound`, PLAN 2609_28 D11·D12·D13).
 ///
@@ -100,11 +101,17 @@ class _StockOutboundView extends StatelessWidget {
                   padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 24),
                   children: [
                     if (loaded.outbound.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 24),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
                         child: Center(
-                          child: Text('출고할 주문이 없습니다.',
-                              style: TextStyle(color: Colors.black54)),
+                          child: Text(
+                            '출고할 주문이 없습니다.',
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                          ),
                         ),
                       )
                     else
@@ -184,8 +191,8 @@ class _UnexpandedSection extends StatelessWidget {
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.orange[50],
-        border: Border.all(color: Colors.orange),
+        color: AppColors.warningSurface,
+        border: Border.all(color: AppColors.warningForeground),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Column(
@@ -208,7 +215,10 @@ class _UnexpandedSection extends StatelessWidget {
                   ),
                   Text(
                     '${item.itemName} — ${unexpandedReasonLabel(item.reason)}',
-                    style: const TextStyle(fontSize: 11, color: Colors.black54),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),

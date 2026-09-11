@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/domain/entities/marketplace_account.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/presentation/widgets/platform_options.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 /// 판매채널 상세 정보 다이얼로그 (읽기 전용).
 ///
@@ -60,7 +61,10 @@ class ChannelDetailsDialog extends StatelessWidget {
           child: const Text('수정'),
         ),
         FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          style: FilledButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.error,
+            foregroundColor: Theme.of(context).colorScheme.onError,
+          ),
           onPressed: onDelete,
           child: const Text('삭제'),
         ),
@@ -103,7 +107,9 @@ class _StatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: isActive ? Colors.green.shade100 : Colors.grey.shade200,
+        color: isActive
+            ? AppColors.successSurface
+            : Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -111,7 +117,9 @@ class _StatusChip extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w500,
-          color: isActive ? Colors.green.shade800 : Colors.grey.shade700,
+          color: isActive
+              ? AppColors.successForeground
+              : Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );

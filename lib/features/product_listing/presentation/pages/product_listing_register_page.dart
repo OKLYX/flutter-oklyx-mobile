@@ -10,6 +10,7 @@ import 'package:flutter_oklyn_mobile/features/product/domain/entities/product.da
 import 'package:flutter_oklyn_mobile/features/product_listing/domain/entities/product_listing.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/product_listing_refresh.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 const List<String> PLATFORMS = ['COUPANG', 'GMARKET', 'AUCTION', 'SMARTSTORE'];
 
@@ -318,8 +319,10 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                         padding: const EdgeInsets.all(12),
                         margin: const EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
-                          color: Colors.orange[50],
-                          border: Border.all(color: Colors.orange),
+                          color: AppColors.warningSurface,
+                          border: Border.all(
+                            color: AppColors.warningForeground,
+                          ),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Column(
@@ -329,7 +332,7 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                               '⚠️ 일부 데이터 로드 실패',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: Colors.orange,
+                                color: AppColors.warningForeground,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -349,7 +352,8 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                                     .add(const FetchLookupData());
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange,
+                                backgroundColor: AppColors.warningForeground,
+                                foregroundColor: AppColors.warningSurface,
                               ),
                               child: const Text('데이터 다시 불러오기'),
                             ),
@@ -495,7 +499,8 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                                                         '₩${product.price}',
                                                         style: const TextStyle(
                                                           fontSize: 12,
-                                                          color: Colors.blue,
+                                                          color: AppColors
+                                                              .infoForeground,
                                                         ),
                                                       ),
                                                   ],
@@ -509,16 +514,20 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                                                 },
                                                 style:
                                                     ElevatedButton.styleFrom(
-                                                  backgroundColor: Colors.red,
+                                                  backgroundColor:
+                                                      Theme.of(context)
+                                                          .colorScheme
+                                                          .error,
+                                                  foregroundColor:
+                                                      Theme.of(context)
+                                                          .colorScheme
+                                                          .onError,
                                                   padding:
                                                       const EdgeInsets.all(8),
                                                 ),
                                                 child: const Text(
                                                   '제거',
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: Colors.white,
-                                                  ),
+                                                  style: TextStyle(fontSize: 12),
                                                 ),
                                               ),
                                             ],
@@ -731,8 +740,9 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                               );
                             },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
+                        backgroundColor: AppColors.brandGreen,
+                        foregroundColor:
+                            Theme.of(context).colorScheme.onSecondary,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                       child: Text(_submitting
@@ -804,8 +814,8 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        border: Border.all(color: Colors.grey),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Column(
@@ -824,7 +834,10 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                     ),
                     Text(
                       '판매가: ${_comma(optionData.option.sellingPrice)}원',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -839,8 +852,8 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                       editing: optionData,
                     ),
                     style: TextButton.styleFrom(
-                      backgroundColor: Colors.blue[50],
-                      foregroundColor: Colors.blue[700],
+                      backgroundColor: AppColors.infoSurface,
+                      foregroundColor: AppColors.infoForeground,
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 4),
                       minimumSize: Size.zero,
@@ -853,8 +866,9 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                     onPressed: () =>
                         bloc.add(RemoveOption(optionId: optionData.option.id)),
                     style: TextButton.styleFrom(
-                      backgroundColor: Colors.red[50],
-                      foregroundColor: Colors.red[700],
+                      backgroundColor:
+                          Theme.of(context).colorScheme.errorContainer,
+                      foregroundColor: Theme.of(context).colorScheme.error,
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 4),
                       minimumSize: Size.zero,
@@ -871,8 +885,10 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: Colors.grey.shade300),
+                color: Theme.of(context).colorScheme.surface,
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Column(
@@ -887,8 +903,11 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                             style: const TextStyle(
                                 fontSize: 13, fontWeight: FontWeight.w500)),
                         Text('수량: ${pq.quantity}',
-                            style: const TextStyle(
-                                fontSize: 12, color: Colors.grey)),
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant)),
                       ],
                     ),
                   );
@@ -915,12 +934,14 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
     required int productCost,
     required num margin,
   }) {
-    final marginColor = margin > 0 ? Colors.green[700] : Colors.red[700];
+    final marginColor = margin > 0
+        ? AppColors.successForeground
+        : Theme.of(context).colorScheme.error;
     final commissionFee = (sellingPrice * commissionRate * 1.1).round();
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.blue[50],
+        color: AppColors.infoSurface,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Column(
@@ -954,7 +975,10 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label,
-              style: const TextStyle(fontSize: 12, color: Colors.black87)),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurface,
+              )),
           Text(value, style: const TextStyle(fontSize: 12)),
         ],
       ),
@@ -1021,14 +1045,16 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: isComplete ? Colors.green : Colors.grey,
+                color: isComplete
+                    ? AppColors.brandGreen
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
                 shape: BoxShape.circle,
               ),
               child: Center(
                 child: Text(
                   isComplete ? '✓' : sectionNumber,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSecondary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -1350,7 +1376,9 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
         _sellingPrice > 0 ? (margin / _sellingPrice * 100) : 0.0;
     final commissionFee =
         (_sellingPrice * widget.commissionRate * 1.1).round();
-    final marginColor = margin > 0 ? Colors.green[700] : Colors.red[700];
+    final marginColor = margin > 0
+        ? AppColors.successForeground
+        : Theme.of(context).colorScheme.error;
 
     return AlertDialog(
       title: Text(_isEdit ? '옵션 수정' : '옵션 추가'),
@@ -1374,8 +1402,9 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
                   style: TextStyle(fontWeight: FontWeight.w500)),
               const SizedBox(height: 8),
               if (widget.selectedProducts.isEmpty)
-                const Text('선택된 상품이 없습니다',
-                    style: TextStyle(color: Colors.grey))
+                Text('선택된 상품이 없습니다',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant))
               else
                 ...widget.selectedProducts.map((product) {
                   return Padding(
@@ -1399,8 +1428,11 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
                                   overflow: TextOverflow.ellipsis),
                               if (product.price != null)
                                 Text('₩${_comma(product.price!)}',
-                                    style: const TextStyle(
-                                        fontSize: 12, color: Colors.grey)),
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant)),
                             ],
                           ),
                         ),
@@ -1444,8 +1476,8 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  border: Border.all(color: Colors.blue.shade200),
+                  color: AppColors.infoSurface,
+                  border: Border.all(color: AppColors.infoBorder),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -1484,8 +1516,10 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.purple[50],
-                  border: Border.all(color: Colors.purple.shade200),
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -1511,7 +1545,9 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
                         ElevatedButton(
                           onPressed: _applyMarginRate,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.purple,
+                            backgroundColor: AppColors.brandTeal,
+                            foregroundColor:
+                                Theme.of(context).colorScheme.onTertiary,
                           ),
                           child: const Text('적용'),
                         ),

@@ -11,6 +11,7 @@ import '../../domain/usecases/shipping_label_usecase.dart';
 import '../bloc/shipment_confirm_bloc.dart';
 import '../bloc/shipment_confirm_event.dart';
 import '../bloc/shipment_confirm_state.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 /// 발송처리(운송장 업로드) 다이얼로그.
 ///
@@ -139,9 +140,12 @@ class _UploadPanel extends StatelessWidget {
           style: TextStyle(fontSize: 13),
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           '이미 발송처리된 주문은 자동으로 제외됩니다.',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 16),
         OutlinedButton.icon(
@@ -162,13 +166,16 @@ class _UploadPanel extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              border: Border.all(color: Colors.red.shade200),
+              color: Theme.of(context).colorScheme.errorContainer,
+              border: Border.all(color: Theme.of(context).colorScheme.error),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
               state.error!,
-              style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onErrorContainer,
+                fontSize: 13,
+              ),
             ),
           ),
         ],
@@ -200,15 +207,21 @@ class _ResultPanel extends StatelessWidget {
     required this.bloc,
   });
 
-  List<_ChipSpec> _chips() => [
+  List<_ChipSpec> _chips(BuildContext context) => [
         _ChipSpec('요청 건수', result.totalRows),
         _ChipSpec('매칭', result.matchedOrders),
-        _ChipSpec('성공', result.succeeded, color: Colors.green.shade700),
+        _ChipSpec(
+          '성공',
+          result.succeeded,
+          color: AppColors.successForeground,
+        ),
         _ChipSpec(
           '실패',
           result.failed.length,
           bucket: ResultBucket.failed,
-          color: result.failed.isEmpty ? null : Colors.red.shade700,
+          color: result.failed.isEmpty
+              ? null
+              : Theme.of(context).colorScheme.onErrorContainer,
         ),
         _ChipSpec('미매칭', result.unmatched.length,
             bucket: ResultBucket.unmatched),
@@ -237,8 +250,8 @@ class _ResultPanel extends StatelessWidget {
     final selected = selectedBucket == spec.bucket;
     return ChoiceChip(
       selected: selected,
-      // Match the web's blue selection instead of the theme default.
-      selectedColor: Colors.blue.shade600,
+      // Match the web's primary selection (blue-600 remaps to brand main).
+      selectedColor: AppColors.brandMain,
       // A checkmark would make each chip a different width.
       showCheckmark: false,
       onSelected: (_) => bloc.add(SelectResultBucket(spec.bucket!)),
@@ -247,7 +260,7 @@ class _ResultPanel extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           // Selection wins over the tone color.
-          color: selected ? Colors.white : spec.color,
+          color: selected ? AppColors.foregroundLight : spec.color,
           fontWeight: !selected && spec.color != null ? FontWeight.bold : null,
         ),
       ),
@@ -263,41 +276,44 @@ class _ResultPanel extends StatelessWidget {
           Wrap(
             spacing: 6,
             runSpacing: 6,
-            children: [for (final spec in _chips()) _chip(spec)],
+            children: [for (final spec in _chips(context)) _chip(spec)],
           ),
           const SizedBox(height: 12),
           Expanded(
-            child: SingleChildScrollView(child: _detail()),
+            child: SingleChildScrollView(child: _detail(context)),
           ),
         ],
       );
 
-  Widget _detail() {
+  Widget _detail(BuildContext context) {
     switch (selectedBucket) {
       case ResultBucket.failed:
-        return _failedDetail();
+        return _failedDetail(context);
       case ResultBucket.unmatched:
-        return _unmatchedDetail();
+        return _unmatchedDetail(context);
       case ResultBucket.skipped:
-        return _skippedDetail();
+        return _skippedDetail(context);
       case null:
-        return _emptySelection();
+        return _emptySelection(context);
     }
   }
 
-  Widget _emptySelection() {
+  Widget _emptySelection(BuildContext context) {
     final allClean = result.failed.isEmpty &&
         result.unmatched.isEmpty &&
         result.skipped.isEmpty;
     if (allClean && result.succeeded > 0) {
-      return Text(
+      return const Text(
         '모든 박스가 정상 처리되었습니다.',
-        style: TextStyle(color: Colors.green.shade700),
+        style: TextStyle(color: AppColors.successForeground),
       );
     }
-    return const Text(
+    return Text(
       '칩을 눌러 해당 주문 목록을 확인하세요.',
-      style: TextStyle(fontSize: 13, color: Colors.grey),
+      style: TextStyle(
+        fontSize: 13,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
     );
   }
 
@@ -306,15 +322,18 @@ class _ResultPanel extends StatelessWidget {
         style: const TextStyle(fontWeight: FontWeight.bold),
       );
 
-  Widget _caption(String text) => Padding(
+  Widget _caption(BuildContext context, String text) => Padding(
         padding: const EdgeInsets.only(top: 2),
         child: Text(
           text,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       );
 
-  Widget _failedDetail() => Column(
+  Widget _failedDetail(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _title('실패 상세'),
@@ -331,11 +350,11 @@ class _ResultPanel extends StatelessWidget {
         ],
       );
 
-  Widget _unmatchedDetail() => Column(
+  Widget _unmatchedDetail(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _title('미매칭 주문번호'),
-          _caption('order_item 없거나 쿠팡이 아니라 스킵됨'),
+          _caption(context, 'order_item 없거나 쿠팡이 아니라 스킵됨'),
           const SizedBox(height: 8),
           _ResultTable(
             headers: const ['#', '주문번호'],
@@ -348,7 +367,7 @@ class _ResultPanel extends StatelessWidget {
         ],
       );
 
-  Widget _skippedDetail() {
+  Widget _skippedDetail(BuildContext context) {
     String label(OrderStatus s) => getOrderStatusLabel(s);
 
     // Sort and summary both key on the neutral status — if they diverge the
@@ -377,11 +396,14 @@ class _ResultPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _title('전송 제외'),
-        _caption('이미 발송처리된 상태입니다.'),
+        _caption(context, '이미 발송처리된 상태입니다.'),
         const SizedBox(height: 8),
         Text(
           summary,
-          style: const TextStyle(fontSize: 11, color: Colors.grey),
+          style: TextStyle(
+            fontSize: 11,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 8),
         _ResultTable(
@@ -434,12 +456,12 @@ class _ResultTable extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Container(
-          color: Colors.grey.shade100,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           child: _row(
               headers,
               TextStyle(
                   fontSize: 11,
-                  color: Colors.grey.shade600,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w500)),
         ),
         for (final r in rows) ...[
@@ -450,7 +472,7 @@ class _ResultTable extends StatelessWidget {
     );
     final bordered = Container(
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
         borderRadius: BorderRadius.circular(6),
       ),
       clipBehavior: Clip.antiAlias,

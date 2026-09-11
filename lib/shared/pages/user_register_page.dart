@@ -146,14 +146,15 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
     children: [
       Scaffold(
         key: _scaffoldKey,
-        drawerScrimColor: Colors.black.withOpacity(0.3),
+        drawerScrimColor: Theme.of(context)
+            .colorScheme
+            .scrim
+            .withValues(alpha: 0.3),
         appBar: AppBar(
           automaticallyImplyLeading: false,
           title: const Text('회원등록'),
-          backgroundColor: Colors.white,
           elevation: 0,
         ),
-        backgroundColor: Colors.grey[100],
         body: BlocProvider(
           create: (context) => getIt<UserRegisterBloc>(),
           child: BlocListener<UserRegisterBloc, UserRegisterState>(
@@ -215,7 +216,9 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
                         return Text(
                           status,
                           style: TextStyle(
-                            color: isError ? Colors.red : Colors.green,
+                            color: isError
+                                ? Theme.of(context).colorScheme.error
+                                : AppColors.brandGreen,
                             fontSize: 12,
                           ),
                         );
@@ -331,7 +334,9 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
                 BottomNavigationBarItem(
                   icon: Icon(
                     Icons.menu,
-                    color: isDrawerOpen ? AppColors.brandMain : Colors.black87,
+                    color: isDrawerOpen
+                        ? AppColors.brandMain
+                        : Theme.of(context).colorScheme.onSurface,
                   ),
                   label: '',
                 ),

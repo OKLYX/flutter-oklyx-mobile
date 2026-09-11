@@ -159,18 +159,25 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
+                      color: Theme.of(context).colorScheme.errorContainer,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.error_outline, color: Colors.red, size: 18),
+                        Icon(
+                          Icons.error_outline,
+                          color: Theme.of(context).colorScheme.error,
+                          size: 18,
+                        ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             _errors['form']!,
-                            style: const TextStyle(color: Colors.red, fontSize: 13),
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       ],
@@ -251,10 +258,13 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
             FilledButton(
               onPressed: isSubmitting ? null : _onSubmit,
               child: isSubmitting
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Theme.of(context).colorScheme.onSecondary,
+                      ),
                     )
                   : Text(widget.isEdit ? '저장' : '등록'),
             ),

@@ -87,14 +87,18 @@ class _CommissionRateInputDialogState extends State<CommissionRateInputDialog> {
               BlocBuilder<CommissionRateCreateBloc, CommissionRateCreateState>(
                 builder: (context, state) {
                   if (state is CommissionRateCreateError) {
+                    final scheme = Theme.of(context).colorScheme;
                     return Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.red.shade50,
+                        color: scheme.errorContainer,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.red.shade300),
+                        border: Border.all(color: scheme.error),
                       ),
-                      child: Text(state.message, style: TextStyle(color: Colors.red.shade700)),
+                      child: Text(
+                        state.message,
+                        style: TextStyle(color: scheme.onErrorContainer),
+                      ),
                     );
                   }
                   return const SizedBox.shrink();
@@ -163,7 +167,7 @@ class _CommissionRateInputDialogState extends State<CommissionRateInputDialog> {
           return Container(
             height: 55,
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey),
+              border: Border.all(color: Theme.of(context).colorScheme.outline),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Center(

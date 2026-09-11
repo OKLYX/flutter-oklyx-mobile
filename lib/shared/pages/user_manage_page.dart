@@ -62,16 +62,15 @@ class _UserManagePageState extends State<UserManagePage> {
     context.read<UserManageBloc>().add(UserPageChanged(page));
   }
 
-  Color _getRoleBadgeColor(String role) {
+  Color _getRoleBadgeColor(BuildContext context, String role) {
     switch (role.toUpperCase()) {
-      case 'GUEST':
-        return Colors.grey[400]!;
       case 'USER':
-        return Colors.blue;
+        return AppColors.infoForeground;
       case 'ADMIN':
-        return Colors.red;
+        return Theme.of(context).colorScheme.error;
+      case 'GUEST':
       default:
-        return Colors.grey[400]!;
+        return Theme.of(context).colorScheme.onSurfaceVariant;
     }
   }
 
@@ -90,14 +89,15 @@ class _UserManagePageState extends State<UserManagePage> {
       children: [
         Scaffold(
           key: _scaffoldKey,
-          drawerScrimColor: Colors.black.withOpacity(0.3),
+          drawerScrimColor: Theme.of(context)
+              .colorScheme
+              .scrim
+              .withValues(alpha: 0.3),
           appBar: AppBar(
             automaticallyImplyLeading: false,
             title: const Text('회원관리'),
-            backgroundColor: Colors.white,
             elevation: 0,
           ),
-          backgroundColor: Colors.grey[100],
           body: BlocListener<UserManageBloc, UserManageState>(
             listenWhen: (previous, current) => current is UserManageError,
             listener: (context, state) {
@@ -195,7 +195,7 @@ class _UserManagePageState extends State<UserManagePage> {
                                   final rowNumber =
                                       (state.currentPage * 20) + index + 1;
                                   final badgeColor =
-                                      _getRoleBadgeColor(user.role);
+                                      _getRoleBadgeColor(context, user.role);
 
                                   return DataRow(
                                     cells: [
@@ -236,8 +236,10 @@ class _UserManagePageState extends State<UserManagePage> {
                                             ),
                                             child: Text(
                                               user.role,
-                                              style: const TextStyle(
-                                                color: Colors.white,
+                                              style: TextStyle(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSecondary,
                                                 fontSize: 12,
                                               ),
                                             ),
@@ -292,7 +294,9 @@ class _UserManagePageState extends State<UserManagePage> {
                 BottomNavigationBarItem(
                   icon: Icon(
                     Icons.menu,
-                    color: isDrawerOpen ? AppColors.brandMain : Colors.black87,
+                    color: isDrawerOpen
+                        ? AppColors.brandMain
+                        : Theme.of(context).colorScheme.onSurface,
                   ),
                   label: '',
                 ),
@@ -373,10 +377,12 @@ class _UserManagePageState extends State<UserManagePage> {
             return ElevatedButton(
               onPressed: isCurrentPage ? null : () => _handlePageChange(context, pageNum),
               style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    isCurrentPage ? Colors.blue : Colors.white,
-                foregroundColor:
-                    isCurrentPage ? Colors.white : Colors.black,
+                backgroundColor: isCurrentPage
+                    ? AppColors.brandMain
+                    : Theme.of(context).colorScheme.surface,
+                foregroundColor: isCurrentPage
+                    ? AppColors.foregroundLight
+                    : Theme.of(context).colorScheme.onSurface,
               ),
               child: Text('${pageNum + 1}'),
             );

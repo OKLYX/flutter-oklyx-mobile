@@ -96,7 +96,10 @@ class _PackageDetailsView extends StatelessWidget {
               children: [
                 Text(
                   'ID: ${package.id}',
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
                 ),
                 Row(
                   children: [
@@ -110,7 +113,10 @@ class _PackageDetailsView extends StatelessWidget {
                       onPressed: () => _showDeleteDialog(context, package),
                       icon: const Icon(Icons.delete),
                       label: const Text('삭제'),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.error,
+                        foregroundColor: Theme.of(context).colorScheme.onError,
+                      ),
                     ),
                   ],
                 ),
@@ -140,7 +146,10 @@ class _DetailField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(color: Colors.grey, fontSize: 12),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontSize: 12,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
@@ -328,7 +337,10 @@ class _DeleteConfirmationDialog extends StatelessWidget {
         ),
         FilledButton(
           onPressed: onConfirm,
-          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          style: FilledButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.error,
+            foregroundColor: Theme.of(context).colorScheme.onError,
+          ),
           child: const Text('삭제'),
         ),
       ],

@@ -80,7 +80,10 @@ class _PlatformCodeSectionView extends StatelessWidget {
             child: const Text('취소'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
             onPressed: () {
               Navigator.of(dialogContext).pop();
               bloc.add(DeleteCode(codeId: code.id));
@@ -108,7 +111,7 @@ class _PlatformCodeSectionView extends StatelessWidget {
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-        color: Colors.grey.shade50,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -206,7 +209,11 @@ class _CodeTile extends StatelessWidget {
               tooltip: '수정',
             ),
             IconButton(
-              icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+              icon: Icon(
+                    Icons.delete,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
               onPressed: onDelete,
               tooltip: '삭제',
             ),
@@ -226,12 +233,15 @@ class _MessageBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isError ? Colors.red.shade50 : Colors.white,
-        border: Border.all(color: isError ? Colors.red.shade200 : Colors.grey.shade200),
+        color: isError ? scheme.errorContainer : scheme.surface,
+        border: Border.all(
+          color: isError ? scheme.error : scheme.outlineVariant,
+        ),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -241,7 +251,9 @@ class _MessageBox extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,
-              color: isError ? Colors.red.shade700 : Colors.grey.shade600,
+              color: isError
+                  ? scheme.onErrorContainer
+                  : scheme.onSurfaceVariant,
             ),
           ),
           if (onRetry != null) ...[

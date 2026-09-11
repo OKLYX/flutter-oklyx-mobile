@@ -76,7 +76,10 @@ class OrderCard extends StatelessWidget {
                   '고객 ${getCustomerName(order)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 13, color: Colors.grey[800]),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(order.itemName ?? '-',
@@ -86,14 +89,17 @@ class OrderCard extends StatelessWidget {
                   spacing: 12,
                   runSpacing: 4,
                   children: [
-                    _metric('주문수량', order.orderCount),
-                    _metric('취소', order.cancelCount),
+                    _metric(context, '주문수량', order.orderCount),
+                    _metric(context, '취소', order.cancelCount),
                   ],
                 ),
                 const SizedBox(height: 6),
                 Text(
                   '결제일 ${formatOrderDateTime(order.paidAt)}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -123,8 +129,11 @@ class OrderCard extends StatelessWidget {
     );
   }
 
-  Widget _metric(String label, int value) => Text(
+  Widget _metric(BuildContext context, String label, int value) => Text(
         '$label $value',
-        style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+        style: TextStyle(
+          fontSize: 12,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       );
 }

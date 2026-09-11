@@ -144,10 +144,14 @@ class _StockEntryViewState extends State<_StockEntryView> {
                 ),
                 const Divider(),
                 if (loaded.movements.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Text('최근 30일 이력이 없습니다.',
-                        style: TextStyle(color: Colors.black54)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Text(
+                      '최근 30일 이력이 없습니다.',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   )
                 else
                   ...loaded.movements
@@ -324,7 +328,9 @@ class _StockEntryViewState extends State<_StockEntryView> {
         child: Text(
           name ?? '검색 선택',
           style: TextStyle(
-            color: name == null ? Colors.black45 : Colors.black87,
+            color: name == null
+                ? Theme.of(context).colorScheme.onSurfaceVariant
+                : Theme.of(context).colorScheme.onSurface,
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -354,7 +360,9 @@ class _StockEntryViewState extends State<_StockEntryView> {
                   : '선택')
               : '${_purchase!.purchasedOn} · ${_purchase!.productName} · 남은 ${_purchase!.remainingQty}',
           style: TextStyle(
-            color: _purchase == null ? Colors.black45 : Colors.black87,
+            color: _purchase == null
+                ? Theme.of(context).colorScheme.onSurfaceVariant
+                : Theme.of(context).colorScheme.onSurface,
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -381,7 +389,9 @@ class _StockEntryViewState extends State<_StockEntryView> {
               ? (state.returnCandidates.isEmpty ? '반품 대기 건이 없습니다' : '선택')
               : '${_returnClaim!.itemName} · 남은 ${_returnClaim!.remainingQty}',
           style: TextStyle(
-            color: _returnClaim == null ? Colors.black45 : Colors.black87,
+            color: _returnClaim == null
+                ? Theme.of(context).colorScheme.onSurfaceVariant
+                : Theme.of(context).colorScheme.onSurface,
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,

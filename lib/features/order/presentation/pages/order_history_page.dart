@@ -15,6 +15,7 @@ import '../widgets/order_card.dart';
 import '../widgets/order_search_bar.dart';
 import '../widgets/order_status_filter_bar.dart';
 import '../widgets/sync_progress_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 /// 주문관리 > 주문내역 페이지 (조회 + 동기화)
 ///
@@ -423,15 +424,18 @@ class _LoadedBody extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.green[50],
-                border: Border.all(color: Colors.green.shade200),
+                color: AppColors.successSurface,
+                border: Border.all(color: AppColors.successBorder),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 '동기화 완료 — 신규 ${s.syncResult!.newOrders}건, '
                 '수정 ${s.syncResult!.updatedOrders}건, '
                 '취소 ${s.syncResult!.canceledUpdated}건',
-                style: TextStyle(fontSize: 13, color: Colors.green[800]),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.successForeground,
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -457,13 +461,16 @@ class _LoadedBody extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.amber[50],
-                border: Border.all(color: Colors.amber.shade200),
+                color: AppColors.warningSurface,
+                border: Border.all(color: AppColors.warningBorder),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(
+              child: const Text(
                 '최근 2주 이전 주문은 배송 상태가 최신이 아닐 수 있습니다 (동기화해도 갱신되지 않습니다).',
-                style: TextStyle(fontSize: 13, color: Colors.amber[900]),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.warningForeground,
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -482,12 +489,18 @@ class _LoadedBody extends StatelessWidget {
             children: [
               Text(
                 '총 ${orders.length}건',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               if (s.lastSyncedAt != null)
                 Text(
                   '마지막 동기화: ${formatOrderDateTime(s.lastSyncedAt)}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
             ],
           ),
@@ -528,8 +541,8 @@ class _ChannelStatusBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.amber[50],
-        border: Border.all(color: Colors.amber.shade200),
+        color: AppColors.warningSurface,
+        border: Border.all(color: AppColors.warningBorder),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -537,10 +550,10 @@ class _ChannelStatusBanner extends StatelessWidget {
         children: [
           Text(
             '⚠️ 마지막 동기화가 완료되지 않은 채널 ${targets.length}개',
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: Colors.amber[900],
+              color: AppColors.warningForeground,
             ),
           ),
           const SizedBox(height: 6),
@@ -551,7 +564,10 @@ class _ChannelStatusBanner extends StatelessWidget {
                 '· ${target.sellerName}·${target.platform} — ${_reason(target)}',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 12, color: Colors.amber[900]),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.warningForeground,
+                ),
               ),
             ),
           ),

@@ -120,9 +120,14 @@ class _StockBalanceViewState extends State<_StockBalanceView> {
               ),
               Expanded(
                 child: loaded.balances.isEmpty
-                    ? const Center(
-                        child: Text('재고 데이터가 없습니다.',
-                            style: TextStyle(color: Colors.black54)),
+                    ? Center(
+                        child: Text(
+                          '재고 데이터가 없습니다.',
+                          style: TextStyle(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                       )
                     : ListView.separated(
                         padding:
@@ -207,13 +212,18 @@ class _BalanceRow extends StatelessWidget {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.bold,
-              color: negative ? Colors.red[700] : Colors.black87,
+              color: negative
+                  ? Theme.of(context).colorScheme.error
+                  : Theme.of(context).colorScheme.onSurface,
             ),
           ),
           if (negative)
-            const Text(
+            Text(
               '입고 기록이 빠졌을 수 있습니다',
-              style: TextStyle(fontSize: 10, color: Colors.red),
+              style: TextStyle(
+                fontSize: 10,
+                color: Theme.of(context).colorScheme.error,
+              ),
             ),
         ],
       ),
@@ -253,10 +263,14 @@ class _HistorySheet extends StatelessWidget {
                     child: Center(child: CircularProgressIndicator()),
                   )
                 else if (loaded!.movements.isEmpty)
-                  const Expanded(
+                  Expanded(
                     child: Center(
-                      child: Text('이력이 없습니다.',
-                          style: TextStyle(color: Colors.black54)),
+                      child: Text(
+                        '이력이 없습니다.',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                     ),
                   )
                 else

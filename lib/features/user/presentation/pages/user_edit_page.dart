@@ -113,7 +113,6 @@ class _UserEditPageState extends State<UserEditPage> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('사용자 정보 수정'),
-          backgroundColor: Colors.white,
           elevation: 0,
         ),
         body: BlocListener<UserEditBloc, UserEditState>(

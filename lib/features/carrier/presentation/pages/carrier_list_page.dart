@@ -10,6 +10,7 @@ import 'package:flutter_oklyn_mobile/features/carrier/presentation/bloc/carrier_
 import 'package:flutter_oklyn_mobile/features/carrier/presentation/dialogs/carrier_input_dialog.dart';
 import 'package:flutter_oklyn_mobile/features/carrier/presentation/widgets/platform_code_section.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 class CarrierListPage extends StatefulWidget {
   const CarrierListPage({super.key});
@@ -80,7 +81,10 @@ class _CarrierListPageState extends State<CarrierListPage> {
             child: const Text('취소'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
             onPressed: () {
               Navigator.of(dialogContext).pop();
               bloc.add(DeleteCarrier(id: carrier.id));
@@ -248,7 +252,11 @@ class _CarrierCard extends StatelessWidget {
                   tooltip: '수정',
                 ),
                 IconButton(
-                  icon: const Icon(Icons.delete, size: 20, color: Colors.red),
+                  icon: Icon(
+                    Icons.delete,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
                   onPressed: onDelete,
                   tooltip: '삭제',
                 ),
@@ -272,7 +280,9 @@ class _StatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: isActive ? Colors.green.shade100 : Colors.grey.shade200,
+        color: isActive
+            ? AppColors.successSurface
+            : Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -280,7 +290,9 @@ class _StatusChip extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w500,
-          color: isActive ? Colors.green.shade800 : Colors.grey.shade700,
+          color: isActive
+              ? AppColors.successForeground
+              : Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );
