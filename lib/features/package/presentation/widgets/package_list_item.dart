@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_oklyn_mobile/features/package/domain/entities/package.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 class PackageListItem extends StatelessWidget {
   final Package package;
@@ -26,10 +27,16 @@ class PackageListItem extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.green[100],
+                        color: AppColors.successSurface,
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: const Text('기본값', style: TextStyle(fontSize: 12)),
+                      child: const Text(
+                        '기본값',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.successForeground,
+                        ),
+                      ),
                     ),
                 ],
               ),

@@ -129,16 +129,17 @@ class _PackageInputDialogState extends State<PackageInputDialog> {
                 BlocBuilder<PackageCreateBloc, PackageCreateState>(
                   builder: (context, state) {
                     if (state is PackageCreateError) {
+                      final scheme = Theme.of(context).colorScheme;
                       return Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.red.shade50,
+                          color: scheme.errorContainer,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.red.shade300),
+                          border: Border.all(color: scheme.error),
                         ),
                         child: Text(
                           state.message,
-                          style: TextStyle(color: Colors.red.shade700),
+                          style: TextStyle(color: scheme.onErrorContainer),
                         ),
                       );
                     }

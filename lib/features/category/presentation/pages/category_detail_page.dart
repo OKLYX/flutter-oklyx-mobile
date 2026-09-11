@@ -247,7 +247,10 @@ class _CategoryDetailsViewState extends State<_CategoryDetailsView> {
                     children: [
                       Text(
                         'ID: ${widget.category.category.id}',
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
                       ),
                       Row(
                         children: [
@@ -262,7 +265,10 @@ class _CategoryDetailsViewState extends State<_CategoryDetailsView> {
                             icon: const Icon(Icons.delete),
                             label: const Text('삭제'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.error,
+                              foregroundColor:
+                                  Theme.of(context).colorScheme.onError,
                             ),
                           ),
                         ],
@@ -431,7 +437,10 @@ class _DetailField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(color: Colors.grey, fontSize: 12),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontSize: 12,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
@@ -468,7 +477,10 @@ class _DeleteConfirmationDialog extends StatelessWidget {
         ),
         FilledButton(
           onPressed: onConfirm,
-          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          style: FilledButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.error,
+            foregroundColor: Theme.of(context).colorScheme.onError,
+          ),
           child: const Text('삭제'),
         ),
       ],
