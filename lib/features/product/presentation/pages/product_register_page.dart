@@ -141,14 +141,14 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
     value: _bloc,
     child: Scaffold(
       key: _scaffoldKey,
-      drawerScrimColor: Colors.black.withOpacity(0.3),
+      drawerScrimColor: Theme.of(
+        context).colorScheme.scrim.withValues(alpha: 0.3,
+      ),
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text('상품등록'),
-        backgroundColor: Colors.white,
         elevation: 0,
       ),
-      backgroundColor: Colors.grey[100],
       body: BlocListener<ProductRegisterBloc, ProductRegisterState>(
             listenWhen: (previous, current) =>
                 current is BarcodeAvailable ||

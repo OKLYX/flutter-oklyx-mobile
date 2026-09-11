@@ -184,13 +184,19 @@ class _CarrierRateDetailDialogState extends State<CarrierRateDetailDialog> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.red.shade50,
+                          color: Theme.of(context).colorScheme.errorContainer,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.red.shade300),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
                         ),
                         child: Text(
                           state.error!,
-                          style: TextStyle(color: Colors.red.shade700),
+                          style: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onErrorContainer,
+                          ),
                         ),
                       ),
 
@@ -316,7 +322,10 @@ class _CarrierRateDetailDialogState extends State<CarrierRateDetailDialog> {
           const SizedBox(height: 4),
           Text(
             '등록된 택배사가 없습니다',
-            style: TextStyle(color: Colors.red.shade700, fontSize: 12),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onErrorContainer,
+              fontSize: 12,
+            ),
           ),
         ],
       );

@@ -226,7 +226,10 @@ class _CarrierRateDetailsViewState extends State<_CarrierRateDetailsView> {
           const SizedBox(height: 4),
           Text(
             '등록된 택배사가 없습니다',
-            style: TextStyle(color: Colors.red.shade700, fontSize: 12),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onErrorContainer,
+              fontSize: 12,
+            ),
           ),
         ],
       );
@@ -259,7 +262,10 @@ class _CarrierRateDetailsViewState extends State<_CarrierRateDetailsView> {
                 children: [
                   Text(
                     'ID: ${widget.carrierRate.id}',
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
                   ),
                   Row(
                     children: [
@@ -276,7 +282,9 @@ class _CarrierRateDetailsViewState extends State<_CarrierRateDetailsView> {
                         icon: const Icon(Icons.delete),
                         label: const Text('삭제'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
+                          backgroundColor: Theme.of(context).colorScheme.error,
+                          foregroundColor:
+                              Theme.of(context).colorScheme.onError,
                         ),
                       ),
                     ],
@@ -402,7 +410,10 @@ class _DetailField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(color: Colors.grey, fontSize: 12),
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontSize: 12,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
@@ -440,7 +451,10 @@ class _DeleteConfirmationDialog extends StatelessWidget {
         ),
         FilledButton(
           onPressed: onConfirm,
-          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          style: FilledButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.error,
+            foregroundColor: Theme.of(context).colorScheme.onError,
+          ),
           child: const Text('삭제'),
         ),
       ],

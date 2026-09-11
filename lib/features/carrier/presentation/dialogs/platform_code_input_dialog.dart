@@ -96,12 +96,15 @@ class _PlatformCodeInputDialogState extends State<PlatformCodeInputDialog> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
+                      color: Theme.of(context).colorScheme.errorContainer,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       _formError!,
-                      style: const TextStyle(color: Colors.red, fontSize: 13),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -138,10 +141,13 @@ class _PlatformCodeInputDialogState extends State<PlatformCodeInputDialog> {
             FilledButton(
               onPressed: isSubmitting ? null : _onSubmit,
               child: isSubmitting
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 16,
                       height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Theme.of(context).colorScheme.onSecondary,
+                      ),
                     )
                   : Text(widget.isEdit ? '저장' : '추가'),
             ),

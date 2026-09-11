@@ -93,7 +93,10 @@ class _OutboundOrderCardState extends State<OutboundOrderCard> {
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(
                   order.sellerName,
-                  style: const TextStyle(fontSize: 11, color: Colors.black54),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             const Divider(height: 16),
@@ -126,7 +129,10 @@ class _OutboundOrderCardState extends State<OutboundOrderCard> {
               ),
               Text(
                 '필요 ${line.requiredQty}  확인 ${line.confirmedQty}',
-                style: const TextStyle(fontSize: 12, color: Colors.black54),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),

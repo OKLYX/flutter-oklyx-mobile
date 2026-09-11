@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/entities/carrier_rate.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 class CarrierRateListItem extends StatelessWidget {
   final CarrierRate carrierRate;
@@ -30,7 +31,7 @@ class CarrierRateListItem extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.green[100],
+                        color: AppColors.successSurface,
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: const Text('기본값', style: TextStyle(fontSize: 12)),

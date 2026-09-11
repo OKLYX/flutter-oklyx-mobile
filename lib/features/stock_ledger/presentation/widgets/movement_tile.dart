@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../domain/entities/stock_enums.dart';
 import '../../domain/entities/stock_movement.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 /// 원장 이력 1줄.
 ///
@@ -31,7 +32,10 @@ class MovementTile extends StatelessWidget {
             width: 46,
             child: Text(
               _shortDate(movement.movedOn),
-              style: const TextStyle(fontSize: 12, color: Colors.black54),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
           Expanded(
@@ -54,7 +58,10 @@ class MovementTile extends StatelessWidget {
                         movement.createdBy!.isNotEmpty)
                       movement.createdBy!,
                   ].where((e) => e.isNotEmpty).join(' · '),
-                  style: const TextStyle(fontSize: 11, color: Colors.black54),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -67,7 +74,9 @@ class MovementTile extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: increase ? Colors.blue[700] : Colors.red[700],
+              color: increase
+                  ? AppColors.infoForeground
+                  : Theme.of(context).colorScheme.error,
             ),
           ),
         ],
