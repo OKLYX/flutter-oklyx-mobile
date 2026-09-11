@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 /// Full-screen image viewer with pinch-zoom, a close button, and
 /// tap-outside-to-dismiss. Use this everywhere an enlarged image view is
@@ -57,7 +58,7 @@ class ZoomableImageViewer extends StatelessWidget {
   }) {
     return showDialog<void>(
       context: context,
-      barrierColor: Colors.black,
+      barrierColor: AppColors.overlayScrim,
       builder: (_) => ZoomableImageViewer(image: image),
     );
   }
@@ -71,7 +72,7 @@ class ZoomableImageViewer extends StatelessWidget {
       onTap: () => Navigator.pop(context),
       behavior: HitTestBehavior.opaque,
       child: Dialog(
-        backgroundColor: Colors.black,
+        backgroundColor: AppColors.overlayScrim,
         insetPadding: EdgeInsets.zero,
         child: Stack(
           children: [
@@ -100,12 +101,16 @@ class ZoomableImageViewer extends StatelessWidget {
               child: GestureDetector(
                 onTap: () => Navigator.pop(context),
                 child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.black54,
+                  decoration: BoxDecoration(
+                    color: AppColors.onOverlayScrim.withValues(alpha: 0.3),
                     shape: BoxShape.circle,
                   ),
                   padding: const EdgeInsets.all(8),
-                  child: const Icon(Icons.close, color: Colors.white, size: 24),
+                  child: const Icon(
+                    Icons.close,
+                    color: AppColors.onOverlayScrim,
+                    size: 24,
+                  ),
                 ),
               ),
             ),
@@ -172,14 +177,14 @@ class ImageWithZoomButton extends StatelessWidget {
           child: GestureDetector(
             onTap: open,
             child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.black54,
+              decoration: BoxDecoration(
+                color: AppColors.overlayScrim.withValues(alpha: 0.5),
                 shape: BoxShape.circle,
               ),
               padding: const EdgeInsets.all(6),
               child: const Icon(
                 Icons.zoom_in,
-                color: Colors.white,
+                color: AppColors.onOverlayScrim,
                 size: 20,
               ),
             ),

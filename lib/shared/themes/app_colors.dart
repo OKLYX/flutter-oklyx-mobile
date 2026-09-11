@@ -21,6 +21,8 @@ import 'package:flutter/material.dart';
 /// - infoSurface/infoForeground        blue-50  / blue-700
 /// - successSurface/successForeground  green-100 / green-700
 /// - warningSurface/warningForeground  amber-50 / amber-800
+/// - *Border variants                   blue-200 / green-200 / amber-200
+/// - overlayScrim/onOverlayScrim        full-screen image viewer chrome
 ///
 /// ⚠️ Yellow is a light color: text/icons placed on `brandMain` must use a
 /// dark foreground (`foregroundLight` / `brandSlate`), not white.
@@ -57,9 +59,17 @@ class AppColors {
   // ⚠️ Error/danger states do NOT live here: use
   // `colorScheme.error` / `errorContainer` / `onErrorContainer` instead.
   static const Color infoSurface = Color(0xFFEFF6FF); // blue-50
+  static const Color infoBorder = Color(0xFFBFDBFE); // blue-200
   static const Color infoForeground = Color(0xFF1D4ED8); // blue-700
   static const Color successSurface = Color(0xFFDCFCE7); // green-100
+  static const Color successBorder = Color(0xFFBBF7D0); // green-200
   static const Color successForeground = Color(0xFF15803D); // green-700
   static const Color warningSurface = Color(0xFFFFFBEB); // amber-50
+  static const Color warningBorder = Color(0xFFFDE68A); // amber-200
   static const Color warningForeground = Color(0xFF92400E); // amber-800
+
+  // --- Media overlay (full-screen image viewer) ---
+  // Photo chrome stays dark in both themes, like the web lightbox.
+  static const Color overlayScrim = Color(0xFF000000);
+  static const Color onOverlayScrim = Color(0xFFFFFFFF);
 }

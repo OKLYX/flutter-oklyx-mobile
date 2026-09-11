@@ -169,7 +169,9 @@ class _DateField extends StatelessWidget {
         child: Text(
           value.isEmpty ? '전체' : value,
           style: TextStyle(
-            color: value.isEmpty ? Colors.grey[600] : null,
+            color: value.isEmpty
+                ? Theme.of(context).colorScheme.onSurfaceVariant
+                : null,
           ),
         ),
       ),

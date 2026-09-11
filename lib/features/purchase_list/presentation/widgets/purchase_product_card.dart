@@ -6,6 +6,7 @@ import '../../domain/entities/purchase_list_item.dart';
 import 'product_thumbnail.dart';
 import 'purchase_intake_card.dart';
 import 'purchase_line_tile.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 /// 구매목록 상품(물품) 카드 (펼침 가능).
 ///
@@ -88,14 +89,22 @@ class _PurchaseProductCardState extends State<PurchaseProductCard> {
                         Wrap(
                           spacing: 12,
                           children: [
-                            _metric('필요', item.neededQty, Colors.grey[800]),
-                            _metric('구매', item.purchasedQty, Colors.grey[800]),
+                            _metric(
+                              '필요',
+                              item.neededQty,
+                              Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                            _metric(
+                              '구매',
+                              item.purchasedQty,
+                              Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
                             _metric(
                                 '잔여',
                                 item.remainingQty,
                                 item.remainingQty > 0
-                                    ? Colors.orange[800]
-                                    : Colors.green[800]),
+                                    ? AppColors.warningForeground
+                                    : AppColors.successForeground),
                           ],
                         ),
                       ],

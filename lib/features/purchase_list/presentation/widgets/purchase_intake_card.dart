@@ -7,6 +7,7 @@ import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart
 import '../../domain/entities/purchase_record.dart';
 import '../../domain/usecases/get_recent_purchases_usecase.dart';
 import 'seller_filter_dropdown.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 /// 금액 입력 모드 (PLAN 2609_28 D2) — 영수증 표기가 총액/단가 어느 쪽이든 받는다.
 enum _AmountMode { total, unit }
@@ -217,8 +218,8 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
       margin: const EdgeInsets.only(top: 4, bottom: 8),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.blue[50],
-        border: Border.all(color: Colors.blue.shade100),
+        color: AppColors.infoSurface,
+        border: Border.all(color: AppColors.infoSurface),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Column(
@@ -271,14 +272,14 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'^-?\d*')),
                   ],
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: '수량',
                     isDense: true,
                     filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(),
+                    fillColor: Theme.of(context).colorScheme.surface,
+                    border: const OutlineInputBorder(),
                     contentPadding:
-                        EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                   ),
                 ),
               ),
@@ -296,7 +297,7 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
                     hintText: _amountMode == _AmountMode.total ? '총액' : '단가',
                     isDense: true,
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: Theme.of(context).colorScheme.surface,
                     border: const OutlineInputBorder(),
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 12),
@@ -310,7 +311,10 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
               padding: const EdgeInsets.only(top: 4),
               child: Text(
                 preview,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
 
@@ -331,7 +335,10 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
               padding: const EdgeInsets.only(bottom: 4),
               child: Text(
                 '이번 매입가는 손익에만 쓰이고 판매가에는 반영되지 않습니다',
-                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
 
@@ -353,8 +360,10 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
                       Flexible(
                         child: Text(
                           '(입고대기 화면 준비 중)',
-                          style:
-                              TextStyle(fontSize: 11, color: Colors.grey[600]),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -409,7 +418,10 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Text(
           _historyError!,
-          style: TextStyle(fontSize: 12, color: Colors.red[700]),
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.error,
+          ),
         ),
       );
     }
@@ -419,7 +431,10 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: Text(
           '구매 이력 없음',
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       );
     }
@@ -457,8 +472,10 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
   /// `09-09 · A상사 · +3 · 6,000원 (@2,000) · 기준가 미반영`
   /// 금액이 없으면 `금액 미상` — `0원` 으로 쓰지 않는다(PLAN 2609_28 D1).
   Widget _recordText(PurchaseRecord r) {
-    final baseColor = r.quantity < 0 ? Colors.red : Colors.grey[700];
-    final mutedColor = Colors.grey[500];
+    final scheme = Theme.of(context).colorScheme;
+    final baseColor =
+        r.quantity < 0 ? scheme.error : scheme.onSurfaceVariant;
+    final mutedColor = Theme.of(context).colorScheme.onSurfaceVariant;
     final date =
         r.purchasedOn.length >= 10 ? r.purchasedOn.substring(5) : r.purchasedOn;
     return Text.rich(

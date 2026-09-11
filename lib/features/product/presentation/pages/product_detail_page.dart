@@ -184,9 +184,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       },
       child: Scaffold(
         key: _scaffoldKey,
-        drawerScrimColor: Theme.of(
-          context).colorScheme.scrim.withValues(alpha: 0.3,
-        ),
+        drawerScrimColor: Theme.of(context)
+            .colorScheme
+            .scrim
+            .withValues(alpha: 0.3),
         appBar: AppBar(
           automaticallyImplyLeading: false,
           leading: IconButton(
@@ -341,9 +342,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     state is ProductDetailImageUploading ||
                     state is ProductDetailImageDeleting) {
                   return Container(
-                    color: Theme.of(
-                      context).colorScheme.scrim.withValues(alpha: 0.3,
-                    ),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .scrim
+                        .withValues(alpha: 0.3),
                     child: const Center(
                       child: CircularProgressIndicator(),
                     ),
@@ -626,9 +628,10 @@ class _ImageSectionState extends State<_ImageSection> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
-                      color: Theme.of(
-                        context).colorScheme.scrim.withValues(alpha: 0.38,
-                      ),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .scrim
+                          .withValues(alpha: 0.38),
                       child: const Center(
                         child: CircularProgressIndicator(),
                       ),

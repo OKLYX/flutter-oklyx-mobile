@@ -24,7 +24,8 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Oklyn Mobile',
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      // Kept on light until hardcoded Colors.white/black usages are themed.
+      // Pages now read their colors from the theme; the flip to
+      // ThemeMode.system ships separately after a dark-mode review pass.
       themeMode: ThemeMode.light,
       routerConfig: AppRouter.router,
     ),

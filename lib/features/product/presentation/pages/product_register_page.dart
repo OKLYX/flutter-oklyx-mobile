@@ -141,9 +141,10 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
     value: _bloc,
     child: Scaffold(
       key: _scaffoldKey,
-      drawerScrimColor: Theme.of(
-        context).colorScheme.scrim.withValues(alpha: 0.3,
-      ),
+      drawerScrimColor: Theme.of(context)
+          .colorScheme
+          .scrim
+          .withValues(alpha: 0.3),
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text('상품등록'),

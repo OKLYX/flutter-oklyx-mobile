@@ -27,6 +27,7 @@ import '../bloc/order_acknowledge_state.dart';
 import '../bloc/order_cancel_bloc.dart';
 import '../bloc/order_cancel_event.dart';
 import '../bloc/order_cancel_state.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 // Platform display labels — same shape as product_listing_detail_page;
 // unknown codes fall back to the raw value.
@@ -299,7 +300,10 @@ class _InfoRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 2),
           Text(
@@ -464,15 +468,21 @@ class _AcknowledgeSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 if (acknowledged)
-                  Text(
+                  const Text(
                     '발주처리 완료',
-                    style: TextStyle(fontSize: 13, color: Colors.green[800]),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.successForeground,
+                    ),
                   )
                 else ...[
                   Text(
                     '이 주문의 배송건(박스 ${order.externalBoxId ?? '-'}) 전체가 '
                     '상품준비중으로 전환됩니다. 되돌릴 수 없습니다.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   // 버튼만 왼쪽 정렬 — 카드는 화면 폭을 쓰되 버튼은 늘리지 않는다(웹 하단 바와 같은 배치).
@@ -496,7 +506,10 @@ class _AcknowledgeSection extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     failureText,
-                    style: TextStyle(fontSize: 12, color: Colors.red[700]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ],
               ],
@@ -639,12 +652,18 @@ class _CancelSectionState extends State<_CancelSection> {
                 if (!succeeded && order.purchasableQty == 0)
                   Text(
                     '취소 가능한 수량이 없습니다 (이미 취소된 주문)',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   )
                 else ...[
                   Text(
                     '취소 가능 $remainingQty개',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   if (state.loadingReasons)
@@ -719,11 +738,17 @@ class _CancelSectionState extends State<_CancelSection> {
                   const SizedBox(height: 8),
                   Text(
                     '결제완료는 즉시 취소, 상품준비중은 출고중지로 접수됩니다.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   Text(
                     '⚠️ 되돌릴 수 없으며 쿠팡 판매자 점수가 하락합니다.',
-                    style: TextStyle(fontSize: 12, color: Colors.red[700]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   ElevatedButton(
@@ -743,7 +768,10 @@ class _CancelSectionState extends State<_CancelSection> {
                   Text(
                     '취소 접수 완료 — ${result.succeededQty}개 '
                     '(${_receiptTypeLabel(result.cancelled.first.receiptType)})',
-                    style: TextStyle(fontSize: 13, color: Colors.green[700]),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.successForeground,
+                    ),
                   ),
                 ],
                 // 쿠팡이 거절한 건은 원문 그대로 노출하고 버튼은 다시 열어 둔다(D16).
@@ -751,7 +779,10 @@ class _CancelSectionState extends State<_CancelSection> {
                   const SizedBox(height: 8),
                   Text(
                     '${failed.code ?? '-'}: ${failed.message ?? '-'}',
-                    style: TextStyle(fontSize: 12, color: Colors.red[700]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ],
                 // 스킵·전송불가 사유는 서버 문구를 그대로 쓴다(모바일에서 새로 짓지 않는다).
@@ -762,14 +793,20 @@ class _CancelSectionState extends State<_CancelSection> {
                   const SizedBox(height: 8),
                   Text(
                     skipped.reason ?? '전송하지 않았습니다.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
                 if (state.errorMessage != null) ...[
                   const SizedBox(height: 8),
                   Text(
                     state.errorMessage!,
-                    style: TextStyle(fontSize: 12, color: Colors.red[700]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ],
               ],
@@ -808,7 +845,10 @@ class _CancelSectionState extends State<_CancelSection> {
             child: const Text('닫기'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('주문 취소'),
           ),
@@ -913,7 +953,10 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
                 const SizedBox(height: 4),
                 Text(
                   '박스 ${widget.order.externalBoxId ?? '-'} 의 모든 옵션에 같은 운송장번호가 적용됩니다.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 if (shipped) ...[
                   const SizedBox(height: 8),
@@ -921,7 +964,10 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
                     formOpen
                         ? '이미 발송처리된 주문입니다. 입력한 운송장으로 송장 수정을 요청합니다.'
                         : '이미 발송처리된 주문입니다. 운송장을 고치려면 [송장 수정하기] 를 누르세요.',
-                    style: TextStyle(fontSize: 12, color: Colors.amber[800]),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.warningForeground,
+                    ),
                   ),
                 ],
                 if (!formOpen) ...[
@@ -1015,7 +1061,10 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
                     // 쿠팡은 코드표 전량을 내려주므로 여기까지 오면 서버 쪽 문제다.
                     Text(
                       '선택할 수 있는 택배사가 없습니다. 잠시 후 다시 시도해주세요.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   const SizedBox(height: 8),
                   ElevatedButton(
@@ -1040,7 +1089,10 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
                   const SizedBox(height: 8),
                   Text(
                     state.errorMessage!,
-                    style: TextStyle(fontSize: 12, color: Colors.red[700]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ],
                 if (state.result != null) ...[
@@ -1062,7 +1114,8 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
       widgets.add(Text(
         '${result.isUpdateMode ? '송장 수정 요청 완료' : '발송처리 완료'} — '
         '박스 ${result.shipmentBoxId} · ${result.sentLines}건',
-        style: TextStyle(fontSize: 13, color: Colors.green[700]),
+        style:
+            const TextStyle(fontSize: 13, color: AppColors.successForeground),
       ));
     }
     // 실패는 쿠팡 원문(resultCode/message)을 가공 없이 노출한다(D6).
@@ -1071,12 +1124,15 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
         margin: const EdgeInsets.only(top: 8),
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.red[50],
+          color: Theme.of(context).colorScheme.errorContainer,
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text(
           '${failed.shipmentBoxId} · ${failed.resultCode} · ${failed.message}',
-          style: TextStyle(fontSize: 12, color: Colors.red[700]),
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.error,
+          ),
         ),
       ));
     }
@@ -1178,7 +1234,10 @@ class _OrderSheetSection extends StatelessWidget {
               Text(
                 '쿠팡 주문만 지원합니다.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ],
@@ -1217,7 +1276,10 @@ class _OrderSheetSection extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               '주문번호 ${order.externalOrderId} · ${rows.length}건',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             if (hasMissingPhone) ...[
               const SizedBox(height: 12),
@@ -1225,13 +1287,16 @@ class _OrderSheetSection extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
-                  border: Border.all(color: Colors.amber.shade200),
+                  color: AppColors.warningSurface,
+                  border: Border.all(color: AppColors.warningBorder),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   '$platformLabel에서 고객 안심번호를 재발행하십시오.',
-                  style: TextStyle(fontSize: 13, color: Colors.amber.shade900),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.warningForeground,
+                  ),
                 ),
               ),
             ],
@@ -1332,7 +1397,7 @@ class _OrderSheetRowCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -1340,7 +1405,10 @@ class _OrderSheetRowCard extends StatelessWidget {
         children: [
           Text(
             _addressHead,
-            style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
@@ -1354,7 +1422,10 @@ class _OrderSheetRowCard extends StatelessWidget {
             children: [
               Text(
                 '내품수량 ${row.quantity}',
-                style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const Spacer(),
               const Text('택배수량', style: TextStyle(fontSize: 12)),

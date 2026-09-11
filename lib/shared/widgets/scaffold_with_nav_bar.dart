@@ -62,8 +62,10 @@ class ScaffoldWithNavBar extends StatefulWidget {
   final bool showAppBarDrawerButton;
   final VoidCallback? onBackPressed;
 
-  /// Body background color. Defaults to null → falls back to grey[100].
-  /// Pass `Colors.white` for pages that need a plain white background.
+  /// Body background color. Defaults to null → the theme's
+  /// `scaffoldBackgroundColor` applies.
+  /// Pass `Theme.of(context).colorScheme.surface` for pages that need a plain
+  /// card-colored background. ❌ Never pass a `Colors.*` literal.
   final Color? backgroundColor;
 
   const ScaffoldWithNavBar({
@@ -107,25 +109,27 @@ class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
       children: [
         Scaffold(
           key: _scaffoldKey,
-          drawerScrimColor: Colors.black.withOpacity(0.3),
+          drawerScrimColor: Theme.of(context)
+              .colorScheme
+              .scrim
+              .withValues(alpha: 0.3),
           appBar: AppBar(
             automaticallyImplyLeading: false,
             leading: widget.onBackPressed != null
                 ? IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.black),
+                    icon: const Icon(Icons.arrow_back),
                     onPressed: widget.onBackPressed,
                   )
                 : (widget.showDrawer && widget.showAppBarDrawerButton
                     ? IconButton(
-                        icon: const Icon(Icons.menu, color: Colors.black),
+                        icon: const Icon(Icons.menu),
                         onPressed: () => _scaffoldKey.currentState?.openDrawer(),
                       )
                     : null),
             title: Text(widget.title),
-            backgroundColor: Colors.white,
             elevation: 0,
           ),
-          backgroundColor: widget.backgroundColor ?? Colors.grey[100],
+          backgroundColor: widget.backgroundColor,
           body: widget.body,
           bottomNavigationBar: SizedBox.shrink(),
           drawer: widget.showDrawer ? const AppDrawer() : null,
@@ -146,7 +150,9 @@ class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
                   BottomNavigationBarItem(
                     icon: Icon(
                       Icons.menu,
-                      color: isDrawerOpen ? AppColors.brandMain : Colors.black87,
+                      color: isDrawerOpen
+                          ? AppColors.brandMain
+                          : Theme.of(context).colorScheme.onSurface,
                     ),
                     label: '',
                   ),

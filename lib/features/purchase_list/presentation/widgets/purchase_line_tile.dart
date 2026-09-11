@@ -24,8 +24,8 @@ class PurchaseLineTile extends StatelessWidget {
       margin: const EdgeInsets.only(top: 6),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        border: Border.all(color: Colors.grey.shade200),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
@@ -44,7 +44,10 @@ class PurchaseLineTile extends StatelessWidget {
             child: Text(
               // 수동 라인은 주문번호가 없다.
               line.externalOrderId ?? '—',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
