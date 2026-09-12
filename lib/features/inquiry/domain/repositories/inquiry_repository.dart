@@ -7,7 +7,6 @@ import '../entities/inquiry_type_option.dart';
 
 /// 고객문의 조회·동기화 계약 (FEATURE_2609_36).
 ///
-/// ⚠️ 답변 전송(`POST /api/admin/inquiries/{id}/replies`)은 여기 없다 — 03 범위다.
 abstract class InquiryRepository {
   /// 문의 목록 조회
   /// GET /api/inquiries?type=&status=&accountId=&sellerId=&from=&to=&keyword=
@@ -45,4 +44,14 @@ abstract class InquiryRepository {
   ///
   /// 채널 **1개**분이다 — 여러 채널 순회는 화면(BLoC)이 한다(M4).
   Future<Either<Failure, InquirySyncResult>> syncInquiries(int accountId);
+
+  /// 답변 전송 (ADMIN 전용)
+  /// POST /api/admin/inquiries/{id}/replies  body {content}
+  ///
+  /// 🔴 되돌릴 수 없다(2609_23 D17). 성공 응답은 **갱신된 문의 1건**이라 호출자는 재조회하지
+  /// 않고 그대로 화면 상태를 바꾼다.
+  ///
+  /// ⚠️ 실패는 [ServerFailure] 이고 **`statusCode` 가 반드시 실려 온다** — 403(ADMIN 아님) ·
+  /// 502(전송 결과 미상) · 그 외(검증 실패 등)의 화면 동작이 전부 다르다.
+  Future<Either<Failure, InquiryDetail>> replyToInquiry(int id, String content);
 }

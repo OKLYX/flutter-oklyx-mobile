@@ -37,6 +37,16 @@ abstract class InquiryRemoteDataSource {
 
   /// POST /api/inquiries/sync?accountId= — 채널 1개의 문의만 가져온다.
   Future<InquirySyncResultModel> syncInquiries(int accountId);
+
+  /// POST /api/admin/inquiries/{id}/replies  body {"content": ...}
+  ///
+  /// 🔴 되돌릴 수 없다(2609_23 D17) — 쿠팡에 답변 수정·삭제 API 가 없다.
+  /// 응답은 **갱신된 문의 1건**(스레드·재판정된 `replyCapability` 포함)이라 전송 후 재조회가 필요 없다.
+  ///
+  /// ⚠️ ADMIN 전용이라 일반 사용자는 403 이다 — 오류가 아니라 **권한 신호**다(PLAN M5).
+  /// ⚠️ 바디는 `content` **하나뿐**이다. `parentReplyId` 를 보내지 말 것 — 서버가 전송 직전에
+  /// 자기 값을 다시 고른다(`InquiryReplyRequest` javadoc).
+  Future<InquiryDetailModel> replyToInquiry(int id, String content);
 }
 
 class InquiryRemoteDataSourceImpl implements InquiryRemoteDataSource {
@@ -105,5 +115,19 @@ class InquiryRemoteDataSourceImpl implements InquiryRemoteDataSource {
       throw Exception('Failed to sync inquiries');
     }
     return InquirySyncResultModel.fromJson(data);
+  }
+
+  @override
+  Future<InquiryDetailModel> replyToInquiry(int id, String content) async {
+    final response = await dio.post(
+      '/api/admin/inquiries/$id/replies',
+      data: <String, dynamic>{'content': content},
+    );
+    final data = response.data['data'];
+    if (data is! Map<String, dynamic>) {
+      throw Exception('Failed to send inquiry reply');
+    }
+    // 응답 스키마는 단건 조회와 같다 — 같은 모델로 파싱한다.
+    return InquiryDetailModel.fromJson(data);
   }
 }

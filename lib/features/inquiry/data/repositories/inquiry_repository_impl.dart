@@ -83,6 +83,21 @@ class InquiryRepositoryImpl implements InquiryRepository {
     }
   }
 
+  @override
+  Future<Either<Failure, InquiryDetail>> replyToInquiry(
+    int id,
+    String content,
+  ) async {
+    try {
+      return Right(await remoteDataSource.replyToInquiry(id, content));
+    } on DioException catch (e) {
+      // 🔴 statusCode 를 살려 보낸다 — BLoC 이 403/502/그 외를 여기서만 구분할 수 있다.
+      return Left(_toFailure(e, '답변 전송에 실패했습니다.'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
   /// [DioException] → [ServerFailure].
   ///
   /// 사유 문구는 **서버 봉투의 `message` 를 먼저** 쓴다 — 채널별 동기화 실패를 그대로
