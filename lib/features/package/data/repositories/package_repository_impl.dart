@@ -43,6 +43,9 @@ class PackageRepositoryImpl implements PackageRepository {
     required double cost,
     required String effectiveDate,
     required bool isDefault,
+    required double widthCm,
+    required double lengthCm,
+    required double heightCm,
   }) async {
     try {
       final package = await remoteDataSource.updatePackage(
@@ -51,6 +54,9 @@ class PackageRepositoryImpl implements PackageRepository {
         cost: cost,
         effectiveDate: effectiveDate,
         isDefault: isDefault,
+        widthCm: widthCm,
+        lengthCm: lengthCm,
+        heightCm: heightCm,
       );
       return Right(package);
     } on ServerException catch (e) {

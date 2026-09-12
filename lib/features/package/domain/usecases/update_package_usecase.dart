@@ -14,6 +14,9 @@ class UpdatePackageUseCase {
     required double cost,
     required String effectiveDate,
     required bool isDefault,
+    required double widthCm,
+    required double lengthCm,
+    required double heightCm,
   }) {
     return repository.updatePackage(
       id: id,
@@ -21,6 +24,9 @@ class UpdatePackageUseCase {
       cost: cost,
       effectiveDate: effectiveDate,
       isDefault: isDefault,
+      widthCm: widthCm,
+      lengthCm: lengthCm,
+      heightCm: heightCm,
     );
   }
 }

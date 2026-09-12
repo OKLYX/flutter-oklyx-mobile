@@ -48,6 +48,15 @@ class PackageListItem extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 4),
+              Text(
+                '사이즈: ${package.sizeLabel}',
+                style: package.isSizeUnset
+                    ? TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      )
+                    : null,
+              ),
+              const SizedBox(height: 4),
               Text('유효일: ${package.effectiveDate}'),
             ],
           ),

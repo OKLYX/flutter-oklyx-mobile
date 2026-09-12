@@ -41,6 +41,9 @@ class _PackageInputDialogState extends State<PackageInputDialog> {
   late TextEditingController _typeController;
   late TextEditingController _costController;
   late TextEditingController _dateController;
+  late TextEditingController _widthController;
+  late TextEditingController _lengthController;
+  late TextEditingController _heightController;
 
   @override
   void initState() {
@@ -48,6 +51,9 @@ class _PackageInputDialogState extends State<PackageInputDialog> {
     _typeController = TextEditingController();
     _costController = TextEditingController();
     _dateController = TextEditingController();
+    _widthController = TextEditingController();
+    _lengthController = TextEditingController();
+    _heightController = TextEditingController();
 
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
     _dateController.text = today;
@@ -61,6 +67,9 @@ class _PackageInputDialogState extends State<PackageInputDialog> {
     _typeController.dispose();
     _costController.dispose();
     _dateController.dispose();
+    _widthController.dispose();
+    _lengthController.dispose();
+    _heightController.dispose();
     super.dispose();
   }
 
@@ -156,6 +165,57 @@ class _PackageInputDialogState extends State<PackageInputDialog> {
                       PackageTypeChanged(value),
                     );
                   },
+                ),
+                const SizedBox(height: 12),
+
+                // Size Fields (0.1 ~ 999.9, 소수점 첫째 자리까지)
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _widthController,
+                        label: '가로(cm)',
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        onChanged: (value) {
+                          context.read<PackageCreateBloc>().add(
+                            PackageWidthChanged(value),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _lengthController,
+                        label: '세로(cm)',
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        onChanged: (value) {
+                          context.read<PackageCreateBloc>().add(
+                            PackageLengthChanged(value),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _heightController,
+                        label: '높이(cm)',
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        onChanged: (value) {
+                          context.read<PackageCreateBloc>().add(
+                            PackageHeightChanged(value),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
 

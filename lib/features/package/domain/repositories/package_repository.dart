@@ -12,6 +12,9 @@ abstract class PackageRepository {
     required double cost,
     required String effectiveDate,
     required bool isDefault,
+    required double widthCm,
+    required double lengthCm,
+    required double heightCm,
   });
   Future<Either<Failure, void>> deletePackage(int id);
 }

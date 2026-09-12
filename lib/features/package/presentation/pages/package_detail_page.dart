@@ -9,6 +9,7 @@ import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_detail_state.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_list_event.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 
 class PackageDetailPage extends StatelessWidget {
@@ -125,6 +126,7 @@ class _PackageDetailsView extends StatelessWidget {
             const SizedBox(height: 24),
             _DetailField('상자 유형', package.type),
             _DetailField('비용', '${fmt.format(package.cost)}원'),
+            _DetailField('사이즈', package.sizeLabel),
             _DetailField('유효일', package.effectiveDate),
             _DetailField('기본값', package.isDefault ? '예' : '아니오'),
           ],
@@ -173,6 +175,7 @@ class _PackageEditForm extends StatefulWidget {
 
 class _PackageEditFormState extends State<_PackageEditForm> {
   late TextEditingController typeCtrl, costCtrl, dateCtrl;
+  late TextEditingController widthCtrl, lengthCtrl, heightCtrl;
 
   @override
   void initState() {
@@ -180,6 +183,16 @@ class _PackageEditFormState extends State<_PackageEditForm> {
     typeCtrl = TextEditingController(text: widget.state.editingData['type']);
     costCtrl = TextEditingController(text: widget.state.editingData['cost'].toInt().toString());
     dateCtrl = TextEditingController(text: widget.state.editingData['effectiveDate']);
+    // 미지정(0) 상자는 빈 칸으로 연다 — 0 이 남아 있으면 지우고 다시 쳐야 한다
+    // (PLAN 2609_38 D4).
+    widthCtrl = TextEditingController(text: _sizeText('widthCm'));
+    lengthCtrl = TextEditingController(text: _sizeText('lengthCm'));
+    heightCtrl = TextEditingController(text: _sizeText('heightCm'));
+  }
+
+  String _sizeText(String field) {
+    final value = widget.state.editingData[field] as double;
+    return value == 0 ? '' : value.toString();
   }
 
   @override
@@ -187,6 +200,9 @@ class _PackageEditFormState extends State<_PackageEditForm> {
     typeCtrl.dispose();
     costCtrl.dispose();
     dateCtrl.dispose();
+    widthCtrl.dispose();
+    lengthCtrl.dispose();
+    heightCtrl.dispose();
     super.dispose();
   }
 
@@ -194,7 +210,13 @@ class _PackageEditFormState extends State<_PackageEditForm> {
     return widget.state.editingData['type'] != widget.state.originalPackage.type ||
         widget.state.editingData['cost'] != widget.state.originalPackage.cost ||
         widget.state.editingData['effectiveDate'] != widget.state.originalPackage.effectiveDate ||
-        widget.state.editingData['isDefault'] != widget.state.originalPackage.isDefault;
+        widget.state.editingData['isDefault'] != widget.state.originalPackage.isDefault ||
+        widget.state.editingData['widthCm'] !=
+            widget.state.originalPackage.widthCm ||
+        widget.state.editingData['lengthCm'] !=
+            widget.state.originalPackage.lengthCm ||
+        widget.state.editingData['heightCm'] !=
+            widget.state.originalPackage.heightCm;
   }
 
   @override
@@ -223,6 +245,71 @@ class _PackageEditFormState extends State<_PackageEditForm> {
               (v) => widget.bloc.add(UpdateFormField(field: 'cost', value: double.tryParse(v) ?? 0)),
               errors['cost'],
               keyboardType: TextInputType.number,
+            ),
+            if (widget.state.originalPackage.isSizeUnset)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: Text(
+                  '사이즈가 등록되지 않은 상자입니다. 값을 입력해야 저장할 수 있습니다.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.warningForeground,
+                  ),
+                ),
+              ),
+            Row(
+              children: [
+                Expanded(
+                  child: _FormField(
+                    '가로(cm)',
+                    widthCtrl,
+                    (v) => widget.bloc.add(
+                      UpdateFormField(
+                        field: 'widthCm',
+                        value: double.tryParse(v) ?? 0,
+                      ),
+                    ),
+                    errors['widthCm'],
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _FormField(
+                    '세로(cm)',
+                    lengthCtrl,
+                    (v) => widget.bloc.add(
+                      UpdateFormField(
+                        field: 'lengthCm',
+                        value: double.tryParse(v) ?? 0,
+                      ),
+                    ),
+                    errors['lengthCm'],
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _FormField(
+                    '높이(cm)',
+                    heightCtrl,
+                    (v) => widget.bloc.add(
+                      UpdateFormField(
+                        field: 'heightCm',
+                        value: double.tryParse(v) ?? 0,
+                      ),
+                    ),
+                    errors['heightCm'],
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
+                ),
+              ],
             ),
             _FormField(
               '유효일 (YYYY-MM-DD)',
