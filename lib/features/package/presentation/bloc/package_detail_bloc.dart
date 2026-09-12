@@ -52,6 +52,9 @@ class PackageDetailBloc extends Bloc<PackageDetailEvent, PackageDetailState> {
           'cost': pkg.cost,
           'effectiveDate': pkg.effectiveDate,
           'isDefault': pkg.isDefault,
+          'widthCm': pkg.widthCm,
+          'lengthCm': pkg.lengthCm,
+          'heightCm': pkg.heightCm,
         },
       ));
     }
@@ -93,6 +96,9 @@ class PackageDetailBloc extends Bloc<PackageDetailEvent, PackageDetailState> {
         cost: current.editingData['cost'],
         effectiveDate: current.editingData['effectiveDate'],
         isDefault: current.editingData['isDefault'],
+        widthCm: current.editingData['widthCm'],
+        lengthCm: current.editingData['lengthCm'],
+        heightCm: current.editingData['heightCm'],
       );
       result.fold(
         (failure) => emit(PackageDetailError(failure.message)),
@@ -114,13 +120,31 @@ class PackageDetailBloc extends Bloc<PackageDetailEvent, PackageDetailState> {
     } else if (field == 'effectiveDate') {
       if ((value as String).isEmpty) return '유효일은 필수입니다';
       if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value)) return 'YYYY-MM-DD 형식으로 입력하세요';
+    } else if (field == 'widthCm' ||
+        field == 'lengthCm' ||
+        field == 'heightCm') {
+      // 서버 @DecimalMin/@DecimalMax/@Digits 와 동일 조건 (PLAN 2609_38 D5)
+      final v = double.tryParse(value.toString());
+      if (v == null || v < 0.1 || v > 999.9) {
+        return '0.1 ~ 999.9 사이로 입력하세요';
+      }
+      if (double.parse(v.toStringAsFixed(1)) != v) {
+        return '소수점 첫째 자리까지 입력하세요';
+      }
     }
     return '';
   }
 
   Map<String, String> _validateAll(Map<String, dynamic> data) {
     final errors = <String, String>{};
-    for (final field in ['type', 'cost', 'effectiveDate']) {
+    for (final field in [
+      'type',
+      'cost',
+      'effectiveDate',
+      'widthCm',
+      'lengthCm',
+      'heightCm',
+    ]) {
       final error = _validateField(field, data[field]);
       if (error.isNotEmpty) {
         errors[field] = error;
