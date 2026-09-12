@@ -45,4 +45,11 @@ class InquiryUseCase {
   /// 채널 1개의 문의만 가져온다. 순회는 호출자(BLoC)가 한다(M4).
   Future<Either<Failure, InquirySyncResult>> syncInquiries(int accountId) =>
       repository.syncInquiries(accountId);
+
+  /// 답변 전송(ADMIN 전용). 🔴 되돌릴 수 없다(D17) — 자동 재시도를 넣지 말 것.
+  Future<Either<Failure, InquiryDetail>> replyToInquiry(
+    int id,
+    String content,
+  ) =>
+      repository.replyToInquiry(id, content);
 }
