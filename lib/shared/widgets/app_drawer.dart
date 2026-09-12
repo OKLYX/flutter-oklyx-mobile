@@ -78,6 +78,16 @@ class AppDrawer extends StatelessWidget {
                   },
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('고객문의'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.inquiryListPath);
+                  },
+                ),
+              ),
             ],
           ),
           ExpansionTile(
