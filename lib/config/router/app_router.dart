@@ -8,6 +8,9 @@ import 'package:flutter_oklyn_mobile/features/auth/presentation/pages/login_page
 import 'package:flutter_oklyn_mobile/features/claim/domain/entities/claim.dart';
 import 'package:flutter_oklyn_mobile/features/claim/presentation/pages/claim_list_page.dart';
 import 'package:flutter_oklyn_mobile/features/claim/presentation/pages/claim_detail_page.dart';
+import 'package:flutter_oklyn_mobile/features/inquiry/domain/entities/inquiry.dart';
+import 'package:flutter_oklyn_mobile/features/inquiry/presentation/pages/inquiry_list_page.dart';
+import 'package:flutter_oklyn_mobile/features/inquiry/presentation/pages/inquiry_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_event.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_detail_bloc.dart';
@@ -487,6 +490,27 @@ class AppRouter {
             final claim = state.extra as Claim?;
             return NoTransitionPage(
               child: ClaimDetailPage(claim: claim),
+            );
+          },
+        ),
+      ],
+    ),
+    GoRoute(
+      name: Routes.inquiryList,
+      path: Routes.inquiryListPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: InquiryListPage(),
+      ),
+      routes: [
+        GoRoute(
+          name: Routes.inquiryDetail,
+          path: 'detail',
+          pageBuilder: (context, state) {
+            // 목록에서 extra 로 전달한 Inquiry — **헤더를 먼저 그리는 용도**다.
+            // 스레드·관련 주문은 상세 진입 후 단건 API 가 채운다(PLAN 2609_36 M1).
+            final inquiry = state.extra as Inquiry?;
+            return NoTransitionPage(
+              child: InquiryDetailPage(inquiry: inquiry),
             );
           },
         ),

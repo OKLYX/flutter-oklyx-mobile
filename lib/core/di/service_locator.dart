@@ -166,6 +166,12 @@ import 'package:flutter_oklyn_mobile/features/claim/data/repositories/claim_repo
 import 'package:flutter_oklyn_mobile/features/claim/domain/repositories/claim_repository.dart';
 import 'package:flutter_oklyn_mobile/features/claim/domain/usecases/claim_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/claim/presentation/bloc/claim_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/inquiry/data/datasources/inquiry_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/inquiry/data/repositories/inquiry_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/inquiry/domain/repositories/inquiry_repository.dart';
+import 'package:flutter_oklyn_mobile/features/inquiry/domain/usecases/inquiry_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/inquiry/presentation/bloc/inquiry_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/inquiry/presentation/bloc/inquiry_detail_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -186,6 +192,7 @@ void setupServiceLocator() {
   _registerShippingLabelServices();
   _registerOrderServices();
   _registerClaimServices();
+  _registerInquiryServices();
   _registerPurchaseListServices();
   _registerStockLedgerServices();
   _registerErrorHandling();
@@ -860,6 +867,39 @@ void _registerClaimServices() {
       claimUseCase: getIt<ClaimUseCase>(),
       getSellersUseCase: getIt<GetSellersUseCase>(),
     ),
+  );
+}
+
+void _registerInquiryServices() {
+  // Data Source
+  getIt.registerSingleton<InquiryRemoteDataSource>(
+    InquiryRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
+  );
+
+  // Repository
+  getIt.registerSingleton<InquiryRepository>(
+    InquiryRepositoryImpl(remoteDataSource: getIt<InquiryRemoteDataSource>()),
+  );
+
+  // Use Case
+  getIt.registerSingleton<InquiryUseCase>(
+    InquiryUseCase(repository: getIt<InquiryRepository>()),
+  );
+
+  // BLoC as factory to allow fresh state per page.
+  // 판매자 드롭다운은 seller 기능의 GetSellersUseCase, 채널(동기화 대상)은 order 기능의
+  // OrderUseCase.getSyncTargets 를 재사용한다 — 문의 전용 API 를 새로 만들지 않는다.
+  getIt.registerFactory<InquiryListBloc>(
+    () => InquiryListBloc(
+      inquiryUseCase: getIt<InquiryUseCase>(),
+      getSellersUseCase: getIt<GetSellersUseCase>(),
+      orderUseCase: getIt<OrderUseCase>(),
+    ),
+  );
+
+  // ⚠️ 상세도 factory 다 — 싱글턴이면 이전 문의의 스레드가 다음 문의에 남는다.
+  getIt.registerFactory<InquiryDetailBloc>(
+    () => InquiryDetailBloc(inquiryUseCase: getIt<InquiryUseCase>()),
   );
 }
 
