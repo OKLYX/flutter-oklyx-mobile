@@ -70,3 +70,6 @@ app.*.map.json
 .cursor/
 .copilot/
 CLAUDE.md
+
+# FVM Version Cache
+.fvm/
