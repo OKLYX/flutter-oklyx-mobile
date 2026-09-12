@@ -22,6 +22,33 @@ class PackageCostChanged extends PackageCreateEvent {
   List<Object> get props => [cost];
 }
 
+class PackageWidthChanged extends PackageCreateEvent {
+  final String width;
+
+  const PackageWidthChanged(this.width);
+
+  @override
+  List<Object> get props => [width];
+}
+
+class PackageLengthChanged extends PackageCreateEvent {
+  final String length;
+
+  const PackageLengthChanged(this.length);
+
+  @override
+  List<Object> get props => [length];
+}
+
+class PackageHeightChanged extends PackageCreateEvent {
+  final String height;
+
+  const PackageHeightChanged(this.height);
+
+  @override
+  List<Object> get props => [height];
+}
+
 class PackageEffectiveDateChanged extends PackageCreateEvent {
   final String effectiveDate;
 

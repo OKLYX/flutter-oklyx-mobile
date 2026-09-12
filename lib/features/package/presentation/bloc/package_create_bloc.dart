@@ -11,12 +11,18 @@ class PackageCreateBloc extends Bloc<PackageCreateEvent, PackageCreateState> {
   String _cost = '';
   String _effectiveDate = '';
   bool _isDefault = false;
+  String _width = '';
+  String _length = '';
+  String _height = '';
 
   PackageCreateBloc({
     required this.createPackageUseCase,
   }) : super(PackageCreateInitial()) {
     on<PackageTypeChanged>(_onPackageTypeChanged);
     on<PackageCostChanged>(_onPackageCostChanged);
+    on<PackageWidthChanged>(_onPackageWidthChanged);
+    on<PackageLengthChanged>(_onPackageLengthChanged);
+    on<PackageHeightChanged>(_onPackageHeightChanged);
     on<PackageEffectiveDateChanged>(_onPackageEffectiveDateChanged);
     on<PackageIsDefaultChanged>(_onPackageIsDefaultChanged);
     on<CreatePackageRequested>(_onCreatePackageRequested);
@@ -36,6 +42,30 @@ class PackageCreateBloc extends Bloc<PackageCreateEvent, PackageCreateState> {
     Emitter<PackageCreateState> emit,
   ) async {
     _cost = event.cost;
+    emit(_buildLoadedState());
+  }
+
+  Future<void> _onPackageWidthChanged(
+    PackageWidthChanged event,
+    Emitter<PackageCreateState> emit,
+  ) async {
+    _width = event.width;
+    emit(_buildLoadedState());
+  }
+
+  Future<void> _onPackageLengthChanged(
+    PackageLengthChanged event,
+    Emitter<PackageCreateState> emit,
+  ) async {
+    _length = event.length;
+    emit(_buildLoadedState());
+  }
+
+  Future<void> _onPackageHeightChanged(
+    PackageHeightChanged event,
+    Emitter<PackageCreateState> emit,
+  ) async {
+    _height = event.height;
     emit(_buildLoadedState());
   }
 
@@ -66,6 +96,9 @@ class PackageCreateBloc extends Bloc<PackageCreateEvent, PackageCreateState> {
       cost: double.parse(_cost),
       effectiveDate: _effectiveDate,
       isDefault: _isDefault,
+      widthCm: double.parse(_width),
+      lengthCm: double.parse(_length),
+      heightCm: double.parse(_height),
     );
 
     final result = await createPackageUseCase(params);
@@ -86,6 +119,9 @@ class PackageCreateBloc extends Bloc<PackageCreateEvent, PackageCreateState> {
     _cost = '';
     _effectiveDate = '';
     _isDefault = false;
+    _width = '';
+    _length = '';
+    _height = '';
     emit(PackageCreateInitial());
   }
 
@@ -95,6 +131,9 @@ class PackageCreateBloc extends Bloc<PackageCreateEvent, PackageCreateState> {
       cost: _cost,
       effectiveDate: _effectiveDate,
       isDefault: _isDefault,
+      width: _width,
+      length: _length,
+      height: _height,
       isFormValid: _validateForm(),
     );
   }
@@ -113,6 +152,22 @@ class PackageCreateBloc extends Bloc<PackageCreateEvent, PackageCreateState> {
       return false;
     }
 
+    if (!_isValidSize(_width) ||
+        !_isValidSize(_length) ||
+        !_isValidSize(_height)) {
+      return false;
+    }
+
     return true;
+  }
+
+  /// 사이즈 입력 검증 — 0.1 ~ 999.9 · 소수점 첫째 자리까지
+  /// (서버 `@DecimalMin`/`@DecimalMax`/`@Digits` 와 동일 조건, PLAN 2609_38 D5).
+  bool _isValidSize(String raw) {
+    final v = double.tryParse(raw);
+    if (v == null || v < 0.1 || v > 999.9) {
+      return false;
+    }
+    return double.parse(v.toStringAsFixed(1)) == v;
   }
 }

@@ -12,6 +12,9 @@ abstract class PackageRemoteDataSource {
     required double cost,
     required String effectiveDate,
     required bool isDefault,
+    required double widthCm,
+    required double lengthCm,
+    required double heightCm,
   });
   Future<void> deletePackage(int id);
 }
@@ -66,6 +69,9 @@ class PackageRemoteDataSourceImpl implements PackageRemoteDataSource {
     required double cost,
     required String effectiveDate,
     required bool isDefault,
+    required double widthCm,
+    required double lengthCm,
+    required double heightCm,
   }) async {
     try {
       final response = await dio.patch(
@@ -75,6 +81,9 @@ class PackageRemoteDataSourceImpl implements PackageRemoteDataSource {
           'cost': cost,
           'effectiveDate': effectiveDate,
           'isDefault': isDefault,
+          'widthCm': widthCm,
+          'lengthCm': lengthCm,
+          'heightCm': heightCm,
         },
       );
       final dynamic dataField = response.data['data'];

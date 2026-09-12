@@ -20,6 +20,9 @@ class PackageCreateLoaded extends PackageCreateState {
   final String cost;
   final String effectiveDate;
   final bool isDefault;
+  final String width;
+  final String length;
+  final String height;
   final bool isFormValid;
 
   const PackageCreateLoaded({
@@ -27,6 +30,9 @@ class PackageCreateLoaded extends PackageCreateState {
     required this.cost,
     required this.effectiveDate,
     required this.isDefault,
+    required this.width,
+    required this.length,
+    required this.height,
     required this.isFormValid,
   });
 
@@ -36,6 +42,9 @@ class PackageCreateLoaded extends PackageCreateState {
     cost,
     effectiveDate,
     isDefault,
+    width,
+    length,
+    height,
     isFormValid,
   ];
 }
