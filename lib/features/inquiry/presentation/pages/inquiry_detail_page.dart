@@ -12,9 +12,10 @@ import '../bloc/inquiry_detail_bloc.dart';
 import '../bloc/inquiry_detail_event.dart';
 import '../bloc/inquiry_detail_state.dart';
 import '../widgets/inquiry_order_panel.dart';
+import '../widgets/inquiry_reply_composer.dart';
 import '../widgets/inquiry_thread.dart';
 
-/// 문의 상세 페이지 (FEATURE_2609_36 / 02 — **읽기 전용**).
+/// 문의 상세 페이지 (FEATURE_2609_36 / 02·03).
 ///
 /// 🔴 **진입 즉시 `GET /api/inquiries/{id}` 를 부른다**(PLAN M1). 클레임 상세는 `extra` 로
 /// 받은 엔티티만 그리고 끝나지만 문의는 그렇게 하면 빈 화면이 된다 — 스레드(`replies`) ·
@@ -22,12 +23,14 @@ import '../widgets/inquiry_thread.dart';
 /// 항상 null 이다. `extra` 로 받은 목록 항목은 **헤더를 먼저 그리는 용도**로만 쓴다
 /// (스피너만 있는 화면을 보여주지 않기 위해서다).
 ///
-/// 화면 순서(세로 스택): 헤더 → 문의 본문 → 스레드 → 관련 주문/상품.
+/// 화면 순서(세로 스택): 헤더 → 문의 본문 → 스레드 → **답변 작성** → 관련 주문/상품.
+/// 답변을 쓰는 동안 스레드가 보여야 하므로 컴포저는 스레드 **바로 아래**이고, 참고용인 주문
+/// 정보는 그 아래로 내린다(PLAN M10 — 별도 답변 화면을 만들지 않는다).
 ///
 /// ⚠️ `build` 중에 `context.go`/`pop` 으로 **자동 이동하지 않는다** — 빌드 중 네비게이션은
 /// 예외를 던진다. `extra` 가 없으면(딥링크·핫리로드) 안내 패널 + 복귀 버튼을 그린다.
 /// ⚠️ 연락처·이메일·주소를 그리지 않는다(M8) — 서버가 내려주지 않는다.
-/// ❌ 답변 작성 UI 금지 — 버튼 자리도 만들지 않는다(별도 범위).
+/// ⚠️ 답변 가능 여부·길이 제한은 서버 `replyCapability` 만 본다(M3) — [InquiryReplyComposer] 참고.
 class InquiryDetailPage extends StatelessWidget {
   /// 목록에서 `extra` 로 받은 문의. null 이면 id 를 알 수 없어 조회 자체가 불가능하다.
   final Inquiry? inquiry;
@@ -85,7 +88,26 @@ class _InquiryDetailView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      BlocBuilder<InquiryDetailBloc, InquiryDetailState>(
+      BlocConsumer<InquiryDetailBloc, InquiryDetailState>(
+        // 전송 실패 문구는 **서버 문구 그대로** SnackBar 로 한 번만 띄우고 비운다.
+        // ⚠️ 403(권한 없음)·502(결과 미상)는 여기로 오지 않는다 — 컴포저가 안내로 그린다.
+        listenWhen: (prev, curr) =>
+            curr is InquiryDetailLoaded && curr.replyError != null,
+        listener: (context, state) {
+          final message = (state as InquiryDetailLoaded).replyError;
+          if (message == null) return;
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(
+                content: Text(message),
+                behavior: SnackBarBehavior.floating,
+                margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
+              ),
+            );
+          // 같은 문구가 다음 rebuild 에서 다시 뜨지 않게 소비 후 비운다.
+          context.read<InquiryDetailBloc>().add(ReplyErrorCleared());
+        },
         builder: (context, state) {
           final loaded = state is InquiryDetailLoaded ? state : null;
           final detail = loaded?.detail;
@@ -134,6 +156,13 @@ class _InquiryDetailView extends StatelessWidget {
                   _Section(
                     title: '답변',
                     child: InquiryThread(replies: detail.replies),
+                  ),
+                  // 스레드 바로 아래 = 답변을 쓰는 동안 대화가 보인다(M10).
+                  InquiryReplyComposer(
+                    capability: detail.replyCapability,
+                    submitting: loaded!.submitting,
+                    replyForbidden: loaded.replyForbidden,
+                    replyUnknown: loaded.replyUnknown,
                   ),
                   const SizedBox(height: 12),
                   InquiryOrderPanel(
