@@ -850,7 +850,7 @@ class _EditableDimensionsCard extends StatelessWidget {
           ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         ),
-        keyboardType: TextInputType.number,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
       );
     } else {
       final value = controller.text;
