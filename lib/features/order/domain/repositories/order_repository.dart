@@ -52,7 +52,7 @@ abstract class OrderRepository {
     List<int> orderItemIds,
   );
 
-  /// 주문 최신화 (쿠팡 단건 조회 → 로컬 상태 갱신, FEATURE_2609_50)
+  /// 주문 상태 갱신 (쿠팡 단건 조회 → 로컬 상태 반영, FEATURE_2609_50)
   /// POST /api/orders/refresh  body: {"orderItemIds":[...]}
   /// 라인 id 를 보내지만 조회·보고 단위는 **주문번호**다 — dedupe 는 서버가 한다(D1).
   Future<Either<Failure, OrderRefreshResult>> refreshOrders(

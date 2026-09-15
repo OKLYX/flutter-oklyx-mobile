@@ -47,7 +47,7 @@ abstract class OrderRemoteDataSource {
   /// POST /api/orders/refresh  body: {"orderItemIds":[...]}
   /// 선택한 주문을 쿠팡에서 다시 읽어 로컬 상태를 맞춘다(FEATURE_2609_50).
   ///
-  /// 🔴 경로가 `/api/admin/orders` 가 **아니다** — 최신화는 ADMIN 전용이 아니라
+  /// 🔴 경로가 `/api/admin/orders` 가 **아니다** — 상태 갱신은 ADMIN 전용이 아니라
   /// 인증만 필요하다(D2). [acknowledgeOrders] 를 본떠 쓰되 경로까지 따라가지 말 것.
   Future<OrderRefreshResult> refreshOrders(List<int> orderItemIds);
 
