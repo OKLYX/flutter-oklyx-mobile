@@ -27,6 +27,9 @@ import '../bloc/order_acknowledge_state.dart';
 import '../bloc/order_cancel_bloc.dart';
 import '../bloc/order_cancel_event.dart';
 import '../bloc/order_cancel_state.dart';
+import '../bloc/order_refresh_bloc.dart';
+import '../bloc/order_refresh_event.dart';
+import '../bloc/order_refresh_state.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 // Platform display labels — same shape as product_listing_detail_page;
@@ -104,6 +107,13 @@ class OrderDetailPage extends StatelessWidget {
           BlocProvider<OrderAcknowledgeBloc>(
             create: (_) => getIt<OrderAcknowledgeBloc>(),
           ),
+        // 최신화도 쿠팡 전용 — 같은 가드 안에 둔다(2609_50 D24). 가드 밖에 두면 비-쿠팡
+        // 주문에도 버튼이 보이고, 눌러 봐야 무조건 unsupported 다.
+        // ⚠️ 진입 시 자동 조회하지 않는다 — 이벤트는 버튼 핸들러에서만 발행한다.
+        if (isCoupang)
+          BlocProvider<OrderRefreshBloc>(
+            create: (_) => getIt<OrderRefreshBloc>(),
+          ),
         // 주문 취소도 쿠팡 전용 — 같은 가드 안에 둔다. 사유 목록만 생성 시 1회 조회하고
         // (ADMIN 전용이라 여기서 403 이 먼저 온다), 전송은 버튼 핸들러에서만 발행한다(D12).
         if (isCoupang)
@@ -117,6 +127,11 @@ class OrderDetailPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // 최신화 버튼 줄. 🔴 AppBar 가 아니라 본문 최상단이다(2609_50 D23) —
+            // ScaffoldWithNavBar 에 actions 슬롯이 없고, 모든 페이지가 쓰는 공용 위젯에
+            // 슬롯을 새로 뚫지 않는다. 🔴 발주·발송이 있는 하단 액션 영역에도 두지 않는다 —
+            // 그쪽은 마켓에 쓰는 작업 자리이고 최신화는 읽기다.
+            if (isCoupang) _RefreshRow(order: o),
             // ⚠️ BlocBuilder 는 이 카드 하나만 감싼다 — Column 이나 SingleChildScrollView 를
             // 감싸면 전송할 때마다 송장시트 섹션까지 리빌드돼 편집 중이던 택배수량이 튄다.
             _buildInfoCard(o, isCoupang: isCoupang),
@@ -431,6 +446,83 @@ class _ActionTabsState extends State<_ActionTabs> {
 /// `result != null` 만으로 성공을 판정하면 실패를 완료로 보여준다(D15).
 /// ⚠️ 권한 게이트는 클라이언트에 두지 않는다. 다만 403 을 받으면 섹션을 숨긴다 —
 /// 서버가 내린 판정을 반영하는 것이라 이중 판정이 아니다(단건 발송처리와 같은 규칙).
+/// 주문 최신화 버튼 줄 (FEATURE_2609_50).
+///
+/// 쿠팡에서 이 주문을 지금 다시 읽어 로컬 상태를 맞춘다 — 정기·야간 동기화의 조회 창을
+/// 벗어나 고착된 주문을 손으로 푸는 수단이다.
+///
+/// 🔴 쿠팡 주문에서만 그린다(D24). 비-쿠팡은 호출부(`_buildContent`)가 줄 자체를 만들지 않는다.
+/// 🔴 갱신이 있으면 **목록으로 돌아간다**(D22) — 이 페이지는 라우트 `extra` 로 받은
+/// [OrderItem] 을 쓰는 StatelessWidget 이라 그 자리에서 상태 배지를 갱신할 방법이 없다.
+/// `OrderDetailBloc` 을 새로 만들어 해결하지 말 것(없는 게 정상이다).
+class _RefreshRow extends StatelessWidget {
+  final OrderItem order;
+
+  const _RefreshRow({required this.order});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocConsumer<OrderRefreshBloc, OrderRefreshState>(
+      // 같은 값이 다시 emit 될 때 SnackBar 가 겹치지 않도록 전이만 듣는다.
+      listenWhen: (prev, curr) =>
+          (curr.result != null && curr.result != prev.result) ||
+          (curr.errorMessage != null && curr.errorMessage != prev.errorMessage),
+      listener: (context, state) {
+        final result = state.result;
+        if (result != null) {
+          // 실패 사유는 서버 원문 그대로 보여준다. empty(쿠팡 0박스)는 실패가 아니다.
+          final message = result.failed.isNotEmpty
+              ? result.failed.first.reason
+              : (result.refreshed > 0 ? '최신 상태로 갱신했습니다.' : '이미 최신입니다.');
+          _showSnackBar(context, message);
+          context.read<OrderRefreshBloc>().add(const RefreshResultCleared());
+          // 바뀐 게 있을 때만 목록으로 돌아간다(D22). 이미 최신이거나 실패면 그 자리에
+          // 머문다 — 보여줄 변화가 없는데 화면을 옮기면 사용자가 뭘 눌렀는지 놓친다.
+          if (result.refreshed > 0) {
+            context.go(Routes.orderHistoryPath);
+          }
+          return;
+        }
+        final error = state.errorMessage;
+        if (error == null) return;
+        _showSnackBar(context, error);
+        context.read<OrderRefreshBloc>().add(const RefreshResultCleared());
+      },
+      builder: (context, state) => Align(
+        alignment: Alignment.centerRight,
+        child: TextButton.icon(
+          onPressed: state.submitting
+              ? null
+              : () => context
+                  .read<OrderRefreshBloc>()
+                  .add(RefreshRequested([order.id])),
+          icon: state.submitting
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.refresh, size: 18),
+          label: Text(state.submitting ? '확인 중…' : '최신화'),
+        ),
+      ),
+    );
+  }
+
+  /// 하단 내비를 오버레이하는 [ScaffoldWithNavBar] 를 피해 floating + bottom 70 으로 띄운다.
+  void _showSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
+        ),
+      );
+  }
+}
+
 class _AcknowledgeSection extends StatelessWidget {
   final OrderItem order;
 

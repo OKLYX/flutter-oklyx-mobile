@@ -3,6 +3,7 @@ import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import '../../data/models/cancel_reason_option.dart';
 import '../../data/models/order_acknowledge_result.dart';
 import '../../data/models/order_cancel_result.dart';
+import '../../data/models/order_refresh_result.dart';
 import '../entities/order_item.dart';
 import '../entities/order_period.dart';
 import '../entities/order_sync_result.dart';
@@ -55,6 +56,13 @@ class OrderUseCase {
     List<int> orderItemIds,
   ) {
     return repository.acknowledgeOrders(orderItemIds);
+  }
+
+  /// 주문 최신화 — 개별(주문 상세, 길이 1)과 선택(출고관리)이 같은 엔드포인트를 쓴다(D6).
+  Future<Either<Failure, OrderRefreshResult>> refreshOrders(
+    List<int> orderItemIds,
+  ) {
+    return repository.refreshOrders(orderItemIds);
   }
 
   /// 취소 사유 목록 — 라벨의 소유자는 서버다(PLAN 2609_25 D4).
