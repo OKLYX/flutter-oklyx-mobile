@@ -107,7 +107,7 @@ class OrderDetailPage extends StatelessWidget {
           BlocProvider<OrderAcknowledgeBloc>(
             create: (_) => getIt<OrderAcknowledgeBloc>(),
           ),
-        // 최신화도 쿠팡 전용 — 같은 가드 안에 둔다(2609_50 D24). 가드 밖에 두면 비-쿠팡
+        // 상태 갱신도 쿠팡 전용 — 같은 가드 안에 둔다(2609_50 D24). 가드 밖에 두면 비-쿠팡
         // 주문에도 버튼이 보이고, 눌러 봐야 무조건 unsupported 다.
         // ⚠️ 진입 시 자동 조회하지 않는다 — 이벤트는 버튼 핸들러에서만 발행한다.
         if (isCoupang)
@@ -127,10 +127,10 @@ class OrderDetailPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 최신화 버튼 줄. 🔴 AppBar 가 아니라 본문 최상단이다(2609_50 D23) —
+            // 상태 갱신 버튼 줄. 🔴 AppBar 가 아니라 본문 최상단이다(2609_50 D23) —
             // ScaffoldWithNavBar 에 actions 슬롯이 없고, 모든 페이지가 쓰는 공용 위젯에
             // 슬롯을 새로 뚫지 않는다. 🔴 발주·발송이 있는 하단 액션 영역에도 두지 않는다 —
-            // 그쪽은 마켓에 쓰는 작업 자리이고 최신화는 읽기다.
+            // 그쪽은 마켓에 쓰는 작업 자리이고 상태 갱신은 읽기다.
             if (isCoupang) _RefreshRow(order: o),
             // ⚠️ BlocBuilder 는 이 카드 하나만 감싼다 — Column 이나 SingleChildScrollView 를
             // 감싸면 전송할 때마다 송장시트 섹션까지 리빌드돼 편집 중이던 택배수량이 튄다.
@@ -446,7 +446,7 @@ class _ActionTabsState extends State<_ActionTabs> {
 /// `result != null` 만으로 성공을 판정하면 실패를 완료로 보여준다(D15).
 /// ⚠️ 권한 게이트는 클라이언트에 두지 않는다. 다만 403 을 받으면 섹션을 숨긴다 —
 /// 서버가 내린 판정을 반영하는 것이라 이중 판정이 아니다(단건 발송처리와 같은 규칙).
-/// 주문 최신화 버튼 줄 (FEATURE_2609_50).
+/// 주문 상태 갱신 버튼 줄 (FEATURE_2609_50).
 ///
 /// 쿠팡에서 이 주문을 지금 다시 읽어 로컬 상태를 맞춘다 — 정기·야간 동기화의 조회 창을
 /// 벗어나 고착된 주문을 손으로 푸는 수단이다.
@@ -503,7 +503,7 @@ class _RefreshRow extends StatelessWidget {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.refresh, size: 18),
-          label: Text(state.submitting ? '확인 중…' : '최신화'),
+          label: Text(state.submitting ? '확인 중…' : '주문 상태 갱신'),
         ),
       ),
     );

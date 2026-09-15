@@ -844,7 +844,7 @@ void _registerOrderServices() {
     () => OrderAcknowledgeBloc(useCase: getIt<OrderUseCase>()),
   );
 
-  // BLoC (주문 최신화) as factory — 화면·주문마다 새 인스턴스.
+  // BLoC (주문 상태 갱신) as factory — 화면·주문마다 새 인스턴스.
   // ⚠️ 싱글턴이면 이전 화면의 result 가 남아 결과 SnackBar 가 다시 뜬다.
   getIt.registerFactory<OrderRefreshBloc>(
     () => OrderRefreshBloc(useCase: getIt<OrderUseCase>()),

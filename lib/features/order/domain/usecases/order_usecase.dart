@@ -58,7 +58,7 @@ class OrderUseCase {
     return repository.acknowledgeOrders(orderItemIds);
   }
 
-  /// 주문 최신화 — 개별(주문 상세, 길이 1)과 선택(출고관리)이 같은 엔드포인트를 쓴다(D6).
+  /// 주문 상태 갱신 — 개별(주문 상세, 길이 1)과 선택(출고관리)이 같은 엔드포인트를 쓴다(D6).
   Future<Either<Failure, OrderRefreshResult>> refreshOrders(
     List<int> orderItemIds,
   ) {
