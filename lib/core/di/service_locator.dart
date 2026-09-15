@@ -124,6 +124,7 @@ import 'package:flutter_oklyn_mobile/features/order/domain/usecases/order_usecas
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_acknowledge_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_cancel_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_refresh_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/data/datasources/shipping_label_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/data/repositories/shipping_label_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/domain/repositories/shipping_label_repository.dart';
@@ -841,6 +842,12 @@ void _registerOrderServices() {
   // ⚠️ 싱글턴이면 이전 화면의 result 가 남아 결과 SnackBar 가 다시 뜬다.
   getIt.registerFactory<OrderAcknowledgeBloc>(
     () => OrderAcknowledgeBloc(useCase: getIt<OrderUseCase>()),
+  );
+
+  // BLoC (주문 최신화) as factory — 화면·주문마다 새 인스턴스.
+  // ⚠️ 싱글턴이면 이전 화면의 result 가 남아 결과 SnackBar 가 다시 뜬다.
+  getIt.registerFactory<OrderRefreshBloc>(
+    () => OrderRefreshBloc(useCase: getIt<OrderUseCase>()),
   );
 
   // BLoC (발송 전 주문 취소) as factory — 화면·주문마다 새 인스턴스.

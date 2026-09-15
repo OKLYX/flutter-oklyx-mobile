@@ -3,6 +3,7 @@ import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import '../../data/models/cancel_reason_option.dart';
 import '../../data/models/order_acknowledge_result.dart';
 import '../../data/models/order_cancel_result.dart';
+import '../../data/models/order_refresh_result.dart';
 import '../entities/order_item.dart';
 import '../entities/order_period.dart';
 import '../entities/order_sync_result.dart';
@@ -48,6 +49,13 @@ abstract class OrderRepository {
   /// POST /api/admin/orders/acknowledge  body: {"orderItemIds":[...]}
   /// 라인 id 만 보낸다 — 박스 dedupe·상태 필터는 서버가 한다(PLAN 2609_17 D1·D2).
   Future<Either<Failure, OrderAcknowledgeResult>> acknowledgeOrders(
+    List<int> orderItemIds,
+  );
+
+  /// 주문 최신화 (쿠팡 단건 조회 → 로컬 상태 갱신, FEATURE_2609_50)
+  /// POST /api/orders/refresh  body: {"orderItemIds":[...]}
+  /// 라인 id 를 보내지만 조회·보고 단위는 **주문번호**다 — dedupe 는 서버가 한다(D1).
+  Future<Either<Failure, OrderRefreshResult>> refreshOrders(
     List<int> orderItemIds,
   );
 

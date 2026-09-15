@@ -15,6 +15,9 @@ import '../bloc/order_acknowledge_state.dart';
 import '../bloc/order_list_bloc.dart';
 import '../bloc/order_list_event.dart';
 import '../bloc/order_list_state.dart';
+import '../bloc/order_refresh_bloc.dart';
+import '../bloc/order_refresh_event.dart';
+import '../bloc/order_refresh_state.dart';
 import '../widgets/order_card.dart';
 import '../widgets/order_search_bar.dart';
 import '../widgets/order_status_filter_bar.dart';
@@ -55,6 +58,11 @@ class ShipmentManagementPage extends StatelessWidget {
         // 전송 전용 BLoC — 선택 상태는 화면 state 다(D3 과 같은 판단).
         BlocProvider<OrderAcknowledgeBloc>(
           create: (_) => getIt<OrderAcknowledgeBloc>(),
+        ),
+        // 최신화도 전송 전용 BLoC 을 따로 둔다(2609_50 D20) — 발주처리와 한 BLoC 에 담으면
+        // submitting 이 어느 쪽인지 화면이 구분하지 못한다.
+        BlocProvider<OrderRefreshBloc>(
+          create: (_) => getIt<OrderRefreshBloc>(),
         ),
       ],
       child: const _ShipmentManagementView(),
@@ -124,60 +132,113 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
             (curr.errorMessage != null &&
                 curr.errorMessage != prev.errorMessage),
         listener: _onAcknowledgeState,
-        child: BlocConsumer<OrderListBloc, OrderListState>(
-          // 기간 UI 가 없어 backfillPrompt 는 채워지지 않는다 — 두 분기만 듣는다.
+        child: BlocListener<OrderRefreshBloc, OrderRefreshState>(
+          // 발주처리와 같은 규칙 — 전이만 듣는다(SnackBar 중복 방지).
           listenWhen: (prev, curr) =>
-              curr is OrderListLoaded &&
-              (curr.isSyncing || curr.actionError != null),
-          listener: (context, state) {
-            final s = state as OrderListLoaded;
-            if (s.isSyncing) {
-              _showSyncDialog(context);
-              return;
-            }
-            final message = s.actionError;
-            if (message == null) return;
-            ScaffoldMessenger.of(context)
-              ..hideCurrentSnackBar()
-              ..showSnackBar(
-                SnackBar(
-                  content: Text(message),
-                  behavior: SnackBarBehavior.floating,
-                  margin:
-                      const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-                ),
-              );
-          },
-          builder: (context, state) {
-            if (state is OrderListInitial || state is OrderListLoading) {
-              return const Center(child: CircularProgressIndicator());
-            }
+              (curr.result != null && curr.result != prev.result) ||
+              (curr.errorMessage != null &&
+                  curr.errorMessage != prev.errorMessage),
+          listener: _onRefreshState,
+          child: BlocConsumer<OrderListBloc, OrderListState>(
+            // 기간 UI 가 없어 backfillPrompt 는 채워지지 않는다 — 두 분기만 듣는다.
+            listenWhen: (prev, curr) =>
+                curr is OrderListLoaded &&
+                (curr.isSyncing || curr.actionError != null),
+            listener: (context, state) {
+              final s = state as OrderListLoaded;
+              if (s.isSyncing) {
+                _showSyncDialog(context);
+                return;
+              }
+              final message = s.actionError;
+              if (message == null) return;
+              ScaffoldMessenger.of(context)
+                ..hideCurrentSnackBar()
+                ..showSnackBar(
+                  SnackBar(
+                    content: Text(message),
+                    behavior: SnackBarBehavior.floating,
+                    margin:
+                        const EdgeInsets.only(left: 16, right: 16, bottom: 70),
+                  ),
+                );
+            },
+            builder: (context, state) {
+              if (state is OrderListInitial || state is OrderListLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-            if (state is OrderListError) {
-              return _ErrorRetry(
-                message: '출고 대상 조회에 실패했습니다.',
-                onRetry: () => context.read<OrderListBloc>().add(LoadOrders()),
-              );
-            }
+              if (state is OrderListError) {
+                return _ErrorRetry(
+                  message: '출고 대상 조회에 실패했습니다.',
+                  onRetry: () => context.read<OrderListBloc>().add(LoadOrders()),
+                );
+              }
 
-            return _LoadedBody(
-              state: state as OrderListLoaded,
-              searchController: _searchController,
-              selectedAccountId: _selectedAccountId,
-              onSelectAccount: (accountId) => setState(() {
-                _selectedAccountId = accountId;
-                // 채널이 바뀌면 목록이 바뀐다 — 화면 밖 건이 전송되지 않게 선택을 버린다.
-                _selectedIds.clear();
-              }),
-              selectedIds: _selectedIds,
-              onToggleSelect: _toggleSelect,
-              onClearSelection: _clearSelection,
-              onAcknowledge: _onAcknowledgePressed,
-            );
-          },
+              return _LoadedBody(
+                state: state as OrderListLoaded,
+                searchController: _searchController,
+                selectedAccountId: _selectedAccountId,
+                onSelectAccount: (accountId) => setState(() {
+                  _selectedAccountId = accountId;
+                  // 채널이 바뀌면 목록이 바뀐다 — 화면 밖 건이 전송되지 않게 선택을 버린다.
+                  _selectedIds.clear();
+                }),
+                selectedIds: _selectedIds,
+                onToggleSelect: _toggleSelect,
+                onClearSelection: _clearSelection,
+                onAcknowledge: _onAcknowledgePressed,
+                onRefresh: _onRefreshPressed,
+              );
+            },
+          ),
         ),
       ),
     );
+  }
+
+  /// 선택 최신화 버튼 — 🔴 **확인 다이얼로그가 없다**(2609_50 D15 와 같은 판단).
+  /// 마켓에 쓰지 않는 읽기라 되돌릴 것이 없다.
+  ///
+  /// 🔴 50건 상한은 서버가 판정한다(D3) — 앱에서 미리 막지 않고 400 의 서버 메시지를
+  /// 그대로 보여준다.
+  void _onRefreshPressed() {
+    if (_selectedIds.isEmpty) return;
+    context
+        .read<OrderRefreshBloc>()
+        .add(RefreshRequested(_selectedIds.toList()));
+  }
+
+  /// 최신화 결과 처리. `empty`(쿠팡 0박스 = 전량취소 추정)·`unsupported`(비-쿠팡)는 실패가
+  /// 아니라 따로 세지 않는다 — 사용자가 조치할 것이 없다.
+  ///
+  /// ⚠️ 건수는 모두 **주문번호 단위**다(D1) — 같은 주문의 옵션 3줄을 체크해도 1건이다.
+  void _onRefreshState(BuildContext context, OrderRefreshState state) {
+    final result = state.result;
+    if (result != null) {
+      final failedCount = result.failed.length;
+      final summary = failedCount == 0
+          ? '최신화 완료 — 갱신 ${result.refreshed}건 / 조회 ${result.requestedOrders}건'
+          : '최신화 완료 — 갱신 ${result.refreshed}건 / 실패 $failedCount건';
+      // 실패 사유는 서버 원문 그대로, 중복 제거 최대 3종(발주처리와 같은 형태).
+      final details = result.failed
+          .map((f) => '${f.externalOrderId}: ${f.reason}')
+          .toSet()
+          .take(3)
+          .toList();
+      _showAckSnackBar(context, summary, details);
+      _clearSelection();
+      // 판매자 필터를 유지하는 SearchOrders 를 쓴다(발주처리 성공 후 처리와 같은 이벤트).
+      context.read<OrderListBloc>().add(SearchOrders());
+      context.read<OrderRefreshBloc>().add(const RefreshResultCleared());
+      return;
+    }
+
+    final message = state.errorMessage;
+    if (message == null) return;
+    // 요청 자체가 실패 — 선택은 유지한다(재시도가 정답).
+    _showAckSnackBar(context, message, const []);
+    context.read<OrderRefreshBloc>().add(const RefreshResultCleared());
   }
 
   /// 발주처리 버튼 — **되돌릴 수 없으므로 확인 다이얼로그를 반드시 거친다**
@@ -307,6 +368,9 @@ class _LoadedBody extends StatelessWidget {
   /// 확인 다이얼로그와 `AcknowledgeRequested` 발행은 부모가 한다.
   final VoidCallback onAcknowledge;
 
+  /// `RefreshRequested` 발행은 부모가 한다(확인 다이얼로그 없음 — 읽기다).
+  final VoidCallback onRefresh;
+
   const _LoadedBody({
     required this.state,
     required this.searchController,
@@ -316,6 +380,7 @@ class _LoadedBody extends StatelessWidget {
     required this.onToggleSelect,
     required this.onClearSelection,
     required this.onAcknowledge,
+    required this.onRefresh,
   });
 
   @override
@@ -571,6 +636,23 @@ class _LoadedBody extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
+                // 선택 최신화 — 발주처리와 달리 권한 게이트가 없고(2609_50 D18),
+                // 선택이 없어도 버튼은 보이되 비활성이다.
+                BlocBuilder<OrderRefreshBloc, OrderRefreshState>(
+                  builder: (context, refreshState) => OutlinedButton(
+                    onPressed: selectedIds.isEmpty || refreshState.submitting
+                        ? null
+                        : onRefresh,
+                    child: refreshState.submitting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text('선택 최신화 (${selectedIds.length})'),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 // 전체선택은 두지 않는다(D17) — 화면 밖 일괄 선택이 되어 D7 과 어긋난다.
                 if (selectedIds.isNotEmpty && !ackState.forbidden) ...[
                   Text(
