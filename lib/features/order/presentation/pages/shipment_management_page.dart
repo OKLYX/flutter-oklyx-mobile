@@ -36,7 +36,9 @@ import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 /// - 동기화 오케스트레이션은 기존 [OrderListBloc] 이벤트를 그대로 쓴다(신규 이벤트 금지, D6).
 /// - 목록 카드·상태 칩은 공유 위젯([OrderCard]·[OrderStatusFilterBar])을 쓴다.
 ///
-/// - 발주처리 선택 대상 판정은 [_isSelectable] 하나로만 한다(리터럴 조건 사본 금지).
+/// - 판정은 두 개다(리터럴 조건 사본 금지) — 체크박스를 그릴지는 [_isSelectable](쿠팡이면
+///   상태 무관), 실제로 발주처리할지는 [_isAcknowledgeTarget](결제완료만). 둘을 합치지 말 것:
+///   합치면 고착된 상품준비중 주문을 선택할 수 없어 [주문 상태 갱신] 이 영구 비활성이 된다.
 ///
 /// ⚠️ [OrderListBloc] 은 `registerFactory` 라 주문내역과 **인스턴스를 공유하지 않는다** —
 /// 두 화면의 선택 상태가 이어질 거라 기대하지 말 것.
@@ -59,7 +61,7 @@ class ShipmentManagementPage extends StatelessWidget {
         BlocProvider<OrderAcknowledgeBloc>(
           create: (_) => getIt<OrderAcknowledgeBloc>(),
         ),
-        // 최신화도 전송 전용 BLoC 을 따로 둔다(2609_50 D20) — 발주처리와 한 BLoC 에 담으면
+        // 상태 갱신도 전송 전용 BLoC 을 따로 둔다(2609_50 D20) — 발주처리와 한 BLoC 에 담으면
         // submitting 이 어느 쪽인지 화면이 구분하지 못한다.
         BlocProvider<OrderRefreshBloc>(
           create: (_) => getIt<OrderRefreshBloc>(),
@@ -75,10 +77,20 @@ class ShipmentManagementPage extends StatelessWidget {
 /// 결제완료([OrderStatus.paid])·쿠팡·박스 ID 보유 셋을 모두 만족해야 한다. **화이트리스트**인 것이
 /// 발송처리(2609_07 D1)의 블랙리스트와 반대 방향인 이유: 발주처리는 되돌릴 수 없어
 /// "모르는 상태면 안 보낸다" 가 맞다(발송처리는 안 보내면 발송 누락이라 반대).
-bool _isSelectable(OrderItem order) =>
+bool _isAcknowledgeTarget(OrderItem order) =>
     order.status == OrderStatus.paid &&
     order.platform == 'COUPANG' &&
     (order.externalBoxId?.isNotEmpty ?? false);
+
+/// 체크박스를 그릴지 = **쿠팡 주문이면 상태 무관**.
+///
+/// 🔴 발주처리 화이트리스트([_isAcknowledgeTarget])를 체크박스 판정으로 쓰면 안 된다 — 그러면
+/// 상품준비중으로 고착된 주문에 체크박스가 없어서 [주문 상태 갱신] 이 영구 비활성이 된다.
+/// 고착 건을 푸는 것이 2609_50 의 존재 이유이므로 판정을 액션별로 나눈다.
+///
+/// 발주처리는 좁은 쪽이 맞다(되돌릴 수 없는 쓰기) — 넓어진 선택에서 발주처리 대상만 추려
+/// 보내므로(`_LoadedBody` 의 `ackTargetIds`) 비대상이 요청에 섞이지 않는다.
+bool _isSelectable(OrderItem order) => order.platform == 'COUPANG';
 
 class _ShipmentManagementView extends StatefulWidget {
   const _ShipmentManagementView();
@@ -197,7 +209,7 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
     );
   }
 
-  /// 선택 최신화 버튼 — 🔴 **확인 다이얼로그가 없다**(2609_50 D15 와 같은 판단).
+  /// 주문 상태 갱신 버튼 — 🔴 **확인 다이얼로그가 없다**(2609_50 D15 와 같은 판단).
   /// 마켓에 쓰지 않는 읽기라 되돌릴 것이 없다.
   ///
   /// 🔴 50건 상한은 서버가 판정한다(D3) — 앱에서 미리 막지 않고 400 의 서버 메시지를
@@ -209,7 +221,7 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
         .add(RefreshRequested(_selectedIds.toList()));
   }
 
-  /// 최신화 결과 처리. `empty`(쿠팡 0박스 = 전량취소 추정)·`unsupported`(비-쿠팡)는 실패가
+  /// 주문 상태 갱신 결과 처리. `empty`(쿠팡 0박스 = 전량취소 추정)·`unsupported`(비-쿠팡)는 실패가
   /// 아니라 따로 세지 않는다 — 사용자가 조치할 것이 없다.
   ///
   /// ⚠️ 건수는 모두 **주문번호 단위**다(D1) — 같은 주문의 옵션 3줄을 체크해도 1건이다.
@@ -218,8 +230,8 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
     if (result != null) {
       final failedCount = result.failed.length;
       final summary = failedCount == 0
-          ? '최신화 완료 — 갱신 ${result.refreshed}건 / 조회 ${result.requestedOrders}건'
-          : '최신화 완료 — 갱신 ${result.refreshed}건 / 실패 $failedCount건';
+          ? '주문 상태 갱신 완료 — 갱신 ${result.refreshed}건 / 조회 ${result.requestedOrders}건'
+          : '주문 상태 갱신 완료 — 갱신 ${result.refreshed}건 / 실패 $failedCount건';
       // 실패 사유는 서버 원문 그대로, 중복 제거 최대 3종(발주처리와 같은 형태).
       final details = result.failed
           .map((f) => '${f.externalOrderId}: ${f.reason}')
@@ -243,8 +255,10 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
 
   /// 발주처리 버튼 — **되돌릴 수 없으므로 확인 다이얼로그를 반드시 거친다**
   /// (PLAN 2609_17 "남는 위험").
-  Future<void> _onAcknowledgePressed() async {
-    final count = _selectedIds.length;
+  /// [ids] = 선택 중 **발주처리 대상만** 추린 것(`_LoadedBody` 가 추려 넘긴다). 체크박스가
+  /// 상태 무관으로 넓어졌으므로 `_selectedIds` 를 그대로 보내면 비대상이 섞인다.
+  Future<void> _onAcknowledgePressed(List<int> ids) async {
+    final count = ids.length;
     if (count == 0) return;
     final ok = await showDialog<bool>(
       context: context,
@@ -264,13 +278,11 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
       ),
     );
     if (ok != true || !mounted) return;
-    context
-        .read<OrderAcknowledgeBloc>()
-        .add(AcknowledgeRequested(_selectedIds.toList()));
+    context.read<OrderAcknowledgeBloc>().add(AcknowledgeRequested(ids));
   }
 
   /// 전송 결과 처리 (D8·D9). `skipped`·`unsupported` 는 표시하지 않는다 —
-  /// 체크박스가 이미 그 행들을 막고 있어 사용자가 조치할 것이 없다.
+  /// 발주처리 대상만 추려 보내므로(`ackTargetIds`) 애초에 그 분류로 돌아올 것이 없다.
   void _onAcknowledgeState(BuildContext context, OrderAcknowledgeState state) {
     if (state.forbidden) {
       _showAckSnackBar(context, '발주처리 권한이 없습니다.', const []);
@@ -366,7 +378,8 @@ class _LoadedBody extends StatelessWidget {
   final VoidCallback onClearSelection;
 
   /// 확인 다이얼로그와 `AcknowledgeRequested` 발행은 부모가 한다.
-  final VoidCallback onAcknowledge;
+  /// 🔴 발주처리 대상만 추려서 넘긴다 — 체크박스는 상태 무관이라 선택 전체와 다르다.
+  final void Function(List<int> ids) onAcknowledge;
 
   /// `RefreshRequested` 발행은 부모가 한다(확인 다이얼로그 없음 — 읽기다).
   final VoidCallback onRefresh;
@@ -413,6 +426,12 @@ class _LoadedBody extends StatelessWidget {
     final visible = s.selectedStatus == null
         ? scoped
         : scoped.where((o) => o.status == s.selectedStatus).toList();
+    // 선택 중 실제로 발주처리되는 라인 id. 상태 탭은 선택을 비우지 않으므로 `visible` 이 아니라
+    // 채널 필터까지만 적용한 `scoped` 에서 찾는다 — 탭에 가려진 선택도 세어야 한다.
+    final ackTargetIds = scoped
+        .where((o) => selectedIds.contains(o.id) && _isAcknowledgeTarget(o))
+        .map((o) => o.id)
+        .toList();
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -636,7 +655,19 @@ class _LoadedBody extends StatelessWidget {
                   ),
                 ),
                 const Spacer(),
-                // 선택 최신화 — 발주처리와 달리 권한 게이트가 없고(2609_50 D18),
+                // 선택 건수를 말하는 자리는 여기 한 곳뿐이다 — 버튼 글자에 건수를 넣지 않는다.
+                // 발주처리 블록 안에 두면 비-ADMIN 에게는 건수가 아예 안 보인다(이전 동작).
+                if (selectedIds.isNotEmpty) ...[
+                  Text(
+                    '선택 ${selectedIds.length}건',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                // 주문 상태 갱신 — 발주처리와 달리 권한 게이트가 없고(2609_50 D18),
                 // 선택이 없어도 버튼은 보이되 비활성이다.
                 BlocBuilder<OrderRefreshBloc, OrderRefreshState>(
                   builder: (context, refreshState) => OutlinedButton(
@@ -649,22 +680,16 @@ class _LoadedBody extends StatelessWidget {
                             height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : Text('선택 최신화 (${selectedIds.length})'),
+                        : const Text('주문 상태 갱신'),
                   ),
                 ),
-                const SizedBox(width: 8),
                 // 전체선택은 두지 않는다(D17) — 화면 밖 일괄 선택이 되어 D7 과 어긋난다.
-                if (selectedIds.isNotEmpty && !ackState.forbidden) ...[
-                  Text(
-                    '선택 ${selectedIds.length}건',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                if (ackTargetIds.isNotEmpty && !ackState.forbidden) ...[
                   const SizedBox(width: 8),
                   ElevatedButton(
-                    onPressed: ackState.submitting ? null : onAcknowledge,
+                    onPressed: ackState.submitting
+                        ? null
+                        : () => onAcknowledge(ackTargetIds),
                     child: ackState.submitting
                         ? const SizedBox(
                             width: 16,

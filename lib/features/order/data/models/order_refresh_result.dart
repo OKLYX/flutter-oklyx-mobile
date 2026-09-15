@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-/// 주문 최신화 결과 (POST /api/orders/refresh, FEATURE_2609_50 / D6).
+/// 주문 상태 갱신 결과 (POST /api/orders/refresh, FEATURE_2609_50 / D6).
 ///
 /// 백엔드 `OrderRefreshResult` record 와 1:1.
 ///
@@ -50,7 +50,7 @@ class OrderRefreshResult extends Equatable {
       [requestedOrders, refreshed, empty, failed, unsupported];
 }
 
-/// 최신화 실패 1건 — 사유는 서버가 준 원문 그대로 보여준다(고칠 수 있는 정보가 여기 담긴다).
+/// 상태 갱신 실패 1건 — 사유는 서버가 준 원문 그대로 보여준다(고칠 수 있는 정보가 여기 담긴다).
 class FailedOrder extends Equatable {
   final String externalOrderId;
   final String reason;
