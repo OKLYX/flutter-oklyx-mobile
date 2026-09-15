@@ -274,8 +274,10 @@ class _StockEntryViewState extends State<_StockEntryView> {
             enabled: !busy,
             keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
+            // 단가는 선택이다 — 비워 두면 서버가 상품 등록가를 스냅샷으로 넣는다.
             decoration: const InputDecoration(
-              labelText: '단가 (필수)',
+              labelText: '단가 (선택)',
+              helperText: '미입력 시 상품 등록가가 적용됩니다',
               border: OutlineInputBorder(),
               isDense: true,
             ),
