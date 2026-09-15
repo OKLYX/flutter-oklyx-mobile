@@ -177,6 +177,7 @@ import 'package:flutter_oklyn_mobile/features/alert/data/datasources/alert_remot
 import 'package:flutter_oklyn_mobile/features/alert/data/repositories/alert_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/alert/domain/repositories/alert_repository.dart';
 import 'package:flutter_oklyn_mobile/features/alert/domain/usecases/alert_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/alert/presentation/bloc/alert_feed_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/alert/presentation/bloc/alert_summary_bloc.dart';
 
 final getIt = GetIt.instance;
@@ -936,6 +937,11 @@ void _registerAlertServices() {
   // Drawer 는 열릴 때마다 새로 빌드되므로 factory 로 두면 매번 0 에서 다시 시작해 깜빡인다.
   getIt.registerSingleton<AlertSummaryBloc>(
     AlertSummaryBloc(alertUseCase: getIt<AlertUseCase>()),
+  );
+
+  // ⚠️ 목록 BLoC 은 관례대로 factory 다(알림 화면 수명과 같이 간다) — 위 싱글턴과 헷갈리지 말 것.
+  getIt.registerFactory<AlertFeedBloc>(
+    () => AlertFeedBloc(alertUseCase: getIt<AlertUseCase>()),
   );
 }
 
