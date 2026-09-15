@@ -10,6 +10,7 @@ import '../datasources/order_remote_datasource.dart';
 import '../models/cancel_reason_option.dart';
 import '../models/order_acknowledge_result.dart';
 import '../models/order_cancel_result.dart';
+import '../models/order_refresh_result.dart';
 
 class OrderRepositoryImpl implements OrderRepository {
   final OrderRemoteDataSource remoteDataSource;
@@ -135,6 +136,29 @@ class OrderRepositoryImpl implements OrderRepository {
       return Left(
         ServerFailure(
           e.message ?? 'Failed to acknowledge orders',
+          statusCode: e.response?.statusCode,
+        ),
+      );
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, OrderRefreshResult>> refreshOrders(
+    List<int> orderItemIds,
+  ) async {
+    try {
+      final result = await remoteDataSource.refreshOrders(orderItemIds);
+      return Right(result);
+    } on DioException catch (e) {
+      // 서버 본문 message 를 우선 쓴다 — 50건 상한 같은 400 사유가 여기에만 있다(D3).
+      final data = e.response?.data;
+      final serverMessage =
+          data is Map<String, dynamic> ? data['message'] as String? : null;
+      return Left(
+        ServerFailure(
+          serverMessage ?? e.message ?? 'Failed to refresh orders',
           statusCode: e.response?.statusCode,
         ),
       );

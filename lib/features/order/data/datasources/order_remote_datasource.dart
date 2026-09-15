@@ -4,6 +4,7 @@ import '../models/cancel_reason_option.dart';
 import '../models/order_acknowledge_result.dart';
 import '../models/order_cancel_result.dart';
 import '../models/order_model.dart';
+import '../models/order_refresh_result.dart';
 import '../models/sync_target_model.dart';
 
 abstract class OrderRemoteDataSource {
@@ -42,6 +43,13 @@ abstract class OrderRemoteDataSource {
   /// 발주처리(결제완료 → 상품준비중). 라인 id 만 보낸다 — 박스 dedupe·상태 필터는
   /// 서버가 한다(PLAN 2609_17 D1·D2).
   Future<OrderAcknowledgeResult> acknowledgeOrders(List<int> orderItemIds);
+
+  /// POST /api/orders/refresh  body: {"orderItemIds":[...]}
+  /// 선택한 주문을 쿠팡에서 다시 읽어 로컬 상태를 맞춘다(FEATURE_2609_50).
+  ///
+  /// 🔴 경로가 `/api/admin/orders` 가 **아니다** — 최신화는 ADMIN 전용이 아니라
+  /// 인증만 필요하다(D2). [acknowledgeOrders] 를 본떠 쓰되 경로까지 따라가지 말 것.
+  Future<OrderRefreshResult> refreshOrders(List<int> orderItemIds);
 
   /// GET /api/admin/orders/cancel-reasons → [{code,label}]
   /// 취소 사유 목록. **목록의 소유자는 서버다** — 모바일에 코드→라벨 상수를 두지 않는다
@@ -215,6 +223,24 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
       ),
     );
     return OrderAcknowledgeResult.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<OrderRefreshResult> refreshOrders(List<int> orderItemIds) async {
+    // ⚠️ acknowledgeOrders 와 같은 규칙 — DioException 을 그대로 위로 올린다.
+    // plain Exception 으로 바꿔 던지면 statusCode 와 서버 본문 message 가 사라져
+    // 50건 상한 같은 400 사유를 사용자에게 보여줄 수 없다(D3).
+    final response = await dio.post(
+      '/api/orders/refresh',
+      data: {'orderItemIds': orderItemIds},
+      options: Options(
+        // 서버가 주문마다 쿠팡 단건 조회를 실호출 → 기본 30초를 초과할 수 있어 개별 연장.
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+    return OrderRefreshResult.fromJson(
         response.data['data'] as Map<String, dynamic>);
   }
 
