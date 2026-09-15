@@ -8,7 +8,6 @@ import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/dialogs/shipment_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/order_item.dart';
-import '../../domain/entities/order_sync_scope.dart';
 import '../../domain/entities/sync_target.dart';
 import '../bloc/order_acknowledge_bloc.dart';
 import '../bloc/order_acknowledge_event.dart';
@@ -476,13 +475,11 @@ class _LoadedBody extends StatelessWidget {
                           onPressed: busy
                               ? null
                               : () {
-                                  // 출고관리는 "아직 안 보낸 주문"만 다룬다 → 결제완료·상품준비중만
-                                  // 조회한다(쿠팡 왕복 6회 → 2회). 배송지시 이후 상태는
-                                  // 주문내역 동기화(전 상태)가 따라잡는다.
+                                  // 조회 범위는 서버가 정한다(기본 preset = QUICK) — 화면이
+                                  // 범위를 선언하지 않는다(FEATURE_2609_49).
                                   onClearSelection();
                                   if (accountValue == null) {
-                                    bloc.add(SyncOrders(
-                                        scope: OrderSyncScope.active));
+                                    bloc.add(SyncOrders());
                                     return;
                                   }
                                   bloc.add(SyncSelectedChannels(
@@ -490,7 +487,6 @@ class _LoadedBody extends StatelessWidget {
                                         .where(
                                             (t) => t.accountId == accountValue)
                                         .toList(),
-                                    scope: OrderSyncScope.active,
                                   ));
                                 },
                           icon: s.isSyncing

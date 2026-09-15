@@ -6,7 +6,6 @@ import '../../data/models/order_cancel_result.dart';
 import '../entities/order_item.dart';
 import '../entities/order_period.dart';
 import '../entities/order_sync_result.dart';
-import '../entities/order_sync_scope.dart';
 import '../entities/sync_target.dart';
 import '../repositories/order_repository.dart';
 
@@ -26,17 +25,12 @@ class OrderUseCase {
   }
 
   /// [accountId] 를 주면 그 계정 1건만 동기화한다(진행 다이얼로그의 계정 단위 루프).
-  /// [scope] 기본값은 전 상태 — 출고관리만 [OrderSyncScope.active].
+  /// ⚠️ 조회 범위는 서버가 정한다(기본 preset = QUICK).
   Future<Either<Failure, OrderSyncResult>> syncOrders({
     int? sellerId,
     int? accountId,
-    OrderSyncScope scope = OrderSyncScope.full,
   }) {
-    return repository.syncOrders(
-      sellerId: sellerId,
-      accountId: accountId,
-      scope: scope,
-    );
+    return repository.syncOrders(sellerId: sellerId, accountId: accountId);
   }
 
   /// 계정 1건의 지정 기간을 쿠팡에서 백필한다(빈 달 불러오기).

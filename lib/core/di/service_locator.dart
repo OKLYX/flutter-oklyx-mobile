@@ -172,6 +172,11 @@ import 'package:flutter_oklyn_mobile/features/inquiry/domain/repositories/inquir
 import 'package:flutter_oklyn_mobile/features/inquiry/domain/usecases/inquiry_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/inquiry/presentation/bloc/inquiry_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/inquiry/presentation/bloc/inquiry_detail_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/alert/data/datasources/alert_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/alert/data/repositories/alert_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/alert/domain/repositories/alert_repository.dart';
+import 'package:flutter_oklyn_mobile/features/alert/domain/usecases/alert_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/alert/presentation/bloc/alert_summary_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -193,6 +198,7 @@ void setupServiceLocator() {
   _registerOrderServices();
   _registerClaimServices();
   _registerInquiryServices();
+  _registerAlertServices();
   _registerPurchaseListServices();
   _registerStockLedgerServices();
   _registerErrorHandling();
@@ -900,6 +906,29 @@ void _registerInquiryServices() {
   // ⚠️ 상세도 factory 다 — 싱글턴이면 이전 문의의 스레드가 다음 문의에 남는다.
   getIt.registerFactory<InquiryDetailBloc>(
     () => InquiryDetailBloc(inquiryUseCase: getIt<InquiryUseCase>()),
+  );
+}
+
+void _registerAlertServices() {
+  // Data Source
+  getIt.registerSingleton<AlertRemoteDataSource>(
+    AlertRemoteDataSourceImpl(dio: getIt<DioClient>().dio),
+  );
+
+  // Repository
+  getIt.registerSingleton<AlertRepository>(
+    AlertRepositoryImpl(remoteDataSource: getIt<AlertRemoteDataSource>()),
+  );
+
+  // Use Case
+  getIt.registerSingleton<AlertUseCase>(
+    AlertUseCase(repository: getIt<AlertRepository>()),
+  );
+
+  // 🔴 BLoC 도 싱글턴이다(이 저장소에서 유일한 예외) — 배지는 앱 전체가 같은 숫자를 봐야 하고,
+  // Drawer 는 열릴 때마다 새로 빌드되므로 factory 로 두면 매번 0 에서 다시 시작해 깜빡인다.
+  getIt.registerSingleton<AlertSummaryBloc>(
+    AlertSummaryBloc(alertUseCase: getIt<AlertUseCase>()),
   );
 }
 
