@@ -46,3 +46,26 @@ String formatRelativeTime(String? value) {
   if (hours < 24) return '$hours시간 전';
   return '${hours ~/ 24}일 전';
 }
+
+/// 마켓이 준 KST 벽시계 시각(주문일·접수일·문의일) → '3시간 전'.
+/// null·파싱 실패 시 '기록 없음'.
+///
+/// **용도**: 알림(처리해야 할 일) 목록의 `occurredAt` 표기(FEATURE_2609_51 / D8).
+/// **파일**: lib/core/utils/date_format.dart
+///
+/// 🔴 [formatRelativeTime] 과 **다른 함수다.** 그쪽은 서버가 낙인한 시각(오프셋 없는 UTC)을
+///    UTC 로 재해석하는데, 이 값들은 마켓이 이미 KST 로 준 벽시계라 그렇게 하면 9시간 어긋난다
+///    — 이 파일 위쪽 주석이 경고하는 바로 그 경우다(방금 들어온 주문이 '9시간 전'으로 보인다).
+/// ❌ 둘을 합치지 말 것. 어느 쪽을 쓸지는 **값의 출처**로 정한다(서버 낙인 vs 마켓 원본).
+String formatMarketRelativeTime(String? value) {
+  if (value == null || value.isEmpty) return '기록 없음';
+  final parsed = DateTime.tryParse(value);
+  if (parsed == null) return '기록 없음';
+  // UTC 로 재해석하지 않는다 — 오프셋 없는 문자열을 기기 로컬(KST)로 읽고 로컬끼리 비교한다.
+  final minutes = DateTime.now().difference(parsed).inMinutes;
+  if (minutes < 1) return '방금 전';
+  if (minutes < 60) return '$minutes분 전';
+  final hours = minutes ~/ 60;
+  if (hours < 24) return '$hours시간 전';
+  return '${hours ~/ 24}일 전';
+}

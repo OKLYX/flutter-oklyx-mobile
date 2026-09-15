@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
+import 'package:flutter_oklyn_mobile/features/alert/presentation/bloc/alert_summary_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/alert/presentation/bloc/alert_summary_event.dart';
+import 'package:flutter_oklyn_mobile/features/alert/presentation/bloc/alert_summary_state.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_drawer.dart';
 
 /// 모든 페이지에서 사용해야 하는 공통 Scaffold Widget
@@ -49,6 +53,12 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_drawer.dart';
 /// - `showDrawer`: Drawer 표시 여부 (기본값: true)
 /// - `onBackPressed`: 뒤로가기 버튼 클릭 시 동작 (null이면 back button 표시 안함)
 ///
+/// **바텀네비 index 3(알림) 배지** (FEATURE_2609_51 / D3·D7):
+/// - 숫자는 `AlertSummaryState.todoCount` = **처리해야 할 일 건수**(알림 목록의 행 수)다.
+/// - 🔴 Drawer 메뉴 배지와 **다른 숫자**다 — `출고관리` 는 결제완료 **상품(라인)** 수이고
+///   기간 제한이 없다. 두 숫자를 맞추려 하지 말 것.
+/// - 갱신은 `initState` 1회(= 화면이 바뀔 때마다). 🔴 타이머를 두지 않는다(2609_49 의 자세).
+///
 /// ⚠️ **주의**: 다른 방식으로 drawer/bottom nav를 구현하지 마세요
 /// - ❌ Stack + Positioned로 직접 구현
 /// - ❌ 각 페이지마다 다른 구조로 구현
@@ -90,6 +100,9 @@ class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
   void initState() {
     super.initState();
     _scaffoldKey = GlobalKey<ScaffoldState>();
+    // 화면이 바뀔 때마다 알림 숫자를 한 번 갱신한다(종 배지 + Drawer 배지의 단일 원천).
+    // 🔴 타이머 금지 — 앱이 앞에 없는 동안 폴링하면 배터리만 쓴다.
+    context.read<AlertSummaryBloc>().add(LoadAlertSummary());
     if (widget.showDrawer) {
       WidgetsBinding.instance.addPersistentFrameCallback((_) {
         final isOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
@@ -165,7 +178,14 @@ class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
                     label: '',
                   ),
                   BottomNavigationBarItem(
-                    icon: const Icon(Icons.notifications),
+                    // 처리해야 할 일 건수. 0 이면 배지를 그리지 않는다(빈 점을 남기지 않는다).
+                    icon: BlocBuilder<AlertSummaryBloc, AlertSummaryState>(
+                      builder: (context, alerts) => Badge.count(
+                        count: alerts.todoCount,
+                        isLabelVisible: alerts.todoCount > 0,
+                        child: const Icon(Icons.notifications),
+                      ),
+                    ),
                     label: '',
                   ),
                 ],

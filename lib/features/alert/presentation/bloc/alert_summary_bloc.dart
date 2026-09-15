@@ -22,8 +22,8 @@ import 'alert_summary_state.dart';
 ///
 /// 🔴 **앱 전체 1개**(`registerSingleton`)다. Drawer 는 열릴 때마다 새로 빌드되므로 factory 로
 /// 두면 매번 0 에서 다시 시작해 숫자가 깜빡인다.
-/// 🔴 **타이머를 두지 않는다.** 갱신 시점은 Drawer 가 열릴 때다(`AppDrawer.initState`) — 배지는
-/// Drawer 안에만 있고, 닫혀 있는 동안 폴링하면 배터리만 쓴다.
+/// 🔴 **타이머를 두지 않는다.** 갱신 시점은 Drawer 가 열릴 때(`AppDrawer.initState`)와
+/// 화면이 바뀔 때(`ScaffoldWithNavBar.initState`)다 — 닫혀 있는 동안 폴링하면 배터리만 쓴다.
 /// ⚠️ 실패는 **직전 값을 유지**하고 에러를 화면에 띄우지 않는다. 배지는 보조 정보이고, Drawer 에
 /// 에러를 그리면 모든 화면이 오염된다.
 class AlertSummaryBloc extends Bloc<AlertSummaryEvent, AlertSummaryState> {
@@ -47,6 +47,9 @@ class AlertSummaryBloc extends Bloc<AlertSummaryEvent, AlertSummaryState> {
       (summary) => state.copyWith(
         openClaims: summary.openClaims,
         unansweredInquiries: summary.unansweredInquiries,
+        paidLines: summary.paidLines,
+        newOrders: summary.newOrders,
+        todoCount: summary.todoCount,
         isLoading: false,
       ),
     ));
