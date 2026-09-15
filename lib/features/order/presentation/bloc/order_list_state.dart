@@ -143,6 +143,19 @@ class OrderListLoaded extends OrderListState {
       .where((t) => t.lastSyncStatus != null && t.lastSyncStatus != 'SUCCESS')
       .toList();
 
+  /// 서버가 채널별로 낙인한 주문 동기화 시각 중 가장 최근 (FEATURE_2609_49).
+  ///
+  /// ⚠️ [lastSyncedAt](= 이번 회차 응답 시각)과 다르다. 백그라운드 스케줄이 돌기 때문에 내가 누르지
+  /// 않아도 데이터는 최신이 된다 — 배너는 이 값을 쓴다. ISO 문자열이라 사전순 = 시간순이다.
+  String? get lastSyncedFromServer {
+    final stamps = syncTargets
+        .map((t) => t.lastOrderSyncAt)
+        .whereType<String>()
+        .toList()
+      ..sort();
+    return stamps.isEmpty ? null : stamps.last;
+  }
+
   /// 검색 결과를 선택된 상태로 다시 거른 목록 (null = 전체). 순서 = 검색 → 상태(PLAN D13).
   List<OrderItem> get filteredOrders => selectedStatus == null
       ? searchedOrders

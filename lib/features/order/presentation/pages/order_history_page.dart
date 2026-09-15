@@ -494,9 +494,12 @@ class _LoadedBody extends StatelessWidget {
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
-              if (s.lastSyncedAt != null)
+              // 🔴 원천은 서버 낙인(lastSyncedFromServer)이다 — 내가 [동기화] 를 누른 적이 없어도
+              // 15분 스케줄이 최신으로 만들어 두므로, 이번 회차 응답 시각(lastSyncedAt)으로
+              // 가드하면 배너가 영원히 안 뜬다(FEATURE_2609_49).
+              if (s.lastSyncedFromServer != null)
                 Text(
-                  '마지막 동기화: ${formatOrderDateTime(s.lastSyncedAt)}',
+                  '마지막 동기화: ${formatRelativeTime(s.lastSyncedFromServer)}',
                   style: TextStyle(
                     fontSize: 12,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
