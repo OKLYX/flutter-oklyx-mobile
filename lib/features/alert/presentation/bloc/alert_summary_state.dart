@@ -14,7 +14,7 @@ class AlertSummaryState {
   final int unansweredInquiries;
 
   /// 결제완료 상품(라인) 수 = Drawer `출고관리` 배지(2609_51 D7). 기간 제한이 없다.
-  final int paidLines;
+  final int paidOrders;
 
   /// 새 주문(주문 단위, 최근 14일) 건수. 지금은 [todoCount] 안에 포함돼 배지로는 쓰지 않는다.
   final int newOrders;
@@ -31,7 +31,7 @@ class AlertSummaryState {
   const AlertSummaryState({
     this.openClaims = 0,
     this.unansweredInquiries = 0,
-    this.paidLines = 0,
+    this.paidOrders = 0,
     this.newOrders = 0,
     this.todoCount = 0,
     this.isLoading = false,
@@ -39,15 +39,15 @@ class AlertSummaryState {
 
   /// 주문관리 그룹 헤더(접혀 있을 때)의 합계 = **항목 배지의 합**이다.
   ///
-  /// 🔴 `출고관리` 에 배지(`paidLines`)가 생겼으므로 여기에도 더한다(2609_51 Step 1) —
+  /// 🔴 `출고관리` 에 배지(`paidOrders`)가 생겼으므로 여기에도 더한다(2609_51 Step 1) —
   ///    빼면 헤더 숫자가 펼친 항목들의 합보다 작아진다.
   /// 🔴 종 배지([todoCount])와 같아지지 않는다 — 세는 단위와 기간이 다르다(D7).
-  int get total => openClaims + unansweredInquiries + paidLines;
+  int get total => openClaims + unansweredInquiries + paidOrders;
 
   AlertSummaryState copyWith({
     int? openClaims,
     int? unansweredInquiries,
-    int? paidLines,
+    int? paidOrders,
     int? newOrders,
     int? todoCount,
     bool? isLoading,
@@ -55,7 +55,7 @@ class AlertSummaryState {
       AlertSummaryState(
         openClaims: openClaims ?? this.openClaims,
         unansweredInquiries: unansweredInquiries ?? this.unansweredInquiries,
-        paidLines: paidLines ?? this.paidLines,
+        paidOrders: paidOrders ?? this.paidOrders,
         newOrders: newOrders ?? this.newOrders,
         todoCount: todoCount ?? this.todoCount,
         isLoading: isLoading ?? this.isLoading,

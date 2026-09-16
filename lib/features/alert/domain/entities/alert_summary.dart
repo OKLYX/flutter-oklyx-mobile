@@ -7,7 +7,7 @@
 /// 🔴 **숫자 4종은 서로 다른 질문의 답이다 — 맞추려 하지 말 것**(2609_51 D7):
 /// | 값 | 세는 단위 | 기간 | 쓰는 자리 |
 /// |----|----------|------|----------|
-/// | [paidLines] | 결제완료 **상품(라인)** 수 | 없음 | Drawer `출고관리` 배지 |
+/// | [paidOrders] | 결제완료 **주문** 수 | 없음 | Drawer `출고관리` 배지 |
 /// | [newOrders] | 새 **주문** 수 | 최근 14일 | 알림 목록의 새 주문 행 수 |
 /// | [todoCount] | 알림 **행** 수 합계 | 목록과 같은 기간 | 바텀네비 종 배지 |
 /// | [openClaims]·[unansweredInquiries] | 미완결·미답변 전부 | 없음 | Drawer 반품/교환·고객문의 |
@@ -18,9 +18,9 @@ class AlertSummary {
   /// 미답변 고객문의 수.
   final int unansweredInquiries;
 
-  /// 결제완료 상품(라인) 수 = `출고관리` 메뉴 배지. 🔴 기간 상한이 없다 — 알림의 새 주문 수보다
-  /// 크게 나오는 것이 정상이다(D7·D8).
-  final int paidLines;
+  /// 결제완료 **주문** 수 = `출고관리` 메뉴 배지(2026-09-16 단위 변경). 🔴 [newOrders] 와 같은
+  /// 주문 단위지만 기간 상한이 없어, 14일이 지난 결제완료 주문이 있으면 더 크게 나온다(D7·D8).
+  final int paidOrders;
 
   /// 새 주문 알림 건수 = **주문 단위**, 최근 14일(D5·D8).
   final int newOrders;
@@ -32,7 +32,7 @@ class AlertSummary {
   const AlertSummary({
     required this.openClaims,
     required this.unansweredInquiries,
-    required this.paidLines,
+    required this.paidOrders,
     required this.newOrders,
     required this.todoCount,
   });
