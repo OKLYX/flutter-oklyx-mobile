@@ -7,7 +7,7 @@ class AlertSummaryModel extends AlertSummary {
   const AlertSummaryModel({
     required super.openClaims,
     required super.unansweredInquiries,
-    required super.paidLines,
+    required super.paidOrders,
     required super.newOrders,
     required super.todoCount,
   });
@@ -17,7 +17,7 @@ class AlertSummaryModel extends AlertSummary {
         openClaims: (json['openClaims'] as num?)?.toInt() ?? 0,
         unansweredInquiries:
             (json['unansweredInquiries'] as num?)?.toInt() ?? 0,
-        paidLines: (json['paidLines'] as num?)?.toInt() ?? 0,
+        paidOrders: (json['paidOrders'] as num?)?.toInt() ?? 0,
         newOrders: (json['newOrders'] as num?)?.toInt() ?? 0,
         todoCount: (json['todoCount'] as num?)?.toInt() ?? 0,
       );

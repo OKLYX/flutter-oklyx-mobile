@@ -81,9 +81,9 @@ class _AppDrawerState extends State<AppDrawer> {
                 padding: const EdgeInsets.only(left: 16),
                 child: ListTile(
                   title: const Text('출고관리'),
-                  // 결제완료 상품(라인) 수 = 발주처리 대기(2609_51 D7).
-                  // ⚠️ 알림의 새 주문 건수(주문 단위·최근 14일)와 **다른 숫자**다.
-                  trailing: AlertBadge(count: alerts.paidLines),
+                  // 결제완료 주문 수 = 발주처리 대기(2609_51 D7, 2026-09-16 단위 변경).
+                  // ⚠️ 알림의 새 주문 건수와 같은 주문 단위지만, 이쪽은 기간 상한이 없어 더 클 수 있다.
+                  trailing: AlertBadge(count: alerts.paidOrders),
                   onTap: () {
                     Navigator.pop(context);
                     context.go(Routes.shipmentManagementPath);
