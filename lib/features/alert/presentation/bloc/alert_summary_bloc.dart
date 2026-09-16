@@ -47,7 +47,7 @@ class AlertSummaryBloc extends Bloc<AlertSummaryEvent, AlertSummaryState> {
       (summary) => state.copyWith(
         openClaims: summary.openClaims,
         unansweredInquiries: summary.unansweredInquiries,
-        paidLines: summary.paidLines,
+        paidOrders: summary.paidOrders,
         newOrders: summary.newOrders,
         todoCount: summary.todoCount,
         isLoading: false,
