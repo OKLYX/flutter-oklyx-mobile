@@ -46,7 +46,8 @@ class AlertFeedItem {
   /// ORDER 는 **대표 상품 1개**(첫 라인).
   final String? itemName;
 
-  /// ORDER 의 상품(라인) 수 — 화면이 `상품 3개` 로 그린다(D7).
+  /// ORDER 의 상품(라인) 수 — 화면이 `상품 3개` 로 그린다.
+  /// ⚠️ 2026-09-16 이후 Drawer 배지도 **주문 단위**(`paidOrders`)라 단위 차이는 없다. 남은 차이는 기간뿐.
   final int? itemCount;
 
   /// 클레임=사유 · 문의=본문 앞부분 · 주문=null.
