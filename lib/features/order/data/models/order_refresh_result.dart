@@ -16,6 +16,11 @@ class OrderRefreshResult extends Equatable {
   /// 쿠팡이 0박스를 돌려준 주문번호 — 전량 취소로 추정(D7). **실패가 아니다.**
   final List<String> empty;
 
+  /// 쿠팡이 "이미 취소 또는 반품된 주문"이라고 답한 건(2026-09-16 신설).
+  ///
+  /// 🔴 실패가 아니다 — 서버가 로컬도 함께 정리한다(발송 전 라인만 취소로 확정).
+  final List<CancelledOrder> cancelled;
+
   /// 조회·파싱 실패 주문 (사유 원문 포함).
   final List<FailedOrder> failed;
 
@@ -26,6 +31,7 @@ class OrderRefreshResult extends Equatable {
     required this.requestedOrders,
     required this.refreshed,
     required this.empty,
+    this.cancelled = const [],
     required this.failed,
     required this.unsupported,
   });
@@ -35,6 +41,10 @@ class OrderRefreshResult extends Equatable {
         requestedOrders: json['requestedOrders'] as int? ?? 0,
         refreshed: json['refreshed'] as int? ?? 0,
         empty: (json['empty'] as List?)?.map((e) => e.toString()).toList() ??
+            const [],
+        cancelled: (json['cancelled'] as List?)
+                ?.map((e) => CancelledOrder.fromJson(e as Map<String, dynamic>))
+                .toList() ??
             const [],
         failed: (json['failed'] as List?)
                 ?.map((e) => FailedOrder.fromJson(e as Map<String, dynamic>))
@@ -47,7 +57,33 @@ class OrderRefreshResult extends Equatable {
 
   @override
   List<Object?> get props =>
-      [requestedOrders, refreshed, empty, failed, unsupported];
+      [requestedOrders, refreshed, empty, cancelled, failed, unsupported];
+}
+
+/// 마켓에서 이미 사라진 주문 1건 — 쿠팡이 400 "취소 또는 반품" 으로 답한 건(2026-09-16).
+///
+/// 🔴 쿠팡 메시지가 취소와 반품을 구분해 주지 않아 서버가 로컬 상태로 가른다 —
+/// 발송 전 라인만 취소로 확정([cancelledLines])하고, 발송 이후 라인은 매출이 잡힌 건이라
+/// 손대지 않는다([keptLines]).
+class CancelledOrder extends Equatable {
+  final String externalOrderId;
+  final int cancelledLines;
+  final int keptLines;
+
+  const CancelledOrder({
+    required this.externalOrderId,
+    required this.cancelledLines,
+    required this.keptLines,
+  });
+
+  factory CancelledOrder.fromJson(Map<String, dynamic> json) => CancelledOrder(
+        externalOrderId: json['externalOrderId']?.toString() ?? '',
+        cancelledLines: json['cancelledLines'] as int? ?? 0,
+        keptLines: json['keptLines'] as int? ?? 0,
+      );
+
+  @override
+  List<Object?> get props => [externalOrderId, cancelledLines, keptLines];
 }
 
 /// 상태 갱신 실패 1건 — 사유는 서버가 준 원문 그대로 보여준다(고칠 수 있는 정보가 여기 담긴다).

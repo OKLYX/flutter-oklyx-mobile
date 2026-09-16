@@ -229,9 +229,13 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
     final result = state.result;
     if (result != null) {
       final failedCount = result.failed.length;
-      final summary = failedCount == 0
+      final cancelledCount = result.cancelled.length;
+      var summary = failedCount == 0
           ? '주문 상태 갱신 완료 — 갱신 ${result.refreshed}건 / 조회 ${result.requestedOrders}건'
           : '주문 상태 갱신 완료 — 갱신 ${result.refreshed}건 / 실패 $failedCount건';
+      if (cancelledCount > 0) {
+        summary += ' / 마켓에서 취소·반품됨 $cancelledCount건';
+      }
       // 실패 사유는 서버 원문 그대로, 중복 제거 최대 3종(발주처리와 같은 형태).
       final details = result.failed
           .map((f) => '${f.externalOrderId}: ${f.reason}')
