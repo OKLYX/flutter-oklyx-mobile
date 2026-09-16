@@ -13,7 +13,8 @@ class AlertSummaryState {
   /// 미답변 고객문의 수. 조회 실패 시 직전 값이 그대로 남는다.
   final int unansweredInquiries;
 
-  /// 결제완료 상품(라인) 수 = Drawer `출고관리` 배지(2609_51 D7). 기간 제한이 없다.
+  /// 결제완료 **주문** 수 = Drawer `출고관리` 배지(2026-09-16 단위 변경). 기간 제한이 없다 —
+  /// 종 배지([todoCount])의 새 주문과 같은 주문 단위지만 이쪽만 상한이 없어 더 클 수 있다.
   final int paidOrders;
 
   /// 새 주문(주문 단위, 최근 14일) 건수. 지금은 [todoCount] 안에 포함돼 배지로는 쓰지 않는다.
