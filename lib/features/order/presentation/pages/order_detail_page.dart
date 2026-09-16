@@ -471,14 +471,19 @@ class _RefreshRow extends StatelessWidget {
         final result = state.result;
         if (result != null) {
           // 실패 사유는 서버 원문 그대로 보여준다. empty(쿠팡 0박스)는 실패가 아니다.
+          // 마켓에서 취소·반품된 건은 서버가 로컬까지 정리했으므로 그렇게 알린다.
           final message = result.failed.isNotEmpty
               ? result.failed.first.reason
-              : (result.refreshed > 0 ? '최신 상태로 갱신했습니다.' : '이미 최신입니다.');
+              : result.cancelled.isNotEmpty
+                  ? (result.cancelled.first.cancelledLines > 0
+                      ? '마켓에서 취소·반품된 주문입니다. 발송 전이라 취소로 정리했습니다.'
+                      : '마켓에서 취소·반품된 주문입니다. 이미 발송한 건이라 금액은 그대로 두었습니다.')
+                  : (result.refreshed > 0 ? '최신 상태로 갱신했습니다.' : '이미 최신입니다.');
           _showSnackBar(context, message);
           context.read<OrderRefreshBloc>().add(const RefreshResultCleared());
           // 바뀐 게 있을 때만 목록으로 돌아간다(D22). 이미 최신이거나 실패면 그 자리에
           // 머문다 — 보여줄 변화가 없는데 화면을 옮기면 사용자가 뭘 눌렀는지 놓친다.
-          if (result.refreshed > 0) {
+          if (result.refreshed > 0 || result.cancelled.isNotEmpty) {
             context.go(Routes.orderHistoryPath);
           }
           return;
