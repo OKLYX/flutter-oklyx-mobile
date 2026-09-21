@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_create_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_create_event.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_create_state.dart';
@@ -40,7 +39,6 @@ class PackageInputDialog extends StatefulWidget {
 class _PackageInputDialogState extends State<PackageInputDialog> {
   late TextEditingController _typeController;
   late TextEditingController _costController;
-  late TextEditingController _dateController;
   late TextEditingController _widthController;
   late TextEditingController _lengthController;
   late TextEditingController _heightController;
@@ -50,44 +48,19 @@ class _PackageInputDialogState extends State<PackageInputDialog> {
     super.initState();
     _typeController = TextEditingController();
     _costController = TextEditingController();
-    _dateController = TextEditingController();
     _widthController = TextEditingController();
     _lengthController = TextEditingController();
     _heightController = TextEditingController();
-
-    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    _dateController.text = today;
-    Future.microtask(() {
-      context.read<PackageCreateBloc>().add(PackageEffectiveDateChanged(today));
-    });
   }
 
   @override
   void dispose() {
     _typeController.dispose();
     _costController.dispose();
-    _dateController.dispose();
     _widthController.dispose();
     _lengthController.dispose();
     _heightController.dispose();
     super.dispose();
-  }
-
-  Future<void> _selectDate(BuildContext context) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
-    );
-
-    if (picked != null) {
-      final formatted = DateFormat('yyyy-MM-dd').format(picked);
-      _dateController.text = formatted;
-      context.read<PackageCreateBloc>().add(
-        PackageEffectiveDateChanged(formatted),
-      );
-    }
   }
 
   @override
@@ -232,10 +205,6 @@ class _PackageInputDialogState extends State<PackageInputDialog> {
                 ),
                 const SizedBox(height: 12),
 
-                // Date Field
-                _buildDateField(context),
-                const SizedBox(height: 12),
-
                 // IsDefault Checkbox
                 BlocBuilder<PackageCreateBloc, PackageCreateState>(
                   builder: (context, state) {
@@ -284,21 +253,6 @@ class _PackageInputDialogState extends State<PackageInputDialog> {
         ),
       ),
       onChanged: onChanged,
-    );
-  }
-
-  Widget _buildDateField(BuildContext context) {
-    return TextField(
-      controller: _dateController,
-      readOnly: true,
-      decoration: InputDecoration(
-        labelText: '유효일',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-        suffixIcon: const Icon(Icons.calendar_today),
-      ),
-      onTap: () => _selectDate(context),
     );
   }
 
