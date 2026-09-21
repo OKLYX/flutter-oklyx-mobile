@@ -56,8 +56,6 @@ class PackageListItem extends StatelessWidget {
                       )
                     : null,
               ),
-              const SizedBox(height: 4),
-              Text('유효일: ${package.effectiveDate}'),
             ],
           ),
         ),

@@ -10,7 +10,6 @@ abstract class PackageRemoteDataSource {
     required int id,
     required String type,
     required double cost,
-    required String effectiveDate,
     required bool isDefault,
     required double widthCm,
     required double lengthCm,
@@ -67,7 +66,6 @@ class PackageRemoteDataSourceImpl implements PackageRemoteDataSource {
     required int id,
     required String type,
     required double cost,
-    required String effectiveDate,
     required bool isDefault,
     required double widthCm,
     required double lengthCm,
@@ -79,7 +77,6 @@ class PackageRemoteDataSourceImpl implements PackageRemoteDataSource {
         data: {
           'type': type,
           'cost': cost,
-          'effectiveDate': effectiveDate,
           'isDefault': isDefault,
           'widthCm': widthCm,
           'lengthCm': lengthCm,

@@ -127,7 +127,6 @@ class _PackageDetailsView extends StatelessWidget {
             _DetailField('상자 유형', package.type),
             _DetailField('비용', '${fmt.format(package.cost)}원'),
             _DetailField('사이즈', package.sizeLabel),
-            _DetailField('유효일', package.effectiveDate),
             _DetailField('기본값', package.isDefault ? '예' : '아니오'),
           ],
         ),
@@ -174,7 +173,7 @@ class _PackageEditForm extends StatefulWidget {
 }
 
 class _PackageEditFormState extends State<_PackageEditForm> {
-  late TextEditingController typeCtrl, costCtrl, dateCtrl;
+  late TextEditingController typeCtrl, costCtrl;
   late TextEditingController widthCtrl, lengthCtrl, heightCtrl;
 
   @override
@@ -182,7 +181,6 @@ class _PackageEditFormState extends State<_PackageEditForm> {
     super.initState();
     typeCtrl = TextEditingController(text: widget.state.editingData['type']);
     costCtrl = TextEditingController(text: widget.state.editingData['cost'].toInt().toString());
-    dateCtrl = TextEditingController(text: widget.state.editingData['effectiveDate']);
     // 미지정(0) 상자는 빈 칸으로 연다 — 0 이 남아 있으면 지우고 다시 쳐야 한다
     // (PLAN 2609_38 D4).
     widthCtrl = TextEditingController(text: _sizeText('widthCm'));
@@ -199,7 +197,6 @@ class _PackageEditFormState extends State<_PackageEditForm> {
   void dispose() {
     typeCtrl.dispose();
     costCtrl.dispose();
-    dateCtrl.dispose();
     widthCtrl.dispose();
     lengthCtrl.dispose();
     heightCtrl.dispose();
@@ -209,7 +206,6 @@ class _PackageEditFormState extends State<_PackageEditForm> {
   bool _hasChanges() {
     return widget.state.editingData['type'] != widget.state.originalPackage.type ||
         widget.state.editingData['cost'] != widget.state.originalPackage.cost ||
-        widget.state.editingData['effectiveDate'] != widget.state.originalPackage.effectiveDate ||
         widget.state.editingData['isDefault'] != widget.state.originalPackage.isDefault ||
         widget.state.editingData['widthCm'] !=
             widget.state.originalPackage.widthCm ||
@@ -310,12 +306,6 @@ class _PackageEditFormState extends State<_PackageEditForm> {
                   ),
                 ),
               ],
-            ),
-            _FormField(
-              '유효일 (YYYY-MM-DD)',
-              dateCtrl,
-              (v) => widget.bloc.add(UpdateFormField(field: 'effectiveDate', value: v)),
-              errors['effectiveDate'],
             ),
             const SizedBox(height: 16),
             CheckboxListTile(

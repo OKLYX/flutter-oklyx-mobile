@@ -50,7 +50,6 @@ class PackageDetailBloc extends Bloc<PackageDetailEvent, PackageDetailState> {
         editingData: {
           'type': pkg.type,
           'cost': pkg.cost,
-          'effectiveDate': pkg.effectiveDate,
           'isDefault': pkg.isDefault,
           'widthCm': pkg.widthCm,
           'lengthCm': pkg.lengthCm,
@@ -94,7 +93,6 @@ class PackageDetailBloc extends Bloc<PackageDetailEvent, PackageDetailState> {
         id: current.originalPackage.id,
         type: current.editingData['type'],
         cost: current.editingData['cost'],
-        effectiveDate: current.editingData['effectiveDate'],
         isDefault: current.editingData['isDefault'],
         widthCm: current.editingData['widthCm'],
         lengthCm: current.editingData['lengthCm'],
@@ -117,9 +115,6 @@ class PackageDetailBloc extends Bloc<PackageDetailEvent, PackageDetailState> {
     } else if (field == 'cost') {
       final cost = double.tryParse(value.toString()) ?? -1;
       if (cost < 0) return '양수를 입력하세요';
-    } else if (field == 'effectiveDate') {
-      if ((value as String).isEmpty) return '유효일은 필수입니다';
-      if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value)) return 'YYYY-MM-DD 형식으로 입력하세요';
     } else if (field == 'widthCm' ||
         field == 'lengthCm' ||
         field == 'heightCm') {
@@ -140,7 +135,6 @@ class PackageDetailBloc extends Bloc<PackageDetailEvent, PackageDetailState> {
     for (final field in [
       'type',
       'cost',
-      'effectiveDate',
       'widthCm',
       'lengthCm',
       'heightCm',

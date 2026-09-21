@@ -2,7 +2,6 @@ class Package {
   final int id;
   final String type;
   final double cost;
-  final String effectiveDate;
   final bool isDefault;
   final double widthCm;
   final double lengthCm;
@@ -12,7 +11,6 @@ class Package {
     required this.id,
     required this.type,
     required this.cost,
-    required this.effectiveDate,
     required this.isDefault,
     required this.widthCm,
     required this.lengthCm,
@@ -23,7 +21,6 @@ class Package {
     int? id,
     String? type,
     double? cost,
-    String? effectiveDate,
     bool? isDefault,
     double? widthCm,
     double? lengthCm,
@@ -33,7 +30,6 @@ class Package {
       id: id ?? this.id,
       type: type ?? this.type,
       cost: cost ?? this.cost,
-      effectiveDate: effectiveDate ?? this.effectiveDate,
       isDefault: isDefault ?? this.isDefault,
       widthCm: widthCm ?? this.widthCm,
       lengthCm: lengthCm ?? this.lengthCm,

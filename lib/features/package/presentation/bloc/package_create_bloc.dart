@@ -9,7 +9,6 @@ class PackageCreateBloc extends Bloc<PackageCreateEvent, PackageCreateState> {
 
   String _type = '';
   String _cost = '';
-  String _effectiveDate = '';
   bool _isDefault = false;
   String _width = '';
   String _length = '';
@@ -23,7 +22,6 @@ class PackageCreateBloc extends Bloc<PackageCreateEvent, PackageCreateState> {
     on<PackageWidthChanged>(_onPackageWidthChanged);
     on<PackageLengthChanged>(_onPackageLengthChanged);
     on<PackageHeightChanged>(_onPackageHeightChanged);
-    on<PackageEffectiveDateChanged>(_onPackageEffectiveDateChanged);
     on<PackageIsDefaultChanged>(_onPackageIsDefaultChanged);
     on<CreatePackageRequested>(_onCreatePackageRequested);
     on<ResetCreateForm>(_onResetCreateForm);
@@ -69,14 +67,6 @@ class PackageCreateBloc extends Bloc<PackageCreateEvent, PackageCreateState> {
     emit(_buildLoadedState());
   }
 
-  Future<void> _onPackageEffectiveDateChanged(
-    PackageEffectiveDateChanged event,
-    Emitter<PackageCreateState> emit,
-  ) async {
-    _effectiveDate = event.effectiveDate;
-    emit(_buildLoadedState());
-  }
-
   Future<void> _onPackageIsDefaultChanged(
     PackageIsDefaultChanged event,
     Emitter<PackageCreateState> emit,
@@ -94,7 +84,6 @@ class PackageCreateBloc extends Bloc<PackageCreateEvent, PackageCreateState> {
     final params = CreatePackageParams(
       type: _type,
       cost: double.parse(_cost),
-      effectiveDate: _effectiveDate,
       isDefault: _isDefault,
       widthCm: double.parse(_width),
       lengthCm: double.parse(_length),
@@ -117,7 +106,6 @@ class PackageCreateBloc extends Bloc<PackageCreateEvent, PackageCreateState> {
   ) async {
     _type = '';
     _cost = '';
-    _effectiveDate = '';
     _isDefault = false;
     _width = '';
     _length = '';
@@ -129,7 +117,6 @@ class PackageCreateBloc extends Bloc<PackageCreateEvent, PackageCreateState> {
     return PackageCreateLoaded(
       type: _type,
       cost: _cost,
-      effectiveDate: _effectiveDate,
       isDefault: _isDefault,
       width: _width,
       length: _length,
@@ -139,16 +126,12 @@ class PackageCreateBloc extends Bloc<PackageCreateEvent, PackageCreateState> {
   }
 
   bool _validateForm() {
-    if (_type.isEmpty || _cost.isEmpty || _effectiveDate.isEmpty) {
+    if (_type.isEmpty || _cost.isEmpty) {
       return false;
     }
 
     final costValue = double.tryParse(_cost);
     if (costValue == null || costValue <= 0) {
-      return false;
-    }
-
-    if (!_effectiveDate.contains(RegExp(r'^\d{4}-\d{2}-\d{2}$'))) {
       return false;
     }
 

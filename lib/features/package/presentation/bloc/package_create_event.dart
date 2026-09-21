@@ -49,15 +49,6 @@ class PackageHeightChanged extends PackageCreateEvent {
   List<Object> get props => [height];
 }
 
-class PackageEffectiveDateChanged extends PackageCreateEvent {
-  final String effectiveDate;
-
-  const PackageEffectiveDateChanged(this.effectiveDate);
-
-  @override
-  List<Object> get props => [effectiveDate];
-}
-
 class PackageIsDefaultChanged extends PackageCreateEvent {
   final bool isDefault;
 
