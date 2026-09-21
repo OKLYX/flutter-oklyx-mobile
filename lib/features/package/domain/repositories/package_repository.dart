@@ -10,7 +10,6 @@ abstract class PackageRepository {
     required int id,
     required String type,
     required double cost,
-    required String effectiveDate,
     required bool isDefault,
     required double widthCm,
     required double lengthCm,

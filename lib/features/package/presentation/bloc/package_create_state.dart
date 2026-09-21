@@ -18,7 +18,6 @@ class PackageCreateLoading extends PackageCreateState {
 class PackageCreateLoaded extends PackageCreateState {
   final String type;
   final String cost;
-  final String effectiveDate;
   final bool isDefault;
   final String width;
   final String length;
@@ -28,7 +27,6 @@ class PackageCreateLoaded extends PackageCreateState {
   const PackageCreateLoaded({
     required this.type,
     required this.cost,
-    required this.effectiveDate,
     required this.isDefault,
     required this.width,
     required this.length,
@@ -40,7 +38,6 @@ class PackageCreateLoaded extends PackageCreateState {
   List<Object> get props => [
     type,
     cost,
-    effectiveDate,
     isDefault,
     width,
     length,
