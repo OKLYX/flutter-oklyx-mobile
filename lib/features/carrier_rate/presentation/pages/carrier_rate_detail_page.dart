@@ -295,7 +295,7 @@ class _CarrierRateDetailsViewState extends State<_CarrierRateDetailsView> {
               _DetailField('배송사', widget.carrierRate.carrier),
               _DetailField('타입', widget.carrierRate.type),
               _DetailField('비용', '${fmt.format(widget.carrierRate.cost.toInt())}원'),
-              _DetailField('유효일', widget.carrierRate.effectiveDate),
+              _DetailField('가격 적용', widget.carrierRate.effectiveDate),
               _DetailField(
                 '기본값',
                 widget.carrierRate.isDefault ? '예' : '아니오',
@@ -327,7 +327,7 @@ class _CarrierRateDetailsViewState extends State<_CarrierRateDetailsView> {
               keyboardType: TextInputType.number,
             ),
             _FormField(
-              '유효일',
+              '가격 적용',
               _dateCtrl,
               (v) => context
                   .read<CarrierRateDetailBloc>()

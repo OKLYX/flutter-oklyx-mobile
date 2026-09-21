@@ -34,7 +34,9 @@ class EffectiveDateForm extends FormzInput<String, String> {
 
   @override
   String? validator(String value) {
-    if (value.isEmpty) return '유효일을 선택하세요';
+    // Empty is allowed: the server owns the default (today on create, existing
+    // value on update). Requiring it here would block sending a blank date.
+    if (value.isEmpty) return null;
     if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value)) {
       return 'YYYY-MM-DD 형식';
     }
