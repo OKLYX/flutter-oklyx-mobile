@@ -19,7 +19,8 @@ class UpdateCarrierRateParams {
     'carrierId': carrierId,
     'type': type,
     'cost': cost,
-    'effectiveDate': effectiveDate,
+    // Omit a blank date instead of sending "": the server fills the default.
+    if (effectiveDate.isNotEmpty) 'effectiveDate': effectiveDate,
     'isDefault': isDefault,
   };
 }

@@ -352,7 +352,7 @@ class _CarrierRateInputDialogState extends State<CarrierRateInputDialog> {
       controller: _dateController,
       readOnly: true,
       decoration: InputDecoration(
-        labelText: '유효일',
+        labelText: '가격 적용',
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
         ),

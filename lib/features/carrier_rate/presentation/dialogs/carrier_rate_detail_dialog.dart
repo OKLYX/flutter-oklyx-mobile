@@ -374,7 +374,7 @@ class _CarrierRateDetailDialogState extends State<CarrierRateDetailDialog> {
       readOnly: true,
       enabled: !isSubmitting,
       decoration: InputDecoration(
-        labelText: '유효일',
+        labelText: '가격 적용',
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
         ),

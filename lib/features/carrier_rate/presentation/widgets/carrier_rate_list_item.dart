@@ -48,7 +48,7 @@ class CarrierRateListItem extends StatelessWidget {
               const SizedBox(height: 4),
               Text('유형: ${carrierRate.type}'),
               const SizedBox(height: 4),
-              Text('유효일: ${carrierRate.effectiveDate}'),
+              Text('가격 적용: ${carrierRate.effectiveDate}'),
             ],
           ),
         ),
