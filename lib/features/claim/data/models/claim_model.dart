@@ -24,6 +24,8 @@ class ClaimModel extends Claim {
     super.returnShippingCharge,
     super.collectInvoiceNo,
     super.collectCarrierCode,
+    super.collectInvoiceSource,
+    super.returnDeliveryType,
     super.collectStatus,
     super.reshipInvoiceNo,
     super.reshipCarrierCode,
@@ -53,6 +55,10 @@ class ClaimModel extends Claim {
       returnShippingCharge: (json['returnShippingCharge'] as num?)?.toInt(),
       collectInvoiceNo: json['collectInvoiceNo'] as String?,
       collectCarrierCode: json['collectCarrierCode'] as String?,
+      // 회수송장 출처·회수종류(2609_70 / D12). 구버전 서버 응답에는 필드가 없다 → null.
+      // ⚠️ 회수종류는 '' 가 의미 있는 값이라(넣을 송장 없음) 빈 문자열을 null 로 접지 말 것.
+      collectInvoiceSource: json['collectInvoiceSource'] as String?,
+      returnDeliveryType: json['returnDeliveryType'] as String?,
       // 교환 전용 · 원문 그대로(05). 구버전 서버 응답에는 필드가 없다 → null.
       collectStatus: json['collectStatus'] as String?,
       reshipInvoiceNo: json['reshipInvoiceNo'] as String?,
@@ -128,6 +134,7 @@ class ClaimActionResultModel extends ClaimActionResult {
     required super.succeeded,
     super.resultCode,
     super.resultMessage,
+    super.localRecordOnly,
   });
 
   factory ClaimActionResultModel.fromJson(Map<String, dynamic> json) {
@@ -137,6 +144,8 @@ class ClaimActionResultModel extends ClaimActionResult {
       succeeded: json['succeeded'] == true,
       resultCode: json['resultCode'] as String?,
       resultMessage: json['resultMessage'] as String?,
+      // 구버전 서버(필드 없음)는 false — 기존 성공/실패 2갈래 그대로 동작한다.
+      localRecordOnly: json['localRecordOnly'] == true,
     );
   }
 }

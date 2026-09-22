@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
+import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
 import 'package:flutter_oklyn_mobile/features/order/domain/entities/order_period.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
@@ -12,15 +13,22 @@ import '../widgets/claim_card.dart';
 import '../widgets/claim_status_filter_bar.dart';
 import '../widgets/claim_type_tabs.dart';
 
-/// 주문관리 > 반품/교환 페이지 (FEATURE_2609_18 — 조회 전용).
+/// 주문관리 > 반품/교환 페이지 (FEATURE_2609_18 조회 + FEATURE_2609_70 동기화).
 ///
 /// **기능**:
 /// - 반품 / 교환 탭 전환 (`ClaimTypeTabs`) — **서버 재조회**를 부른다
 /// - 판매자 / 기간 / 검색어를 고르고 [조회] 로 서버 재조회 (`GET /api/claims`)
 /// - 상태 칩: 클라이언트 필터(건수 배지) — 서버를 부르지 않는다. 후보는 탭마다 다르다
+/// - [동기화]: 동기화 대상 채널(판매자 필터로 좁혀진다)의 **반품·교환만** 가져온다
+///   (`POST /api/claims/sync` — 2609_70 / D14). 끝나면 목록을 다시 조회한다
+/// - 「마지막 동기화」: 채널들의 `lastClaimSyncAt` 중 가장 최근 값(D16). 없으면 줄을 안 그린다
 /// - 카드 탭 → 클레임 상세(`extra` 전달, 상세 API 재조회 없음)
 ///
-/// ⚠️ **처리 버튼(승인·입고확인)을 만들지 말 것** — 조회 전용이다(PLAN D4).
+/// ⚠️ **처리 버튼(승인·입고확인)을 이 화면에 만들지 말 것** — 목록은 조회다. 처리 액션은
+/// 상세의 `ClaimActionSheet` 가 서버 판정(`availableActions`)대로만 그린다(2609_21 D9).
+/// 🔴 이 화면에 있는 유일한 쓰기 성격 버튼은 [동기화]이며, 그것도 마켓에서 **읽어오는** 동작이다.
+/// ⚠️ **동기화 다이얼로그를 띄우지 않는다**(2609_70 / 04 Step 3) — 진행은 버튼 자리의 한 줄 +
+/// 진행바다. `SyncProgressDialog` 는 `OrderListBloc` 을 직접 읽어 재사용할 수 없다.
 /// ⚠️ 기간 드롭다운은 `buildPeriodOptions()` 를 **인자 없이** 부른다 —
 /// 클레임에는 월별 건수 API 가 없어 '(데이터 없음)' 을 판정할 근거가 없다.
 class ClaimListPage extends StatelessWidget {
@@ -62,11 +70,15 @@ class _ClaimListViewState extends State<_ClaimListView> {
       showDrawer: true,
       showAppBarDrawerButton: false,
       body: BlocConsumer<ClaimListBloc, ClaimListState>(
-        // 재조회 실패(기존 목록 유지)만 SnackBar 로 알린다.
+        // 재조회 실패·동기화 결과(기존 목록 유지)를 SnackBar 로 알린다.
+        // ⚠️ 문구가 **바뀔 때만** 띄운다 — 같은 문구를 실은 상태가 연달아 emit 되면 SnackBar 가
+        // 두 번 뜬다(고객문의 화면과 같은 가드).
         listenWhen: (prev, curr) =>
-            curr is ClaimListLoaded && curr.actionError != null,
+            curr is ClaimListLoaded &&
+            _message(curr) != null &&
+            _message(prev) != _message(curr),
         listener: (context, state) {
-          final message = (state as ClaimListLoaded).actionError;
+          final message = _message(state);
           if (message == null) return;
           ScaffoldMessenger.of(context)
             ..hideCurrentSnackBar()
@@ -100,6 +112,12 @@ class _ClaimListViewState extends State<_ClaimListView> {
   }
 }
 
+/// SnackBar 문구 — 실패([ClaimListLoaded.actionError])가 성공 요약보다 우선이다.
+String? _message(ClaimListState state) {
+  if (state is! ClaimListLoaded) return null;
+  return state.actionError ?? state.syncSummary;
+}
+
 class _LoadedBody extends StatelessWidget {
   final ClaimListLoaded state;
   final TextEditingController searchController;
@@ -111,6 +129,8 @@ class _LoadedBody extends StatelessWidget {
     final s = state;
     final bloc = context.read<ClaimListBloc>();
     final claims = s.visible;
+    // 조회·동기화 중에는 컨트롤을 잠근다(둘 다 서버 왕복이다).
+    final busy = s.busy;
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -120,7 +140,7 @@ class _LoadedBody extends StatelessWidget {
           // 반품 ↔ 교환 — 칩과 달리 서버를 다시 부른다(조회 중에는 잠근다).
           ClaimTypeTabs(
             value: s.claimType,
-            enabled: !s.isSearching,
+            enabled: !busy,
             onChanged: (t) => bloc.add(SelectClaimType(type: t)),
           ),
           const SizedBox(height: 12),
@@ -156,7 +176,7 @@ class _LoadedBody extends StatelessWidget {
                               ),
                             ),
                           ],
-                          onChanged: s.isSearching
+                          onChanged: busy
                               ? null
                               : (value) =>
                                   bloc.add(SelectSeller(sellerId: value)),
@@ -164,9 +184,8 @@ class _LoadedBody extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton(
-                        onPressed: s.isSearching
-                            ? null
-                            : () => bloc.add(SearchClaims()),
+                        onPressed:
+                            busy ? null : () => bloc.add(SearchClaims()),
                         child: Text(s.isSearching ? '조회 중...' : '조회'),
                       ),
                     ],
@@ -193,7 +212,7 @@ class _LoadedBody extends StatelessWidget {
                               ),
                             ))
                         .toList(),
-                    onChanged: s.isSearching
+                    onChanged: busy
                         ? null
                         : (value) => bloc.add(SelectPeriod(period: value!)),
                   ),
@@ -201,11 +220,10 @@ class _LoadedBody extends StatelessWidget {
                   // 검색어는 **서버로** 보낸다 — [조회] 를 눌러야 반영된다.
                   TextField(
                     controller: searchController,
-                    enabled: !s.isSearching,
+                    enabled: !busy,
                     onChanged: (value) =>
                         bloc.add(ChangeSearchTerm(term: value)),
-                    onSubmitted: (_) =>
-                        s.isSearching ? null : bloc.add(SearchClaims()),
+                    onSubmitted: (_) => busy ? null : bloc.add(SearchClaims()),
                     decoration: InputDecoration(
                       isDense: true,
                       border: const OutlineInputBorder(),
@@ -222,6 +240,42 @@ class _LoadedBody extends StatelessWidget {
                             ),
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  // 동기화 — 진행은 이 자리의 한 줄이다(다이얼로그 금지).
+                  if (s.isSyncing)
+                    _SyncProgress(
+                      done: s.syncDone,
+                      total: s.syncTotal,
+                      channelName: s.syncingChannelName,
+                    )
+                  else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: busy || s.syncTargets.isEmpty
+                                ? null
+                                : () => bloc.add(SyncClaims()),
+                            icon: const Icon(Icons.sync, size: 18),
+                            label: const Text('동기화'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  // 대상이 없으면 버튼이 왜 꺼져 있는지 한 줄로 알린다.
+                  if (!s.isSyncing && s.syncTargets.isEmpty) ...[
+                    const SizedBox(height: 4),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '가져올 채널이 없습니다',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -238,12 +292,27 @@ class _LoadedBody extends StatelessWidget {
           ),
           const SizedBox(height: 8),
 
-          Text(
-            '총 ${claims.length}건',
-            style: TextStyle(
-              fontSize: 12,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '총 ${claims.length}건',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              // 값이 없으면(한 번도 가져온 적 없는 채널들) 줄을 그리지 않는다 —
+              // '기록 없음' 을 띄우면 실패한 것처럼 읽힌다(주문내역과 같은 자세).
+              if (s.lastClaimSyncedAt != null)
+                Text(
+                  '마지막 동기화: ${formatRelativeTime(s.lastClaimSyncedAt)}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 8),
 
@@ -274,6 +343,43 @@ class _LoadedBody extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 동기화 진행 한 줄 + 진행바.
+/// 🔴 다이얼로그를 쓰지 않는 이유는 페이지 주석 참고(고객문의 화면과 같은 구성).
+class _SyncProgress extends StatelessWidget {
+  final int done;
+  final int total;
+  final String? channelName;
+
+  const _SyncProgress({
+    required this.done,
+    required this.total,
+    this.channelName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // 진행 중인 채널은 done + 1 번째다(끝난 개수 + 1).
+    final current = total == 0 ? 0 : (done + 1).clamp(1, total);
+    final name = channelName;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '동기화 중 ($current/$total)${name == null ? '' : ' · $name'}',
+          style: TextStyle(
+            fontSize: 13,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 6),
+        LinearProgressIndicator(
+          value: total == 0 ? null : done / total,
+        ),
+      ],
     );
   }
 }

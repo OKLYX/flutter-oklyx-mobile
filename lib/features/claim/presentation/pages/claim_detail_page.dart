@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/claim.dart';
 import '../widgets/claim_action_sheet.dart';
@@ -25,6 +26,11 @@ const Map<String, String> _platformLabels = {'COUPANG': '쿠팡'};
 /// [Claim.availableActions] 를 버튼으로 그린다 — 무엇을 보여줄지는 **서버가 정한다**(D1).
 /// 액션 뒤 단건 재조회 결과를 담을 소유자가 필요해 이 페이지는 [StatefulWidget] 이고,
 /// 카드·액션 영역 전부 로컬 [_claim] 을 읽는다.
+/// **회수송장 표시**(FEATURE_2609_70): 우리 장부에만 있는 값에는 「우리 기록」 뱃지를 붙이고,
+/// 고객이 직접 보내 **넣을 송장이 아예 없는** 반품에는 값 대신 회색 안내를 그린다(D3).
+/// 🔴 판정은 여기서 하지 않는다 — 서버가 준 `collectInvoiceSource`·`returnDeliveryType` 을
+/// 그대로 읽을 뿐이고, 무엇을 누를 수 있는지는 여전히 `availableActions` 가 정한다(D1).
+///
 /// ⚠️ 목록(`ClaimListBloc`)은 건드리지 않는다 — 상세에서 그 인스턴스에 닿을 수 없고, 액션이
 /// 바꾸는 값(`availableActions`)은 목록 카드가 그리지 않는다(04 Step 5).
 class ClaimDetailPage extends StatefulWidget {
@@ -91,6 +97,26 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
       return text.isEmpty ? '-' : text;
     }
 
+    // 회수송장 한 줄 — 2609_70 에서 세 갈래가 됐다(반품·교환이 같은 줄을 쓴다):
+    // ① 우리 장부에만 있는 값(D6) → 「우리 기록」 뱃지. null·PLATFORM 은 아무 표시도 없다
+    // ② 반품인데 고객이 직접 보내 **넣을 송장이 아예 없는** 건(D3) → 회색 안내로 바꾼다.
+    //    🔴 회수종류가 null(아직 안 읽은 옛 행)일 때는 그리지 않는다 — 판단할 근거가 없다
+    // ③ 그 밖 → 기존 그대로
+    _InfoRow collectInvoiceRow() {
+      if (c.collectInvoiceNotApplicable) {
+        return const _InfoRow(
+          '회수송장',
+          '고객이 직접 보낸 건이라 넣을 송장이 없습니다',
+          muted: true,
+        );
+      }
+      return _InfoRow(
+        '회수송장',
+        invoiceText(c.collectCarrierCode, c.collectInvoiceNo),
+        badge: c.collectInvoiceLocalOnly ? '우리 기록' : null,
+      );
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -137,8 +163,7 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
                 // 회수상태(05) — 이 한 줄이 "왜 재발송 버튼이 없나"를 화면에서 설명한다.
                 // ⚠️ 반품 카드에는 넣지 않는다(반품은 항상 null 이라 '-' 만 늘어난다).
                 _InfoRow('회수상태', collectStatusText(c.collectStatus)),
-                _InfoRow('회수송장',
-                    invoiceText(c.collectCarrierCode, c.collectInvoiceNo)),
+                collectInvoiceRow(),
               ],
             ),
             const SizedBox(height: 12),
@@ -163,8 +188,7 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
                       ? '-'
                       : '${c.returnShippingCharge}원',
                 ),
-                _InfoRow('회수송장',
-                    invoiceText(c.collectCarrierCode, c.collectInvoiceNo)),
+                collectInvoiceRow(),
               ],
             ),
           // 액션 영역 — 서버가 준 목록이 비면 영역 자체를 만들지 않는다(위 여백도 함께 빠진다).
@@ -232,10 +256,18 @@ class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _InfoRow(this.label, this.value);
+  /// 값 옆의 작은 뱃지(「우리 기록」 등). null 이면 그리지 않는다.
+  final String? badge;
+
+  /// 값이 아니라 **안내 문구**일 때 켠다 — 회색 보조문으로 그린다(값처럼 굵게 쓰면
+  /// 사용자가 그 문장을 송장번호로 읽는다).
+  final bool muted;
+
+  const _InfoRow(this.label, this.value, {this.badge, this.muted = false});
 
   @override
   Widget build(BuildContext context) {
+    final badgeText = badge;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Column(
@@ -249,9 +281,40 @@ class _InfoRow extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 2),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  value,
+                  style: muted
+                      ? TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        )
+                      : const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+              ),
+              if (badgeText != null) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.warningSurface,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    badgeText,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.warningForeground,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ],
       ),

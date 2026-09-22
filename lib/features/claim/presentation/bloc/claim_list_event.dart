@@ -44,3 +44,10 @@ class SelectClaimType extends ClaimListEvent {
 
   SelectClaimType({required this.type});
 }
+
+/// 반품·교환만 다시 가져오기 (FEATURE_2609_70 / D14).
+///
+/// 동기화 대상 채널을 **하나씩** 순회하며 `POST /api/claims/sync?accountId=` 를 부른다 —
+/// 판매자 필터가 걸려 있으면 그 판매자의 채널만 돈다.
+/// ⚠️ 진행은 다이얼로그가 아니라 버튼 자리의 한 줄이다(문의 화면과 같은 규칙).
+class SyncClaims extends ClaimListEvent {}

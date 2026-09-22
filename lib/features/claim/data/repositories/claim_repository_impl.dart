@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import '../../domain/entities/claim.dart';
+import '../../domain/entities/claim_sync_result.dart';
 import '../../domain/repositories/claim_repository.dart';
 import '../datasources/claim_remote_datasource.dart';
 
@@ -70,6 +71,24 @@ class ClaimRepositoryImpl implements ClaimRepository {
       return Right(result);
     } on DioException catch (e) {
       return Left(_toActionFailure(e));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, ClaimSyncResult>> syncClaims(int accountId) async {
+    try {
+      return Right(await remoteDataSource.syncClaims(accountId));
+    } on DioException catch (e) {
+      // 채널별 사유를 그대로 화면에 싣는다 — 앱이 문구를 지어내지 않는다.
+      final body = e.response?.data;
+      final envelope = body is Map ? body : const {};
+      final serverMessage = envelope['message'];
+      final message = (serverMessage is String && serverMessage.isNotEmpty)
+          ? serverMessage
+          : (e.message ?? '반품·교환 가져오기에 실패했습니다.');
+      return Left(ServerFailure(message, statusCode: e.response?.statusCode));
     } on Exception catch (e) {
       return Left(ServerFailure(e.toString()));
     }
