@@ -4,6 +4,7 @@ import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/data/models/carrier_option.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/domain/usecases/shipping_label_usecase.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import '../../domain/entities/claim.dart';
 import '../../domain/usecases/claim_usecase.dart';
 import 'claim_reject_sheet.dart';
@@ -55,6 +56,11 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
   static const _conflictMessage = '이미 처리된 접수입니다.';
   static const _forbiddenMessage = '권한이 없습니다. 관리자 계정으로 로그인해주세요.';
   static const _rawResponseTitle = '쿠팡 응답 보기';
+
+  /// 쿠팡이 거절해 우리 장부에만 남은 회차(2609_70 / D6)의 안내.
+  /// 🔴 실패가 아니라 **절반의 성공**이다 — 붉은색으로 띄우면 사용자가 기록까지 실패한 줄 안다.
+  static const _localRecordMessage =
+      '쿠팡에는 반영되지 않았습니다. 회수송장은 우리 기록에만 저장했습니다.';
 
   /// X3(재발송 송장)의 400 안내 꼬리말. **클라이언트가 붙이는 유일한 문구**다 —
   /// 05 Step 5 의 박스 alias 가 실제 스키마와 다르면 10분이 지나도 같은 400 이 오는데,
@@ -338,8 +344,14 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
     bool retryable = false;
     await result.fold<Future<void>>(
       (failure) async => retryable = await _onFailure(failure, request),
-      (_) async {
-        _snack(_successMessage);
+      (actionResult) async {
+        // 🔴 **액션 코드로 분기하지 않는다** — 서버가 내려준 localRecordOnly 한 값으로만 가른다
+        //    (2609_70 / D6). 재조회하면 서버가 [쿠팡에 다시 보내기] 를 열어 준다(D7).
+        if (actionResult.localRecordOnly) {
+          _showLocalRecordNotice(actionResult);
+        } else {
+          _snack(_successMessage);
+        }
         await _reload();
       },
     );
@@ -386,6 +398,20 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
     return false;
   }
 
+  /// 쿠팡 거절 + 로컬 기록(D6) 안내. 서버가 준 쿠팡 **원문**을 그대로 덧붙인다 —
+  /// 번역·요약하지 않는다(D15 와 같은 규칙).
+  void _showLocalRecordNotice(ClaimActionResult result) {
+    final raw = [
+      if (result.resultCode != null && result.resultCode!.isNotEmpty)
+        result.resultCode!,
+      if (result.resultMessage != null && result.resultMessage!.isNotEmpty)
+        result.resultMessage!,
+    ].join('\n');
+    final body =
+        raw.isEmpty ? _localRecordMessage : '$_localRecordMessage\n$raw';
+    _showLongBody(body, warning: true);
+  }
+
   /// 502 는 원문이 길 수 있어 다이얼로그로 편다(짧으면 SnackBar 로 충분하다).
   void _showRawResponse(ClaimActionFailure? f) {
     final raw = [
@@ -393,8 +419,14 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
       if (f?.resultMessage != null) f!.resultMessage!,
     ].join('\n');
     final body = raw.isEmpty ? (f?.message ?? '쿠팡 처리에 실패했습니다.') : raw;
+    _showLongBody(body);
+  }
+
+  /// 긴 문구는 다이얼로그, 짧으면 SnackBar — 쿠팡 원문을 보여주는 두 경로(502 실패 ·
+  /// 로컬 기록 안내)가 **같은 자리**를 쓰게 한다.
+  void _showLongBody(String body, {bool warning = false}) {
     if (body.length <= 60) {
-      _snack(body);
+      _snack(body, isWarning: warning);
       return;
     }
     showDialog<void>(
@@ -422,15 +454,23 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
 
   /// [isError] = 사용자가 **잘못한** 결과(일반 400·권한). 안내(성공·409·X3 이른 요청)는 보통 톤이다 —
   /// 잘못이 아닌 것을 붉게 띄우면 사용자가 재시도를 멈춘다.
-  void _snack(String message, {bool isError = false}) {
+  ///
+  /// [isWarning] = 쿠팡엔 못 넣었지만 **우리 장부에는 남은** 회차(D6). 실패(빨강)도 성공(보통)도
+  /// 아니라서 주황 계열로 낸다 — 두 플래그를 동시에 켜지 않는다.
+  void _snack(String message, {bool isError = false, bool isWarning = false}) {
     final scheme = Theme.of(context).colorScheme;
+    final foreground = isError
+        ? scheme.onError
+        : (isWarning ? AppColors.warningForeground : null);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           message,
-          style: isError ? TextStyle(color: scheme.onError) : null,
+          style: foreground == null ? null : TextStyle(color: foreground),
         ),
-        backgroundColor: isError ? scheme.error : null,
+        backgroundColor: isError
+            ? scheme.error
+            : (isWarning ? AppColors.warningSurface : null),
         // ScaffoldWithNavBar 가 내비바를 오버레이한다 — 기본값이면 SnackBar 가 가린다.
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),

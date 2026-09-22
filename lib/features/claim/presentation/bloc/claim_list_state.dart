@@ -1,4 +1,5 @@
 import 'package:flutter_oklyn_mobile/features/order/domain/entities/order_period.dart';
+import 'package:flutter_oklyn_mobile/features/order/domain/entities/sync_target.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import '../../domain/entities/claim.dart';
 
@@ -46,6 +47,26 @@ class ClaimListLoaded extends ClaimListState {
   final bool isSearching;
   final String? actionError;
 
+  /// 동기화 대상 채널(계정). **판매자 필터에 따라 좁아진다** — 비어 있으면 [동기화] 버튼이
+  /// 비활성된다(FEATURE_2609_70 / D14). 조회 실패도 빈 목록이다(비차단).
+  final List<SyncTarget> syncTargets;
+
+  /// 동기화 진행 중 — 화면 안 한 줄 + 진행바다. 🔴 다이얼로그를 띄우지 않는다(M4).
+  final bool isSyncing;
+  final int syncTotal;
+  final int syncDone;
+
+  /// 지금 가져오는 중인 채널 표시명('판매자 · 플랫폼').
+  final String? syncingChannelName;
+
+  /// 채널들의 `lastClaimSyncAt` 중 **가장 최근** 값(D16). null 이면 「마지막 동기화」 줄을
+  /// 아예 그리지 않는다 — 주문내역과 같은 자세다.
+  final String? lastClaimSyncedAt;
+
+  /// 동기화 **성공** 요약 한 줄. ⚠️ [actionError] 와 다른 필드다 — 성공 요약을 에러 자리에
+  /// 넣으면 실패 문구와 구분할 수 없다(고객문의 화면과 같은 규칙).
+  final String? syncSummary;
+
   /// 지금 보고 있는 탭(반품 / 교환). **서버 조회 파라미터**라 바뀌면 재조회가 따라온다.
   final ClaimType claimType;
 
@@ -60,7 +81,17 @@ class ClaimListLoaded extends ClaimListState {
     this.isSearching = false,
     this.actionError,
     this.claimType = ClaimType.returnClaim,
+    this.syncTargets = const [],
+    this.isSyncing = false,
+    this.syncTotal = 0,
+    this.syncDone = 0,
+    this.syncingChannelName,
+    this.lastClaimSyncedAt,
+    this.syncSummary,
   });
+
+  /// 조회·동기화 중에는 컨트롤을 잠근다.
+  bool get busy => isSearching || isSyncing;
 
   /// 이 탭에서 보여줄 상태 칩. 칩 목록은 탭마다 다르다.
   List<ClaimStatus> get statusFilters => claimType == ClaimType.exchange
@@ -101,6 +132,16 @@ class ClaimListLoaded extends ClaimListState {
     bool clearActionError = false,
     // ⚠️ null 이 될 수 없는 축이라 clear 플래그가 없다.
     ClaimType? claimType,
+    List<SyncTarget>? syncTargets,
+    bool? isSyncing,
+    int? syncTotal,
+    int? syncDone,
+    String? syncingChannelName,
+    bool clearSyncingChannelName = false,
+    String? lastClaimSyncedAt,
+    bool clearLastClaimSyncedAt = false,
+    String? syncSummary,
+    bool clearSyncSummary = false,
   }) {
     return ClaimListLoaded(
       claims: claims ?? this.claims,
@@ -118,6 +159,18 @@ class ClaimListLoaded extends ClaimListState {
       isSearching: isSearching ?? this.isSearching,
       actionError: clearActionError ? null : (actionError ?? this.actionError),
       claimType: claimType ?? this.claimType,
+      syncTargets: syncTargets ?? this.syncTargets,
+      isSyncing: isSyncing ?? this.isSyncing,
+      syncTotal: syncTotal ?? this.syncTotal,
+      syncDone: syncDone ?? this.syncDone,
+      syncingChannelName: clearSyncingChannelName
+          ? null
+          : (syncingChannelName ?? this.syncingChannelName),
+      // 판매자를 바꾸면 기록이 없는 채널만 남을 수 있다 — 그때는 명시적으로 비운다.
+      lastClaimSyncedAt: clearLastClaimSyncedAt
+          ? null
+          : (lastClaimSyncedAt ?? this.lastClaimSyncedAt),
+      syncSummary: clearSyncSummary ? null : (syncSummary ?? this.syncSummary),
     );
   }
 }

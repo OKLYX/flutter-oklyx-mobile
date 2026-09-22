@@ -20,6 +20,11 @@ class SyncTarget {
   final String? lastOrderSyncAt;
   final String? lastCancelSyncAt;
 
+  /// 반품·교환 적재+추적이 끝난 마지막 회차 (FEATURE_2609_70 / D16).
+  /// 반품/교환 화면의 「마지막 동기화」 표기가 읽는 유일한 값이다 — [lastSyncAt](주문 시도)과
+  /// 다르다. null = 클레임을 한 번도 가져온 적이 없는 채널.
+  final String? lastClaimSyncAt;
+
   /// 서버가 확정한 사유 문구. 클라이언트에서 가공하지 않고 그대로 노출한다(PLAN D18).
   final String? lastSyncError;
 
@@ -33,6 +38,7 @@ class SyncTarget {
     this.lastSyncAt,
     this.lastOrderSyncAt,
     this.lastCancelSyncAt,
+    this.lastClaimSyncAt,
     this.lastSyncError,
   });
 }

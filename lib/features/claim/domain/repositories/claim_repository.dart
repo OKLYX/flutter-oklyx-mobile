@@ -1,6 +1,7 @@
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import '../entities/claim.dart';
+import '../entities/claim_sync_result.dart';
 
 abstract class ClaimRepository {
   /// 클레임 목록 조회
@@ -37,4 +38,11 @@ abstract class ClaimRepository {
     int claimId,
     ClaimActionRequest request,
   );
+
+  /// 반품·교환만 다시 가져오기 (채널 1개)
+  /// POST /api/claims/sync?accountId=
+  ///
+  /// 화면이 채널을 **하나씩** 돌며 부른다(D14) — 한 채널의 실패가 나머지를 멈추지 않게 하기
+  /// 위해서다. 이미 동기화 중인 채널은 실패가 아니라 `skipped=true` 로 돌아온다.
+  Future<Either<Failure, ClaimSyncResult>> syncClaims(int accountId);
 }
