@@ -18,9 +18,6 @@ abstract class ProductListingRemoteDataSource {
   /// Returns option list for a given product listing (옵션/마진 정보)
   Future<List<ProductListingOptionModel>> getOptions(int listingId);
 
-  /// POST /api/product-listings (Admin only)
-  Future<ProductListingModel> create(CreateProductListingRequest request);
-
   /// PATCH /api/product-listings/{id} (Admin only)
   Future<ProductListingModel> update(int id, UpdateProductListingRequest request);
 
@@ -121,28 +118,6 @@ class ProductListingRemoteDataSourceImpl implements ProductListingRemoteDataSour
   }
 
   @override
-  Future<ProductListingModel> create(CreateProductListingRequest request) async {
-    try {
-      final response = await dio.post(
-        '/api/product-listings',
-        data: _listingBody(
-          sellerId: request.sellerId,
-          platform: request.platform,
-          platformProductId: request.platformProductId,
-          name: request.name,
-          categoryId: request.categoryId,
-          carrierId: request.carrierId,
-          packageId: request.packageId,
-          options: request.options,
-        ),
-      );
-      return _parseListing(response, 'Failed to create product listing');
-    } on DioException catch (e) {
-      throw Exception(_dioErrorMessage(e, 'Failed to create product listing'));
-    }
-  }
-
-  @override
   Future<ProductListingModel> update(
     int id,
     UpdateProductListingRequest request,
@@ -167,9 +142,10 @@ class ProductListingRemoteDataSourceImpl implements ProductListingRemoteDataSour
     }
   }
 
-  // 백엔드 CreateProductListingRequest 계약에 맞춘 요청 body.
+  // 백엔드 UpdateProductListingRequest 계약에 맞춘 요청 body.
   // ⚠️ 택배비는 백엔드에서 `deliveryId`로 받는다 (carrierId 아님 - 프론트와 동일).
-  // ⚠️ options(및 중첩 products)를 반드시 직렬화해야 한다 (누락 시 "Options cannot be empty").
+  // ⚠️ options를 반드시 직렬화해야 한다 (누락 시 "Options cannot be empty").
+  // ⚠️ 옵션의 구성품(products)은 전송하지 않는다 - 구성품은 마스터 상품이 소유한다.
   // ID들은 String이므로 숫자(Long)로 변환해 전송한다.
   Map<String, dynamic> _listingBody({
     required String? sellerId,
@@ -195,12 +171,6 @@ class ProductListingRemoteDataSourceImpl implements ProductListingRemoteDataSour
                 'sellingPrice': o.sellingPrice,
                 if (o.platformOptionId != null)
                   'platformOptionId': o.platformOptionId,
-                'products': o.products
-                    ?.map((p) => {
-                          'productId': p.productId,
-                          'quantity': p.quantity,
-                        })
-                    .toList(),
               })
           .toList(),
     };

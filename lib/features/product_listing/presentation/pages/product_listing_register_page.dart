@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -6,7 +5,6 @@ import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/bloc/product_listing_create_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/bloc/product_listing_create_event.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/bloc/product_listing_create_state.dart';
-import 'package:flutter_oklyn_mobile/features/product/domain/entities/product.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/domain/entities/product_listing.dart';
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/product_listing_refresh.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
@@ -14,29 +12,29 @@ import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 const List<String> PLATFORMS = ['COUPANG', 'GMARKET', 'AUCTION', 'SMARTSTORE'];
 
-// ── 마진 계산 헬퍼 (프론트 ProductListingSinglePageForm과 동일 공식) ──
-// margin = 판매가 − (판매가 × 수수료율 × 1.1) − 상품비용 − 배송료 − 패키지비
+// ── 마진 계산 헬퍼 ──
+// margin = 판매가 − (판매가 × 수수료율 × 1.1) − 배송료 − 패키지비
+// ⚠️ 구성품 비용은 빠져 있다. 구성품은 마스터 상품이 소유하고 이 폼은 물품 가격을
+// 받아오지 않으므로, 여기서 계산할 수 있는 것은 물류·수수료까지다.
 int _calculateMargin({
   required int sellingPrice,
-  required int productCost,
   required int carrierCost,
   required int packageCost,
   required double commissionRate,
 }) {
   final commissionFee = sellingPrice * commissionRate * 1.1;
-  final totalCost = productCost + carrierCost + packageCost;
+  final totalCost = carrierCost + packageCost;
   return (sellingPrice - commissionFee - totalCost).round();
 }
 
 // 판매가 = 총비용 / (1 − 마진율/100 − 수수료율 × 1.1). 불가능하면 0.
 int _calcSellingPriceFromMarginRate({
   required double marginRate,
-  required int productCost,
   required int carrierCost,
   required int packageCost,
   required double commissionRate,
 }) {
-  final totalCost = productCost + carrierCost + packageCost;
+  final totalCost = carrierCost + packageCost;
   final denominator = 1 - marginRate / 100 - commissionRate * 1.1;
   if (denominator <= 0) return 0;
   return (totalCost / denominator).round();
@@ -58,15 +56,18 @@ String _comma(num value) {
   return negative ? '-$buf' : buf.toString();
 }
 
-/// 판매상품 등록/수정 공용 단일 폼 페이지.
+/// 판매상품 **수정 전용** 단일 폼 페이지.
 ///
-/// - [editListing] == null → 신규 등록(create). 프론트 ProductListingSinglePageForm.
-/// - [editListing] != null → 수정(update). 프론트 ProductListingEditSinglePageForm.
-///   기존 데이터로 폼을 프리필하고 제출 시 update를 호출한다.
+/// 신규 등록 경로는 제거됐다 - 판매상품(채널 셀)은 마스터 상품을 통해서만 생긴다.
+/// [editListing] 은 필수이며, 그 데이터로 폼을 프리필하고 제출 시 update를 호출한다.
+///
+/// ⚠️ 옵션의 구성품은 **읽기 전용**이다. 구성품은 마스터 상품(마스터 옵션 → 물품 → 수량)이
+/// 소유하므로 이 폼에서 고르거나 전송하지 않는다.
+/// ⚠️ 마스터에 연결된 판매상품은 서버가 수정을 거부한다(400). 이 폼은 마스터 미연결 셀 전용이다.
 class ProductListingRegisterPage extends StatefulWidget {
-  final ProductListing? editListing;
+  final ProductListing editListing;
 
-  const ProductListingRegisterPage({super.key, this.editListing});
+  const ProductListingRegisterPage({super.key, required this.editListing});
 
   @override
   State<ProductListingRegisterPage> createState() =>
@@ -77,25 +78,19 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
   final _nameCtrl = TextEditingController();
   final _platformProductIdCtrl = TextEditingController();
 
-  // 최종 등록 진행 중 여부 (프론트 isSubmitting과 동일한 로컬 상태)
+  // 수정 진행 중 여부 (프론트 isSubmitting과 동일한 로컬 상태)
   bool _submitting = false;
-
-  bool get _isEdit => widget.editListing != null;
 
   @override
   void initState() {
     super.initState();
     final bloc = context.read<ProductListingCreateBloc>();
     bloc.add(const ResetCreateForm());
-    // 수정 모드: 이름/플랫폼 상품 ID 컨트롤러를 즉시 채우고, lookup 로드 시점에
+    // 이름/플랫폼 상품 ID 컨트롤러를 즉시 채우고, lookup 로드 시점에
     // 나머지 필드(드롭다운/옵션)도 함께 프리필되도록 editListing 을 전달한다.
-    if (_isEdit) {
-      _nameCtrl.text = widget.editListing!.name;
-      _platformProductIdCtrl.text = widget.editListing!.platformProductId;
-      bloc.add(FetchLookupData(editListing: widget.editListing));
-    } else {
-      bloc.add(const FetchLookupData());
-    }
+    _nameCtrl.text = widget.editListing.name;
+    _platformProductIdCtrl.text = widget.editListing.platformProductId;
+    bloc.add(FetchLookupData(editListing: widget.editListing));
   }
 
   @override
@@ -110,12 +105,10 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
         state.formData['platform']?.isNotEmpty == true &&
         state.formData['name']?.isNotEmpty == true &&
         state.formData['platformProductId']?.isNotEmpty == true &&
-        state.selectedProducts.isNotEmpty &&
         state.formData['categoryId']?.isNotEmpty == true &&
         state.formData['carrierId']?.isNotEmpty == true &&
         state.formData['packageId']?.isNotEmpty == true &&
         state.optionsData.isNotEmpty &&
-        state.optionsData.every((o) => o.products.isNotEmpty) &&
         state.validationErrors.values.every((e) => e == null);
   }
 
@@ -229,7 +222,7 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithNavBar(
-      title: _isEdit ? '판매상품 수정' : '판매상품 등록',
+      title: '판매상품 수정',
       navBarIndex: 2,
       showDrawer: true,
       showAppBarDrawerButton: false,
@@ -238,19 +231,20 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
           if (state is ProductListingCreateSuccess) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(_isEdit ? '판매상품이 수정되었습니다!' : '판매상품이 생성되었습니다!'),
+                content: const Text('판매상품이 수정되었습니다!'),
                 backgroundColor: Colors.green,
                 behavior: SnackBarBehavior.floating,
                 margin: const EdgeInsets.only(bottom: 70, left: 16, right: 16),
               ),
             );
-            // 조회 페이지가 변경 내용을 반영하도록 갱신 신호 발행 (등록/수정 공통)
+            // 조회 페이지가 변경 내용을 반영하도록 갱신 신호 발행
             notifyProductListingChanged();
             Future.delayed(const Duration(milliseconds: 500), () {
               context.go(Routes.salesProductsPath);
             });
           } else if (state is ProductListingCreateError) {
-            // 등록/서버 실패를 사용자에게 표시 (프론트의 에러 배너와 동일 역할)
+            // 수정/서버 실패를 사용자에게 표시 (프론트의 에러 배너와 동일 역할).
+            // 마스터에 연결된 셀이면 서버가 400 으로 거부하며 그 메시지가 여기에 뜬다.
             if (_submitting) setState(() => _submitting = false);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -261,7 +255,7 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
               ),
             );
           } else if (state is ProductListingCreateLoaded) {
-            // 폼으로 복귀(검증 실패 등) 시 등록 진행 상태 해제
+            // 폼으로 복귀(검증 실패 등) 시 수정 진행 상태 해제
             if (_submitting) setState(() => _submitting = false);
           }
         },
@@ -274,9 +268,7 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                   children: [
                     const CircularProgressIndicator(),
                     const SizedBox(height: 16),
-                    Text(_submitting
-                        ? (_isEdit ? '수정 중...' : '등록 중...')
-                        : '데이터를 불러오는 중...'),
+                    Text(_submitting ? '수정 중...' : '데이터를 불러오는 중...'),
                   ],
                 ),
               );
@@ -299,7 +291,7 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
             return SingleChildScrollView(
               child: Padding(
                 // 하단은 floating bottom nav bar(높이 + safe area)보다 넉넉히 여백을
-                // 줘서 마지막 '완료 및 등록' 버튼이 nav bar에 가려지지 않도록 한다.
+                // 줘서 마지막 '수정 완료' 버튼이 nav bar에 가려지지 않도록 한다.
                 padding: EdgeInsets.fromLTRB(
                   16,
                   16,
@@ -347,9 +339,12 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                             const SizedBox(height: 12),
                             ElevatedButton(
                               onPressed: () {
+                                // 재로드 때도 editListing 을 넘겨야 프리필이 유지된다.
                                 context
                                     .read<ProductListingCreateBloc>()
-                                    .add(const FetchLookupData());
+                                    .add(FetchLookupData(
+                                      editListing: widget.editListing,
+                                    ));
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.warningForeground,
@@ -464,87 +459,16 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                     ),
                     const SizedBox(height: 24),
 
-                    // Section 2: Product Selection (NEW)
+                    // Section 2: Platform Product ID & Category
                     _buildSection(
-                      title: '구성 상품 선택',
+                      title: '플랫폼 상품 ID 및 카테고리',
                       sectionNumber: '2',
-                      isComplete: state.selectedProducts.isNotEmpty,
+                      isComplete:
+                          formData['platformProductId']?.isNotEmpty == true &&
+                              formData['categoryId']?.isNotEmpty == true,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          if (state.selectedProducts.isNotEmpty)
-                            Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              child: Column(
-                                children: state.selectedProducts
-                                    .map((product) => Padding(
-                                          padding:
-                                              const EdgeInsets.only(bottom: 8),
-                                          child: Row(
-                                            children: [
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      product.productName,
-                                                      style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.w500,
-                                                      ),
-                                                    ),
-                                                    if (product.price != null)
-                                                      Text(
-                                                        '₩${product.price}',
-                                                        style: const TextStyle(
-                                                          fontSize: 12,
-                                                          color: AppColors
-                                                              .infoForeground,
-                                                        ),
-                                                      ),
-                                                  ],
-                                                ),
-                                              ),
-                                              ElevatedButton(
-                                                onPressed: () {
-                                                  bloc.add(RemoveProduct(
-                                                    productId: product.id,
-                                                  ));
-                                                },
-                                                style:
-                                                    ElevatedButton.styleFrom(
-                                                  backgroundColor:
-                                                      Theme.of(context)
-                                                          .colorScheme
-                                                          .error,
-                                                  foregroundColor:
-                                                      Theme.of(context)
-                                                          .colorScheme
-                                                          .onError,
-                                                  padding:
-                                                      const EdgeInsets.all(8),
-                                                ),
-                                                child: const Text(
-                                                  '제거',
-                                                  style: TextStyle(fontSize: 12),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ))
-                                    .toList(),
-                              ),
-                            ),
-                          ElevatedButton(
-                            onPressed: () {
-                              _showProductSearchModal(context, state, bloc);
-                            },
-                            child: Text(state.selectedProducts.isNotEmpty
-                                ? '상품 추가'
-                                : '상품 검색 및 선택'),
-                          ),
-                          const SizedBox(height: 16),
                           TextField(
                             controller: _platformProductIdCtrl,
                             decoration: InputDecoration(
@@ -693,13 +617,11 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                     ),
                     const SizedBox(height: 24),
 
-                    // Section 4: Options Management & Bundle (NEW)
+                    // Section 4: Options (구성품은 읽기 전용)
                     _buildSection(
-                      title: '옵션 관리 및 상품 번들 구성',
+                      title: '옵션 관리',
                       sectionNumber: '4',
-                      isComplete: state.optionsData.isNotEmpty &&
-                          state.optionsData
-                              .every((o) => o.products.isNotEmpty),
+                      isComplete: state.optionsData.isNotEmpty,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -714,8 +636,8 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                               ),
                             ),
                           ElevatedButton(
-                            onPressed: state.selectedProducts.isEmpty ||
-                                    (formData['categoryId']?.isEmpty ?? true) ||
+                            onPressed: (formData['categoryId']?.isEmpty ??
+                                        true) ||
                                     (formData['carrierId']?.isEmpty ?? true) ||
                                     (formData['packageId']?.isEmpty ?? true)
                                 ? null
@@ -745,9 +667,7 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                             Theme.of(context).colorScheme.onSecondary,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      child: Text(_submitting
-                          ? (_isEdit ? '수정 중...' : '등록 중...')
-                          : (_isEdit ? '수정 완료' : '완료 및 등록')),
+                      child: Text(_submitting ? '수정 중...' : '수정 완료'),
                     ),
                   ],
                 ),
@@ -755,20 +675,6 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
             );
           },
         ),
-      ),
-    );
-  }
-
-  void _showProductSearchModal(
-    BuildContext context,
-    ProductListingCreateLoaded state,
-    ProductListingCreateBloc bloc,
-  ) {
-    showDialog(
-      context: context,
-      builder: (ctx) => _ProductSearchModal(
-        bloc: bloc,
-        initialState: state,
       ),
     );
   }
@@ -783,7 +689,6 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
       context: context,
       builder: (ctx) => _OptionFormDialog(
         bloc: bloc,
-        selectedProducts: state.selectedProducts,
         commissionRate: state.commissionRate,
         carrierCost: _findCarrierCost(state),
         packageCost: _findPackageCost(state),
@@ -792,8 +697,7 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
     );
   }
 
-  // 옵션 카드: 옵션명/판매가, 수정·삭제, 구성 상품 목록(상품명+수량), 마진 계산
-  // 프론트 ProductListingSinglePageForm Section 4 옵션 카드와 동일한 정보 표시.
+  // 옵션 카드: 옵션명/판매가, 수정·삭제, 구성품 목록(읽기 전용), 마진 계산
   Widget _buildOptionCard(
     ProductListingCreateLoaded state,
     ProductListingCreateBloc bloc,
@@ -801,10 +705,8 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
   ) {
     final carrierCost = _findCarrierCost(state);
     final packageCost = _findPackageCost(state);
-    final productCost = _optionProductCost(state, optionData.products);
     final margin = _calculateMargin(
       sellingPrice: optionData.option.sellingPrice,
-      productCost: productCost,
       carrierCost: carrierCost,
       packageCost: packageCost,
       commissionRate: state.commissionRate,
@@ -880,46 +782,12 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
               ),
             ],
           ),
-          if (optionData.products.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                border: Border.all(
-                  color: Theme.of(context).colorScheme.outlineVariant,
-                ),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Column(
-                children: optionData.products.map((pq) {
-                  final name = _productName(state, pq.productId);
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(name,
-                            style: const TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w500)),
-                        Text('수량: ${pq.quantity}',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant)),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ],
+          const SizedBox(height: 8),
+          _buildOptionProducts(optionData.products),
           const SizedBox(height: 8),
           _buildMarginBox(
             sellingPrice: optionData.option.sellingPrice,
             commissionRate: state.commissionRate,
-            productCost: productCost,
             margin: margin,
           ),
         ],
@@ -927,11 +795,11 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
     );
   }
 
-  // 마진 요약 박스 (판매가 / 수수료 / 상품 비용 / 마진)
+  // 마진 요약 박스 (판매가 / 수수료 / 마진).
+  // 구성품 비용은 마스터가 소유하므로 여기서는 계산하지 않는다.
   Widget _buildMarginBox({
     required int sellingPrice,
     required double commissionRate,
-    required int productCost,
     required num margin,
   }) {
     final marginColor = margin > 0
@@ -948,7 +816,6 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
         children: [
           _marginRow('판매가:', '₩${_comma(sellingPrice)}'),
           _marginRow('수수료 (+ 10%):', '₩${_comma(commissionFee)}'),
-          _marginRow('상품 비용:', '₩${_comma(productCost)}'),
           const Divider(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -985,28 +852,8 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
     );
   }
 
-  String _productName(ProductListingCreateLoaded state, int productId) {
-    for (final p in state.selectedProducts) {
-      if (p.id == productId) return p.productName;
-    }
-    return '상품 $productId';
-  }
-
-  int _optionProductCost(
-    ProductListingCreateLoaded state,
-    List<ProductQuantity> products,
-  ) {
-    int total = 0;
-    for (final pq in products) {
-      for (final p in state.selectedProducts) {
-        if (p.id == pq.productId && p.price != null) {
-          total += p.price! * pq.quantity;
-          break;
-        }
-      }
-    }
-    return total;
-  }
+  Widget _buildOptionProducts(List<ProductQuantity> products) =>
+      _OptionProductsView(products: products);
 
   int _findCarrierCost(ProductListingCreateLoaded state) {
     final id = state.formData['carrierId'];
@@ -1077,133 +924,18 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
   }
 }
 
-class _ProductSearchModal extends StatefulWidget {
-  final ProductListingCreateBloc bloc;
-  final ProductListingCreateLoaded initialState;
-
-  const _ProductSearchModal({
-    required this.bloc,
-    required this.initialState,
-  });
-
-  @override
-  State<_ProductSearchModal> createState() => _ProductSearchModalState();
-}
-
-class _ProductSearchModalState extends State<_ProductSearchModal> {
-  final TextEditingController _localSearchCtrl = TextEditingController();
-  Timer? _debounce;
-
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    _localSearchCtrl.dispose();
-    widget.bloc.add(const SearchProducts(query: ''));
-    super.dispose();
-  }
-
-  void _onSearchChanged(String value) {
-    // 디바운스: 입력이 멈춘 뒤에만 검색 (포커스된 TextField가 매 키 입력마다
-    // 리빌드/detach 되는 것을 막아 캐럿 스케줄링 assertion 방지)
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () {
-      if (!mounted) return;
-      widget.bloc.add(SearchProducts(query: value.trim()));
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('상품 검색'),
-      // 고정 크기 콘텐츠: 검색 결과가 로드돼도 TextField의 위치/레이아웃이
-      // 변하지 않도록 하여 EditableText 캐럿 스케줄링(_scheduleShowCaretOnScreen)
-      // assertion을 방지한다. SingleChildScrollView로 감싸면 결과 개수에 따라
-      // 높이가 바뀌어 포커스된 TextField가 캐럿 콜백을 재예약하면서 detach된다.
-      content: SizedBox(
-        width: double.maxFinite,
-        height: 360,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // TextField는 BlocBuilder 밖에 두어 검색 결과 emit 시 리빌드되지 않음
-            TextField(
-              controller: _localSearchCtrl,
-              decoration: const InputDecoration(
-                hintText: '상품명 검색...',
-                border: OutlineInputBorder(),
-              ),
-              onChanged: _onSearchChanged,
-            ),
-            const SizedBox(height: 12),
-            // 결과 영역만 리빌드 (다이얼로그 전체 setState 금지)
-            Expanded(
-              child: BlocBuilder<ProductListingCreateBloc,
-                  ProductListingCreateState>(
-                bloc: widget.bloc,
-                builder: (context, state) {
-                  final products = state is ProductListingCreateLoaded
-                      ? state.searchedProducts
-                      : widget.initialState.searchedProducts;
-
-                  if (products.isEmpty) {
-                    return Center(
-                      child: Text(
-                        _localSearchCtrl.text.isEmpty
-                            ? '상품을 검색해주세요'
-                            : '검색 결과가 없습니다',
-                      ),
-                    );
-                  }
-
-                  return ListView.builder(
-                    itemCount: products.length,
-                    itemBuilder: (context, index) {
-                      final product = products[index];
-                      return ListTile(
-                        dense: true,
-                        title: Text(product.productName),
-                        subtitle: Text(
-                          product.price != null
-                              ? '₩${product.price?.toInt()}'
-                              : '가격 미정',
-                        ),
-                        onTap: () {
-                          widget.bloc.add(SelectProduct(product: product));
-                          Navigator.pop(context);
-                        },
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('닫기'),
-        ),
-      ],
-    );
-  }
-}
-
 /// 옵션 추가/수정 다이얼로그.
 ///
-/// 프론트 ProductListingSinglePageForm의 Section 4 "옵션 관리 및 상품 번들 구성"과
-/// 동일하게 동작한다:
-/// - 구성 상품별 수량 입력 (수정 모드는 체크박스로 포함/제외)
-/// - 실시간 마진 계산 (판매가 − 수수료(×1.1) − 상품비용 − 배송료 − 패키지비)
+/// - 옵션명 / 판매가 / 플랫폼 옵션 ID 입력
+/// - 실시간 마진 계산 (판매가 − 수수료(×1.1) − 배송료 − 패키지비)
 /// - 마진율 입력으로 판매가 역산 (10원 올림)
 /// - 판매가 포커스 해제 시 10원 단위 내림
+///
+/// ⚠️ 구성품은 **고를 수 없다**(읽기 전용 표시만). 구성품은 마스터 상품이 소유한다.
 ///
 /// editing == null 이면 추가, 아니면 수정.
 class _OptionFormDialog extends StatefulWidget {
   final ProductListingCreateBloc bloc;
-  final List<Product> selectedProducts;
   final double commissionRate;
   final int carrierCost;
   final int packageCost;
@@ -1211,7 +943,6 @@ class _OptionFormDialog extends StatefulWidget {
 
   const _OptionFormDialog({
     required this.bloc,
-    required this.selectedProducts,
     required this.commissionRate,
     required this.carrierCost,
     required this.packageCost,
@@ -1229,33 +960,17 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
   final TextEditingController _marginRateCtrl = TextEditingController();
   final FocusNode _priceFocus = FocusNode();
 
-  final Map<int, int> _quantities = {};
-  final Map<int, bool> _included = {};
-
   bool get _isEdit => widget.editing != null;
 
   @override
   void initState() {
     super.initState();
 
-    for (final product in widget.selectedProducts) {
-      _quantities[product.id] = 1;
-      _included[product.id] = true;
-    }
-
     final editing = widget.editing;
     if (editing != null) {
       _nameCtrl.text = editing.option.optionName;
       _priceCtrl.text = editing.option.sellingPrice.toString();
       _platformIdCtrl.text = editing.platformOptionId ?? '';
-      // 수정 모드: 옵션에 포함된 상품만 체크 + 기존 수량 반영
-      for (final product in widget.selectedProducts) {
-        _included[product.id] = false;
-      }
-      for (final pq in editing.products) {
-        _quantities[pq.productId] = pq.quantity;
-        _included[pq.productId] = true;
-      }
     }
 
     // 판매가 포커스 해제 시 10원 단위로 내림 (프론트 onBlur와 동일)
@@ -1282,16 +997,6 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
 
   int get _sellingPrice => int.tryParse(_priceCtrl.text) ?? 0;
 
-  int get _productCost {
-    int total = 0;
-    for (final product in widget.selectedProducts) {
-      if (_included[product.id] != true) continue;
-      if (product.price == null) continue;
-      total += product.price! * (_quantities[product.id] ?? 1);
-    }
-    return total;
-  }
-
   void _applyMarginRate() {
     final rate = double.tryParse(_marginRateCtrl.text);
     if (rate == null || rate < 0 || rate >= 100) {
@@ -1302,7 +1007,6 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
     }
     final price = _calcSellingPriceFromMarginRate(
       marginRate: rate,
-      productCost: _productCost,
       carrierCost: widget.carrierCost,
       packageCost: widget.packageCost,
       commissionRate: widget.commissionRate,
@@ -1327,20 +1031,6 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
       return;
     }
 
-    final quantities = <int, int>{};
-    for (final product in widget.selectedProducts) {
-      if (_included[product.id] == true) {
-        quantities[product.id] = _quantities[product.id] ?? 1;
-      }
-    }
-
-    if (quantities.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('최소 1개 이상의 상품을 포함해주세요')),
-      );
-      return;
-    }
-
     final platformOptionId =
         _platformIdCtrl.text.trim().isEmpty ? null : _platformIdCtrl.text.trim();
 
@@ -1350,14 +1040,12 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
         optionName: _nameCtrl.text.trim(),
         sellingPrice: _sellingPrice,
         platformOptionId: platformOptionId,
-        productQuantities: quantities,
       ));
     } else {
       widget.bloc.add(AddOption(
         optionName: _nameCtrl.text.trim(),
         sellingPrice: _sellingPrice,
         platformOptionId: platformOptionId,
-        productQuantities: quantities,
       ));
     }
     Navigator.pop(context);
@@ -1367,7 +1055,6 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
   Widget build(BuildContext context) {
     final margin = _calculateMargin(
       sellingPrice: _sellingPrice,
-      productCost: _productCost,
       carrierCost: widget.carrierCost,
       packageCost: widget.packageCost,
       commissionRate: widget.commissionRate,
@@ -1398,67 +1085,12 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text('물품 수량 *',
+              const Text('구성품 (읽기 전용)',
                   style: TextStyle(fontWeight: FontWeight.w500)),
               const SizedBox(height: 8),
-              if (widget.selectedProducts.isEmpty)
-                Text('선택된 상품이 없습니다',
-                    style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant))
-              else
-                ...widget.selectedProducts.map((product) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      children: [
-                        if (_isEdit)
-                          Checkbox(
-                            value: _included[product.id] ?? false,
-                            onChanged: (checked) {
-                              setState(() {
-                                _included[product.id] = checked ?? false;
-                              });
-                            },
-                          ),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(product.productName,
-                                  overflow: TextOverflow.ellipsis),
-                              if (product.price != null)
-                                Text('₩${_comma(product.price!)}',
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant)),
-                            ],
-                          ),
-                        ),
-                        SizedBox(
-                          width: 60,
-                          child: TextFormField(
-                            keyboardType: TextInputType.number,
-                            initialValue:
-                                (_quantities[product.id] ?? 1).toString(),
-                            decoration: const InputDecoration(
-                              border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                            ),
-                            onChanged: (value) {
-                              setState(() {
-                                _quantities[product.id] =
-                                    int.tryParse(value) ?? 1;
-                              });
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
+              _OptionProductsView(
+                products: widget.editing?.products ?? const [],
+              ),
               const SizedBox(height: 16),
               TextField(
                 controller: _priceCtrl,
@@ -1490,7 +1122,6 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
                     const SizedBox(height: 6),
                     _row('판매가:', '₩${_comma(_sellingPrice)}'),
                     _row('- 수수료 (+ 10%):', '₩${_comma(commissionFee)}'),
-                    _row('- 상품 비용:', '₩${_comma(_productCost)}'),
                     _row('- 배송료:', '₩${_comma(widget.carrierCost)}'),
                     _row('- 패키지:', '₩${_comma(widget.packageCost)}'),
                     const Divider(height: 14),
@@ -1591,6 +1222,65 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
           Text(label, style: const TextStyle(fontSize: 13)),
           Text(value, style: const TextStyle(fontSize: 13)),
         ],
+      ),
+    );
+  }
+}
+
+/// 옵션의 구성품 표시 (읽기 전용).
+///
+/// 구성품은 마스터 상품(마스터 옵션 → 물품 → 수량)이 소유한다. 이 폼에서는 고를 수 없고
+/// 서버가 내려준 값을 그대로 보여주기만 한다.
+///
+/// ⚠️ 비어 있으면 「구성품 0개」가 아니라 **마스터에 연결되지 않아 알 수 없는 상태**다.
+/// 빈 목록으로 두면 0개처럼 보이므로 안내 문구를 띄운다.
+class _OptionProductsView extends StatelessWidget {
+  final List<ProductQuantity> products;
+
+  const _OptionProductsView({required this.products});
+
+  @override
+  Widget build(BuildContext context) {
+    if (products.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: AppColors.warningSurface,
+          border: Border.all(color: AppColors.warningForeground),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: const Text(
+          '연결된 마스터가 없어 구성품을 알 수 없습니다',
+          style: TextStyle(fontSize: 12, color: AppColors.warningForeground),
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: products
+            .map(
+              (pq) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Text(
+                  '${pq.productName} × ${pq.quantity}개',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            )
+            .toList(),
       ),
     );
   }

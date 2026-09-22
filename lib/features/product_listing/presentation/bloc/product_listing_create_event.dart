@@ -1,5 +1,4 @@
 import 'package:equatable/equatable.dart';
-import '../../../product/domain/entities/product.dart';
 import '../../domain/entities/product_listing.dart';
 
 abstract class ProductListingCreateEvent extends Equatable {
@@ -24,6 +23,7 @@ class UpdateFormField extends ProductListingCreateEvent {
   List<Object?> get props => [field, value];
 }
 
+/// 수정 제출. 등록(create) 분기는 제거됐다 - 판매상품은 마스터 상품을 통해서만 생긴다.
 class SubmitProductListingCreate extends ProductListingCreateEvent {
   const SubmitProductListingCreate();
 
@@ -33,10 +33,9 @@ class SubmitProductListingCreate extends ProductListingCreateEvent {
 
 /// 드롭다운용 lookup 데이터(판매자/카테고리/배송사/패키지/수수료율)를 로드한다.
 ///
-/// [editListing] 가 주어지면(수정 모드) 로드 완료 후 같은 Loaded 상태에 기존
-/// 판매상품 데이터를 함께 프리필한다. lookup + 프리필을 한 번의 emit으로 처리해
-/// 순서 경합(프리필이 빈 폼으로 덮어써지는 문제)을 원천 차단한다.
-/// 이 경우 이후 [SubmitProductListingCreate]는 create 대신 update를 호출한다.
+/// [editListing] 로 로드 완료 후 같은 Loaded 상태에 기존 판매상품 데이터를 함께
+/// 프리필한다. lookup + 프리필을 한 번의 emit으로 처리해 순서 경합(프리필이 빈 폼으로
+/// 덮어써지는 문제)을 원천 차단한다.
 class FetchLookupData extends ProductListingCreateEvent {
   final ProductListing? editListing;
 
@@ -46,68 +45,39 @@ class FetchLookupData extends ProductListingCreateEvent {
   List<Object?> get props => [editListing?.id];
 }
 
-class SearchProducts extends ProductListingCreateEvent {
-  final String query;
-
-  const SearchProducts({required this.query});
-
-  @override
-  List<Object?> get props => [query];
-}
-
-class SelectProduct extends ProductListingCreateEvent {
-  final Product product;
-
-  const SelectProduct({required this.product});
-
-  @override
-  List<Object?> get props => [product];
-}
-
-class RemoveProduct extends ProductListingCreateEvent {
-  final int productId;
-
-  const RemoveProduct({required this.productId});
-
-  @override
-  List<Object?> get props => [productId];
-}
-
+/// 옵션 추가. 구성품은 입력하지 않는다 - 마스터 상품이 소유한다.
 class AddOption extends ProductListingCreateEvent {
   final String optionName;
   final int sellingPrice;
   final String? platformOptionId;
-  final Map<int, int> productQuantities;
 
   const AddOption({
     required this.optionName,
     required this.sellingPrice,
     this.platformOptionId,
-    required this.productQuantities,
   });
 
   @override
-  List<Object?> get props => [optionName, sellingPrice, platformOptionId, productQuantities];
+  List<Object?> get props => [optionName, sellingPrice, platformOptionId];
 }
 
+/// 옵션 수정. 구성품은 그대로 보존된다(읽기 전용).
 class UpdateOption extends ProductListingCreateEvent {
   final num optionId;
   final String optionName;
   final int sellingPrice;
   final String? platformOptionId;
-  final Map<int, int> productQuantities;
 
   const UpdateOption({
     required this.optionId,
     required this.optionName,
     required this.sellingPrice,
     this.platformOptionId,
-    required this.productQuantities,
   });
 
   @override
   List<Object?> get props =>
-      [optionId, optionName, sellingPrice, platformOptionId, productQuantities];
+      [optionId, optionName, sellingPrice, platformOptionId];
 }
 
 class RemoveOption extends ProductListingCreateEvent {
