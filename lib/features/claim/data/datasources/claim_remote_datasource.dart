@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../models/claim_model.dart';
+import '../models/claim_sync_result_model.dart';
 
 abstract class ClaimRemoteDataSource {
   /// GET /api/claims?type={type}&sellerId=&status=&keyword=&from=&to=
@@ -28,6 +29,12 @@ abstract class ClaimRemoteDataSource {
   /// 🔴 다른 메서드와 달리 [DioException] 을 **그대로 던진다.** 상태 코드(409≠400)와 502 의
   /// 쿠팡 원문이 화면 분기의 근거인데, `Exception(e.message)` 로 감싸면 둘 다 사라진다.
   Future<ClaimActionResultModel> executeAction(int claimId, Map<String, dynamic> body);
+
+  /// POST /api/claims/sync?accountId= — 채널 **1개**의 반품·교환만 가져온다(FEATURE_2609_70 / D14).
+  ///
+  /// 여러 채널은 화면이 하나씩 부른다 — 진행 상황과 채널별 실패를 그리기 위해서다.
+  /// 같은 채널이 이미 동기화 중이면 마켓을 치지 않고 `skipped=true` 로 돌아온다(200).
+  Future<ClaimSyncResultModel> syncClaims(int accountId);
 }
 
 class ClaimRemoteDataSourceImpl implements ClaimRemoteDataSource {
@@ -95,5 +102,19 @@ class ClaimRemoteDataSourceImpl implements ClaimRemoteDataSource {
       throw Exception('Failed to execute claim action');
     }
     return ClaimActionResultModel.fromJson(data);
+  }
+
+  @override
+  Future<ClaimSyncResultModel> syncClaims(int accountId) async {
+    // 바디가 없는 POST — 계정은 쿼리 파라미터다(서버 계약 그대로).
+    final response = await dio.post(
+      '/api/claims/sync',
+      queryParameters: <String, dynamic>{'accountId': accountId},
+    );
+    final data = response.data['data'];
+    if (data is! Map<String, dynamic>) {
+      throw Exception('Failed to sync claims');
+    }
+    return ClaimSyncResultModel.fromJson(data);
   }
 }

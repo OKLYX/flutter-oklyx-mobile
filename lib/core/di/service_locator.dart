@@ -875,11 +875,14 @@ void _registerClaimServices() {
   );
 
   // BLoC as factory to allow fresh state per page.
-  // 판매자 드롭다운은 기존 seller 기능의 GetSellersUseCase 를 재사용한다.
+  // 판매자 드롭다운은 seller 기능의 GetSellersUseCase, 동기화 대상은 order 기능의
+  // OrderUseCase.getSyncTargets 를 재사용한다 — 클레임 전용 API 를 새로 만들지 않는다
+  // (InquiryListBloc 등록과 같은 모양).
   getIt.registerFactory<ClaimListBloc>(
     () => ClaimListBloc(
       claimUseCase: getIt<ClaimUseCase>(),
       getSellersUseCase: getIt<GetSellersUseCase>(),
+      orderUseCase: getIt<OrderUseCase>(),
     ),
   );
 }

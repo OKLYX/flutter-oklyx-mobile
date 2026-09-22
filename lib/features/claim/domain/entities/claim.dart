@@ -191,6 +191,18 @@ abstract final class ClaimActionRequires {
   static const supported = <String>{none, invoice, rejectCode};
 }
 
+/// 회수송장 출처(서버 `collectInvoiceSource` 원문, FEATURE_2609_70 / D12).
+///
+/// ⚠️ 화면은 이 값으로 **버튼을 켜고 끄지 않는다** — 무엇을 누를 수 있는지는 서버가
+/// `availableActions` 로 판정한다(D1). 여기서는 「우리 기록」 표시에만 쓴다.
+abstract final class CollectInvoiceSource {
+  /// 동기화가 쿠팡에서 읽어온 값.
+  static const platform = 'PLATFORM';
+
+  /// 쿠팡이 거절해 우리 장부에만 남긴 값(D6) — 재전송 대상이다(D7).
+  static const local = 'LOCAL';
+}
+
 /// `POST /api/admin/claims/{claimId}/actions` 요청 바디.
 ///
 /// 🔴 null 필드는 **JSON 에서 뺀다**(`toJson` 이 제거) — 빈 문자열을 실어 보내면 서버의
@@ -232,12 +244,20 @@ class ClaimActionResult {
   final String? resultCode;
   final String? resultMessage;
 
+  /// 쿠팡이 거절해 **우리 장부에만** 회수송장을 기록한 회차인가 (FEATURE_2609_70 / D6).
+  ///
+  /// 🔴 이 값이 true 면 HTTP 는 200 이고 [succeeded] 는 false 다 — 전송은 실패했지만 기록은
+  /// 남았다는 뜻이라 화면은 **실패(빨강)가 아니라 주황**으로 알린다.
+  /// ⚠️ 액션 코드로 이 상황을 판정하지 말 것 — 서버가 내려준 이 한 값으로만 분기한다.
+  final bool localRecordOnly;
+
   const ClaimActionResult({
     required this.claimId,
     required this.action,
     required this.succeeded,
     this.resultCode,
     this.resultMessage,
+    this.localRecordOnly = false,
   });
 }
 
@@ -265,6 +285,18 @@ class Claim {
   final int? returnShippingCharge;
   final String? collectInvoiceNo;
   final String? collectCarrierCode;
+
+  /// 회수송장의 출처 — [CollectInvoiceSource] 의 값 또는 null(출처 불명인 기존 행).
+  /// null·`PLATFORM` 은 화면에 아무 표시도 하지 않는다(FEATURE_2609_70 / D12).
+  final String? collectInvoiceSource;
+
+  /// 쿠팡 회수종류 **원문**('전담택배' / '연동택배' / '수기관리' / '') — 반품 전용이다.
+  ///
+  /// 🔴 이 값으로 **버튼을 켜고 끄지 않는다**(판정은 서버가 했다, D1). 빈 문자열일 때
+  /// 「넣을 송장이 없다」는 안내를 그리는 데에만 쓴다(D3).
+  /// ⚠️ null(아직 안 읽은 옛 행)과 ''(고객이 직접 발송·회수 대상 없음)을 **같게 다루지 말 것** —
+  /// null 에는 아무것도 그리지 않는다.
+  final String? returnDeliveryType;
 
   /// 교환 회수상태 **원문**('BeforeDirection' 등 — 05 가 정규화하지 않는다).
   /// 반품에서는 항상 null 이고, 구버전 서버·다음 동기화 전인 기존 행도 null 이다 → **nullable**.
@@ -303,6 +335,8 @@ class Claim {
     this.returnShippingCharge,
     this.collectInvoiceNo,
     this.collectCarrierCode,
+    this.collectInvoiceSource,
+    this.returnDeliveryType,
     this.collectStatus,
     this.reshipInvoiceNo,
     this.reshipCarrierCode,
@@ -314,4 +348,19 @@ class Claim {
     required this.linked,
     this.availableActions = const [],
   });
+
+  /// 회수송장을 **우리 장부에만** 갖고 있는가 — 「우리 기록」 뱃지의 유일한 조건(D6).
+  /// null(출처 불명인 기존 행)·`PLATFORM` 은 false 다.
+  bool get collectInvoiceLocalOnly =>
+      collectInvoiceSource == CollectInvoiceSource.local;
+
+  /// 고객이 직접 보냈거나 회수할 물건이 없어 **넣을 회수송장이 아예 없는** 반품인가(D3).
+  ///
+  /// 🔴 [returnDeliveryType] 이 **빈 문자열일 때만** true 다 — null(아직 안 읽은 옛 행)은
+  /// 판단할 근거가 없으므로 false 이고, 화면은 아무 안내도 그리지 않는다.
+  bool get collectInvoiceNotApplicable =>
+      claimType == ClaimType.returnClaim &&
+      (collectInvoiceNo == null || collectInvoiceNo!.isEmpty) &&
+      returnDeliveryType != null &&
+      returnDeliveryType!.trim().isEmpty;
 }

@@ -26,6 +26,8 @@ import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 /// ⚠️ 상태 라벨·날짜 포맷은 위젯이 직접 만들지 않는다 — `getClaimStatusLabel` ·
 /// `formatOrderDateTime` 를 쓴다.
 /// ⚠️ 플랫폼 원문 상태(`platformStatus`)는 카드에 노출하지 않는다 — 상세 전용이다.
+/// ⚠️ 「우리 기록」 뱃지는 회수송장이 **우리 장부에만** 있는 건(2609_70 / D6)에만 붙는다 —
+/// `collectInvoiceSource` 가 null(출처 불명인 기존 행)·`PLATFORM` 이면 아무 표시도 하지 않는다.
 class ClaimCard extends StatelessWidget {
   final Claim claim;
 
@@ -63,6 +65,16 @@ class ClaimCard extends StatelessWidget {
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                       background:
                           Theme.of(context).colorScheme.surfaceContainerHighest,
+                    ),
+                  ],
+                  // 쿠팡엔 못 넣고 우리 장부에만 남은 회수송장(D6) — 재전송 대상이라 목록에서
+                  // 바로 보이게 한다.
+                  if (claim.collectInvoiceLocalOnly) ...[
+                    const SizedBox(width: 6),
+                    const _Badge(
+                      text: '우리 기록',
+                      color: AppColors.warningForeground,
+                      background: AppColors.warningSurface,
                     ),
                   ],
                   const SizedBox(width: 6),

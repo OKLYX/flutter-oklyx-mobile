@@ -11,6 +11,7 @@ class SyncTargetModel extends SyncTarget {
     super.lastSyncAt,
     super.lastOrderSyncAt,
     super.lastCancelSyncAt,
+    super.lastClaimSyncAt,
     super.lastSyncError,
   });
 
@@ -25,6 +26,8 @@ class SyncTargetModel extends SyncTarget {
       lastSyncAt: json['lastSyncAt'] as String?,
       lastOrderSyncAt: json['lastOrderSyncAt'] as String?,
       lastCancelSyncAt: json['lastCancelSyncAt'] as String?,
+      // 구버전 서버 응답에는 필드가 없다 → null(= 기록 없음)로 떨어진다.
+      lastClaimSyncAt: json['lastClaimSyncAt'] as String?,
       lastSyncError: json['lastSyncError'] as String?,
     );
   }
