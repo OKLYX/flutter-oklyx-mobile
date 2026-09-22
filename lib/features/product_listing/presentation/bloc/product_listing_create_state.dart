@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 import '../../domain/entities/product_listing.dart';
-import '../../../product/domain/entities/product.dart';
 
 abstract class ProductListingCreateState extends Equatable {
   const ProductListingCreateState();
@@ -14,9 +13,7 @@ class ProductListingCreateLoaded extends ProductListingCreateState {
   final List<dynamic> carrierRates;
   final List<dynamic> packages;
   final List<dynamic> commissionRates;
-  final List<Product> selectedProducts;
   final List<OptionWithProducts> optionsData;
-  final List<Product> searchedProducts;
   final double commissionRate;
 
   const ProductListingCreateLoaded({
@@ -27,9 +24,7 @@ class ProductListingCreateLoaded extends ProductListingCreateState {
     this.carrierRates = const [],
     this.packages = const [],
     this.commissionRates = const [],
-    this.selectedProducts = const [],
     this.optionsData = const [],
-    this.searchedProducts = const [],
     this.commissionRate = 0.05,
   });
 
@@ -42,13 +37,16 @@ class ProductListingCreateLoaded extends ProductListingCreateState {
     carrierRates,
     packages,
     commissionRates,
-    selectedProducts,
     optionsData,
-    searchedProducts,
     commissionRate,
   ];
 }
 
+/// 옵션 + 그 옵션의 구성품.
+///
+/// ⚠️ [products]는 **읽기 전용**이다. 구성품은 마스터 상품(마스터 옵션 → 물품 → 수량)이
+/// 소유하며 서버 응답으로만 채워진다. 이 폼에서는 편집하지 않고 전송하지도 않는다.
+/// 마스터에 연결되지 않은 옵션은 구성품을 알 수 없으므로 빈 목록이 된다.
 class OptionWithProducts {
   final ProductListingOption option;
   final List<ProductQuantity> products;
@@ -61,12 +59,15 @@ class OptionWithProducts {
   });
 }
 
+/// 읽기 전용 구성품 한 줄 (물품명 × 수량).
 class ProductQuantity {
   final int productId;
+  final String productName;
   final int quantity;
 
   ProductQuantity({
     required this.productId,
+    required this.productName,
     required this.quantity,
   });
 }

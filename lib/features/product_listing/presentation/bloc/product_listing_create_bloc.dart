@@ -2,7 +2,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/repositories/product_listing_request.dart';
 import '../../domain/usecases/product_listing_usecase.dart';
 import '../../domain/entities/product_listing.dart';
-import '../../../product/domain/entities/product.dart';
 import 'product_listing_create_event.dart';
 import 'product_listing_create_state.dart';
 
@@ -10,7 +9,8 @@ class ProductListingCreateBloc
     extends Bloc<ProductListingCreateEvent, ProductListingCreateState> {
   final ProductListingUseCase productListingUseCase;
 
-  // 수정 모드일 때 대상 판매상품 ID. null 이면 신규 등록(create), 값이 있으면 수정(update).
+  // 수정 대상 판매상품 ID. 이 폼은 수정 전용이므로 제출 전에 반드시 채워져 있어야 한다.
+  // (신규 등록 경로는 제거됐다 - 판매상품은 마스터 상품을 통해서만 생긴다.)
   // 이 BLoC은 factory로 등록되어 화면마다 새 인스턴스이므로 인스턴스 필드로 안전하게 보관한다.
   int? editingListingId;
 
@@ -31,9 +31,6 @@ class ProductListingCreateBloc
     on<UpdateFormField>(_onUpdateField);
     on<SubmitProductListingCreate>(_onSubmit);
     on<FetchLookupData>(_onFetchLookupData);
-    on<SearchProducts>(_onSearchProducts);
-    on<SelectProduct>(_onSelectProduct);
-    on<RemoveProduct>(_onRemoveProduct);
     on<AddOption>(_onAddOption);
     on<UpdateOption>(_onUpdateOption);
     on<RemoveOption>(_onRemoveOption);
@@ -94,24 +91,17 @@ class ProductListingCreateBloc
       'packageId': listing.packageId?.toString() ?? '',
     };
 
-    // 옵션 + 구성상품 복원. 구성상품은 가격 정보가 없으므로(상세 응답 미포함)
-    // price=null 로 selectedProducts에 채워 옵션 편집 다이얼로그가 동작하도록 한다.
-    final selectedProductsMap = <int, Product>{};
+    // 옵션 + 구성품 복원. 구성품은 마스터 상품이 소유하므로 서버 응답 그대로 읽기
+    // 전용으로만 보관한다(편집·전송하지 않는다).
     final optionsData = <OptionWithProducts>[];
     for (final opt in listing.options ?? const <ProductListingOption>[]) {
       final pqs = <ProductQuantity>[];
       for (final p in opt.products ?? const <ProductListingProduct>[]) {
-        pqs.add(ProductQuantity(productId: p.productId, quantity: p.quantity));
-        selectedProductsMap.putIfAbsent(
-          p.productId,
-          () => Product(
-            id: p.productId,
-            productName: p.productName,
-            active: true,
-            createdDate: '',
-            modifiedDate: '',
-          ),
-        );
+        pqs.add(ProductQuantity(
+          productId: p.productId,
+          productName: p.productName,
+          quantity: p.quantity,
+        ));
       }
       optionsData.add(OptionWithProducts(
         option: ProductListingOption(
@@ -137,7 +127,6 @@ class ProductListingCreateBloc
       carrierRates: carrierRates,
       packages: packages,
       commissionRates: commissionRates,
-      selectedProducts: selectedProductsMap.values.toList(),
       optionsData: optionsData,
       commissionRate: commissionRate,
     );
@@ -192,9 +181,7 @@ class ProductListingCreateBloc
       carrierRates: current.carrierRates,
       packages: current.packages,
       commissionRates: current.commissionRates,
-      selectedProducts: current.selectedProducts,
       optionsData: current.optionsData,
-      searchedProducts: current.searchedProducts,
       commissionRate: commissionRate,
     ));
   }
@@ -207,24 +194,7 @@ class ProductListingCreateBloc
     final current = state as ProductListingCreateLoaded;
     final errors = _validateForm(current.formData);
 
-    // 추가 검증: 상품 선택, 옵션 추가 확인
-    if (current.selectedProducts.isEmpty) {
-      emit(ProductListingCreateLoaded(
-        formData: current.formData,
-        validationErrors: {...errors, 'products': '최소 1개 이상의 상품을 선택해주세요.'},
-        sellers: current.sellers,
-        categories: current.categories,
-        carrierRates: current.carrierRates,
-        packages: current.packages,
-        commissionRates: current.commissionRates,
-        selectedProducts: current.selectedProducts,
-        optionsData: current.optionsData,
-        searchedProducts: current.searchedProducts,
-        commissionRate: current.commissionRate,
-      ));
-      return;
-    }
-
+    // 추가 검증: 옵션 확인. 구성품은 마스터가 소유하므로 이 폼에서 검증하지 않는다.
     if (current.optionsData.isEmpty) {
       emit(ProductListingCreateLoaded(
         formData: current.formData,
@@ -234,9 +204,7 @@ class ProductListingCreateBloc
         carrierRates: current.carrierRates,
         packages: current.packages,
         commissionRates: current.commissionRates,
-        selectedProducts: current.selectedProducts,
         optionsData: current.optionsData,
-        searchedProducts: current.searchedProducts,
         commissionRate: current.commissionRate,
       ));
       return;
@@ -251,30 +219,27 @@ class ProductListingCreateBloc
         carrierRates: current.carrierRates,
         packages: current.packages,
         commissionRates: current.commissionRates,
-        selectedProducts: current.selectedProducts,
         optionsData: current.optionsData,
-        searchedProducts: current.searchedProducts,
         commissionRate: current.commissionRate,
       ));
       return;
     }
 
+    // 수정 대상이 없으면 저장할 곳이 없다(프리필 실패 등).
+    if (editingListingId == null) {
+      emit(const ProductListingCreateError('수정할 판매상품을 불러오지 못했습니다.'));
+      emit(current);
+      return;
+    }
+
     emit(const ProductListingCreateLoading());
 
-    // 옵션 데이터 구성
+    // 옵션 데이터 구성. 구성품(products)은 전송하지 않는다 - 마스터 상품이 소유한다.
     final options = current.optionsData.map((optionData) {
-      final products = optionData.products
-          .map((pq) => CreateProductListingProductRequest(
-                productId: pq.productId,
-                quantity: pq.quantity,
-              ))
-          .toList();
-
       return CreateProductListingOptionRequest(
         optionName: optionData.option.optionName,
         sellingPrice: optionData.option.sellingPrice,
         platformOptionId: optionData.platformOptionId,
-        products: products,
       );
     }).toList();
 
@@ -291,33 +256,20 @@ class ProductListingCreateBloc
         ? null
         : current.formData['sellerId'];
 
-    // 수정 모드면 update(id), 아니면 create. (프론트의 handleFinalSubmit과 동일 분기)
-    final result = editingListingId != null
-        ? await productListingUseCase.update(
-            editingListingId!,
-            UpdateProductListingRequest(
-              platform: current.formData['platform']!,
-              platformProductId: current.formData['platformProductId']!,
-              name: current.formData['name']!,
-              categoryId: categoryId,
-              carrierId: carrierId,
-              packageId: packageId,
-              sellerId: sellerId,
-              options: options,
-            ),
-          )
-        : await productListingUseCase.create(
-            CreateProductListingRequest(
-              platform: current.formData['platform']!,
-              platformProductId: current.formData['platformProductId']!,
-              name: current.formData['name']!,
-              categoryId: categoryId,
-              carrierId: carrierId,
-              packageId: packageId,
-              sellerId: sellerId,
-              options: options,
-            ),
-          );
+    // 수정 전용 폼이므로 항상 update(id) 를 호출한다.
+    final result = await productListingUseCase.update(
+      editingListingId!,
+      UpdateProductListingRequest(
+        platform: current.formData['platform']!,
+        platformProductId: current.formData['platformProductId']!,
+        name: current.formData['name']!,
+        categoryId: categoryId,
+        carrierId: carrierId,
+        packageId: packageId,
+        sellerId: sellerId,
+        options: options,
+      ),
+    );
 
     result.fold(
       (failure) {
@@ -330,9 +282,7 @@ class ProductListingCreateBloc
           carrierRates: current.carrierRates,
           packages: current.packages,
           commissionRates: current.commissionRates,
-          selectedProducts: current.selectedProducts,
           optionsData: current.optionsData,
-          searchedProducts: current.searchedProducts,
           commissionRate: current.commissionRate,
         ));
       },
@@ -411,8 +361,8 @@ class ProductListingCreateBloc
         }
       }
 
-      // 수정 모드면 lookup + 기존 데이터 프리필을 한 번에 emit (순서 경합 방지),
-      // 신규 등록이면 빈 폼으로 emit.
+      // lookup + 기존 데이터 프리필을 한 번에 emit (순서 경합 방지).
+      // editListing 없이 호출되면 빈 폼이 되므로 수정 화면은 항상 함께 넘긴다.
       final state = event.editListing != null
           ? _buildEditLoaded(
               event.editListing!,
@@ -454,142 +404,6 @@ class ProductListingCreateBloc
     }
   }
 
-  Future<void> _onSearchProducts(
-    SearchProducts event,
-    Emitter<ProductListingCreateState> emit,
-  ) async {
-    if (state is! ProductListingCreateLoaded) return;
-    final current = state as ProductListingCreateLoaded;
-
-    if (event.query.isEmpty) {
-      emit(ProductListingCreateLoaded(
-        formData: current.formData,
-        validationErrors: current.validationErrors,
-        sellers: current.sellers,
-        categories: current.categories,
-        carrierRates: current.carrierRates,
-        packages: current.packages,
-        commissionRates: current.commissionRates,
-        selectedProducts: current.selectedProducts,
-        optionsData: current.optionsData,
-        searchedProducts: const [],
-        commissionRate: current.commissionRate,
-      ));
-      return;
-    }
-
-    final result = await productListingUseCase.searchProducts(
-      query: event.query,
-      page: 0,
-      size: 50,
-    );
-
-    result.fold(
-      (failure) {
-        emit(ProductListingCreateLoaded(
-          formData: current.formData,
-          validationErrors: current.validationErrors,
-          sellers: current.sellers,
-          categories: current.categories,
-          carrierRates: current.carrierRates,
-          packages: current.packages,
-          commissionRates: current.commissionRates,
-          selectedProducts: current.selectedProducts,
-          optionsData: current.optionsData,
-          searchedProducts: const [],
-          commissionRate: current.commissionRate,
-        ));
-      },
-      (data) {
-        final products = <dynamic>[];
-        if (data is Map && data['content'] is List) {
-          products.addAll(data['content'] as List);
-        } else if (data is List) {
-          products.addAll(data);
-        }
-
-        final convertedProducts = products
-            .map((p) {
-              if (p is Map<String, dynamic>) {
-                return _mapToProduct(p);
-              }
-              return null;
-            })
-            .whereType<Product>()
-            .toList();
-
-        emit(ProductListingCreateLoaded(
-          formData: current.formData,
-          validationErrors: current.validationErrors,
-          sellers: current.sellers,
-          categories: current.categories,
-          carrierRates: current.carrierRates,
-          packages: current.packages,
-          commissionRates: current.commissionRates,
-          selectedProducts: current.selectedProducts,
-          optionsData: current.optionsData,
-          searchedProducts: convertedProducts,
-          commissionRate: current.commissionRate,
-        ));
-      },
-    );
-  }
-
-  void _onSelectProduct(
-    SelectProduct event,
-    Emitter<ProductListingCreateState> emit,
-  ) {
-    if (state is! ProductListingCreateLoaded) return;
-    final current = state as ProductListingCreateLoaded;
-
-    // 이미 선택된 상품이면 무시
-    if (current.selectedProducts.any((p) => p.id == event.product.id)) {
-      return;
-    }
-
-    final updatedProducts = [...current.selectedProducts, event.product];
-
-    emit(ProductListingCreateLoaded(
-      formData: current.formData,
-      validationErrors: current.validationErrors,
-      sellers: current.sellers,
-      categories: current.categories,
-      carrierRates: current.carrierRates,
-      packages: current.packages,
-      commissionRates: current.commissionRates,
-      selectedProducts: updatedProducts,
-      optionsData: current.optionsData,
-      searchedProducts: current.searchedProducts,
-      commissionRate: current.commissionRate,
-    ));
-  }
-
-  void _onRemoveProduct(
-    RemoveProduct event,
-    Emitter<ProductListingCreateState> emit,
-  ) {
-    if (state is! ProductListingCreateLoaded) return;
-    final current = state as ProductListingCreateLoaded;
-
-    final updatedProducts = current.selectedProducts
-        .where((p) => p.id != event.productId)
-        .toList();
-
-    emit(ProductListingCreateLoaded(
-      formData: current.formData,
-      validationErrors: current.validationErrors,
-      sellers: current.sellers,
-      categories: current.categories,
-      carrierRates: current.carrierRates,
-      packages: current.packages,
-      commissionRates: current.commissionRates,
-      selectedProducts: updatedProducts,
-      optionsData: current.optionsData,
-      searchedProducts: current.searchedProducts,
-      commissionRate: current.commissionRate,
-    ));
-  }
-
   void _onAddOption(
     AddOption event,
     Emitter<ProductListingCreateState> emit,
@@ -603,17 +417,10 @@ class ProductListingCreateBloc
       sellingPrice: event.sellingPrice,
     );
 
-    final productQuantities = <ProductQuantity>[];
-    event.productQuantities.forEach((productId, quantity) {
-      productQuantities.add(ProductQuantity(
-        productId: productId,
-        quantity: quantity,
-      ));
-    });
-
+    // 새 옵션은 마스터에 연결돼 있지 않으므로 구성품을 알 수 없다(빈 목록).
     final newOptionWithProducts = OptionWithProducts(
       option: newOption,
-      products: productQuantities,
+      products: const [],
       platformOptionId: event.platformOptionId,
     );
 
@@ -627,9 +434,7 @@ class ProductListingCreateBloc
       carrierRates: current.carrierRates,
       packages: current.packages,
       commissionRates: current.commissionRates,
-      selectedProducts: current.selectedProducts,
       optionsData: updatedOptions,
-      searchedProducts: current.searchedProducts,
       commissionRate: current.commissionRate,
     ));
   }
@@ -641,14 +446,7 @@ class ProductListingCreateBloc
     if (state is! ProductListingCreateLoaded) return;
     final current = state as ProductListingCreateLoaded;
 
-    final productQuantities = <ProductQuantity>[];
-    event.productQuantities.forEach((productId, quantity) {
-      productQuantities.add(ProductQuantity(
-        productId: productId,
-        quantity: quantity,
-      ));
-    });
-
+    // 구성품은 읽기 전용이므로 기존 값을 그대로 보존한다.
     final updatedOptions = current.optionsData.map((optionData) {
       if (optionData.option.id != event.optionId) return optionData;
       return OptionWithProducts(
@@ -657,7 +455,7 @@ class ProductListingCreateBloc
           optionName: event.optionName,
           sellingPrice: event.sellingPrice,
         ),
-        products: productQuantities,
+        products: optionData.products,
         platformOptionId: event.platformOptionId,
       );
     }).toList();
@@ -670,9 +468,7 @@ class ProductListingCreateBloc
       carrierRates: current.carrierRates,
       packages: current.packages,
       commissionRates: current.commissionRates,
-      selectedProducts: current.selectedProducts,
       optionsData: updatedOptions,
-      searchedProducts: current.searchedProducts,
       commissionRate: current.commissionRate,
     ));
   }
@@ -696,9 +492,7 @@ class ProductListingCreateBloc
       carrierRates: current.carrierRates,
       packages: current.packages,
       commissionRates: current.commissionRates,
-      selectedProducts: current.selectedProducts,
       optionsData: updatedOptions,
-      searchedProducts: current.searchedProducts,
       commissionRate: current.commissionRate,
     ));
   }
@@ -718,46 +512,9 @@ class ProductListingCreateBloc
       carrierRates: current.carrierRates,
       packages: current.packages,
       commissionRates: current.commissionRates,
-      selectedProducts: current.selectedProducts,
       optionsData: current.optionsData,
-      searchedProducts: current.searchedProducts,
       commissionRate: event.rate,
     ));
-  }
-
-  Product _mapToProduct(Map<String, dynamic> json) {
-    // price는 double 또는 int로 올 수 있으므로 유연하게 처리
-    int? price;
-    final priceValue = json['price'];
-    if (priceValue != null) {
-      if (priceValue is int) {
-        price = priceValue;
-      } else if (priceValue is double) {
-        price = priceValue.toInt();
-      } else if (priceValue is String) {
-        price = int.tryParse(priceValue);
-      }
-    }
-
-    return Product(
-      id: json['id'] as int,
-      productName: json['productName'] as String,
-      barcodeId: json['barcodeId'] as String?,
-      brand: json['brand'] as String?,
-      price: price,
-      store: json['store'] as String?,
-      netContentUnit: json['netContentUnit'] as String?,
-      packageHeight: json['packageHeight'] as String?,
-      packageLength: json['packageLength'] as String?,
-      packageWidth: json['packageWidth'] as String?,
-      netContent: json['netContent'] as String?,
-      description: json['description'] as String?,
-      name: json['name'] as String?,
-      imageUrl: json['imageUrl'] as String?,
-      active: json['active'] as bool? ?? true,
-      createdDate: json['createdDate'] as String? ?? '',
-      modifiedDate: json['modifiedDate'] as String? ?? '',
-    );
   }
 
   // 플랫폼/카테고리에 해당하는 수수료율 계산 (프론트의 useEffect 로직과 동일).

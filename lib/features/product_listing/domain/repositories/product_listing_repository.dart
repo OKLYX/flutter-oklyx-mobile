@@ -17,10 +17,6 @@ abstract class ProductListingRepository {
   /// 판매상품 옵션 목록 조회 (by listing ID)
   Future<Either<Failure, List<ProductListingOption>>> getOptions(int listingId);
 
-  Future<Either<Failure, ProductListing>> create(
-    CreateProductListingRequest request,
-  );
-
   Future<Either<Failure, ProductListing>> update(
     int id,
     UpdateProductListingRequest request,

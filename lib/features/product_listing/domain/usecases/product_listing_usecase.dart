@@ -25,12 +25,6 @@ class ProductListingUseCase {
     return repository.getOptions(listingId);
   }
 
-  Future<Either<Failure, ProductListing>> create(
-    CreateProductListingRequest request,
-  ) {
-    return repository.create(request);
-  }
-
   Future<Either<Failure, ProductListing>> update(
     int id,
     UpdateProductListingRequest request,

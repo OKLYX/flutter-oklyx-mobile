@@ -73,25 +73,6 @@ class ProductListingRepositoryImpl implements ProductListingRepository {
   }
 
   @override
-  Future<Either<Failure, ProductListing>> create(
-    CreateProductListingRequest request,
-  ) async {
-    try {
-      final model = await remoteDataSource.create(request);
-      return Right(model);
-    } on DioException catch (e) {
-      return Left(
-        ServerFailure(
-          e.message ?? 'Failed to create product listing',
-          statusCode: e.response?.statusCode,
-        ),
-      );
-    } on Exception catch (e) {
-      return Left(ServerFailure(e.toString()));
-    }
-  }
-
-  @override
   Future<Either<Failure, ProductListing>> update(
     int id,
     UpdateProductListingRequest request,
