@@ -28,6 +28,10 @@ class OrderItem {
   /// 앱에서 수량으로 다시 판정하지 말 것.
   final bool cancelled;
 
+  /// 내부 단계(FEATURE_2609_75 / D9) — 쿠팡 상태([status])와 별개다. null = 없음.
+  /// 칩·필터·발주처리 판정은 [status] 로만 한다.
+  final InternalStage? internalStage;
+
   final String? paidAt;
 
   /// 주문 시점 금액 스냅샷 (PLAN D9·D10). 과거 주문은 백필된 만큼만 채워지므로 nullable 이다.
@@ -54,6 +58,7 @@ class OrderItem {
     required this.status,
     this.platformStatus,
     this.cancelled = false,
+    this.internalStage,
     this.paidAt,
     this.unitPrice,
     this.lineAmount,
@@ -170,3 +175,19 @@ bool matchesOrderSearch(OrderItem order, OrderSearchField field, String term) {
       return _matchesCustomer(order, needle);
   }
 }
+
+/// 내부 단계 (백엔드 `InternalShipmentStage`, FEATURE_2609_75 / D9).
+enum InternalStage { internalPreparing, awaitingShipment }
+
+/// 응답 문자열 → 내부 단계. null·모르는 값은 null(= 없음) — 예외를 던지지 않는다.
+InternalStage? internalStageFrom(String? raw) => switch (raw) {
+      'INTERNAL_PREPARING' => InternalStage.internalPreparing,
+      'AWAITING_SHIPMENT' => InternalStage.awaitingShipment,
+      _ => null,
+    };
+
+/// 화면 문구의 단일 출처(D10·D11) — 웹 `INTERNAL_STAGE_LABELS` 와 글자까지 같다.
+const Map<InternalStage, String> kInternalStageLabels = {
+  InternalStage.internalPreparing: '내부 상품준비중',
+  InternalStage.awaitingShipment: '발송대기중',
+};

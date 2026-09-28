@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
 import '../../domain/entities/order_item.dart';
+import 'internal_stage_badge.dart';
 
 /// 주문 1건 카드 — 주문내역·출고관리 두 화면이 공유한다.
 ///
@@ -64,12 +65,21 @@ class OrderCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  order.externalOrderId,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      order.externalOrderId,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    // 내부 단계 배지(FEATURE_2609_75 / D9) — null 이면 아무것도 그리지 않는다.
+                    InternalStageBadge(stage: order.internalStage),
+                  ],
                 ),
                 const SizedBox(height: 6),
                 Text(
