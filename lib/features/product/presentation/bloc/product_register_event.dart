@@ -12,12 +12,14 @@ class RegisterProductRequested extends ProductRegisterEvent {
   final String? brand;
   final String? description;
   final int? price;
-  final String? store;
+  final List<int> purchasePlaceIds;
   final Unit? netContentUnit;
   final double? packageHeight;
   final double? packageLength;
   final double? packageWidth;
   final double? netContent;
+  final int? countQuantity;
+  final String? countUnit;
 
   const RegisterProductRequested({
     required this.productName,
@@ -25,12 +27,14 @@ class RegisterProductRequested extends ProductRegisterEvent {
     this.brand,
     this.description,
     this.price,
-    this.store,
+    this.purchasePlaceIds = const [],
     this.netContentUnit,
     this.packageHeight,
     this.packageLength,
     this.packageWidth,
     this.netContent,
+    this.countQuantity,
+    this.countUnit,
   });
 
   @override
@@ -40,12 +44,14 @@ class RegisterProductRequested extends ProductRegisterEvent {
     brand,
     description,
     price,
-    store,
+    purchasePlaceIds,
     netContentUnit,
     packageHeight,
     packageLength,
     packageWidth,
     netContent,
+    countQuantity,
+    countUnit,
   ];
 }
 

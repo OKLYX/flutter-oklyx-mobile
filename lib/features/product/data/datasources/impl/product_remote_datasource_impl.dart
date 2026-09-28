@@ -6,6 +6,7 @@ import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
 import 'package:flutter_oklyn_mobile/core/network/dio_client.dart';
 import 'package:flutter_oklyn_mobile/features/product/data/models/product_model.dart';
 import 'package:flutter_oklyn_mobile/features/product/data/models/product_page_model.dart';
+import 'package:flutter_oklyn_mobile/features/product/data/models/purchase_place_model.dart';
 import 'package:flutter_oklyn_mobile/features/product/data/datasources/product_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/update_product_usecase.dart';
 
@@ -227,6 +228,32 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
     } on DioException catch (e) {
       throw ServerException(
         e.message ?? 'Failed to delete image',
+        statusCode: e.response?.statusCode,
+      );
+    } catch (e) {
+      throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<List<PurchasePlaceModel>> getPurchasePlaces() async {
+    try {
+      final response = await dioClient.get('/api/admin/purchase-places');
+
+      if (response.statusCode != 200) {
+        throw ServerException(
+          'Failed to fetch purchase places',
+          statusCode: response.statusCode,
+        );
+      }
+
+      final data = (response.data as Map<String, dynamic>)['data'] as List<dynamic>;
+      return data
+          .map((json) => PurchasePlaceModel.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw ServerException(
+        e.message ?? 'Failed to fetch purchase places',
         statusCode: e.response?.statusCode,
       );
     } catch (e) {

@@ -12,12 +12,16 @@ class UpdateProductParams extends Equatable {
   final String? brand;
   final String? description;
   final int? price;
-  final String? store;
+  /// 구매처 id 목록 — 항상 보낸다 = 이 목록으로 통째로 바뀐다(FEATURE_2609_76).
+  final List<int> purchasePlaceIds;
   final Unit? netContentUnit;
   final double? packageHeight;
   final double? packageLength;
   final double? packageWidth;
   final double? netContent;
+  /// 개수 쌍. 🔴 `countUnit` 을 항상 보낸다(없으면 '') — 서버는 `countUnit` 을 받으면 개수 쌍을 통째로 바꾼다.
+  final int? countQuantity;
+  final String? countUnit;
 
   const UpdateProductParams({
     required this.productId,
@@ -25,12 +29,14 @@ class UpdateProductParams extends Equatable {
     this.brand,
     this.description,
     this.price,
-    this.store,
+    this.purchasePlaceIds = const [],
     this.netContentUnit,
     this.packageHeight,
     this.packageLength,
     this.packageWidth,
     this.netContent,
+    this.countQuantity,
+    this.countUnit,
   });
 
   Map<String, dynamic> toJson() => {
@@ -38,12 +44,14 @@ class UpdateProductParams extends Equatable {
     if (brand != null) 'brand': brand,
     if (description != null) 'description': description,
     if (price != null) 'price': price,
-    if (store != null) 'store': store,
+    'purchasePlaceIds': purchasePlaceIds,
     if (netContentUnit != null) 'netContentUnit': netContentUnit!.serverValue,
     if (packageHeight != null) 'packageHeight': packageHeight,
     if (packageLength != null) 'packageLength': packageLength,
     if (packageWidth != null) 'packageWidth': packageWidth,
     if (netContent != null) 'netContent': netContent,
+    'countQuantity': countQuantity,
+    'countUnit': countUnit ?? '',
   };
 
   @override
@@ -53,12 +61,14 @@ class UpdateProductParams extends Equatable {
     brand,
     description,
     price,
-    store,
+    purchasePlaceIds,
     netContentUnit,
     packageHeight,
     packageLength,
     packageWidth,
     netContent,
+    countQuantity,
+    countUnit,
   ];
 }
 

@@ -16,10 +16,15 @@ import 'package:flutter_oklyn_mobile/shared/widgets/zoomable_image_viewer.dart';
 import 'package:flutter_oklyn_mobile/core/constants/app_constants.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/core/network/dio_client.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/entities/count_unit.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/entities/purchase_place.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/unit.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_detail_event.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_detail_state.dart';
+import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/purchase_place_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/purchase_place_event.dart';
+import 'package:flutter_oklyn_mobile/features/product/presentation/widgets/purchase_place_checkboxes.dart';
 
 class ProductDetailPage extends StatefulWidget {
   final int productId;
@@ -32,13 +37,14 @@ class ProductDetailPage extends StatefulWidget {
 
 class _ProductDetailPageState extends State<ProductDetailPage> {
   late final ProductDetailBloc _productDetailBloc;
+  late final PurchasePlaceBloc _purchasePlaceBloc;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   late TextEditingController _nameController;
   late TextEditingController _brandController;
   late TextEditingController _descriptionController;
   late TextEditingController _priceController;
-  late TextEditingController _storeController;
+  late TextEditingController _countQuantityController;
   late TextEditingController _unitController;
   late TextEditingController _heightController;
   late TextEditingController _lengthController;
@@ -46,6 +52,8 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   late TextEditingController _netContentController;
 
   Unit? _selectedUnit;
+  String? _selectedCountUnit;
+  List<int> _selectedPlaceIds = [];
 
   ProductDetailState? _previousState;
 
@@ -53,6 +61,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   void initState() {
     super.initState();
     _productDetailBloc = getIt<ProductDetailBloc>()..add(LoadProductDetail(widget.productId));
+    _purchasePlaceBloc = getIt<PurchasePlaceBloc>()..add(const PurchasePlacesRequested());
     _initializeControllers();
   }
 
@@ -61,7 +70,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     _brandController = TextEditingController();
     _descriptionController = TextEditingController();
     _priceController = TextEditingController();
-    _storeController = TextEditingController();
+    _countQuantityController = TextEditingController();
     _unitController = TextEditingController();
     _heightController = TextEditingController();
     _lengthController = TextEditingController();
@@ -75,13 +84,14 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     _brandController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
-    _storeController.dispose();
+    _countQuantityController.dispose();
     _unitController.dispose();
     _heightController.dispose();
     _lengthController.dispose();
     _widthController.dispose();
     _netContentController.dispose();
     _productDetailBloc.close();
+    _purchasePlaceBloc.close();
     super.dispose();
   }
 
@@ -90,7 +100,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     _brandController.text = product.brand ?? '';
     _descriptionController.text = product.description ?? '';
     _priceController.text = product.price?.toString() ?? '';
-    _storeController.text = product.store ?? '';
+    _selectedPlaceIds =
+        (product.purchasePlaces as List<PurchasePlace>).map((place) => place.id).toList();
+    _countQuantityController.text = product.countQuantity?.toString() ?? '';
+    _selectedCountUnit = product.countUnit as String?;
     _selectedUnit = Unit.fromString(product.netContentUnit);
     _heightController.text = product.packageHeight?.toString() ?? '';
     _lengthController.text = product.packageLength?.toString() ?? '';
@@ -122,17 +135,32 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
   }
 
   void _onSave() {
+    final measureError = productMeasureInputError(
+      netContent: _netContentController.text,
+      hasNetContentUnit: _selectedUnit != null,
+      countQuantity: _countQuantityController.text,
+      countUnit: _selectedCountUnit,
+    );
+    if (measureError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(measureError)),
+      );
+      return;
+    }
+
     _productDetailBloc.add(UpdateProductRequested(
       productName: _nameController.text.trim(),
       brand: _brandController.text.trim().isEmpty ? null : _brandController.text.trim(),
       description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
       price: _priceController.text.isEmpty ? null : int.tryParse(_priceController.text),
-      store: _storeController.text.trim().isEmpty ? null : _storeController.text.trim(),
+      purchasePlaceIds: _selectedPlaceIds,
       netContentUnit: _selectedUnit,
       packageHeight: _heightController.text.isEmpty ? null : double.tryParse(_heightController.text),
       packageLength: _lengthController.text.isEmpty ? null : double.tryParse(_lengthController.text),
       packageWidth: _widthController.text.isEmpty ? null : double.tryParse(_widthController.text),
       netContent: _netContentController.text.isEmpty ? null : double.tryParse(_netContentController.text),
+      countQuantity: int.tryParse(_countQuantityController.text.trim()),
+      countUnit: _selectedCountUnit,
     ));
   }
 
@@ -284,13 +312,18 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                           product: product,
                           isEditing: isEditing,
                           priceController: _priceController,
-                          storeController: _storeController,
+                          purchasePlaceBloc: _purchasePlaceBloc,
+                          selectedPlaceIds: _selectedPlaceIds,
+                          onPlacesChanged: (ids) => setState(() => _selectedPlaceIds = ids),
                           selectedUnit: _selectedUnit,
                           onUnitChanged: (Unit? unit) {
                             setState(() {
                               _selectedUnit = unit;
                             });
                           },
+                          countQuantityController: _countQuantityController,
+                          selectedCountUnit: _selectedCountUnit,
+                          onCountUnitChanged: (unit) => setState(() => _selectedCountUnit = unit),
                         ),
                         if (product.packageHeight != null ||
                             product.packageLength != null ||
@@ -705,17 +738,27 @@ class _EditablePricingCard extends StatefulWidget {
   final product;
   final bool isEditing;
   final TextEditingController priceController;
-  final TextEditingController storeController;
+  final PurchasePlaceBloc purchasePlaceBloc;
+  final List<int> selectedPlaceIds;
+  final ValueChanged<List<int>> onPlacesChanged;
   final Unit? selectedUnit;
   final Function(Unit?) onUnitChanged;
+  final TextEditingController countQuantityController;
+  final String? selectedCountUnit;
+  final ValueChanged<String?> onCountUnitChanged;
 
   const _EditablePricingCard({
     required this.product,
     required this.isEditing,
     required this.priceController,
-    required this.storeController,
+    required this.purchasePlaceBloc,
+    required this.selectedPlaceIds,
+    required this.onPlacesChanged,
     required this.selectedUnit,
     required this.onUnitChanged,
+    required this.countQuantityController,
+    required this.selectedCountUnit,
+    required this.onCountUnitChanged,
   });
 
   @override
@@ -727,8 +770,8 @@ class _EditablePricingCardState extends State<_EditablePricingCard> {
     if (widget.isEditing) {
       return TextField(
         controller: controller,
-        keyboardType: label == '가격' ? TextInputType.number : TextInputType.text,
-        inputFormatters: label == '가격'
+        keyboardType: label == '가격' || label == '개수' ? TextInputType.number : TextInputType.text,
+        inputFormatters: label == '가격' || label == '개수'
             ? [FilteringTextInputFormatter.digitsOnly]
             : null,
         decoration: InputDecoration(
@@ -787,8 +830,39 @@ class _EditablePricingCardState extends State<_EditablePricingCard> {
     }
   }
 
+  Widget _buildCountUnitField() => DropdownButtonFormField<String>(
+        value: widget.selectedCountUnit,
+        decoration: InputDecoration(
+          labelText: '개수 단위',
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        ),
+        items: [
+          const DropdownMenuItem<String>(child: Text('선택 안 함')),
+          ...kCountUnits.map(
+            (unit) => DropdownMenuItem<String>(value: unit, child: Text(unit)),
+          ),
+        ],
+        onChanged: widget.onCountUnitChanged,
+      );
+
+  Widget _buildReadOnlyRow(String label, String value) => Row(
+        children: [
+          Text('$label: '),
+          Expanded(
+            child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
+          ),
+        ],
+      );
+
   @override
   Widget build(BuildContext context) {
+    // 구매처 이름은 목록 순서, ", " 로 잇는다(웹 purchasePlaceNames 와 같은 표기).
+    final placeNames = (widget.product.purchasePlaces as List<PurchasePlace>)
+        .map((place) => place.name)
+        .join(', ');
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Padding(
@@ -800,20 +874,33 @@ class _EditablePricingCardState extends State<_EditablePricingCard> {
               _buildField('가격', widget.priceController),
               if (widget.priceController.text.isNotEmpty)
                 const SizedBox(height: 12),
-              _buildField('상점', widget.storeController),
-              if (widget.storeController.text.isNotEmpty)
-                const SizedBox(height: 12),
+              PurchasePlaceCheckboxes(
+                bloc: widget.purchasePlaceBloc,
+                selectedIds: widget.selectedPlaceIds,
+                onChanged: widget.onPlacesChanged,
+              ),
+              const SizedBox(height: 12),
               _buildUnitField(),
+              const SizedBox(height: 12),
+              _buildField('개수', widget.countQuantityController),
+              const SizedBox(height: 12),
+              _buildCountUnitField(),
             ] else ...[
               if (widget.product.price != null) ...[
                 _buildField('가격', widget.priceController),
                 const SizedBox(height: 8),
               ],
-              if (widget.product.store != null) ...[
-                _buildField('상점', widget.storeController),
+              if (placeNames.isNotEmpty) ...[
+                _buildReadOnlyRow('구매처', placeNames),
                 const SizedBox(height: 8),
               ],
               if (widget.product.netContentUnit != null) _buildUnitField(),
+              if (widget.product.countQuantity != null) ...[
+                const SizedBox(height: 8),
+                _buildReadOnlyRow('개수', '${widget.product.countQuantity}'),
+                const SizedBox(height: 8),
+                _buildReadOnlyRow('개수 단위', '${widget.product.countUnit}'),
+              ],
             ],
           ],
         ),

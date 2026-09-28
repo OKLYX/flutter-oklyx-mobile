@@ -45,12 +45,14 @@ class ProductRegisterBloc extends Bloc<ProductRegisterEvent, ProductRegisterStat
       brand: event.brand,
       description: event.description,
       price: event.price,
-      store: event.store,
+      purchasePlaceIds: event.purchasePlaceIds,
       netContentUnit: event.netContentUnit,
       packageHeight: event.packageHeight,
       packageLength: event.packageLength,
       packageWidth: event.packageWidth,
       netContent: event.netContent,
+      countQuantity: event.countQuantity,
+      countUnit: event.countUnit,
     );
 
     final result = await registerProductUseCase(params);

@@ -5,6 +5,7 @@ import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/product.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/product_page.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/entities/purchase_place.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/repositories/product_repository.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/update_product_usecase.dart';
 import '../datasources/product_remote_datasource.dart';
@@ -125,6 +126,20 @@ class ProductRepositoryImpl implements ProductRepository {
     try {
       await remoteDataSource.deleteProductImage(productId);
       return Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on Exception catch (e) {
+      return Left(UnknownFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<PurchasePlace>>> getPurchasePlaces() async {
+    try {
+      final models = await remoteDataSource.getPurchasePlaces();
+      return Right(models);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
     } on NetworkException catch (e) {
