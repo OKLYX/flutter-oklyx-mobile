@@ -4,6 +4,7 @@ import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import '../entities/product.dart';
 import '../entities/product_page.dart';
+import '../entities/purchase_place.dart';
 import '../usecases/update_product_usecase.dart';
 
 abstract class ProductRepository {
@@ -26,4 +27,6 @@ abstract class ProductRepository {
   Future<Either<Failure, void>> deleteProduct(int productId);
 
   Future<Either<Failure, void>> deleteProductImage(int productId);
+
+  Future<Either<Failure, List<PurchasePlace>>> getPurchasePlaces();
 }

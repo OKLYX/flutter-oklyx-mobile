@@ -27,9 +27,11 @@ import 'package:flutter_oklyn_mobile/features/product/domain/usecases/update_pro
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/delete_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/upload_product_image_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/delete_product_image_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/usecases/get_purchase_places_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_register_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/purchase_place_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/user/data/datasources/user_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/user/data/repositories/user_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/user/domain/repositories/user_repository.dart';
@@ -304,6 +306,9 @@ void _registerProductServices() {
   getIt.registerSingleton<DeleteProductImageUseCase>(
     DeleteProductImageUseCase(getIt<ProductRepository>()),
   );
+  getIt.registerSingleton<GetPurchasePlacesUseCase>(
+    GetPurchasePlacesUseCase(getIt<ProductRepository>()),
+  );
 
   // ProductBloc as factory to allow fresh state per page
   getIt.registerFactory<ProductBloc>(
@@ -318,6 +323,13 @@ void _registerProductServices() {
       deleteProductUseCase: getIt<DeleteProductUseCase>(),
       uploadProductImageUseCase: getIt<UploadProductImageUseCase>(),
       deleteProductImageUseCase: getIt<DeleteProductImageUseCase>(),
+    ),
+  );
+
+  // PurchasePlaceBloc as factory — 물품 등록·상세 화면이 각자 새 인스턴스를 받는다(FEATURE_2609_76).
+  getIt.registerFactory<PurchasePlaceBloc>(
+    () => PurchasePlaceBloc(
+      getPurchasePlacesUseCase: getIt<GetPurchasePlacesUseCase>(),
     ),
   );
 
