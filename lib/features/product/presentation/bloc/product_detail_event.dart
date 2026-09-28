@@ -41,24 +41,28 @@ class UpdateProductRequested extends ProductDetailEvent {
   final String? brand;
   final String? description;
   final int? price;
-  final String? store;
+  final List<int> purchasePlaceIds;
   final Unit? netContentUnit;
   final double? packageHeight;
   final double? packageLength;
   final double? packageWidth;
   final double? netContent;
+  final int? countQuantity;
+  final String? countUnit;
 
   const UpdateProductRequested({
     required this.productName,
     this.brand,
     this.description,
     this.price,
-    this.store,
+    this.purchasePlaceIds = const [],
     this.netContentUnit,
     this.packageHeight,
     this.packageLength,
     this.packageWidth,
     this.netContent,
+    this.countQuantity,
+    this.countUnit,
   });
 
   @override
@@ -67,12 +71,14 @@ class UpdateProductRequested extends ProductDetailEvent {
     brand,
     description,
     price,
-    store,
+    purchasePlaceIds,
     netContentUnit,
     packageHeight,
     packageLength,
     packageWidth,
     netContent,
+    countQuantity,
+    countUnit,
   ];
 }
 

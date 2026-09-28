@@ -7,10 +7,14 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_drawer.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/entities/count_unit.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/unit.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_register_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_register_event.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_register_state.dart';
+import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/purchase_place_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/purchase_place_event.dart';
+import 'package:flutter_oklyn_mobile/features/product/presentation/widgets/purchase_place_checkboxes.dart';
 
 class ProductRegisterPage extends StatefulWidget {
   const ProductRegisterPage({super.key});
@@ -21,6 +25,7 @@ class ProductRegisterPage extends StatefulWidget {
 
 class _ProductRegisterPageState extends State<ProductRegisterPage> {
   late final ProductRegisterBloc _bloc;
+  late final PurchasePlaceBloc _purchasePlaceBloc;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   late TextEditingController _nameController;
@@ -28,13 +33,15 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
   late TextEditingController _brandController;
   late TextEditingController _descriptionController;
   late TextEditingController _priceController;
-  late TextEditingController _storeController;
+  late TextEditingController _countQuantityController;
   late TextEditingController _heightController;
   late TextEditingController _lengthController;
   late TextEditingController _widthController;
   late TextEditingController _netContentController;
 
   Unit? _selectedUnit;
+  String? _selectedCountUnit;
+  List<int> _selectedPlaceIds = [];
 
   bool _barcodeChecked = false;
   bool _barcodeAvailable = false;
@@ -43,6 +50,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
   void initState() {
     super.initState();
     _bloc = getIt<ProductRegisterBloc>();
+    _purchasePlaceBloc = getIt<PurchasePlaceBloc>()..add(const PurchasePlacesRequested());
     _initializeControllers();
   }
 
@@ -52,7 +60,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
     _brandController = TextEditingController();
     _descriptionController = TextEditingController();
     _priceController = TextEditingController();
-    _storeController = TextEditingController();
+    _countQuantityController = TextEditingController();
     _heightController = TextEditingController();
     _lengthController = TextEditingController();
     _widthController = TextEditingController();
@@ -66,12 +74,13 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
     _brandController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
-    _storeController.dispose();
+    _countQuantityController.dispose();
     _heightController.dispose();
     _lengthController.dispose();
     _widthController.dispose();
     _netContentController.dispose();
     _bloc.close();
+    _purchasePlaceBloc.close();
     super.dispose();
   }
 
@@ -93,8 +102,10 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
       _brandController.clear();
       _descriptionController.clear();
       _priceController.clear();
-      _storeController.clear();
+      _countQuantityController.clear();
       _selectedUnit = null;
+      _selectedCountUnit = null;
+      _selectedPlaceIds = [];
       _heightController.clear();
       _lengthController.clear();
       _widthController.clear();
@@ -121,18 +132,33 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
       return;
     }
 
+    final measureError = productMeasureInputError(
+      netContent: _netContentController.text,
+      hasNetContentUnit: _selectedUnit != null,
+      countQuantity: _countQuantityController.text,
+      countUnit: _selectedCountUnit,
+    );
+    if (measureError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(measureError)),
+      );
+      return;
+    }
+
     _bloc.add(RegisterProductRequested(
       productName: productName,
       barcodeId: barcode.isEmpty ? null : barcode,
       brand: _brandController.text.trim().isEmpty ? null : _brandController.text.trim(),
       description: _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
       price: _priceController.text.isEmpty ? null : int.tryParse(_priceController.text),
-      store: _storeController.text.trim().isEmpty ? null : _storeController.text.trim(),
+      purchasePlaceIds: _selectedPlaceIds,
       netContentUnit: _selectedUnit,
       packageHeight: _heightController.text.isEmpty ? null : double.tryParse(_heightController.text),
       packageLength: _lengthController.text.isEmpty ? null : double.tryParse(_lengthController.text),
       packageWidth: _widthController.text.isEmpty ? null : double.tryParse(_widthController.text),
       netContent: _netContentController.text.isEmpty ? null : double.tryParse(_netContentController.text),
+      countQuantity: int.tryParse(_countQuantityController.text.trim()),
+      countUnit: _selectedCountUnit,
     ));
   }
 
@@ -212,15 +238,23 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
                       const SizedBox(height: 12),
                       _buildTextField('설명', _descriptionController, maxLines: 3),
                       const SizedBox(height: 24),
-                      _buildSectionTitle('가격 및 판매처'),
+                      _buildSectionTitle('가격 및 구매처'),
                       const SizedBox(height: 12),
                       _buildTextField('가격', _priceController, keyboardType: TextInputType.number),
                       const SizedBox(height: 12),
-                      _buildTextField('판매처', _storeController),
+                      PurchasePlaceCheckboxes(
+                        bloc: _purchasePlaceBloc,
+                        selectedIds: _selectedPlaceIds,
+                        onChanged: (ids) => setState(() => _selectedPlaceIds = ids),
+                      ),
                       const SizedBox(height: 12),
                       _buildTextField('내용물 양', _netContentController, keyboardType: const TextInputType.numberWithOptions(decimal: true)),
                       const SizedBox(height: 12),
                       _buildUnitDropdown(),
+                      const SizedBox(height: 12),
+                      _buildTextField('개수', _countQuantityController, keyboardType: TextInputType.number),
+                      const SizedBox(height: 12),
+                      _buildCountUnitDropdown(),
                       const SizedBox(height: 24),
                       _buildSectionTitle('치수'),
                       const SizedBox(height: 12),
@@ -303,7 +337,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
       textInputAction: TextInputAction.next,
       autocorrect: false,
       enableSuggestions: maxLines == 1,
-      inputFormatters: label == '가격'
+      inputFormatters: label == '가격' || label == '개수'
           ? [FilteringTextInputFormatter.digitsOnly]
           : null,
       decoration: InputDecoration(
@@ -315,6 +349,24 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
       ),
     );
   }
+
+  Widget _buildCountUnitDropdown() => DropdownButtonFormField<String>(
+        value: _selectedCountUnit,
+        decoration: InputDecoration(
+          labelText: '개수 단위',
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        ),
+        items: [
+          const DropdownMenuItem<String>(child: Text('선택 안 함')),
+          ...kCountUnits.map(
+            (unit) => DropdownMenuItem<String>(value: unit, child: Text(unit)),
+          ),
+        ],
+        onChanged: (value) => setState(() => _selectedCountUnit = value),
+      );
 
   Widget _buildBarcodeField() {
     final isCheckingInProgress = _bloc.state is BarcodeCheckLoading;

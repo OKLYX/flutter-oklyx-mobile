@@ -4,6 +4,7 @@ import 'package:flutter_oklyn_mobile/features/product/domain/usecases/update_pro
 
 import '../models/product_model.dart';
 import '../models/product_page_model.dart';
+import '../models/purchase_place_model.dart';
 
 abstract class ProductRemoteDataSource {
   Future<ProductPageModel> getProducts({
@@ -25,4 +26,7 @@ abstract class ProductRemoteDataSource {
   Future<void> deleteProduct(int productId);
 
   Future<void> deleteProductImage(int productId);
+
+  /// 구매처 목록 — `GET /api/admin/purchase-places`(모든 로그인 사용자, FEATURE_2609_76).
+  Future<List<PurchasePlaceModel>> getPurchasePlaces();
 }

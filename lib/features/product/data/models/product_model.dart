@@ -1,3 +1,4 @@
+import 'package:flutter_oklyn_mobile/features/product/data/models/purchase_place_model.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/product.dart';
 
 class ProductModel extends Product {
@@ -7,12 +8,14 @@ class ProductModel extends Product {
     super.barcodeId,
     super.brand,
     super.price,
-    super.store,
+    super.purchasePlaces,
     super.netContentUnit,
     super.packageHeight,
     super.packageLength,
     super.packageWidth,
     super.netContent,
+    super.countQuantity,
+    super.countUnit,
     super.description,
     super.name,
     super.imageUrl,
@@ -28,12 +31,17 @@ class ProductModel extends Product {
       barcodeId: json['barcodeId'] as String?,
       brand: json['brand'] as String?,
       price: _toInt(json['price']),
-      store: json['store'] as String?,
+      // 🔴 사진 올리기·지우기 응답에는 purchasePlaces 가 없다(null) → 빈 목록으로 읽는다.
+      purchasePlaces: ((json['purchasePlaces'] as List<dynamic>?) ?? const [])
+          .map((item) => PurchasePlaceModel.fromJson(item as Map<String, dynamic>))
+          .toList(),
       netContentUnit: json['netContentUnit'] as String?,
       packageHeight: json['packageHeight'] as String?,
       packageLength: json['packageLength'] as String?,
       packageWidth: json['packageWidth'] as String?,
       netContent: json['netContent'] as String?,
+      countQuantity: _toInt(json['countQuantity']),
+      countUnit: json['countUnit'] as String?,
       description: json['description'] as String?,
       name: json['name'] as String?,
       imageUrl: json['imageUrl'] as String?,
@@ -49,12 +57,14 @@ class ProductModel extends Product {
     barcodeId: barcodeId,
     brand: brand,
     price: price,
-    store: store,
+    purchasePlaces: purchasePlaces,
     netContentUnit: netContentUnit,
     packageHeight: packageHeight,
     packageLength: packageLength,
     packageWidth: packageWidth,
     netContent: netContent,
+    countQuantity: countQuantity,
+    countUnit: countUnit,
     description: description,
     name: name,
     imageUrl: imageUrl,

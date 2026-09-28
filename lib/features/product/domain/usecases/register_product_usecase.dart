@@ -11,12 +11,16 @@ class RegisterProductParams extends Equatable {
   final String? brand;
   final String? description;
   final int? price;
-  final String? store;
+  /// 구매처 id 목록(FEATURE_2609_76). 비어 있으면 구매처 없음.
+  final List<int> purchasePlaceIds;
   final Unit? netContentUnit;
   final double? packageHeight;
   final double? packageLength;
   final double? packageWidth;
   final double? netContent;
+  /// 개수 + 개수 단위 — 둘 다 있거나 둘 다 null(D6).
+  final int? countQuantity;
+  final String? countUnit;
   final bool active;
 
   const RegisterProductParams({
@@ -25,12 +29,14 @@ class RegisterProductParams extends Equatable {
     this.brand,
     this.description,
     this.price,
-    this.store,
+    this.purchasePlaceIds = const [],
     this.netContentUnit,
     this.packageHeight,
     this.packageLength,
     this.packageWidth,
     this.netContent,
+    this.countQuantity,
+    this.countUnit,
     this.active = true,
   });
 
@@ -41,12 +47,14 @@ class RegisterProductParams extends Equatable {
     brand,
     description,
     price,
-    store,
+    purchasePlaceIds,
     netContentUnit,
     packageHeight,
     packageLength,
     packageWidth,
     netContent,
+    countQuantity,
+    countUnit,
     active,
   ];
 
@@ -56,12 +64,14 @@ class RegisterProductParams extends Equatable {
     if (brand != null) 'brand': brand,
     if (description != null) 'description': description,
     if (price != null) 'price': price,
-    if (store != null) 'store': store,
+    'purchasePlaceIds': purchasePlaceIds,
     if (netContentUnit != null) 'netContentUnit': netContentUnit!.serverValue,
     if (packageHeight != null) 'packageHeight': packageHeight,
     if (packageLength != null) 'packageLength': packageLength,
     if (packageWidth != null) 'packageWidth': packageWidth,
     if (netContent != null) 'netContent': netContent,
+    if (countQuantity != null) 'countQuantity': countQuantity,
+    if (countUnit != null) 'countUnit': countUnit,
     'active': active,
   };
 }
