@@ -34,6 +34,10 @@ import '../widgets/internal_stage_badge.dart';
 import '../bloc/order_refresh_bloc.dart';
 import '../bloc/order_refresh_event.dart';
 import '../bloc/order_refresh_state.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/reserved_shipment_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/reserved_shipment_event.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/widgets/reserved_shipment_history_section.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/widgets/stored_invoice_section.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 // Platform display labels — same shape as product_listing_detail_page;
@@ -130,6 +134,12 @@ class OrderDetailPage extends StatelessWidget {
             create: (_) =>
                 getIt<OrderCancelBloc>()..add(const CancelReasonsRequested()),
           ),
+        // 예약 발송 기록(D30) + 「송장」(D18) — 쿠팡 전용, 진입 시 그 주문의 기록·송장 1회 조회(읽기).
+        if (isCoupang)
+          BlocProvider<ReservedShipmentBloc>(
+            create: (_) => getIt<ReservedShipmentBloc>()
+              ..add(ReservedShipmentsRequested(externalOrderId: o.externalOrderId)),
+          ),
       ],
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -163,6 +173,31 @@ class OrderDetailPage extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
+            // 송장(D18 🔁) — 내부 단계(결제완료) 배송건이 없으면(대부분의 주문) 아무것도 그리지 않는다.
+            // 이 화면에서 [내부 발주처리]·[발주처리]가 성공하면 그 주문의 송장·기록을 다시 읽는다 —
+            // 다시 들어오지 않아도 「송장」이 바로 나타나고/사라진다(웹 05 의 `shownStage` 재렌더와 같은 동작, D9).
+            if (isCoupang)
+              MultiBlocListener(
+                listeners: [
+                  BlocListener<OrderInternalStageBloc, OrderInternalStageState>(
+                    listenWhen: (p, c) => c.result != null && p.result != c.result,
+                    listener: (context, _) => context
+                        .read<ReservedShipmentBloc>()
+                        .add(ReservedShipmentsRequested(
+                            externalOrderId: o.externalOrderId)),
+                  ),
+                  BlocListener<OrderAcknowledgeBloc, OrderAcknowledgeState>(
+                    listenWhen: (p, c) => c.result != null && p.result != c.result,
+                    listener: (context, _) => context
+                        .read<ReservedShipmentBloc>()
+                        .add(ReservedShipmentsRequested(
+                            externalOrderId: o.externalOrderId)),
+                  ),
+                ],
+                child: const StoredInvoiceSection(),
+              ),
+            // 예약 발송 기록(D30) — 기록이 없으면(대부분의 주문) 아무것도 그리지 않는다.
+            if (isCoupang) const ReservedShipmentHistorySection(),
             // 송장시트·발송처리·주문취소는 한 번에 하나만 쓰는 배타적 선택이라 좌우 탭으로 묶는다.
             // ⚠️ 전량취소해도 로컬 status 는 그대로라(D7) 섹션이 계속 열려 있다 —
             // 위젯 **안을 고치지 않고** 바깥에서(탭 게이트·래퍼) 숨긴다. 부분취소는 감추지 않는다(D19).
@@ -459,7 +494,36 @@ class _ActionTabsState extends State<_ActionTabs> {
               ),
               Offstage(
                 offstage: selected != _ActionTab.shipment,
-                child: _ManualShipmentSection(order: order),
+                // 내부 단계 주문(FEATURE_2609_75 / D27)은 입력 대신 안내 — 「송장」 + [저장된 송장으로 발송].
+                // 판정 = 주문번호 옆 배지와 같은 식(`_buildInfoCard` 의 shownStage). 서버도 같은 문구로 거절한다(400).
+                child: BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
+                  builder: (context, ack) => BlocBuilder<OrderInternalStageBloc,
+                      OrderInternalStageState>(
+                    builder: (context, internal) {
+                      final acknowledged =
+                          ack.result != null && ack.result!.succeeded > 0;
+                      final internalStage = !acknowledged &&
+                          (_AcknowledgeSection._internalMarked(internal) ||
+                              order.internalStage != null);
+                      if (!internalStage) {
+                        return _ManualShipmentSection(order: order);
+                      }
+                      return const Card(
+                        margin: EdgeInsets.zero,
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text(
+                            '내부 단계 주문은 여기서 발송처리할 수 없습니다. 「송장」에 송장을 저장한 뒤 출고관리의 [저장된 송장으로 발송]을 누르세요',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.warningForeground,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ),
               Offstage(
                 offstage: selected != _ActionTab.cancel,

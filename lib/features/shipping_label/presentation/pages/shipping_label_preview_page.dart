@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../data/models/shipping_label_preview_row.dart';
 import '../bloc/shipping_label_preview_bloc.dart';
@@ -18,26 +19,32 @@ import '../bloc/shipping_label_preview_state.dart';
 /// 전화/우편번호/전체주소는 BLoC state 에만 보관(개인정보 미표시)한다.
 ///
 /// **권한**: role 게이트 없음 — 백엔드 403 에 의존(다운로드/발송처리와 동일).
+/// [internal] = true 면 「내부 상품준비중」 접수시트(FEATURE_2609_75 / D26) — 제목·파일명·안내만 다르고
+/// 편집·다운로드는 같다. false(기본) = 기존 시트(D25 무변경).
 class ShippingLabelPreviewPage extends StatelessWidget {
-  const ShippingLabelPreviewPage({super.key});
+  final bool internal;
+
+  const ShippingLabelPreviewPage({super.key, this.internal = false});
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) =>
-          getIt<ShippingLabelPreviewBloc>()..add(const LoadPreview()),
-      child: const _PreviewView(),
+      create: (_) => getIt<ShippingLabelPreviewBloc>()
+        ..add(LoadPreview(null, internal)),
+      child: _PreviewView(internal: internal),
     );
   }
 }
 
 class _PreviewView extends StatelessWidget {
-  const _PreviewView();
+  final bool internal;
+
+  const _PreviewView({required this.internal});
 
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithNavBar(
-      title: '주문목록 확인',
+      title: internal ? '내부 상품준비중 접수시트' : '주문목록 확인',
       navBarIndex: 2,
       showDrawer: true,
       onBackPressed: () => context.pop(),
@@ -58,8 +65,9 @@ class _PreviewView extends StatelessWidget {
           if (state is PreviewError) {
             return _ErrorRetry(
               message: state.message,
-              onRetry: () =>
-                  context.read<ShippingLabelPreviewBloc>().add(const LoadPreview()),
+              onRetry: () => context
+                  .read<ShippingLabelPreviewBloc>()
+                  .add(LoadPreview(null, internal)),
             );
           }
 
@@ -69,6 +77,8 @@ class _PreviewView extends StatelessWidget {
               sellers: state.sellers,
               rows: state.rows,
               sellerId: state.sellerId,
+              internal: internal,
+              notAcceptedCount: state.notAcceptedCount,
             );
           }
           if (state is PreviewExportSuccess) {
@@ -76,6 +86,8 @@ class _PreviewView extends StatelessWidget {
               sellers: state.sellers,
               rows: state.rows,
               sellerId: state.sellerId,
+              internal: internal,
+              notAcceptedCount: 0,
             );
           }
           return const SizedBox.shrink();
@@ -98,7 +110,7 @@ class _PreviewView extends StatelessWidget {
       String two(int n) => n.toString().padLeft(2, '0');
       final today = '${now.year}${two(now.month)}${two(now.day)}';
       final path = await FileSaver.instance.saveAs(
-        name: '주문목록_$today',
+        name: internal ? '내부발주_$today' : '주문목록_$today',
         bytes: state.bytes,
         ext: 'xlsx',
         mimeType: MimeType.microsoftExcel,
@@ -125,11 +137,17 @@ class _LoadedBody extends StatelessWidget {
   final List<Seller> sellers;
   final List<ShippingLabelPreviewRow> rows;
   final int? sellerId;
+  final bool internal;
+
+  /// 쿠팡 결제완료 목록에 없던 내부 주문 수(D26) — 0 이면 안내를 그리지 않는다.
+  final int notAcceptedCount;
 
   const _LoadedBody({
     required this.sellers,
     required this.rows,
     required this.sellerId,
+    required this.internal,
+    required this.notAcceptedCount,
   });
 
   @override
@@ -167,11 +185,28 @@ class _LoadedBody extends StatelessWidget {
                     ),
                   ),
                 ],
-                onChanged: (value) => bloc.add(LoadPreview(value)),
+                onChanged: (value) => bloc.add(LoadPreview(value, internal)),
               ),
             ),
           ),
           const SizedBox(height: 8),
+          if (internal && notAcceptedCount > 0) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.warningSurface,
+                border: Border.all(color: AppColors.warningBorder),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '쿠팡에서 결제완료 상태가 아님 $notAcceptedCount건',
+                style: const TextStyle(
+                    fontSize: 13, color: AppColors.warningForeground),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
           Text(
             '총 ${rows.length}건',
             style: TextStyle(

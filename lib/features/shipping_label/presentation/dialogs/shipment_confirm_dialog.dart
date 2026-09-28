@@ -4,33 +4,49 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
+import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
+import 'package:flutter_oklyn_mobile/features/order/domain/usecases/order_usecase.dart';
 // Status label SSOT — the order history filter chips use the same helper.
 import 'package:flutter_oklyn_mobile/features/order/domain/entities/order_item.dart';
+import '../../data/models/reservation_create_result.dart';
 import '../../data/models/shipment_confirm_result.dart';
 import '../../domain/usecases/shipping_label_usecase.dart';
 import '../bloc/shipment_confirm_bloc.dart';
 import '../bloc/shipment_confirm_event.dart';
 import '../bloc/shipment_confirm_state.dart';
+import '../utils/reserved_time_picker.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 /// 발송처리(운송장 업로드) 다이얼로그.
 ///
-/// **용도**: 택배사가 운송장번호를 채운 결과 xlsx 를 업로드 → 서버가 주문번호로
-///   매칭해 쿠팡 송장업로드(상품준비중→발송처리)를 배치 전송. 결과(성공/미매칭/실패)를 표시.
+/// **용도**: 택배사가 운송장번호를 채운 결과 xlsx 를 올리고 [지금 발송]·[예약 발송] 버튼으로 보낸다.
+///   [지금 발송] = 기존 요청 그대로 — 서버가 주문번호로 매칭해 쿠팡 송장업로드(상품준비중→발송처리)를
+///   배치 전송하고 결과(성공/미매칭/실패)를 표시한다. 「내부 상품준비중」·「발송대기중」 주문은 서버가
+///   발주처리 → 송장 등록 순으로 보낸다(FEATURE_2609_75 / D27) — 화면 흐름은 같다.
+///   [예약 발송] = 「내부 상품준비중」 배송건의 송장만 저장하고 예약 시각에 서버가 발주처리·송장 등록을 한다(D20).
+///   저장된 송장 모드(`storedOrderItemIds` 전달, D18) = 파일 선택이 없고 두 버튼이 저장된 송장으로 보낸다. 결과 화면은 같다.
 /// **사용법**: `showShipmentConfirmDialog(context)` 헬퍼로 연다(BlocProvider 스코프 자동 제공).
-/// **반환값**: 업로드가 한 번이라도 성공하면 `true`, 아니면 `false`.
+///   저장된 송장 모드 = `showShipmentConfirmDialog(context, storedOrderItemIds: ids)`(출고관리 [저장된 송장으로 발송]).
+///   열 때 기본 예약 시각(주문관리 설정, D12)을 1회 읽는다.
+/// **반환값**: 업로드·예약이 한 번이라도 성공하면 `true`, 아니면 `false`.
 ///   바깥 탭·안드로이드 뒤로가기로 닫으면 `null` — 호출부는 목록을 재조회하지 않는다.
 /// 결과는 요약 칩 6개 + 선택한 칩의 상세 표 1개(PLAN 2609_12 D2 — 목록이 있는 3개만 클릭 가능).
 /// **파일**: lib/features/shipping_label/presentation/dialogs/shipment_confirm_dialog.dart
 ///
 /// ⚠️ 주문내역 페이지에서만 사용. role 클라이언트 게이트 없음(백엔드 403 의존).
 /// ⚠️ 다이얼로그를 닫으면 BLoC 폐기 → 다음에 열면 초기 상태.
-Future<bool?> showShipmentConfirmDialog(BuildContext context) =>
+Future<bool?> showShipmentConfirmDialog(
+  BuildContext context, {
+  List<int>? storedOrderItemIds,
+}) =>
     showDialog<bool>(
       context: context,
       builder: (_) => BlocProvider(
-        create: (_) =>
-            ShipmentConfirmBloc(useCase: getIt<ShippingLabelUseCase>()),
+        create: (_) => ShipmentConfirmBloc(
+          useCase: getIt<ShippingLabelUseCase>(),
+          orderUseCase: getIt<OrderUseCase>(),
+          storedOrderItemIds: storedOrderItemIds,
+        )..add(const LoadDefaultExecuteAt()),
         child: const ShipmentConfirmDialog(),
       ),
     );
@@ -40,10 +56,12 @@ class ShipmentConfirmDialog extends StatelessWidget {
 
   Widget _header(BuildContext context, ShipmentConfirmState state) => Row(
         children: [
-          const Expanded(
+          Expanded(
             child: Text(
-              '발송처리 (운송장 업로드)',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              context.read<ShipmentConfirmBloc>().storedOrderItemIds != null
+                  ? '발송처리 (저장된 송장)'
+                  : '발송처리 (운송장 업로드)',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
           IconButton(
@@ -64,6 +82,31 @@ class ShipmentConfirmDialog extends StatelessWidget {
           // Keep 560 from overflowing a small phone.
           final maxH =
               math.min<double>(560, MediaQuery.sizeOf(context).height * 0.8);
+
+          if (state.reserveResult != null) {
+            // 예약 결과 화면 — 지금 발송 결과와 같은 고정 높이, 본문만 스크롤.
+            return SizedBox(
+              width: 480,
+              height: maxH,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _header(context, state),
+                    const Divider(),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: _ReservePanel(result: state.reserveResult!),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _Actions(state: state, bloc: bloc),
+                  ],
+                ),
+              ),
+            );
+          }
 
           if (state.result != null) {
             // Result view: fixed height so switching chips never resizes the
@@ -134,33 +177,73 @@ class _UploadPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (bloc.storedOrderItemIds != null)
+          // 저장된 송장 모드(D18) — 파일 선택이 없다.
+          const Text(
+            '선택한 주문의 저장된 송장으로 보냅니다. 송장이 없는 주문은 제외됩니다.',
+            style: TextStyle(fontSize: 13),
+          )
+        else ...[
+          const Text(
+            '택배사가 운송장번호를 채운 결과 xlsx 를 업로드하세요. '
+            '서버가 주문번호로 매칭해 쿠팡에 송장을 등록합니다.',
+            style: TextStyle(fontSize: 13),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '이미 발송처리된 주문은 자동으로 제외됩니다.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: state.isUploading || state.isReserving
+                ? null
+                : () => bloc.add(const PickFile()),
+            icon: const Icon(Icons.attach_file, size: 18),
+            label: const Text('파일 선택'),
+          ),
+          if (state.fileName != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              '선택: ${state.fileName}',
+              style: const TextStyle(fontSize: 13),
+            ),
+          ],
+        ],
+        // 예약 발송 시각(D20) — 기본값 = 주문관리 설정의 다음 도래 시각(D12). 한국시간.
+        const SizedBox(height: 16),
         const Text(
-          '택배사가 운송장번호를 채운 결과 xlsx 를 업로드하세요. '
-          '서버가 주문번호로 매칭해 쿠팡에 송장을 등록합니다.',
-          style: TextStyle(fontSize: 13),
+          '예약 시각 (한국시간)',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
+        OutlinedButton.icon(
+          onPressed: state.isUploading || state.isReserving
+              ? null
+              : () async {
+                  final picked =
+                      await pickReservedExecuteAt(context, state.executeAt);
+                  if (picked != null && !bloc.isClosed) {
+                    bloc.add(ChangeExecuteAt(picked));
+                  }
+                },
+          icon: const Icon(Icons.schedule, size: 18),
+          label: Text(state.executeAt == null
+              ? '시각 선택'
+              : formatOrderDateTime(state.executeAt)),
+        ),
+        const SizedBox(height: 4),
         Text(
-          '이미 발송처리된 주문은 자동으로 제외됩니다.',
+          '[예약 발송]은 「내부 상품준비중」 주문의 송장만 저장하고, 이 시각에 쿠팡 발주처리와 송장 등록을 합니다. '
+          '[지금 발송]은 바로 전송합니다(「내부 상품준비중」·「발송대기중」 주문은 발주처리 후 송장 등록).',
           style: TextStyle(
             fontSize: 12,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
-        const SizedBox(height: 16),
-        OutlinedButton.icon(
-          onPressed:
-              state.isUploading ? null : () => bloc.add(const PickFile()),
-          icon: const Icon(Icons.attach_file, size: 18),
-          label: const Text('파일 선택'),
-        ),
-        if (state.fileName != null) ...[
-          const SizedBox(height: 8),
-          Text(
-            '선택: ${state.fileName}',
-            style: const TextStyle(fontSize: 13),
-          ),
-        ],
         if (state.error != null) ...[
           const SizedBox(height: 12),
           Container(
@@ -182,6 +265,47 @@ class _UploadPanel extends StatelessWidget {
       ],
     );
   }
+}
+
+/// 예약 결과 — 건수 요약 + 제외된 주문 표(사유는 서버 문구 그대로, D20).
+class _ReservePanel extends StatelessWidget {
+  final ReservationCreateResult result;
+
+  const _ReservePanel({required this.result});
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.successSurface,
+              border: Border.all(color: AppColors.successBorder),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              '예약 ${result.reservedShipments}건 · 송장 수정 ${result.updatedInvoices}건 · '
+              '제외 ${result.excluded.length}건\n'
+              '예약 시각 ${formatOrderDateTime(result.executeAt)}',
+              style: const TextStyle(
+                  fontSize: 13, color: AppColors.successForeground),
+            ),
+          ),
+          if (result.excluded.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Text('예약 제외', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            _ResultTable(
+              headers: const ['주문번호', '사유'],
+              rows: [
+                for (final row in result.excluded) [row.orderId, row.reason],
+              ],
+              flex: const [5, 6],
+            ),
+          ],
+        ],
+      );
 }
 
 /// 결과 요약 칩 하나의 명세.
@@ -354,7 +478,11 @@ class _ResultPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _title('미매칭 주문번호'),
-          _caption(context, 'order_item 없거나 쿠팡이 아니라 스킵됨'),
+          _caption(
+              context,
+              bloc.storedOrderItemIds != null
+                  ? '저장된 송장이 없거나 내부 단계 주문이 아니라 제외됨'
+                  : 'order_item 없거나 쿠팡이 아니라 스킵됨'),
           const SizedBox(height: 8),
           _ResultTable(
             headers: const ['#', '주문번호'],
@@ -497,14 +625,16 @@ class _Actions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (state.result != null) {
+    if (state.result != null || state.reserveResult != null) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          TextButton(
-            onPressed: () => bloc.add(const ResetShipmentConfirm()),
-            child: const Text('다른 파일 업로드'),
-          ),
+          // 저장된 송장 모드는 파일이 없다 — [다른 파일 업로드]를 그리지 않는다(D18).
+          if (bloc.storedOrderItemIds == null)
+            TextButton(
+              onPressed: () => bloc.add(const ResetShipmentConfirm()),
+              child: const Text('다른 파일 업로드'),
+            ),
           const SizedBox(width: 8),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, state.hasSucceeded),
@@ -513,23 +643,46 @@ class _Actions extends StatelessWidget {
         ],
       );
     }
-    final canUpload = state.fileBytes != null && !state.isUploading;
-    return ElevatedButton(
-      onPressed: canUpload ? () => bloc.add(const UploadShipment()) : null,
-      child: state.isUploading
-          ? const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                SizedBox(width: 8),
-                Text('처리 중...'),
-              ],
-            )
-          : const Text('업로드'),
+    final busy = state.isUploading || state.isReserving;
+    // 저장된 송장 모드(D18)는 파일 없이 보낼 수 있다.
+    final canUpload =
+        (bloc.storedOrderItemIds != null || state.fileBytes != null) && !busy;
+    final canReserve = canUpload && state.executeAt != null;
+    Widget progress(String label) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 8),
+            Text(label),
+          ],
+        );
+    // [예약 발송] = 초록(FilledButton 테마 = brandGreen) · [지금 발송] = 기존 업로드 버튼(D20).
+    return Row(
+      children: [
+        Expanded(
+          child: FilledButton(
+            onPressed:
+                canReserve ? () => bloc.add(const ReserveShipment()) : null,
+            child: state.isReserving
+                ? progress('예약 중...')
+                : const Text('예약 발송'),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: ElevatedButton(
+            onPressed:
+                canUpload ? () => bloc.add(const UploadShipment()) : null,
+            child: state.isUploading
+                ? progress('처리 중...')
+                : const Text('지금 발송'),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -42,12 +42,16 @@ class OrderCard extends StatelessWidget {
   /// false 면 비활성 체크박스(회색) — 결제완료가 아니거나 비-쿠팡인 행(D2·D10).
   final bool selectable;
 
+  /// 내부 단계 주문의 [송장 수정](FEATURE_2609_75 / D18). null 이면 버튼을 그리지 않는다 — 출고관리만 넘긴다.
+  final VoidCallback? onEditInvoice;
+
   const OrderCard({
     super.key,
     required this.order,
     this.selected,
     this.onToggleSelect,
     this.selectable = true,
+    this.onEditInvoice,
   });
 
   @override
@@ -79,6 +83,19 @@ class OrderCard extends StatelessWidget {
                     ),
                     // 내부 단계 배지(FEATURE_2609_75 / D9) — null 이면 아무것도 그리지 않는다.
                     InternalStageBadge(stage: order.internalStage),
+                    // [송장 수정](D18) — 버튼 탭은 카드 탭(주문 상세)으로 새지 않는다(버튼이 먼저 받는다).
+                    if (onEditInvoice != null && order.internalStage != null)
+                      TextButton(
+                        onPressed: onEditInvoice,
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 4),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child:
+                            const Text('송장 수정', style: TextStyle(fontSize: 12)),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 6),

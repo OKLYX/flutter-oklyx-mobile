@@ -6,6 +6,7 @@ import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/dialogs/shipment_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/widgets/stored_invoice_section.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/order_item.dart';
 import '../../domain/entities/sync_target.dart';
@@ -106,6 +107,13 @@ bool _isInternalTarget(OrderItem order) =>
 /// 내부 발주 해제 대상 = 「내부 상품준비중」만(D18 행1). 발송대기중은 먼저 [예약 취소] 한다.
 bool _isReleaseTarget(OrderItem order) =>
     order.internalStage == InternalStage.internalPreparing;
+
+/// 예약 취소 대상 = 「발송대기중」만(FEATURE_2609_75 / D18 행2). 서버가 다시 판정한다.
+bool _isCancelReservationTarget(OrderItem order) =>
+    order.internalStage == InternalStage.awaitingShipment;
+
+/// 저장된 송장으로 발송 대상 = 내부 단계 주문(D18 🔁). 송장 유무·단계는 서버가 다시 판정한다.
+bool _isStoredShipTarget(OrderItem order) => order.internalStage != null;
 
 class _ShipmentManagementView extends StatefulWidget {
   const _ShipmentManagementView();
@@ -225,6 +233,8 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
                   onAcknowledge: _onAcknowledgePressed,
                   onInternal: _onInternalPressed,
                   onRelease: _onReleasePressed,
+                  onCancelReservation: _onCancelReservationPressed,
+                  onShipStored: _onShipStoredPressed,
                   onRefresh: _onRefreshPressed,
                 );
               },
@@ -349,6 +359,27 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
         .add(InternalStageRequested(InternalStageAction.release, ids));
   }
 
+  /// [예약 취소] — 발송대기중 → 「내부 상품준비중」, 송장은 주문에 남는다(D18 행2 · D18 🔁).
+  /// 쿠팡 호출이 없고 다시 [예약 발송]으로 되돌릴 수 있어 확인 없이 보낸다(웹과 같다).
+  void _onCancelReservationPressed(List<int> ids) {
+    if (ids.isEmpty) return;
+    context
+        .read<OrderInternalStageBloc>()
+        .add(InternalStageRequested(InternalStageAction.cancel, ids));
+  }
+
+  /// [저장된 송장으로 발송](D18 🔁) — 발송처리 다이얼로그를 저장된 송장 모드로 연다. 요청·결과는 다이얼로그가 한다.
+  /// 보냈으면 선택을 비우고 판매자 필터를 유지한 채 다시 조회한다(발송처리 버튼과 같은 이벤트).
+  Future<void> _onShipStoredPressed(List<int> ids) async {
+    if (ids.isEmpty) return;
+    final bloc = context.read<OrderListBloc>();
+    final sent = await showShipmentConfirmDialog(context, storedOrderItemIds: ids);
+    if (sent == true && !bloc.isClosed) {
+      _clearSelection();
+      bloc.add(SearchOrders());
+    }
+  }
+
   /// 내부 발주·해제 결과 처리 — 건수는 배송건(박스) 단위다(서버가 배송 묶음 단위로 바꾼다).
   void _onInternalState(BuildContext context, OrderInternalStageState state) {
     if (state.forbidden) {
@@ -359,6 +390,7 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
     if (result != null) {
       final label = switch (state.lastAction) {
         InternalStageAction.release => '내부 발주 해제 완료',
+        InternalStageAction.cancel => '예약 취소 완료',
         _ => '내부 발주처리 완료',
       };
       var summary = '$label — ${result.changedShipments}건';
@@ -491,6 +523,12 @@ class _LoadedBody extends StatelessWidget {
   /// [내부 발주 해제] — 「내부 상품준비중」만 추려 넘긴다(D18 행1). 확인 다이얼로그는 부모가 띄운다.
   final void Function(List<int> ids) onRelease;
 
+  /// [예약 취소] — 「발송대기중」만 추려 넘긴다(FEATURE_2609_75 / D18 행2).
+  final void Function(List<int> ids) onCancelReservation;
+
+  /// [저장된 송장으로 발송] — 내부 단계 주문만 추려 넘긴다(D18 🔁). 다이얼로그는 부모가 연다.
+  final void Function(List<int> ids) onShipStored;
+
   /// `RefreshRequested` 발행은 부모가 한다(확인 다이얼로그 없음 — 읽기다).
   final VoidCallback onRefresh;
 
@@ -505,6 +543,8 @@ class _LoadedBody extends StatelessWidget {
     required this.onAcknowledge,
     required this.onInternal,
     required this.onRelease,
+    required this.onCancelReservation,
+    required this.onShipStored,
     required this.onRefresh,
   });
 
@@ -550,6 +590,15 @@ class _LoadedBody extends StatelessWidget {
         .toList();
     final releaseTargetIds = scoped
         .where((o) => selectedIds.contains(o.id) && _isReleaseTarget(o))
+        .map((o) => o.id)
+        .toList();
+    final cancelTargetIds = scoped
+        .where((o) =>
+            selectedIds.contains(o.id) && _isCancelReservationTarget(o))
+        .map((o) => o.id)
+        .toList();
+    final storedTargetIds = scoped
+        .where((o) => selectedIds.contains(o.id) && _isStoredShipTarget(o))
         .map((o) => o.id)
         .toList();
     // D14 — 발주처리로 보낼 주문 중 내부 단계가 있는 것이 하나라도 있는가.
@@ -724,6 +773,20 @@ class _LoadedBody extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
+                  // 「내부 상품준비중」 접수시트(FEATURE_2609_75 / D25·D26) — 기존 버튼과 별개.
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => context
+                              .push(Routes.shippingLabelPreviewInternalPath),
+                          icon: const Icon(Icons.download, size: 18),
+                          label: const Text('내부 상품준비중 접수시트'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   // 발송처리 (Shipping Label 업로드): 택배사 결과 xlsx → 쿠팡 송장업로드 배치.
                   // OrderListBloc.busy 와 무관 — 별도 BLoC·다이얼로그.
                   Row(
@@ -744,6 +807,25 @@ class _LoadedBody extends StatelessWidget {
                           },
                           icon: const Icon(Icons.upload_file, size: 18),
                           label: const Text('발송처리'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  // 예약 발송 현황(D15·D16·D21) — 돌아오면 배지·목록이 바뀌었을 수 있어 늘 다시 조회한다.
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            await context.push(Routes.reservedShipmentPath);
+                            if (!bloc.isClosed) {
+                              onClearSelection();
+                              bloc.add(SearchOrders());
+                            }
+                          },
+                          icon: const Icon(Icons.schedule, size: 18),
+                          label: const Text('예약 발송 현황'),
                         ),
                       ),
                     ],
@@ -869,6 +951,31 @@ class _LoadedBody extends StatelessWidget {
                                 )
                               : const Text('내부 발주 해제'),
                         ),
+                      if (cancelTargetIds.isNotEmpty &&
+                          !internalState.forbidden)
+                        OutlinedButton(
+                          onPressed: internalState.submitting != null
+                              ? null
+                              : () => onCancelReservation(cancelTargetIds),
+                          child: internalState.submitting ==
+                                  InternalStageAction.cancel
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Text('예약 취소'),
+                        ),
+                      // D18 🔁 — 파일 없이 저장된 송장으로 [예약 발송]/[지금 발송](발송처리 다이얼로그의 저장된 송장 모드).
+                      if (storedTargetIds.isNotEmpty &&
+                          !internalState.forbidden)
+                        OutlinedButton(
+                          onPressed: internalState.submitting != null
+                              ? null
+                              : () => onShipStored(storedTargetIds),
+                          child: const Text('저장된 송장으로 발송'),
+                        ),
                     ],
                   ),
                 ],
@@ -893,6 +1000,9 @@ class _LoadedBody extends StatelessWidget {
                         selected: selectedIds.contains(o.id),
                         selectable: _isSelectable(o),
                         onToggleSelect: onToggleSelect,
+                        // 카드가 내부 단계 주문일 때만 버튼을 그린다(D18). 시트 안에서 저장·조회한다.
+                        onEditInvoice: () =>
+                            showStoredInvoiceSheet(context, o.externalOrderId),
                       );
                     },
                   ),

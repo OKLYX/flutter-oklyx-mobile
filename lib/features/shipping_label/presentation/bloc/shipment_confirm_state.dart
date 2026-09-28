@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:equatable/equatable.dart';
 
+import '../../data/models/reservation_create_result.dart';
 import '../../data/models/shipment_confirm_result.dart';
 
 /// 결과 요약 칩에서 상세 표를 열 수 있는 버킷 = 서버가 "목록"을 주는 3개뿐이다(PLAN 2609_12 D2).
@@ -26,6 +27,14 @@ class ShipmentConfirmState extends Equatable {
   /// the same chip clears it). Must stay in [props] or the toggle looks dead.
   final ResultBucket? selectedBucket;
 
+  /// 예약 시각 — KST 'yyyy-MM-ddTHH:mm:ss'(FEATURE_2609_75 / D20). null = 아직 없음(설정 조회 실패 포함).
+  final String? executeAt;
+
+  final bool isReserving;
+
+  /// [예약 발송] 결과 — 있으면 예약 결과 화면을 그린다.
+  final ReservationCreateResult? reserveResult;
+
   const ShipmentConfirmState({
     this.fileName,
     this.fileBytes,
@@ -34,6 +43,9 @@ class ShipmentConfirmState extends Equatable {
     this.error,
     this.hasSucceeded = false,
     this.selectedBucket,
+    this.executeAt,
+    this.isReserving = false,
+    this.reserveResult,
   });
 
   ShipmentConfirmState copyWith({
@@ -44,10 +56,14 @@ class ShipmentConfirmState extends Equatable {
     String? error,
     bool? hasSucceeded,
     ResultBucket? selectedBucket,
+    String? executeAt,
+    bool? isReserving,
+    ReservationCreateResult? reserveResult,
     bool clearFile = false,
     bool clearResult = false,
     bool clearError = false,
     bool clearBucket = false,
+    bool clearReserveResult = false,
   }) {
     return ShipmentConfirmState(
       fileName: clearFile ? null : (fileName ?? this.fileName),
@@ -58,6 +74,10 @@ class ShipmentConfirmState extends Equatable {
       hasSucceeded: hasSucceeded ?? this.hasSucceeded,
       selectedBucket:
           clearBucket ? null : (selectedBucket ?? this.selectedBucket),
+      executeAt: executeAt ?? this.executeAt,
+      isReserving: isReserving ?? this.isReserving,
+      reserveResult:
+          clearReserveResult ? null : (reserveResult ?? this.reserveResult),
     );
   }
 
@@ -72,5 +92,8 @@ class ShipmentConfirmState extends Equatable {
         // ⚠️ Without this the chip toggle emits an "equal" state and the
         // panel never repaints.
         selectedBucket,
+        executeAt,
+        isReserving,
+        reserveResult,
       ];
 }

@@ -260,6 +260,19 @@ class OrderRepositoryImpl implements OrderRepository {
     }
   }
 
+  @override
+  Future<Either<Failure, InternalStageResult>> cancelReservedItems(
+    List<int> orderItemIds,
+  ) async {
+    try {
+      return Right(await remoteDataSource.cancelReservedItems(orderItemIds));
+    } on DioException catch (e) {
+      return Left(_serverFailure(e, 'Failed to cancel reservation'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
   /// 서버 본문 message 를 살린다(400 사유 — 「처리 중」·형식 오류). cancelOrders 와 같은 규칙.
   Failure _serverFailure(DioException e, String fallback) {
     final body = e.response?.data;

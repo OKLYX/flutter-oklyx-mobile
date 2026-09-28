@@ -105,4 +105,11 @@ class OrderUseCase {
   ) {
     return repository.updateOrderSetting(reservedShipmentTime);
   }
+
+  /// [예약 취소] — 발송대기중 → 내부 상품준비중(FEATURE_2609_75 / D18 행2).
+  Future<Either<Failure, InternalStageResult>> cancelReservedItems(
+    List<int> orderItemIds,
+  ) {
+    return repository.cancelReservedItems(orderItemIds);
+  }
 }

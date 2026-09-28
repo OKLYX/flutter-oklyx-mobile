@@ -32,3 +32,22 @@ class SelectResultBucket extends ShipmentConfirmEvent {
   @override
   List<Object?> get props => [bucket];
 }
+
+/// 기본 예약 시각 = 주문관리 설정의 다음 도래 시각(FEATURE_2609_75 / D12). 다이얼로그를 열 때 1회.
+class LoadDefaultExecuteAt extends ShipmentConfirmEvent {
+  const LoadDefaultExecuteAt();
+}
+
+/// 예약 시각 변경 — [executeAt] = KST 'yyyy-MM-ddTHH:mm:ss'.
+class ChangeExecuteAt extends ShipmentConfirmEvent {
+  final String executeAt;
+  const ChangeExecuteAt(this.executeAt);
+
+  @override
+  List<Object?> get props => [executeAt];
+}
+
+/// [예약 발송] — 선택된 파일의 송장만 저장한다(D20·D27).
+class ReserveShipment extends ShipmentConfirmEvent {
+  const ReserveShipment();
+}

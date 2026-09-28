@@ -133,6 +133,7 @@ import 'package:flutter_oklyn_mobile/features/shipping_label/domain/repositories
 import 'package:flutter_oklyn_mobile/features/shipping_label/domain/usecases/shipping_label_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/manual_shipment_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/order_sheet_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/reserved_shipment_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/shipping_label_preview_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/data/datasources/marketplace_account_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/data/repositories/marketplace_account_repository_impl.dart';
@@ -813,6 +814,15 @@ void _registerShippingLabelServices() {
   // ⚠️ 싱글턴이면 이전 주문의 result 가 남아 입력이 잠긴 채로 열린다.
   getIt.registerFactory<ManualShipmentBloc>(
     () => ManualShipmentBloc(useCase: getIt<ShippingLabelUseCase>()),
+  );
+
+  // BLoC (예약 발송 현황·주문 상세 기록, FEATURE_2609_75) as factory — 진입마다 새로 조회.
+  // [예약 취소]가 order 계층이라 OrderUseCase 도 받는다.
+  getIt.registerFactory<ReservedShipmentBloc>(
+    () => ReservedShipmentBloc(
+      useCase: getIt<ShippingLabelUseCase>(),
+      orderUseCase: getIt<OrderUseCase>(),
+    ),
   );
 }
 

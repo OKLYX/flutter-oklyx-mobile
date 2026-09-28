@@ -70,6 +70,7 @@ import 'package:flutter_oklyn_mobile/features/order/domain/entities/order_item.d
 import 'package:flutter_oklyn_mobile/features/order/presentation/pages/order_history_page.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/pages/order_settings_page.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/pages/shipment_management_page.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/pages/reserved_shipment_page.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/pages/shipping_label_preview_page.dart';
 
 import 'routes.dart';
@@ -522,6 +523,20 @@ class AppRouter {
       path: Routes.shippingLabelPreviewPath,
       pageBuilder: (context, state) => const NoTransitionPage(
         child: ShippingLabelPreviewPage(),
+      ),
+    ),
+    GoRoute(
+      name: Routes.shippingLabelPreviewInternal,
+      path: Routes.shippingLabelPreviewInternalPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: ShippingLabelPreviewPage(internal: true),
+      ),
+    ),
+    GoRoute(
+      name: Routes.reservedShipment,
+      path: Routes.reservedShipmentPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: ReservedShipmentPage(),
       ),
     ),
     GoRoute(
