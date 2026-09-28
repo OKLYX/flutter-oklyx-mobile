@@ -27,14 +27,18 @@ class PreviewLoaded extends ShippingLabelPreviewState {
   final List<ShippingLabelPreviewRow> rows;
   final int? sellerId;
 
+  /// 내부 시트에서 쿠팡 결제완료 목록에 없던 주문 수(FEATURE_2609_75 / D26). 기존 시트는 늘 0.
+  final int notAcceptedCount;
+
   const PreviewLoaded({
     required this.sellers,
     required this.rows,
     required this.sellerId,
+    this.notAcceptedCount = 0,
   });
 
   @override
-  List<Object?> get props => [sellers, rows, sellerId];
+  List<Object?> get props => [sellers, rows, sellerId, notAcceptedCount];
 }
 
 /// export 진행 중 (rows/필터 유지).

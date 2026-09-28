@@ -123,14 +123,17 @@ import 'package:flutter_oklyn_mobile/features/order/domain/repositories/order_re
 import 'package:flutter_oklyn_mobile/features/order/domain/usecases/order_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_acknowledge_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_cancel_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_internal_stage_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_refresh_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_setting_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/data/datasources/shipping_label_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/data/repositories/shipping_label_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/domain/repositories/shipping_label_repository.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/domain/usecases/shipping_label_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/manual_shipment_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/order_sheet_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/reserved_shipment_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/shipping_label_preview_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/data/datasources/marketplace_account_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/data/repositories/marketplace_account_repository_impl.dart';
@@ -812,6 +815,15 @@ void _registerShippingLabelServices() {
   getIt.registerFactory<ManualShipmentBloc>(
     () => ManualShipmentBloc(useCase: getIt<ShippingLabelUseCase>()),
   );
+
+  // BLoC (예약 발송 현황·주문 상세 기록, FEATURE_2609_75) as factory — 진입마다 새로 조회.
+  // [예약 취소]가 order 계층이라 OrderUseCase 도 받는다.
+  getIt.registerFactory<ReservedShipmentBloc>(
+    () => ReservedShipmentBloc(
+      useCase: getIt<ShippingLabelUseCase>(),
+      orderUseCase: getIt<OrderUseCase>(),
+    ),
+  );
 }
 
 void _registerOrderServices() {
@@ -855,6 +867,17 @@ void _registerOrderServices() {
   // ⚠️ 싱글턴이면 이전 주문의 취소 결과·SnackBar 가 다음 주문에 다시 뜬다.
   getIt.registerFactory<OrderCancelBloc>(
     () => OrderCancelBloc(useCase: getIt<OrderUseCase>()),
+  );
+
+  // BLoC (내부 발주처리·해제, FEATURE_2609_75) as factory — 화면·주문마다 새 인스턴스.
+  // ⚠️ 싱글턴이면 이전 화면의 result 가 남아 결과 SnackBar 가 다시 뜬다.
+  getIt.registerFactory<OrderInternalStageBloc>(
+    () => OrderInternalStageBloc(useCase: getIt<OrderUseCase>()),
+  );
+
+  // BLoC (주문관리 설정, FEATURE_2609_75 / D12) as factory.
+  getIt.registerFactory<OrderSettingBloc>(
+    () => OrderSettingBloc(useCase: getIt<OrderUseCase>()),
   );
 }
 

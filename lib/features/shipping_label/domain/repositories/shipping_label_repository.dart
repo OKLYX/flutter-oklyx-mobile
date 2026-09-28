@@ -3,7 +3,11 @@ import 'dart:typed_data';
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import '../../data/models/carrier_option.dart';
+import '../../data/models/internal_label_preview.dart';
 import '../../data/models/manual_shipment_result.dart';
+import '../../data/models/reservation_create_result.dart';
+import '../../data/models/reserved_shipment_row.dart';
+import '../../data/models/stored_invoice.dart';
 import '../../data/models/shipment_confirm_result.dart';
 import '../../data/models/shipping_label_preview_row.dart';
 
@@ -40,4 +44,56 @@ abstract class ShippingLabelRepository {
     required String deliveryCompanyCode,
     required String invoiceNumber,
   });
+
+  /// 「내부 상품준비중」 접수시트 미리보기(FEATURE_2609_75 / D26).
+  Future<Either<Failure, InternalLabelPreview>> previewInternalRows({
+    int? sellerId,
+  });
+
+  /// [예약 발송] — 송장만 저장(D20·D27). [executeAt] = KST 'yyyy-MM-ddTHH:mm:ss'.
+  Future<Either<Failure, ReservationCreateResult>> reserveShipment({
+    required Uint8List bytes,
+    required String filename,
+    required String executeAt,
+  });
+
+  /// 예약 발송 현황 — 주문 행(D30).
+  Future<Either<Failure, List<ReservedShipmentRow>>> getReservedShipments();
+
+  /// 주문 1건의 예약 발송 기록(D30).
+  Future<Either<Failure, List<ReservedShipmentRow>>> getReservedShipmentsByOrder(
+    String externalOrderId,
+  );
+
+  /// 그 주문의 예약 시각 변경(D18).
+  Future<Either<Failure, ReservedShipmentRow>> changeReservationTime(
+    int itemId,
+    String executeAt,
+  );
+
+  /// [다시 시도](D16).
+  Future<Either<Failure, ReservedShipmentRow>> retryReservation(int itemId);
+
+  /// 그 주문의 내부 단계 배송 묶음별 현재 송장(D18).
+  Future<Either<Failure, List<StoredInvoice>>> getStoredInvoices(
+    String externalOrderId,
+  );
+
+  /// 배송 묶음 1개의 택배사·송장번호 저장(D18 🔁).
+  Future<Either<Failure, StoredInvoice>> changeReservedInvoice(
+    int orderShipmentId, {
+    required String deliveryCompanyCode,
+    required String invoiceNumber,
+  });
+
+  /// 저장된 송장으로 [예약 발송](D18).
+  Future<Either<Failure, ReservationCreateResult>> reserveStored(
+    List<int> orderItemIds,
+    String executeAt,
+  );
+
+  /// 저장된 송장으로 [지금 발송](D18).
+  Future<Either<Failure, ShipmentConfirmResult>> shipStoredNow(
+    List<int> orderItemIds,
+  );
 }

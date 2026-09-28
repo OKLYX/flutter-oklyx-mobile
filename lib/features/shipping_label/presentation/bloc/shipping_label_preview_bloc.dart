@@ -46,6 +46,22 @@ class ShippingLabelPreviewBloc
       sellers = sellersResult.fold((_) => <Seller>[], (list) => list);
     }
 
+    // 「내부 상품준비중」 접수시트(FEATURE_2609_75 / D26) — 기존 시트 경로(아래)는 무변경(D25).
+    if (event.internal) {
+      final internal =
+          await useCase.previewInternalRows(sellerId: event.sellerId);
+      internal.fold(
+        (failure) => emit(PreviewError(_errorMessage(failure))),
+        (preview) => emit(PreviewLoaded(
+          sellers: sellers,
+          rows: preview.rows,
+          sellerId: event.sellerId,
+          notAcceptedCount: preview.notAcceptedOrderIds.length,
+        )),
+      );
+      return;
+    }
+
     final result = await useCase.previewRows(sellerId: event.sellerId);
     result.fold(
       (failure) => emit(PreviewError(_errorMessage(failure))),
@@ -75,6 +91,7 @@ class ShippingLabelPreviewBloc
       sellers: current.sellers,
       rows: rows,
       sellerId: current.sellerId,
+      notAcceptedCount: current.notAcceptedCount,
     ));
   }
 
@@ -107,6 +124,7 @@ class ShippingLabelPreviewBloc
           sellers: current.sellers,
           rows: current.rows,
           sellerId: current.sellerId,
+          notAcceptedCount: current.notAcceptedCount,
         ));
       },
     );

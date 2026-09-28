@@ -27,9 +27,17 @@ import '../bloc/order_acknowledge_state.dart';
 import '../bloc/order_cancel_bloc.dart';
 import '../bloc/order_cancel_event.dart';
 import '../bloc/order_cancel_state.dart';
+import '../bloc/order_internal_stage_bloc.dart';
+import '../bloc/order_internal_stage_event.dart';
+import '../bloc/order_internal_stage_state.dart';
+import '../widgets/internal_stage_badge.dart';
 import '../bloc/order_refresh_bloc.dart';
 import '../bloc/order_refresh_event.dart';
 import '../bloc/order_refresh_state.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/reserved_shipment_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/reserved_shipment_event.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/widgets/reserved_shipment_history_section.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/widgets/stored_invoice_section.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 // Platform display labels — same shape as product_listing_detail_page;
@@ -107,6 +115,11 @@ class OrderDetailPage extends StatelessWidget {
           BlocProvider<OrderAcknowledgeBloc>(
             create: (_) => getIt<OrderAcknowledgeBloc>(),
           ),
+        // 내부 발주처리도 쿠팡 전용(FEATURE_2609_75 / D1) — 같은 가드. 진입 시 자동 전송 없음.
+        if (isCoupang)
+          BlocProvider<OrderInternalStageBloc>(
+            create: (_) => getIt<OrderInternalStageBloc>(),
+          ),
         // 상태 갱신도 쿠팡 전용 — 같은 가드 안에 둔다(2609_50 D24). 가드 밖에 두면 비-쿠팡
         // 주문에도 버튼이 보이고, 눌러 봐야 무조건 unsupported 다.
         // ⚠️ 진입 시 자동 조회하지 않는다 — 이벤트는 버튼 핸들러에서만 발행한다.
@@ -120,6 +133,12 @@ class OrderDetailPage extends StatelessWidget {
           BlocProvider<OrderCancelBloc>(
             create: (_) =>
                 getIt<OrderCancelBloc>()..add(const CancelReasonsRequested()),
+          ),
+        // 예약 발송 기록(D30) + 「송장」(D18) — 쿠팡 전용, 진입 시 그 주문의 기록·송장 1회 조회(읽기).
+        if (isCoupang)
+          BlocProvider<ReservedShipmentBloc>(
+            create: (_) => getIt<ReservedShipmentBloc>()
+              ..add(ReservedShipmentsRequested(externalOrderId: o.externalOrderId)),
           ),
       ],
       child: SingleChildScrollView(
@@ -154,6 +173,31 @@ class OrderDetailPage extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
+            // 송장(D18 🔁) — 내부 단계(결제완료) 배송건이 없으면(대부분의 주문) 아무것도 그리지 않는다.
+            // 이 화면에서 [내부 발주처리]·[발주처리]가 성공하면 그 주문의 송장·기록을 다시 읽는다 —
+            // 다시 들어오지 않아도 「송장」이 바로 나타나고/사라진다(웹 05 의 `shownStage` 재렌더와 같은 동작, D9).
+            if (isCoupang)
+              MultiBlocListener(
+                listeners: [
+                  BlocListener<OrderInternalStageBloc, OrderInternalStageState>(
+                    listenWhen: (p, c) => c.result != null && p.result != c.result,
+                    listener: (context, _) => context
+                        .read<ReservedShipmentBloc>()
+                        .add(ReservedShipmentsRequested(
+                            externalOrderId: o.externalOrderId)),
+                  ),
+                  BlocListener<OrderAcknowledgeBloc, OrderAcknowledgeState>(
+                    listenWhen: (p, c) => c.result != null && p.result != c.result,
+                    listener: (context, _) => context
+                        .read<ReservedShipmentBloc>()
+                        .add(ReservedShipmentsRequested(
+                            externalOrderId: o.externalOrderId)),
+                  ),
+                ],
+                child: const StoredInvoiceSection(),
+              ),
+            // 예약 발송 기록(D30) — 기록이 없으면(대부분의 주문) 아무것도 그리지 않는다.
+            if (isCoupang) const ReservedShipmentHistorySection(),
             // 송장시트·발송처리·주문취소는 한 번에 하나만 쓰는 배타적 선택이라 좌우 탭으로 묶는다.
             // ⚠️ 전량취소해도 로컬 status 는 그대로라(D7) 섹션이 계속 열려 있다 —
             // 위젯 **안을 고치지 않고** 바깥에서(탭 게이트·래퍼) 숨긴다. 부분취소는 감추지 않는다(D19).
@@ -185,9 +229,15 @@ class OrderDetailPage extends StatelessWidget {
 /// 발송처리는 서버가 `resultStatus: SHIPPED` 를 주고(2609_11 D4), 발주처리는 성공 시
 /// [OrderStatus.preparing] 으로 해석한다. 둘 다 재조회 없이 반영한다.
 Widget _buildInfoCard(OrderItem o, {required bool isCoupang}) {
-  List<_InfoRow> rows(OrderStatus status) => [
+  // [stage] = 주문번호 옆 내부 단계 배지(FEATURE_2609_75 / D9 — 웹 상세 머리 띠의 주문번호 옆과 같은 자리).
+  // null 이면 배지 없음. 글자만 있는 별도 행은 두지 않는다(D9).
+  List<_InfoRow> rows(OrderStatus status, InternalStage? stage) => [
         _InfoRow('플랫폼', o.platform),
-        _InfoRow('주문번호', o.externalOrderId),
+        _InfoRow(
+          '주문번호',
+          o.externalOrderId,
+          trailing: stage == null ? null : InternalStageBadge(stage: stage),
+        ),
         _InfoRow('박스 ID', o.externalBoxId ?? '-'),
         _InfoRow('아이템 ID', o.externalItemId),
         _InfoRow('상품명', o.itemName ?? '-'),
@@ -203,7 +253,7 @@ Widget _buildInfoCard(OrderItem o, {required bool isCoupang}) {
       ];
 
   if (!isCoupang) {
-    return _InfoCard(title: '기본 정보', rows: rows(o.status));
+    return _InfoCard(title: '기본 정보', rows: rows(o.status, o.internalStage));
   }
   // 발송(SHIPPED)이 발주(PREPARING)보다 뒤 단계 — 나중 단계가 이긴다.
   // 취소는 그보다 더 뒤 단계라 가장 바깥에서 이긴다(2609_25 D14).
@@ -214,14 +264,25 @@ Widget _buildInfoCard(OrderItem o, {required bool isCoupang}) {
         ManualShipmentState>(
       builder: (context, manual) =>
           BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
-        builder: (context, ack) {
-          final acknowledged = ack.result != null && ack.result!.succeeded > 0;
-          final status = _isFullyCancelledByResult(cancel.result)
-              ? OrderStatus.cancelled
-              : (manual.result?.resultStatus ??
-                  (acknowledged ? OrderStatus.preparing : o.status));
-          return _InfoCard(title: '기본 정보', rows: rows(status));
-        },
+        builder: (context, ack) =>
+            BlocBuilder<OrderInternalStageBloc, OrderInternalStageState>(
+          builder: (context, internal) {
+            final acknowledged =
+                ack.result != null && ack.result!.succeeded > 0;
+            final status = _isFullyCancelledByResult(cancel.result)
+                ? OrderStatus.cancelled
+                : (manual.result?.resultStatus ??
+                    (acknowledged ? OrderStatus.preparing : o.status));
+            // 배지 = 방금 이 화면에서 한 동작의 결과가 우선 — 웹 `shownStage` 와 같은 식(D9).
+            // 발주처리 성공이면 서버가 내부 단계를 지웠다(D14) → 배지 없음.
+            final shownStage = acknowledged
+                ? null
+                : _AcknowledgeSection._internalMarked(internal)
+                    ? InternalStage.internalPreparing
+                    : o.internalStage;
+            return _InfoCard(title: '기본 정보', rows: rows(status, shownStage));
+          },
+        ),
       ),
     ),
   );
@@ -304,10 +365,18 @@ class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _InfoRow(this.label, this.value);
+  /// 값 오른쪽에 붙는 위젯 — 주문번호 옆 내부 단계 배지(FEATURE_2609_75 / D9). null 이면 값만 그린다.
+  final Widget? trailing;
+
+  const _InfoRow(this.label, this.value, {this.trailing});
 
   @override
   Widget build(BuildContext context) {
+    final valueText = Text(
+      value,
+      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+    );
+    final extra = trailing;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Column(
@@ -321,10 +390,15 @@ class _InfoRow extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 2),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-          ),
+          if (extra == null)
+            valueText
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [valueText, extra],
+            ),
         ],
       ),
     );
@@ -420,7 +494,36 @@ class _ActionTabsState extends State<_ActionTabs> {
               ),
               Offstage(
                 offstage: selected != _ActionTab.shipment,
-                child: _ManualShipmentSection(order: order),
+                // 내부 단계 주문(FEATURE_2609_75 / D27)은 입력 대신 안내 — 「송장」 + [저장된 송장으로 발송].
+                // 판정 = 주문번호 옆 배지와 같은 식(`_buildInfoCard` 의 shownStage). 서버도 같은 문구로 거절한다(400).
+                child: BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
+                  builder: (context, ack) => BlocBuilder<OrderInternalStageBloc,
+                      OrderInternalStageState>(
+                    builder: (context, internal) {
+                      final acknowledged =
+                          ack.result != null && ack.result!.succeeded > 0;
+                      final internalStage = !acknowledged &&
+                          (_AcknowledgeSection._internalMarked(internal) ||
+                              order.internalStage != null);
+                      if (!internalStage) {
+                        return _ManualShipmentSection(order: order);
+                      }
+                      return const Card(
+                        margin: EdgeInsets.zero,
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text(
+                            '내부 단계 주문은 여기서 발송처리할 수 없습니다. 「송장」에 송장을 저장한 뒤 출고관리의 [저장된 송장으로 발송]을 누르세요',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.warningForeground,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ),
               Offstage(
                 offstage: selected != _ActionTab.cancel,
@@ -533,98 +636,159 @@ class _AcknowledgeSection extends StatelessWidget {
 
   const _AcknowledgeSection({required this.order});
 
+  /// 이 화면에서 방금 [내부 발주처리]에 성공했는가(FEATURE_2609_75 / D13).
+  static bool _internalMarked(OrderInternalStageState s) =>
+      s.lastAction == InternalStageAction.mark &&
+      s.result != null &&
+      s.result!.changedShipments > 0;
+
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
-      builder: (context, state) {
-        // 결제완료 쿠팡 주문에만 노출한다(D2·D10·D14). 403 이면 진입점을 숨긴다.
-        if (order.platform != 'COUPANG' ||
-            order.status != OrderStatus.paid ||
-            state.forbidden) {
-          return const SizedBox.shrink();
-        }
+    return BlocBuilder<OrderInternalStageBloc, OrderInternalStageState>(
+      builder: (context, internal) =>
+          BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
+        builder: (context, state) {
+          // 결제완료 쿠팡 주문에만 노출한다(D2·D10·D14). 403 이면 진입점을 숨긴다.
+          if (order.platform != 'COUPANG' ||
+              order.status != OrderStatus.paid ||
+              state.forbidden) {
+            return const SizedBox.shrink();
+          }
 
-        final result = state.result;
-        final acknowledged = result != null && result.succeeded > 0;
-        // 쿠팡이 거절한 경우(200 + failed) — 원문을 그대로 보여주고 버튼은 다시 열어 둔다.
-        final rejected = result != null && result.succeeded == 0;
-        final failureText = rejected && result.failed.isNotEmpty
-            ? '${result.failed.first.resultCode}: ${result.failed.first.message}'
-            : state.errorMessage;
+          final result = state.result;
+          final acknowledged = result != null && result.succeeded > 0;
+          // 쿠팡이 거절한 경우(200 + failed) — 원문을 그대로 보여주고 버튼은 다시 열어 둔다.
+          final rejected = result != null && result.succeeded == 0;
+          final failureText = rejected && result.failed.isNotEmpty
+              ? '${result.failed.first.resultCode}: ${result.failed.first.message}'
+              : state.errorMessage;
+          final internalMarked = _internalMarked(internal);
+          // [내부 발주처리] = 아직 내부 단계가 없는 주문만(D1·D13). 403 이면 숨긴다.
+          final canMarkInternal =
+              order.internalStage == null && !internal.forbidden;
+          final busy = state.submitting || internal.submitting != null;
 
-        return Card(
-          margin: EdgeInsets.zero,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  '발주처리',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                if (acknowledged)
+          return Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                   const Text(
-                    '발주처리 완료',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.successForeground,
-                    ),
-                  )
-                else ...[
-                  Text(
-                    '이 주문의 배송건(박스 ${order.externalBoxId ?? '-'}) 전체가 '
-                    '상품준비중으로 전환됩니다. 되돌릴 수 없습니다.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                    '발주처리',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 12),
-                  // 버튼만 왼쪽 정렬 — 카드는 화면 폭을 쓰되 버튼은 늘리지 않는다(웹 하단 바와 같은 배치).
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: ElevatedButton(
-                      onPressed: state.submitting
-                          ? null
-                          : () => _confirmAndSubmit(context),
-                      child: state.submitting
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('발주처리'),
+                  const SizedBox(height: 4),
+                  if (acknowledged)
+                    const Text(
+                      '발주처리 완료',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.successForeground,
+                      ),
+                    )
+                  else ...[
+                    Text(
+                      '이 주문의 배송건(박스 ${order.externalBoxId ?? '-'}) 전체가 '
+                      '상품준비중으로 전환됩니다. 되돌릴 수 없습니다.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 12),
+                    // [내부 발주처리]는 [발주처리] 바로 옆 · 초록(FilledButton 테마 = brandGreen, D13).
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        ElevatedButton(
+                          onPressed:
+                              busy ? null : () => _confirmAndSubmit(context),
+                          child: state.submitting
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Text('발주처리'),
+                        ),
+                        if (canMarkInternal)
+                          internalMarked
+                              ? const Text(
+                                  '내부 발주 완료',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.successForeground,
+                                  ),
+                                )
+                              : FilledButton(
+                                  onPressed: busy
+                                      ? null
+                                      : () => context
+                                          .read<OrderInternalStageBloc>()
+                                          .add(InternalStageRequested(
+                                            InternalStageAction.mark,
+                                            [order.id],
+                                          )),
+                                  child: internal.submitting ==
+                                          InternalStageAction.mark
+                                      ? const SizedBox(
+                                          height: 18,
+                                          width: 18,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2),
+                                        )
+                                      : const Text('내부 발주처리'),
+                                ),
+                      ],
+                    ),
+                  ],
+                  if (failureText != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      failureText,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ],
+                  if (internal.errorMessage != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      internal.errorMessage!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ],
                 ],
-                if (failureText != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    failureText,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                ],
-              ],
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
   /// 되돌릴 수 없는 작업이라 확인을 반드시 거친다. 일괄과 **같은 UseCase·같은 엔드포인트**다(D6).
+  /// 내부 단계 주문이면(방금 이 화면에서 내부 발주한 경우 포함) D14 안내 문구로 묻는다.
   Future<void> _confirmAndSubmit(BuildContext context) async {
     final bloc = context.read<OrderAcknowledgeBloc>();
+    final reserved = order.internalStage != null ||
+        _internalMarked(context.read<OrderInternalStageBloc>().state);
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('발주처리'),
-        content: const Text('이 주문을 발주처리합니다. 되돌릴 수 없습니다.'),
+        title: Text(reserved ? '예약된 주문 포함' : '발주처리'),
+        content: Text(reserved
+            ? '예약된 주문입니다. 쿠팡에 지금 발주처리하면 해당 주문의 내부 발주·예약 발송이 해제됩니다. 계속할까요?'
+            : '이 주문을 발주처리합니다. 되돌릴 수 없습니다.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),

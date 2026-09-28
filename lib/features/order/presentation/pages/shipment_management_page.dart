@@ -6,12 +6,16 @@ import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/dialogs/shipment_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/widgets/stored_invoice_section.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/order_item.dart';
 import '../../domain/entities/sync_target.dart';
 import '../bloc/order_acknowledge_bloc.dart';
 import '../bloc/order_acknowledge_event.dart';
 import '../bloc/order_acknowledge_state.dart';
+import '../bloc/order_internal_stage_bloc.dart';
+import '../bloc/order_internal_stage_event.dart';
+import '../bloc/order_internal_stage_state.dart';
 import '../bloc/order_list_bloc.dart';
 import '../bloc/order_list_event.dart';
 import '../bloc/order_list_state.dart';
@@ -66,6 +70,10 @@ class ShipmentManagementPage extends StatelessWidget {
         BlocProvider<OrderRefreshBloc>(
           create: (_) => getIt<OrderRefreshBloc>(),
         ),
+        // 내부 발주·해제 전송 전용 BLoC(FEATURE_2609_75) — 발주처리 BLoC 과 섞지 않는다.
+        BlocProvider<OrderInternalStageBloc>(
+          create: (_) => getIt<OrderInternalStageBloc>(),
+        ),
       ],
       child: const _ShipmentManagementView(),
     );
@@ -91,6 +99,21 @@ bool _isAcknowledgeTarget(OrderItem order) =>
 /// 발주처리는 좁은 쪽이 맞다(되돌릴 수 없는 쓰기) — 넓어진 선택에서 발주처리 대상만 추려
 /// 보내므로(`_LoadedBody` 의 `ackTargetIds`) 비대상이 요청에 섞이지 않는다.
 bool _isSelectable(OrderItem order) => order.platform == 'COUPANG';
+
+/// 내부 발주 대상 = 발주처리 대상 중 아직 내부 단계가 없는 주문(FEATURE_2609_75 / D1). 서버가 다시 판정한다.
+bool _isInternalTarget(OrderItem order) =>
+    _isAcknowledgeTarget(order) && order.internalStage == null;
+
+/// 내부 발주 해제 대상 = 「내부 상품준비중」만(D18 행1). 발송대기중은 먼저 [예약 취소] 한다.
+bool _isReleaseTarget(OrderItem order) =>
+    order.internalStage == InternalStage.internalPreparing;
+
+/// 예약 취소 대상 = 「발송대기중」만(FEATURE_2609_75 / D18 행2). 서버가 다시 판정한다.
+bool _isCancelReservationTarget(OrderItem order) =>
+    order.internalStage == InternalStage.awaitingShipment;
+
+/// 저장된 송장으로 발송 대상 = 내부 단계 주문(D18 🔁). 송장 유무·단계는 서버가 다시 판정한다.
+bool _isStoredShipTarget(OrderItem order) => order.internalStage != null;
 
 class _ShipmentManagementView extends StatefulWidget {
   const _ShipmentManagementView();
@@ -151,58 +174,71 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
               (curr.errorMessage != null &&
                   curr.errorMessage != prev.errorMessage),
           listener: _onRefreshState,
-          child: BlocConsumer<OrderListBloc, OrderListState>(
-            // 기간 UI 가 없어 backfillPrompt 는 채워지지 않는다 — 두 분기만 듣는다.
+          child: BlocListener<OrderInternalStageBloc, OrderInternalStageState>(
+            // 내부 발주·해제 결과(FEATURE_2609_75) — 발주처리와 같은 규칙(전이만 듣는다).
             listenWhen: (prev, curr) =>
-                curr is OrderListLoaded &&
-                (curr.isSyncing || curr.actionError != null),
-            listener: (context, state) {
-              final s = state as OrderListLoaded;
-              if (s.isSyncing) {
-                _showSyncDialog(context);
-                return;
-              }
-              final message = s.actionError;
-              if (message == null) return;
-              ScaffoldMessenger.of(context)
-                ..hideCurrentSnackBar()
-                ..showSnackBar(
-                  SnackBar(
-                    content: Text(message),
-                    behavior: SnackBarBehavior.floating,
-                    margin:
-                        const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-                  ),
-                );
-            },
-            builder: (context, state) {
-              if (state is OrderListInitial || state is OrderListLoading) {
-                return const Center(child: CircularProgressIndicator());
-              }
+                (curr.forbidden && !prev.forbidden) ||
+                (curr.result != null && curr.result != prev.result) ||
+                (curr.errorMessage != null &&
+                    curr.errorMessage != prev.errorMessage),
+            listener: _onInternalState,
+            child: BlocConsumer<OrderListBloc, OrderListState>(
+              // 기간 UI 가 없어 backfillPrompt 는 채워지지 않는다 — 두 분기만 듣는다.
+              listenWhen: (prev, curr) =>
+                  curr is OrderListLoaded &&
+                  (curr.isSyncing || curr.actionError != null),
+              listener: (context, state) {
+                final s = state as OrderListLoaded;
+                if (s.isSyncing) {
+                  _showSyncDialog(context);
+                  return;
+                }
+                final message = s.actionError;
+                if (message == null) return;
+                ScaffoldMessenger.of(context)
+                  ..hideCurrentSnackBar()
+                  ..showSnackBar(
+                    SnackBar(
+                      content: Text(message),
+                      behavior: SnackBarBehavior.floating,
+                      margin:
+                          const EdgeInsets.only(left: 16, right: 16, bottom: 70),
+                    ),
+                  );
+              },
+              builder: (context, state) {
+                if (state is OrderListInitial || state is OrderListLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-              if (state is OrderListError) {
-                return _ErrorRetry(
-                  message: '출고 대상 조회에 실패했습니다.',
-                  onRetry: () => context.read<OrderListBloc>().add(LoadOrders()),
-                );
-              }
+                if (state is OrderListError) {
+                  return _ErrorRetry(
+                    message: '출고 대상 조회에 실패했습니다.',
+                    onRetry: () => context.read<OrderListBloc>().add(LoadOrders()),
+                  );
+                }
 
-              return _LoadedBody(
-                state: state as OrderListLoaded,
-                searchController: _searchController,
-                selectedAccountId: _selectedAccountId,
-                onSelectAccount: (accountId) => setState(() {
-                  _selectedAccountId = accountId;
-                  // 채널이 바뀌면 목록이 바뀐다 — 화면 밖 건이 전송되지 않게 선택을 버린다.
-                  _selectedIds.clear();
-                }),
-                selectedIds: _selectedIds,
-                onToggleSelect: _toggleSelect,
-                onClearSelection: _clearSelection,
-                onAcknowledge: _onAcknowledgePressed,
-                onRefresh: _onRefreshPressed,
-              );
-            },
+                return _LoadedBody(
+                  state: state as OrderListLoaded,
+                  searchController: _searchController,
+                  selectedAccountId: _selectedAccountId,
+                  onSelectAccount: (accountId) => setState(() {
+                    _selectedAccountId = accountId;
+                    // 채널이 바뀌면 목록이 바뀐다 — 화면 밖 건이 전송되지 않게 선택을 버린다.
+                    _selectedIds.clear();
+                  }),
+                  selectedIds: _selectedIds,
+                  onToggleSelect: _toggleSelect,
+                  onClearSelection: _clearSelection,
+                  onAcknowledge: _onAcknowledgePressed,
+                  onInternal: _onInternalPressed,
+                  onRelease: _onReleasePressed,
+                  onCancelReservation: _onCancelReservationPressed,
+                  onShipStored: _onShipStoredPressed,
+                  onRefresh: _onRefreshPressed,
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -261,14 +297,17 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
   /// (PLAN 2609_17 "남는 위험").
   /// [ids] = 선택 중 **발주처리 대상만** 추린 것(`_LoadedBody` 가 추려 넘긴다). 체크박스가
   /// 상태 무관으로 넓어졌으므로 `_selectedIds` 를 그대로 보내면 비대상이 섞인다.
-  Future<void> _onAcknowledgePressed(List<int> ids) async {
+  /// [includesInternal] = 그중 내부 단계 주문이 있다 → D14 안내 문구로 1회 묻는다(FEATURE_2609_75).
+  Future<void> _onAcknowledgePressed(List<int> ids, bool includesInternal) async {
     final count = ids.length;
     if (count == 0) return;
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('발주처리'),
-        content: Text('$count건을 발주처리합니다. 되돌릴 수 없습니다.'),
+        title: Text(includesInternal ? '예약된 주문 포함' : '발주처리'),
+        content: Text(includesInternal
+            ? '예약된 주문입니다. 쿠팡에 지금 발주처리하면 해당 주문의 내부 발주·예약 발송이 해제됩니다. 계속할까요?'
+            : '$count건을 발주처리합니다. 되돌릴 수 없습니다.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -283,6 +322,98 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
     );
     if (ok != true || !mounted) return;
     context.read<OrderAcknowledgeBloc>().add(AcknowledgeRequested(ids));
+  }
+
+  /// [내부 발주처리] — 쿠팡에 보내지 않는다(FEATURE_2609_75 / D1). 되돌리기는 [내부 발주 해제]라 확인 없이 보낸다.
+  void _onInternalPressed(List<int> ids) {
+    if (ids.isEmpty) return;
+    context
+        .read<OrderInternalStageBloc>()
+        .add(InternalStageRequested(InternalStageAction.mark, ids));
+  }
+
+  /// [내부 발주 해제] — D18 행1 경고를 거친다. 접수시트를 받았는지는 저장하지 않으므로(PLAN §7) 조건 문구를 항상 보인다.
+  Future<void> _onReleasePressed(List<int> ids) async {
+    if (ids.isEmpty) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('내부 발주 해제'),
+        content: const Text(
+            '내부 발주를 해제하고 결제완료로 되돌립니다. 이미 접수시트를 받은 주문이면 택배사에 택배 접수 취소가 필요합니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('취소'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('해제'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    context
+        .read<OrderInternalStageBloc>()
+        .add(InternalStageRequested(InternalStageAction.release, ids));
+  }
+
+  /// [예약 취소] — 발송대기중 → 「내부 상품준비중」, 송장은 주문에 남는다(D18 행2 · D18 🔁).
+  /// 쿠팡 호출이 없고 다시 [예약 발송]으로 되돌릴 수 있어 확인 없이 보낸다(웹과 같다).
+  void _onCancelReservationPressed(List<int> ids) {
+    if (ids.isEmpty) return;
+    context
+        .read<OrderInternalStageBloc>()
+        .add(InternalStageRequested(InternalStageAction.cancel, ids));
+  }
+
+  /// [저장된 송장으로 발송](D18 🔁) — 발송처리 다이얼로그를 저장된 송장 모드로 연다. 요청·결과는 다이얼로그가 한다.
+  /// 보냈으면 선택을 비우고 판매자 필터를 유지한 채 다시 조회한다(발송처리 버튼과 같은 이벤트).
+  Future<void> _onShipStoredPressed(List<int> ids) async {
+    if (ids.isEmpty) return;
+    final bloc = context.read<OrderListBloc>();
+    final sent = await showShipmentConfirmDialog(context, storedOrderItemIds: ids);
+    if (sent == true && !bloc.isClosed) {
+      _clearSelection();
+      bloc.add(SearchOrders());
+    }
+  }
+
+  /// 내부 발주·해제 결과 처리 — 건수는 배송건(박스) 단위다(서버가 배송 묶음 단위로 바꾼다).
+  void _onInternalState(BuildContext context, OrderInternalStageState state) {
+    if (state.forbidden) {
+      _showAckSnackBar(context, '권한이 없습니다.', const []);
+      return;
+    }
+    final result = state.result;
+    if (result != null) {
+      final label = switch (state.lastAction) {
+        InternalStageAction.release => '내부 발주 해제 완료',
+        InternalStageAction.cancel => '예약 취소 완료',
+        _ => '내부 발주처리 완료',
+      };
+      var summary = '$label — ${result.changedShipments}건';
+      if (result.skippedOrderIds.isNotEmpty) {
+        summary += ' / 제외 ${result.skippedOrderIds.length}건(대상 아님)';
+      }
+      if (result.unsupported.isNotEmpty) {
+        summary += ' / 처리불가 ${result.unsupported.length}건';
+      }
+      _showAckSnackBar(context, summary, const []);
+      _clearSelection();
+      context.read<OrderListBloc>().add(SearchOrders());
+      context
+          .read<OrderInternalStageBloc>()
+          .add(const InternalStageResultCleared());
+      return;
+    }
+    final message = state.errorMessage;
+    if (message == null) return;
+    _showAckSnackBar(context, message, const []);
+    context
+        .read<OrderInternalStageBloc>()
+        .add(const InternalStageResultCleared());
   }
 
   /// 전송 결과 처리 (D8·D9). `skipped`·`unsupported` 는 표시하지 않는다 —
@@ -383,7 +514,20 @@ class _LoadedBody extends StatelessWidget {
 
   /// 확인 다이얼로그와 `AcknowledgeRequested` 발행은 부모가 한다.
   /// 🔴 발주처리 대상만 추려서 넘긴다 — 체크박스는 상태 무관이라 선택 전체와 다르다.
-  final void Function(List<int> ids) onAcknowledge;
+  /// [includesInternal] = 그중 내부 단계 주문이 있다(D14 안내 문구).
+  final void Function(List<int> ids, bool includesInternal) onAcknowledge;
+
+  /// [내부 발주처리] — 결제완료·내부 단계 없음만 추려 넘긴다(FEATURE_2609_75 / D1).
+  final void Function(List<int> ids) onInternal;
+
+  /// [내부 발주 해제] — 「내부 상품준비중」만 추려 넘긴다(D18 행1). 확인 다이얼로그는 부모가 띄운다.
+  final void Function(List<int> ids) onRelease;
+
+  /// [예약 취소] — 「발송대기중」만 추려 넘긴다(FEATURE_2609_75 / D18 행2).
+  final void Function(List<int> ids) onCancelReservation;
+
+  /// [저장된 송장으로 발송] — 내부 단계 주문만 추려 넘긴다(D18 🔁). 다이얼로그는 부모가 연다.
+  final void Function(List<int> ids) onShipStored;
 
   /// `RefreshRequested` 발행은 부모가 한다(확인 다이얼로그 없음 — 읽기다).
   final VoidCallback onRefresh;
@@ -397,6 +541,10 @@ class _LoadedBody extends StatelessWidget {
     required this.onToggleSelect,
     required this.onClearSelection,
     required this.onAcknowledge,
+    required this.onInternal,
+    required this.onRelease,
+    required this.onCancelReservation,
+    required this.onShipStored,
     required this.onRefresh,
   });
 
@@ -436,6 +584,26 @@ class _LoadedBody extends StatelessWidget {
         .where((o) => selectedIds.contains(o.id) && _isAcknowledgeTarget(o))
         .map((o) => o.id)
         .toList();
+    final internalTargetIds = scoped
+        .where((o) => selectedIds.contains(o.id) && _isInternalTarget(o))
+        .map((o) => o.id)
+        .toList();
+    final releaseTargetIds = scoped
+        .where((o) => selectedIds.contains(o.id) && _isReleaseTarget(o))
+        .map((o) => o.id)
+        .toList();
+    final cancelTargetIds = scoped
+        .where((o) =>
+            selectedIds.contains(o.id) && _isCancelReservationTarget(o))
+        .map((o) => o.id)
+        .toList();
+    final storedTargetIds = scoped
+        .where((o) => selectedIds.contains(o.id) && _isStoredShipTarget(o))
+        .map((o) => o.id)
+        .toList();
+    // D14 — 발주처리로 보낼 주문 중 내부 단계가 있는 것이 하나라도 있는가.
+    final includesInternal = scoped
+        .any((o) => ackTargetIds.contains(o.id) && o.internalStage != null);
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -605,6 +773,20 @@ class _LoadedBody extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
+                  // 「내부 상품준비중」 접수시트(FEATURE_2609_75 / D25·D26) — 기존 버튼과 별개.
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => context
+                              .push(Routes.shippingLabelPreviewInternalPath),
+                          icon: const Icon(Icons.download, size: 18),
+                          label: const Text('내부 상품준비중 접수시트'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   // 발송처리 (Shipping Label 업로드): 택배사 결과 xlsx → 쿠팡 송장업로드 배치.
                   // OrderListBloc.busy 와 무관 — 별도 BLoC·다이얼로그.
                   Row(
@@ -629,6 +811,25 @@ class _LoadedBody extends StatelessWidget {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 8),
+                  // 예약 발송 현황(D15·D16·D21) — 돌아오면 배지·목록이 바뀌었을 수 있어 늘 다시 조회한다.
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            await context.push(Routes.reservedShipmentPath);
+                            if (!bloc.isClosed) {
+                              onClearSelection();
+                              bloc.add(SearchOrders());
+                            }
+                          },
+                          icon: const Icon(Icons.schedule, size: 18),
+                          label: const Text('예약 발송 현황'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -646,64 +847,139 @@ class _LoadedBody extends StatelessWidget {
           ),
           const SizedBox(height: 8),
 
-          // ⚠️ BlocBuilder 는 이 한 줄만 감싼다 — Column 이나 ListView 를 감싸면 전송할 때마다
+          // ⚠️ BlocBuilder 는 이 묶음만 감싼다 — Column 이나 ListView 를 감싸면 전송할 때마다
           // 목록 전체가 리빌드된다(주문 상세의 같은 주의와 동일).
-          BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
-            builder: (context, ackState) => Row(
-              children: [
-                Text(
-                  '총 ${visible.length}건',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+          BlocBuilder<OrderInternalStageBloc, OrderInternalStageState>(
+            builder: (context, internalState) =>
+                BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
+              builder: (context, ackState) => Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        '총 ${visible.length}건',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const Spacer(),
+                      // 선택 건수를 말하는 자리는 여기 한 곳뿐이다 — 버튼 글자에 건수를 넣지 않는다.
+                      if (selectedIds.isNotEmpty)
+                        Text(
+                          '선택 ${selectedIds.length}건',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
                   ),
-                ),
-                const Spacer(),
-                // 선택 건수를 말하는 자리는 여기 한 곳뿐이다 — 버튼 글자에 건수를 넣지 않는다.
-                // 발주처리 블록 안에 두면 비-ADMIN 에게는 건수가 아예 안 보인다(이전 동작).
-                if (selectedIds.isNotEmpty) ...[
-                  Text(
-                    '선택 ${selectedIds.length}건',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                  const SizedBox(height: 4),
+                  // 버튼이 늘어 한 줄에 다 들어가지 않는다 — Wrap 으로 줄을 넘긴다.
+                  // [내부 발주처리]는 [발주처리] 바로 옆 · 초록(FilledButton 테마, FEATURE_2609_75 / D13).
+                  Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      // 주문 상태 갱신 — 발주처리와 달리 권한 게이트가 없고(2609_50 D18),
+                      // 선택이 없어도 버튼은 보이되 비활성이다.
+                      BlocBuilder<OrderRefreshBloc, OrderRefreshState>(
+                        builder: (context, refreshState) => OutlinedButton(
+                          onPressed:
+                              selectedIds.isEmpty || refreshState.submitting
+                                  ? null
+                                  : onRefresh,
+                          child: refreshState.submitting
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Text('주문 상태 갱신'),
+                        ),
+                      ),
+                      // 전체선택은 두지 않는다(D17) — 화면 밖 일괄 선택이 되어 D7 과 어긋난다.
+                      if (ackTargetIds.isNotEmpty && !ackState.forbidden)
+                        ElevatedButton(
+                          onPressed: ackState.submitting
+                              ? null
+                              : () =>
+                                  onAcknowledge(ackTargetIds, includesInternal),
+                          child: ackState.submitting
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Text('발주처리'),
+                        ),
+                      if (internalTargetIds.isNotEmpty &&
+                          !internalState.forbidden)
+                        FilledButton(
+                          onPressed: internalState.submitting != null
+                              ? null
+                              : () => onInternal(internalTargetIds),
+                          child: internalState.submitting ==
+                                  InternalStageAction.mark
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Text('내부 발주처리'),
+                        ),
+                      if (releaseTargetIds.isNotEmpty &&
+                          !internalState.forbidden)
+                        OutlinedButton(
+                          onPressed: internalState.submitting != null
+                              ? null
+                              : () => onRelease(releaseTargetIds),
+                          child: internalState.submitting ==
+                                  InternalStageAction.release
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Text('내부 발주 해제'),
+                        ),
+                      if (cancelTargetIds.isNotEmpty &&
+                          !internalState.forbidden)
+                        OutlinedButton(
+                          onPressed: internalState.submitting != null
+                              ? null
+                              : () => onCancelReservation(cancelTargetIds),
+                          child: internalState.submitting ==
+                                  InternalStageAction.cancel
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Text('예약 취소'),
+                        ),
+                      // D18 🔁 — 파일 없이 저장된 송장으로 [예약 발송]/[지금 발송](발송처리 다이얼로그의 저장된 송장 모드).
+                      if (storedTargetIds.isNotEmpty &&
+                          !internalState.forbidden)
+                        OutlinedButton(
+                          onPressed: internalState.submitting != null
+                              ? null
+                              : () => onShipStored(storedTargetIds),
+                          child: const Text('저장된 송장으로 발송'),
+                        ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
                 ],
-                // 주문 상태 갱신 — 발주처리와 달리 권한 게이트가 없고(2609_50 D18),
-                // 선택이 없어도 버튼은 보이되 비활성이다.
-                BlocBuilder<OrderRefreshBloc, OrderRefreshState>(
-                  builder: (context, refreshState) => OutlinedButton(
-                    onPressed: selectedIds.isEmpty || refreshState.submitting
-                        ? null
-                        : onRefresh,
-                    child: refreshState.submitting
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('주문 상태 갱신'),
-                  ),
-                ),
-                // 전체선택은 두지 않는다(D17) — 화면 밖 일괄 선택이 되어 D7 과 어긋난다.
-                if (ackTargetIds.isNotEmpty && !ackState.forbidden) ...[
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: ackState.submitting
-                        ? null
-                        : () => onAcknowledge(ackTargetIds),
-                    child: ackState.submitting
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('발주처리'),
-                  ),
-                ],
-              ],
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -724,6 +1000,9 @@ class _LoadedBody extends StatelessWidget {
                         selected: selectedIds.contains(o.id),
                         selectable: _isSelectable(o),
                         onToggleSelect: onToggleSelect,
+                        // 카드가 내부 단계 주문일 때만 버튼을 그린다(D18). 시트 안에서 저장·조회한다.
+                        onEditInvoice: () =>
+                            showStoredInvoiceSheet(context, o.externalOrderId),
                       );
                     },
                   ),
