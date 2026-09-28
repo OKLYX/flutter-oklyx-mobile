@@ -6,7 +6,11 @@ import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import '../../domain/repositories/shipping_label_repository.dart';
 import '../datasources/shipping_label_remote_datasource.dart';
 import '../models/carrier_option.dart';
+import '../models/internal_label_preview.dart';
 import '../models/manual_shipment_result.dart';
+import '../models/reservation_create_result.dart';
+import '../models/reserved_shipment_row.dart';
+import '../models/stored_invoice.dart';
 import '../models/shipment_confirm_result.dart';
 import '../models/shipping_label_preview_row.dart';
 
@@ -146,5 +150,162 @@ class ShippingLabelRepositoryImpl implements ShippingLabelRepository {
     } on Exception catch (e) {
       return Left(ServerFailure(e.toString()));
     }
+  }
+
+  // --- 예약 발송 (FEATURE_2609_75) — 10개 모두 400 서버 문구를 살린다(「지난 시각은 고를 수 없습니다」 등).
+
+  @override
+  Future<Either<Failure, InternalLabelPreview>> previewInternalRows({
+    int? sellerId,
+  }) async {
+    try {
+      return Right(
+          await remoteDataSource.previewInternalRows(sellerId: sellerId));
+    } on DioException catch (e) {
+      return Left(_serverFailure(e, 'Failed to load internal label rows'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, ReservationCreateResult>> reserveShipment({
+    required Uint8List bytes,
+    required String filename,
+    required String executeAt,
+  }) async {
+    try {
+      return Right(await remoteDataSource.reserveShipment(
+        bytes: bytes,
+        filename: filename,
+        executeAt: executeAt,
+      ));
+    } on DioException catch (e) {
+      return Left(_serverFailure(e, 'Failed to reserve shipment'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<ReservedShipmentRow>>>
+      getReservedShipments() async {
+    try {
+      return Right(await remoteDataSource.getReservedShipments());
+    } on DioException catch (e) {
+      return Left(_serverFailure(e, 'Failed to load reserved shipments'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<ReservedShipmentRow>>> getReservedShipmentsByOrder(
+    String externalOrderId,
+  ) async {
+    try {
+      return Right(
+          await remoteDataSource.getReservedShipmentsByOrder(externalOrderId));
+    } on DioException catch (e) {
+      return Left(_serverFailure(e, 'Failed to load reserved shipments'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, ReservedShipmentRow>> changeReservationTime(
+    int itemId,
+    String executeAt,
+  ) async {
+    try {
+      return Right(
+          await remoteDataSource.changeReservationTime(itemId, executeAt));
+    } on DioException catch (e) {
+      return Left(_serverFailure(e, 'Failed to change reservation time'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, ReservedShipmentRow>> retryReservation(
+    int itemId,
+  ) async {
+    try {
+      return Right(await remoteDataSource.retryReservation(itemId));
+    } on DioException catch (e) {
+      return Left(_serverFailure(e, 'Failed to retry reservation'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<StoredInvoice>>> getStoredInvoices(
+    String externalOrderId,
+  ) async {
+    try {
+      return Right(await remoteDataSource.getStoredInvoices(externalOrderId));
+    } on DioException catch (e) {
+      return Left(_serverFailure(e, 'Failed to load stored invoices'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, StoredInvoice>> changeReservedInvoice(
+    int orderShipmentId, {
+    required String deliveryCompanyCode,
+    required String invoiceNumber,
+  }) async {
+    try {
+      return Right(await remoteDataSource.changeReservedInvoice(
+        orderShipmentId,
+        deliveryCompanyCode: deliveryCompanyCode,
+        invoiceNumber: invoiceNumber,
+      ));
+    } on DioException catch (e) {
+      return Left(_serverFailure(e, 'Failed to change reserved invoice'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, ReservationCreateResult>> reserveStored(
+    List<int> orderItemIds,
+    String executeAt,
+  ) async {
+    try {
+      return Right(await remoteDataSource.reserveStored(orderItemIds, executeAt));
+    } on DioException catch (e) {
+      return Left(_serverFailure(e, 'Failed to reserve with stored invoices'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, ShipmentConfirmResult>> shipStoredNow(
+    List<int> orderItemIds,
+  ) async {
+    try {
+      return Right(await remoteDataSource.shipStoredNow(orderItemIds));
+    } on DioException catch (e) {
+      return Left(_serverFailure(e, 'Failed to ship with stored invoices'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  /// 서버 본문 message 를 살린다 — 실패 봉투 {status:'FAILURE', message, data:null}.
+  Failure _serverFailure(DioException e, String fallback) {
+    final body = e.response?.data;
+    final message = body is Map && body['message'] != null
+        ? body['message'].toString()
+        : (e.message ?? fallback);
+    return ServerFailure(message, statusCode: e.response?.statusCode);
   }
 }

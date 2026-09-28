@@ -89,4 +89,9 @@ abstract class OrderRepository {
   Future<Either<Failure, OrderSetting>> updateOrderSetting(
     String reservedShipmentTime,
   );
+
+  /// [예약 취소] (FEATURE_2609_75 / D18 행2) — 쿠팡 호출 없음.
+  Future<Either<Failure, InternalStageResult>> cancelReservedItems(
+    List<int> orderItemIds,
+  );
 }

@@ -55,6 +55,8 @@ class OrderInternalStageBloc
         return useCase.markInternal(event.orderItemIds);
       case InternalStageAction.release:
         return useCase.releaseInternal(event.orderItemIds);
+      case InternalStageAction.cancel:
+        return useCase.cancelReservedItems(event.orderItemIds);
     }
   }
 

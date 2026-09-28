@@ -36,6 +36,9 @@ class Routes {
   static const String inquiryList = 'inquiryList';
   static const String inquiryDetail = 'inquiryDetail';
   static const String shippingLabelPreview = 'shippingLabelPreview';
+  static const String shippingLabelPreviewInternal =
+      'shippingLabelPreviewInternal';
+  static const String reservedShipment = 'reservedShipment';
   static const String orderSettings = 'orderSettings';
   static const String notFound = 'notFound';
 
@@ -78,6 +81,9 @@ class Routes {
   static const String inquiryListPath = '/orders/inquiries';
   static const String inquiryDetailPath = '/orders/inquiries/detail';
   static const String shippingLabelPreviewPath = '/shipping-label/preview';
+  static const String shippingLabelPreviewInternalPath =
+      '/shipping-label/preview-internal';
+  static const String reservedShipmentPath = '/shipping-label/reserved';
   static const String orderSettingsPath = '/orders/settings';
   static const String notFoundPath = '/404';
 

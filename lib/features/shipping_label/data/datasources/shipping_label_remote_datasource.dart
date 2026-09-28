@@ -3,7 +3,11 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_oklyn_mobile/core/constants/app_constants.dart';
 import '../models/carrier_option.dart';
+import '../models/internal_label_preview.dart';
 import '../models/manual_shipment_result.dart';
+import '../models/reservation_create_result.dart';
+import '../models/reserved_shipment_row.dart';
+import '../models/stored_invoice.dart';
 import '../models/shipment_confirm_result.dart';
 import '../models/shipping_label_preview_row.dart';
 
@@ -40,6 +44,54 @@ abstract class ShippingLabelRemoteDataSource {
     required String deliveryCompanyCode,
     required String invoiceNumber,
   });
+
+  /// GET /api/admin/shipping-labels/v2/preview/internal?sellerId={sellerId}
+  /// 「내부 상품준비중」 접수시트 행 + 쿠팡 결제완료 목록에 없던 주문번호(FEATURE_2609_75 / D26).
+  Future<InternalLabelPreview> previewInternalRows({int? sellerId});
+
+  /// POST /api/admin/reserved-shipments (multipart 'file' + 'executeAt')
+  /// [예약 발송] — 송장만 저장한다(D20·D27). [executeAt] = KST 'yyyy-MM-ddTHH:mm:ss'.
+  Future<ReservationCreateResult> reserveShipment({
+    required Uint8List bytes,
+    required String filename,
+    required String executeAt,
+  });
+
+  /// GET /api/admin/reserved-shipments → 주문 행(끝나지 않은 것 + 최근 7일, D30).
+  Future<List<ReservedShipmentRow>> getReservedShipments();
+
+  /// GET /api/admin/reserved-shipments/orders/{externalOrderId} → 그 주문의 행 전부(주문 상세, D30).
+  Future<List<ReservedShipmentRow>> getReservedShipmentsByOrder(
+    String externalOrderId,
+  );
+
+  /// PATCH /api/admin/reserved-shipments/items/{itemId}/execute-at  body: {"executeAt": "..."} (D18 시각 변경)
+  Future<ReservedShipmentRow> changeReservationTime(int itemId, String executeAt);
+
+  /// POST /api/admin/reserved-shipments/items/{itemId}/retry — 자동 재시도가 멈춘 주문을 다시 실행(D16).
+  Future<ReservedShipmentRow> retryReservation(int itemId);
+
+  /// GET /api/admin/reserved-shipments/orders/{externalOrderId}/invoices → 내부 단계 배송 묶음별 현재 송장(D18).
+  Future<List<StoredInvoice>> getStoredInvoices(String externalOrderId);
+
+  /// PUT /api/admin/reserved-shipments/shipments/{orderShipmentId}/invoice
+  /// body: {"deliveryCompanyCode": "...", "invoiceNumber": "..."} (D18 🔁 송장 수정 — 배송 묶음 단위)
+  Future<StoredInvoice> changeReservedInvoice(
+    int orderShipmentId, {
+    required String deliveryCompanyCode,
+    required String invoiceNumber,
+  });
+
+  /// POST /api/admin/reserved-shipments/stored  body: {"orderItemIds":[...], "executeAt":"..."}
+  /// 저장된 송장으로 [예약 발송](D18) — 파일 없음.
+  Future<ReservationCreateResult> reserveStored(
+    List<int> orderItemIds,
+    String executeAt,
+  );
+
+  /// POST /api/admin/reserved-shipments/stored/ship-now  body: {"orderItemIds":[...]}
+  /// 저장된 송장으로 [지금 발송](D18) — 서버가 쿠팡 발주처리 → 송장 등록. 응답은 파일 [지금 발송]과 같은 모양.
+  Future<ShipmentConfirmResult> shipStoredNow(List<int> orderItemIds);
 }
 
 class ShippingLabelRemoteDataSourceImpl implements ShippingLabelRemoteDataSource {
@@ -155,6 +207,144 @@ class ShippingLabelRemoteDataSourceImpl implements ShippingLabelRemoteDataSource
       ),
     );
     return ManualShipmentResult.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+  }
+
+  // ⚠️ 아래 10개는 try/catch 없이 DioException 을 올린다 — 레포지토리가 400 서버 문구·403 을 살린다.
+  @override
+  Future<InternalLabelPreview> previewInternalRows({int? sellerId}) async {
+    final response = await dio.get(
+      '/api/admin/shipping-labels/v2/preview/internal',
+      queryParameters: sellerId != null ? {'sellerId': sellerId} : null,
+      options: Options(
+        // 서버가 쿠팡 결제완료 목록을 창마다 조회(D26) → 기본 30초 초과 가능해 개별 연장.
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+    return InternalLabelPreview.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<ReservationCreateResult> reserveShipment({
+    required Uint8List bytes,
+    required String filename,
+    required String executeAt,
+  }) async {
+    final formData = FormData.fromMap({
+      'file': MultipartFile.fromBytes(bytes, filename: filename),
+      'executeAt': executeAt,
+    });
+    // DB 에만 쓴다(쿠팡 호출 없음, D27) → receiveTimeout 연장 없음.
+    final response = await dio.post(
+      '/api/admin/reserved-shipments',
+      data: formData,
+    );
+    return ReservationCreateResult.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<List<ReservedShipmentRow>> getReservedShipments() async {
+    final response = await dio.get('/api/admin/reserved-shipments');
+    return (response.data['data'] as List)
+        .map((e) => ReservedShipmentRow.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<List<ReservedShipmentRow>> getReservedShipmentsByOrder(
+    String externalOrderId,
+  ) async {
+    final response = await dio.get(
+      '/api/admin/reserved-shipments/orders/${Uri.encodeComponent(externalOrderId)}',
+    );
+    return (response.data['data'] as List)
+        .map((e) => ReservedShipmentRow.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<ReservedShipmentRow> changeReservationTime(
+    int itemId,
+    String executeAt,
+  ) async {
+    final response = await dio.patch(
+      '/api/admin/reserved-shipments/items/$itemId/execute-at',
+      data: {'executeAt': executeAt},
+    );
+    return ReservedShipmentRow.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<ReservedShipmentRow> retryReservation(int itemId) async {
+    final response = await dio.post(
+      '/api/admin/reserved-shipments/items/$itemId/retry',
+      options: Options(
+        // 서버가 그 자리에서 쿠팡 발주처리·송장 등록을 한다 → 개별 연장.
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+    return ReservedShipmentRow.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<List<StoredInvoice>> getStoredInvoices(String externalOrderId) async {
+    final response = await dio.get(
+      '/api/admin/reserved-shipments/orders/${Uri.encodeComponent(externalOrderId)}/invoices',
+    );
+    return (response.data['data'] as List)
+        .map((e) => StoredInvoice.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<StoredInvoice> changeReservedInvoice(
+    int orderShipmentId, {
+    required String deliveryCompanyCode,
+    required String invoiceNumber,
+  }) async {
+    final response = await dio.put(
+      '/api/admin/reserved-shipments/shipments/$orderShipmentId/invoice',
+      data: {
+        'deliveryCompanyCode': deliveryCompanyCode,
+        'invoiceNumber': invoiceNumber,
+      },
+    );
+    return StoredInvoice.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<ReservationCreateResult> reserveStored(
+    List<int> orderItemIds,
+    String executeAt,
+  ) async {
+    // DB 에만 쓴다(쿠팡 호출 없음) → receiveTimeout 연장 없음.
+    final response = await dio.post(
+      '/api/admin/reserved-shipments/stored',
+      data: {'orderItemIds': orderItemIds, 'executeAt': executeAt},
+    );
+    return ReservationCreateResult.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<ShipmentConfirmResult> shipStoredNow(List<int> orderItemIds) async {
+    final response = await dio.post(
+      '/api/admin/reserved-shipments/stored/ship-now',
+      data: {'orderItemIds': orderItemIds},
+      options: Options(
+        // 서버가 그 자리에서 쿠팡 발주처리·송장 등록을 한다 → 개별 연장.
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+    return ShipmentConfirmResult.fromJson(
         response.data['data'] as Map<String, dynamic>);
   }
 }

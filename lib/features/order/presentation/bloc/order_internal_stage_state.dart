@@ -2,8 +2,8 @@ import 'package:equatable/equatable.dart';
 
 import '../../data/models/internal_stage_result.dart';
 
-/// 내부 단계 작업 종류 — [내부 발주처리](mark) · [내부 발주 해제](release).
-enum InternalStageAction { mark, release }
+/// 내부 단계 작업 종류 — [내부 발주처리](mark) · [내부 발주 해제](release) · [예약 취소](cancel, FEATURE_2609_75 07).
+enum InternalStageAction { mark, release, cancel }
 
 /// 내부 발주처리·해제 전송 상태 (FEATURE_2609_75).
 ///

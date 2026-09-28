@@ -8,13 +8,15 @@ abstract class ShippingLabelPreviewEvent extends Equatable {
 }
 
 /// preview 로드 / 판매자 필터 변경(새 sellerId 재조회).
+/// [internal] = 「내부 상품준비중」 접수시트(FEATURE_2609_75 / D26). false = 기존 시트(D25 무변경).
 class LoadPreview extends ShippingLabelPreviewEvent {
   final int? sellerId;
+  final bool internal;
 
-  const LoadPreview([this.sellerId]);
+  const LoadPreview([this.sellerId, this.internal = false]);
 
   @override
-  List<Object?> get props => [sellerId];
+  List<Object?> get props => [sellerId, internal];
 }
 
 /// 특정 라인의 택배수량 편집 (최소 1은 BLoC 에서 강제).

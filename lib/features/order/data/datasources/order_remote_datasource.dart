@@ -78,6 +78,10 @@ abstract class OrderRemoteDataSource {
 
   /// PUT /api/admin/order-settings  body: {"reservedShipmentTime":"HH:mm"}
   Future<OrderSetting> updateOrderSetting(String reservedShipmentTime);
+
+  /// POST /api/admin/reserved-shipments/items/cancel  body: {"orderItemIds":[...]}
+  /// [예약 취소] — 발송대기중 → 내부 상품준비중(FEATURE_2609_75 / D18 행2). 쿠팡 호출 없음.
+  Future<InternalStageResult> cancelReservedItems(List<int> orderItemIds);
 }
 
 class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
@@ -326,5 +330,16 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
       data: {'reservedShipmentTime': reservedShipmentTime},
     );
     return OrderSetting.fromJson(response.data['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<InternalStageResult> cancelReservedItems(
+      List<int> orderItemIds) async {
+    final response = await dio.post(
+      '/api/admin/reserved-shipments/items/cancel',
+      data: {'orderItemIds': orderItemIds},
+    );
+    return InternalStageResult.fromJson(
+        response.data['data'] as Map<String, dynamic>);
   }
 }
