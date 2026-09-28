@@ -124,6 +124,16 @@ class _AppDrawerState extends State<AppDrawer> {
                   },
                 ),
               ),
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('주문관리 설정'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.orderSettingsPath);
+                  },
+                ),
+              ),
             ],
           ),
           ),

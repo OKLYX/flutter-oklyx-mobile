@@ -20,6 +20,7 @@ class OrderModel extends OrderItem {
     required super.status,
     super.platformStatus,
     super.cancelled,
+    super.internalStage,
     super.paidAt,
     super.unitPrice,
     super.lineAmount,
@@ -46,6 +47,8 @@ class OrderModel extends OrderItem {
       status: orderStatusFrom(json['status'] as String?),
       platformStatus: json['platformStatus'] as String?,
       cancelled: json['cancelled'] as bool? ?? false,
+      // 내부 단계(FEATURE_2609_75) — 모르는 값·필드 없음(구 서버)은 null.
+      internalStage: internalStageFrom(json['internalStage'] as String?),
       paidAt: json['paidAt'] as String?,
       // 금액은 서버가 BigDecimal 로 내려 소수점이 붙을 수 있다 — num 으로 받아 정수화한다.
       unitPrice: (json['unitPrice'] as num?)?.toInt(),

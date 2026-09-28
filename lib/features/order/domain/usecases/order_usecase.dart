@@ -1,9 +1,11 @@
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import '../../data/models/cancel_reason_option.dart';
+import '../../data/models/internal_stage_result.dart';
 import '../../data/models/order_acknowledge_result.dart';
 import '../../data/models/order_cancel_result.dart';
 import '../../data/models/order_refresh_result.dart';
+import '../../data/models/order_setting.dart';
 import '../entities/order_item.dart';
 import '../entities/order_period.dart';
 import '../entities/order_sync_result.dart';
@@ -76,5 +78,31 @@ class OrderUseCase {
     String reason,
   ) {
     return repository.cancelOrders(lines, reason);
+  }
+
+  /// 내부 발주처리 — 쿠팡 호출 없음(FEATURE_2609_75 / D1).
+  Future<Either<Failure, InternalStageResult>> markInternal(
+    List<int> orderItemIds,
+  ) {
+    return repository.markInternal(orderItemIds);
+  }
+
+  /// 내부 발주 해제(D18 행1).
+  Future<Either<Failure, InternalStageResult>> releaseInternal(
+    List<int> orderItemIds,
+  ) {
+    return repository.releaseInternal(orderItemIds);
+  }
+
+  /// 주문관리 설정 조회(D12).
+  Future<Either<Failure, OrderSetting>> getOrderSetting() {
+    return repository.getOrderSetting();
+  }
+
+  /// 주문관리 설정 저장 — 'HH:mm'(한국시간).
+  Future<Either<Failure, OrderSetting>> updateOrderSetting(
+    String reservedShipmentTime,
+  ) {
+    return repository.updateOrderSetting(reservedShipmentTime);
   }
 }

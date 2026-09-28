@@ -8,9 +8,11 @@ import '../../domain/entities/sync_target.dart';
 import '../../domain/repositories/order_repository.dart';
 import '../datasources/order_remote_datasource.dart';
 import '../models/cancel_reason_option.dart';
+import '../models/internal_stage_result.dart';
 import '../models/order_acknowledge_result.dart';
 import '../models/order_cancel_result.dart';
 import '../models/order_refresh_result.dart';
+import '../models/order_setting.dart';
 
 class OrderRepositoryImpl implements OrderRepository {
   final OrderRemoteDataSource remoteDataSource;
@@ -205,5 +207,65 @@ class OrderRepositoryImpl implements OrderRepository {
     } on Exception catch (e) {
       return Left(ServerFailure(e.toString()));
     }
+  }
+
+  @override
+  Future<Either<Failure, InternalStageResult>> markInternal(
+    List<int> orderItemIds,
+  ) async {
+    try {
+      return Right(await remoteDataSource.markInternal(orderItemIds));
+    } on DioException catch (e) {
+      return Left(_serverFailure(e, 'Failed to mark internal'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, InternalStageResult>> releaseInternal(
+    List<int> orderItemIds,
+  ) async {
+    try {
+      return Right(await remoteDataSource.releaseInternal(orderItemIds));
+    } on DioException catch (e) {
+      return Left(_serverFailure(e, 'Failed to release internal'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, OrderSetting>> getOrderSetting() async {
+    try {
+      return Right(await remoteDataSource.getOrderSetting());
+    } on DioException catch (e) {
+      return Left(_serverFailure(e, 'Failed to load order setting'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, OrderSetting>> updateOrderSetting(
+    String reservedShipmentTime,
+  ) async {
+    try {
+      return Right(
+          await remoteDataSource.updateOrderSetting(reservedShipmentTime));
+    } on DioException catch (e) {
+      return Left(_serverFailure(e, 'Failed to save order setting'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  /// 서버 본문 message 를 살린다(400 사유 — 「처리 중」·형식 오류). cancelOrders 와 같은 규칙.
+  Failure _serverFailure(DioException e, String fallback) {
+    final body = e.response?.data;
+    final message = body is Map && body['message'] != null
+        ? body['message'].toString()
+        : (e.message ?? fallback);
+    return ServerFailure(message, statusCode: e.response?.statusCode);
   }
 }

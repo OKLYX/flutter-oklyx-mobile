@@ -1,10 +1,12 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_oklyn_mobile/core/constants/app_constants.dart';
 import '../models/cancel_reason_option.dart';
+import '../models/internal_stage_result.dart';
 import '../models/order_acknowledge_result.dart';
 import '../models/order_cancel_result.dart';
 import '../models/order_model.dart';
 import '../models/order_refresh_result.dart';
+import '../models/order_setting.dart';
 import '../models/sync_target_model.dart';
 
 abstract class OrderRemoteDataSource {
@@ -63,6 +65,19 @@ abstract class OrderRemoteDataSource {
     List<Map<String, dynamic>> lines,
     String reason,
   );
+
+  /// POST /api/admin/orders/internal-acknowledge  body: {"orderItemIds":[...]}
+  /// 내부 발주처리 — 쿠팡에 보내지 않는다(FEATURE_2609_75 / D1). 대상 판정은 서버가 한다.
+  Future<InternalStageResult> markInternal(List<int> orderItemIds);
+
+  /// POST /api/admin/orders/internal-acknowledge/release  body: {"orderItemIds":[...]}
+  Future<InternalStageResult> releaseInternal(List<int> orderItemIds);
+
+  /// GET /api/admin/order-settings → {reservedShipmentTime, nextExecuteAt}
+  Future<OrderSetting> getOrderSetting();
+
+  /// PUT /api/admin/order-settings  body: {"reservedShipmentTime":"HH:mm"}
+  Future<OrderSetting> updateOrderSetting(String reservedShipmentTime);
 }
 
 class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
@@ -274,5 +289,42 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
     );
     return OrderCancelResult.fromJson(
         response.data['data'] as Map<String, dynamic>);
+  }
+
+  // ⚠️ 아래 4개도 acknowledgeOrders 와 같은 규칙 — try/catch 없이 DioException 을 올려 403·400 판정을 살린다.
+  // DB 만 바꾸는 호출이라 receiveTimeout 을 늘리지 않는다.
+  @override
+  Future<InternalStageResult> markInternal(List<int> orderItemIds) async {
+    final response = await dio.post(
+      '/api/admin/orders/internal-acknowledge',
+      data: {'orderItemIds': orderItemIds},
+    );
+    return InternalStageResult.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<InternalStageResult> releaseInternal(List<int> orderItemIds) async {
+    final response = await dio.post(
+      '/api/admin/orders/internal-acknowledge/release',
+      data: {'orderItemIds': orderItemIds},
+    );
+    return InternalStageResult.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<OrderSetting> getOrderSetting() async {
+    final response = await dio.get('/api/admin/order-settings');
+    return OrderSetting.fromJson(response.data['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<OrderSetting> updateOrderSetting(String reservedShipmentTime) async {
+    final response = await dio.put(
+      '/api/admin/order-settings',
+      data: {'reservedShipmentTime': reservedShipmentTime},
+    );
+    return OrderSetting.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 }
