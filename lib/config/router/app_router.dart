@@ -85,6 +85,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/master_shipping_config_page.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_route_args.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/master_detail_page.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/master_create_page.dart';
 
 import 'routes.dart';
 
@@ -648,6 +649,18 @@ class AppRouter {
           child: MasterDetailPage(
             masterId: id,
             args: extra is MasterDetailArgs ? extra : const MasterDetailArgs(),
+          ),
+        );
+      },
+    ),
+    GoRoute(
+      name: Routes.masterProductNew,
+      path: Routes.masterProductNewPath,
+      pageBuilder: (context, state) {
+        final extra = state.extra;
+        return NoTransitionPage(
+          child: MasterCreatePage(
+            args: extra is MasterCreateArgs ? extra : null,
           ),
         );
       },
