@@ -73,6 +73,7 @@ import 'package:flutter_oklyn_mobile/features/order/presentation/pages/shipment_
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/pages/reserved_shipment_page.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/pages/shipping_label_preview_page.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/master_product_list_page.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/master_composition_page.dart';
 
 import 'routes.dart';
 
@@ -553,6 +554,14 @@ class AppRouter {
       pageBuilder: (context, state) => const NoTransitionPage(
         child: MasterProductListPage(),
       ),
+    ),
+    GoRoute(
+      name: Routes.masterProductComposition,
+      path: Routes.masterProductCompositionPath,
+      pageBuilder: (context, state) {
+        final id = int.parse(state.pathParameters['id']!);
+        return NoTransitionPage(child: MasterCompositionPage(masterId: id));
+      },
     ),
     GoRoute(
       name: Routes.notFound,
