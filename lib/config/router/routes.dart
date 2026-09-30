@@ -41,6 +41,21 @@ class Routes {
   static const String reservedShipment = 'reservedShipment';
   static const String orderSettings = 'orderSettings';
   static const String notFound = 'notFound';
+  // Six master product screens + ported windows (FEATURE_2609_80). Distinct path prefixes keep
+  // the `:id` route from swallowing other routes (independent of registration order).
+  static const String masterProducts = 'masterProducts';
+  static const String masterProductNew = 'masterProductNew';
+  static const String masterProductFromMarket = 'masterProductFromMarket';
+  static const String masterProductDetail = 'masterProductDetail';
+  static const String masterProductComposition = 'masterProductComposition';
+  static const String masterProductDetailEdit = 'masterProductDetailEdit';
+  static const String masterChannelFieldValues = 'masterChannelFieldValues';
+  static const String masterChannelStock = 'masterChannelStock';
+  static const String masterChannelPrice = 'masterChannelPrice';
+  static const String masterChannelOptionName = 'masterChannelOptionName';
+  static const String masterChannelShipping = 'masterChannelShipping';
+  static const String masterMarketProductAdd = 'masterMarketProductAdd';
+  static const String masterShippingConfig = 'masterShippingConfig';
 
   static const String splashPath = '/';
   static const String loginPath = '/login';
@@ -86,6 +101,28 @@ class Routes {
   static const String reservedShipmentPath = '/shipping-label/reserved';
   static const String orderSettingsPath = '/orders/settings';
   static const String notFoundPath = '/404';
+  static const String masterProductsPath = '/master-products';
+  static const String masterProductNewPath = '/master-products-new';
+  static const String masterProductFromMarketPath = '/master-products-from-market';
+  static const String masterProductDetailPath = '/master-product/:id';
+  static const String masterProductCompositionPath =
+      '/master-product/:id/composition';
+  static const String masterProductDetailEditPath =
+      '/master-product/:id/detail/:listingId';
+  static const String masterChannelFieldValuesPath =
+      '/master-product-tools/channel-field-values';
+  static const String masterChannelStockPath =
+      '/master-product-tools/channel-stock';
+  static const String masterChannelPricePath =
+      '/master-product-tools/channel-price';
+  static const String masterChannelOptionNamePath =
+      '/master-product-tools/channel-option-name';
+  static const String masterChannelShippingPath =
+      '/master-product-tools/channel-shipping';
+  static const String masterMarketProductAddPath =
+      '/master-product-tools/market-product-add';
+  static const String masterShippingConfigPath =
+      '/master-product-tools/shipping-config';
 
   static String salesProductsDetailRoute(int id) =>
       '/sales-products/detail/$id';

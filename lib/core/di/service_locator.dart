@@ -184,6 +184,13 @@ import 'package:flutter_oklyn_mobile/features/alert/domain/repositories/alert_re
 import 'package:flutter_oklyn_mobile/features/alert/domain/usecases/alert_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/alert/presentation/bloc/alert_feed_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/alert/presentation/bloc/alert_summary_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/data/datasources/listing_registration_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/data/datasources/master_api.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/data/datasources/master_product_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/data/datasources/master_support_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/data/repositories/master_product_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/domain/repositories/master_product_repository.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 
 final getIt = GetIt.instance;
 
@@ -208,6 +215,7 @@ void setupServiceLocator() {
   _registerAlertServices();
   _registerPurchaseListServices();
   _registerStockLedgerServices();
+  _registerMasterProductServices();
   _registerErrorHandling();
 }
 
@@ -1082,6 +1090,22 @@ void _registerStockLedgerServices() {
       confirmOutboundUseCase: getIt<ConfirmOutboundUseCase>(),
       getSellersUseCase: getIt<GetSellersUseCase>(),
     ),
+  );
+}
+
+/// Six master product screens (FEATURE_2609_80). The three data sources share one request helper, [MasterApi].
+/// Screens call only [MasterProductUseCase] — no BLoC is registered (PLAN R1).
+void _registerMasterProductServices() {
+  final api = MasterApi(dio: getIt<DioClient>().dio);
+  getIt.registerSingleton<MasterProductRepository>(
+    MasterProductRepositoryImpl(
+      masterDataSource: MasterProductRemoteDataSource(api: api),
+      listingDataSource: ListingRegistrationRemoteDataSource(api: api),
+      supportDataSource: MasterSupportRemoteDataSource(api: api),
+    ),
+  );
+  getIt.registerSingleton<MasterProductUseCase>(
+    MasterProductUseCase(repository: getIt<MasterProductRepository>()),
   );
 }
 
