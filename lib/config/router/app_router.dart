@@ -86,6 +86,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_route_args.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/master_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/master_create_page.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/master_from_market_page.dart';
 
 import 'routes.dart';
 
@@ -664,6 +665,13 @@ class AppRouter {
           ),
         );
       },
+    ),
+    GoRoute(
+      name: Routes.masterProductFromMarket,
+      path: Routes.masterProductFromMarketPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: MasterFromMarketPage(),
+      ),
     ),
     GoRoute(
       name: Routes.notFound,
