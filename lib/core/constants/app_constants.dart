@@ -1,21 +1,17 @@
 class AppConstants {
-  /// Backend API base URL, selected by build environment.
+  /// Backend API base URL.
   ///
-  /// **Branch → server** (per project convention):
-  /// - local dev (`flutter run`) & `develop` builds → DEV server (this default).
-  /// - `main` (production release) → existing/original API server, injected at
-  ///   build time via `--dart-define=API_BASE_URL=http://100.77.112.35:8083`
-  ///   (see `scripts/flutter_env.sh`, which resolves the URL from the git branch).
-  ///
-  /// The default is intentionally the DEV server so an ad-hoc `flutter run`
-  /// never accidentally hits production. Only a `main`/release build overrides it.
+  /// Defaults to the production server (https://api.oclyx.com) for every build.
+  /// To point a build at the DEV server, inject it at build time:
+  ///   `--dart-define=API_BASE_URL=https://api-dev.oclyx.com`
+  ///   (or `APP_ENV=dev scripts/flutter_env.sh run`).
   ///
   /// Servers:
-  /// - DEV (local + develop): https://api-dev.oclyx.com
-  /// - PROD (main only)      : http://100.77.112.35:8083  (existing API server)
+  /// - PROD (default): https://api.oclyx.com
+  /// - DEV (opt-in)  : https://api-dev.oclyx.com
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://api-dev.oclyx.com',
+    defaultValue: 'https://api.oclyx.com',
   );
 
   static const int connectionTimeout = 30;
