@@ -346,8 +346,17 @@ class _AppDrawerState extends State<AppDrawer> {
               ],
             ),
           ),
+          // The bottom nav bar is overlaid on the drawer (ScaffoldWithNavBar
+          // Stack), so sit the button just above it, not a fixed 120px gap.
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              16,
+              16,
+              kBottomNavigationBarHeight +
+                  MediaQuery.of(context).viewPadding.bottom +
+                  8,
+            ),
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton(

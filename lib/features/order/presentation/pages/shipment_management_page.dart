@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
+import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/dialogs/shipment_confirm_dialog.dart';
@@ -114,6 +115,10 @@ bool _isCancelReservationTarget(OrderItem order) =>
 
 /// 저장된 송장으로 발송 대상 = 내부 단계 주문(D18 🔁). 송장 유무·단계는 서버가 다시 판정한다.
 bool _isStoredShipTarget(OrderItem order) => order.internalStage != null;
+
+/// 한 번에 발주처리할 수 있는 최대 건수 — 서버 `@Size(max=500)` 과 같은 값(웹 `AcknowledgeBar` 와 동일).
+/// 넘겨 보내면 400 이라 버튼에서 먼저 막는다(PLAN 2609_17 D12).
+const int _kMaxAcknowledgeSelection = 500;
 
 class _ShipmentManagementView extends StatefulWidget {
   const _ShipmentManagementView();
@@ -257,20 +262,27 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
         .add(RefreshRequested(_selectedIds.toList()));
   }
 
-  /// 주문 상태 갱신 결과 처리. `empty`(쿠팡 0박스 = 전량취소 추정)·`unsupported`(비-쿠팡)는 실패가
-  /// 아니라 따로 세지 않는다 — 사용자가 조치할 것이 없다.
+  /// 주문 상태 갱신 결과 처리. 문구는 웹 `buildRefreshMessage` 와 같다 — `empty`(쿠팡 0박스 =
+  /// 전량취소 추정)·`unsupported`(비-쿠팡)는 실패가 아니라 별도 건수로 적는다.
   ///
   /// ⚠️ 건수는 모두 **주문번호 단위**다(D1) — 같은 주문의 옵션 3줄을 체크해도 1건이다.
   void _onRefreshState(BuildContext context, OrderRefreshState state) {
     final result = state.result;
     if (result != null) {
-      final failedCount = result.failed.length;
-      final cancelledCount = result.cancelled.length;
-      var summary = failedCount == 0
-          ? '주문 상태 갱신 완료 — 갱신 ${result.refreshed}건 / 조회 ${result.requestedOrders}건'
-          : '주문 상태 갱신 완료 — 갱신 ${result.refreshed}건 / 실패 $failedCount건';
-      if (cancelledCount > 0) {
-        summary += ' / 마켓에서 취소·반품됨 $cancelledCount건';
+      // Same wording as web `buildRefreshMessage` — "갱신", not "성공"
+      // (0 refreshed is normal when the order is already current).
+      var summary = '주문 상태 갱신 완료 — ${result.refreshed}건 갱신';
+      if (result.empty.isNotEmpty) {
+        summary += ' / 주문 없음 ${result.empty.length}건';
+      }
+      if (result.cancelled.isNotEmpty) {
+        summary += ' / 마켓에서 취소·반품됨 ${result.cancelled.length}건';
+      }
+      if (result.failed.isNotEmpty) {
+        summary += ' / 실패 ${result.failed.length}건';
+      }
+      if (result.unsupported.isNotEmpty) {
+        summary += ' / 처리불가 ${result.unsupported.length}건';
       }
       // 실패 사유는 서버 원문 그대로, 중복 제거 최대 3종(발주처리와 같은 형태).
       final details = result.failed
@@ -416,8 +428,8 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
         .add(const InternalStageResultCleared());
   }
 
-  /// 전송 결과 처리 (D8·D9). `skipped`·`unsupported` 는 표시하지 않는다 —
-  /// 발주처리 대상만 추려 보내므로(`ackTargetIds`) 애초에 그 분류로 돌아올 것이 없다.
+  /// 전송 결과 처리 (D8·D9). 문구는 웹 `buildMessage` 와 같다 — 발주처리 대상만 추려 보내도
+  /// 목록이 낡았으면 서버가 `skipped`·`unsupported` 로 돌려줄 수 있어 건수를 함께 적는다.
   void _onAcknowledgeState(BuildContext context, OrderAcknowledgeState state) {
     if (state.forbidden) {
       _showAckSnackBar(context, '발주처리 권한이 없습니다.', const []);
@@ -426,10 +438,16 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
 
     final result = state.result;
     if (result != null) {
-      final failedCount = result.failed.length;
-      final summary = failedCount == 0
-          ? '발주처리 완료 — 성공 ${result.succeeded}건'
-          : '발주처리 완료 — 성공 ${result.succeeded}건 / 실패 $failedCount건';
+      var summary = '발주처리 완료 — 성공 ${result.succeeded}건';
+      if (result.failed.isNotEmpty) {
+        summary += ' / 실패 ${result.failed.length}건';
+      }
+      if (result.skipped.isNotEmpty) {
+        summary += ' / 제외 ${result.skipped.length}건(결제완료 아님)';
+      }
+      if (result.unsupported.isNotEmpty) {
+        summary += ' / 처리불가 ${result.unsupported.length}건';
+      }
       // 실패 사유는 쿠팡 원문 그대로, 중복 제거 최대 3종(D8).
       final details = result.failed
           .map((f) => '${f.resultCode}: ${f.message}')
@@ -604,6 +622,12 @@ class _LoadedBody extends StatelessWidget {
     // D14 — 발주처리로 보낼 주문 중 내부 단계가 있는 것이 하나라도 있는가.
     final includesInternal = scoped
         .any((o) => ackTargetIds.contains(o.id) && o.internalStage != null);
+    final isAckOverLimit = ackTargetIds.length > _kMaxAcknowledgeSelection;
+    final notAcknowledgeable = selectedIds.length - ackTargetIds.length;
+    final hintStyle = TextStyle(
+      fontSize: 12,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    );
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -624,6 +648,23 @@ class _LoadedBody extends StatelessWidget {
               style: TextStyle(fontSize: 13, color: AppColors.infoForeground),
             ),
           ),
+          // Web shows this in the page header. Source = server stamp:
+          // background sync keeps data fresh even without a manual
+          // [동기화], same as 주문내역.
+          if (s.lastSyncedFromServer != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  '마지막 동기화: ${formatRelativeTime(s.lastSyncedFromServer)}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
           const SizedBox(height: 8),
 
           Card(
@@ -706,6 +747,19 @@ class _LoadedBody extends StatelessWidget {
                     ],
                     onChanged: busy ? null : onSelectAccount,
                   ),
+                  // The server processes sheet/confirm by sellerId, so the channel
+                  // filter does not narrow them (same notice as web).
+                  if (accountValue != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        '접수시트·발송처리는 선택한 판매자의 전 채널을 포함합니다.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 8),
                   // 검색 — 클라이언트 필터라 서버를 부르지 않는다(주문내역과 같은 규칙).
                   // 목록이 줄어들면 화면 밖 건이 전송되지 않게 선택을 버린다.
@@ -906,7 +960,7 @@ class _LoadedBody extends StatelessWidget {
                       // 전체선택은 두지 않는다(D17) — 화면 밖 일괄 선택이 되어 D7 과 어긋난다.
                       if (ackTargetIds.isNotEmpty && !ackState.forbidden)
                         ElevatedButton(
-                          onPressed: ackState.submitting
+                          onPressed: ackState.submitting || isAckOverLimit
                               ? null
                               : () =>
                                   onAcknowledge(ackTargetIds, includesInternal),
@@ -978,6 +1032,49 @@ class _LoadedBody extends StatelessWidget {
                         ),
                     ],
                   ),
+                  // Same guidance lines as web `AcknowledgeBar`.
+                  // 선택한 라인이 아니라 그 라인이 속한 박스 전체가 전송된다(PLAN 2609_17 D1).
+                  if (ackTargetIds.isNotEmpty && !ackState.forbidden)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        '선택한 옵션이 속한 배송건(박스) 전체가 함께 발주처리됩니다.',
+                        style: hintStyle,
+                      ),
+                    ),
+                  // 발주처리 버튼이 왜 안 보이는지 말해 준다 — 상태 갱신만 하려고 고른 경우가 흔하다.
+                  if (notAcknowledgeable > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        '선택한 ${selectedIds.length}건 중 '
+                        '$notAcknowledgeable건은 결제완료가 아니어서 '
+                        '발주처리 대상이 아닙니다. '
+                        '주문 상태 갱신은 그대로 됩니다.',
+                        style: hintStyle,
+                      ),
+                    ),
+                  // 내부 발주처리는 쿠팡에 보내지 않는다 — 쿠팡에는 결제완료로 남는다(D1).
+                  if (internalTargetIds.isNotEmpty && !internalState.forbidden)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        '내부 발주처리는 쿠팡에 보내지 않습니다. 쿠팡에는 결제완료로 남고 '
+                        '오클릭스에만 「내부 상품준비중」으로 표시됩니다.',
+                        style: hintStyle,
+                      ),
+                    ),
+                  if (isAckOverLimit)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        '한 번에 $_kMaxAcknowledgeSelection건까지 '
+                        '발주처리할 수 있습니다. 선택을 줄여주세요.',
+                        style: hintStyle.copyWith(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
