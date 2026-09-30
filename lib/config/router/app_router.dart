@@ -72,6 +72,21 @@ import 'package:flutter_oklyn_mobile/features/order/presentation/pages/order_set
 import 'package:flutter_oklyn_mobile/features/order/presentation/pages/shipment_management_page.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/pages/reserved_shipment_page.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/pages/shipping_label_preview_page.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/master_product_list_page.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/master_composition_page.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/master_detail_edit_page.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_tool_args.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/channel_field_values_page.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/channel_option_name_page.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/channel_price_page.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/channel_shipping_page.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/channel_stock_page.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/market_product_add_page.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/master_shipping_config_page.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_route_args.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/master_detail_page.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/master_create_page.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/master_from_market_page.dart';
 
 import 'routes.dart';
 
@@ -544,6 +559,118 @@ class AppRouter {
       path: Routes.orderSettingsPath,
       pageBuilder: (context, state) => const NoTransitionPage(
         child: OrderSettingsPage(),
+      ),
+    ),
+    GoRoute(
+      name: Routes.masterProducts,
+      path: Routes.masterProductsPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: MasterProductListPage(),
+      ),
+    ),
+    GoRoute(
+      name: Routes.masterProductComposition,
+      path: Routes.masterProductCompositionPath,
+      pageBuilder: (context, state) {
+        final id = int.parse(state.pathParameters['id']!);
+        return NoTransitionPage(child: MasterCompositionPage(masterId: id));
+      },
+    ),
+    GoRoute(
+      name: Routes.masterProductDetailEdit,
+      path: Routes.masterProductDetailEditPath,
+      pageBuilder: (context, state) {
+        final id = int.parse(state.pathParameters['id']!);
+        final listingId = int.parse(state.pathParameters['listingId']!);
+        return NoTransitionPage(
+          child: MasterDetailEditPage(masterId: id, listingId: listingId),
+        );
+      },
+    ),
+    GoRoute(
+      name: Routes.masterChannelFieldValues,
+      path: Routes.masterChannelFieldValuesPath,
+      pageBuilder: (context, state) => NoTransitionPage(
+        child: ChannelFieldValuesPage(
+          args: state.extra! as ChannelFieldValuesArgs,
+        ),
+      ),
+    ),
+    GoRoute(
+      name: Routes.masterChannelStock,
+      path: Routes.masterChannelStockPath,
+      pageBuilder: (context, state) => NoTransitionPage(
+        child: ChannelStockPage(args: state.extra! as ChannelOptionsArgs),
+      ),
+    ),
+    GoRoute(
+      name: Routes.masterChannelPrice,
+      path: Routes.masterChannelPricePath,
+      pageBuilder: (context, state) => NoTransitionPage(
+        child: ChannelPricePage(args: state.extra! as ChannelOptionsArgs),
+      ),
+    ),
+    GoRoute(
+      name: Routes.masterChannelOptionName,
+      path: Routes.masterChannelOptionNamePath,
+      pageBuilder: (context, state) => NoTransitionPage(
+        child: ChannelOptionNamePage(args: state.extra! as ChannelOptionsArgs),
+      ),
+    ),
+    GoRoute(
+      name: Routes.masterChannelShipping,
+      path: Routes.masterChannelShippingPath,
+      pageBuilder: (context, state) => NoTransitionPage(
+        child: ChannelShippingPage(args: state.extra! as ChannelShippingArgs),
+      ),
+    ),
+    GoRoute(
+      name: Routes.masterMarketProductAdd,
+      path: Routes.masterMarketProductAddPath,
+      pageBuilder: (context, state) => NoTransitionPage(
+        child: MarketProductAddPage(args: state.extra! as MarketProductAddArgs),
+      ),
+    ),
+    GoRoute(
+      name: Routes.masterShippingConfig,
+      path: Routes.masterShippingConfigPath,
+      pageBuilder: (context, state) => NoTransitionPage(
+        child: MasterShippingConfigPage(
+          args: state.extra! as ShippingConfigArgs,
+        ),
+      ),
+    ),
+    GoRoute(
+      name: Routes.masterProductDetail,
+      path: Routes.masterProductDetailPath,
+      pageBuilder: (context, state) {
+        final id = int.parse(state.pathParameters['id']!);
+        final extra = state.extra;
+        return NoTransitionPage(
+          child: MasterDetailPage(
+            masterId: id,
+            args: extra is MasterDetailArgs ? extra : const MasterDetailArgs(),
+          ),
+        );
+      },
+    ),
+    GoRoute(
+      name: Routes.masterProductNew,
+      path: Routes.masterProductNewPath,
+      pageBuilder: (context, state) {
+        final extra = state.extra;
+        return NoTransitionPage(
+          child: MasterCreatePage(
+            args: extra is MasterCreateArgs ? extra : null,
+          ),
+        );
+      },
+    ),
+    GoRoute(
+      name: Routes.masterProductFromMarket,
+      path: Routes.masterProductFromMarketPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: MasterFromMarketPage(),
       ),
     ),
     GoRoute(
