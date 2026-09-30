@@ -22,11 +22,10 @@ class OrderAcknowledgeResult extends Equatable {
   /// 실패 박스 상세 — 쿠팡 resultCode/resultMessage 원문(D15).
   final List<FailedBox> failed;
 
-  /// 결제완료가 아니라 전송하지 않은 주문(D2). 파싱만 한다 —
-  /// 화면에 표시하지 않는다(체크박스가 이미 결제완료만 고르게 막는다).
+  /// 결제완료가 아니라 전송하지 않은 주문(D2). 출고관리 결과 문구에 건수로 표시한다(웹과 같다).
   final List<SkippedOrder> skipped;
 
-  /// 비-COUPANG 이거나 박스 ID 가 없어 전송 불가한 주문번호(D10). 파싱만 하고 표시하지 않는다.
+  /// 비-COUPANG 이거나 박스 ID 가 없어 전송 불가한 주문번호(D10). 출고관리 결과 문구에 건수로 표시한다.
   final List<String> unsupported;
 
   const OrderAcknowledgeResult({
