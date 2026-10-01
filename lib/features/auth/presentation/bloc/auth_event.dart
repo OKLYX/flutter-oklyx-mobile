@@ -21,6 +21,10 @@ class LogoutRequested extends AuthEvent {
   const LogoutRequested();
 }
 
+class SessionExpired extends AuthEvent {
+  const SessionExpired();
+}
+
 class CheckAuthStatusRequested extends AuthEvent {
   const CheckAuthStatusRequested();
 }

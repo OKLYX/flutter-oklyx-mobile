@@ -84,6 +84,26 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, void>> clearSession() async {
+    try {
+      await localDataSource.deleteToken();
+      await localDataSource.deleteRefreshToken();
+
+      try {
+        await localDataSource.deleteUser();
+      } on Exception {
+        // Silently ignore caching errors
+      }
+
+      return const Right(null);
+    } on LocalException catch (e) {
+      return Left(LocalFailure(e.message));
+    } on Exception catch (e) {
+      return Left(UnknownFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, User>> getCurrentUser() async {
     try {
       final userModel = await remoteDataSource.getCurrentUser();

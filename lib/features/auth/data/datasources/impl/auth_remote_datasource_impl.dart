@@ -90,6 +90,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         e.message ?? 'Failed to get current user',
         statusCode: e.response?.statusCode,
       );
+    } on ServerException {
+      rethrow;
     } catch (e) {
       throw ServerException(e.toString());
     }
@@ -127,6 +129,8 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         e.message ?? 'Token refresh failed',
         statusCode: e.response?.statusCode,
       );
+    } on ServerException {
+      rethrow;
     } catch (e) {
       throw ServerException(e.toString());
     }

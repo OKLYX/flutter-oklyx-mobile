@@ -16,6 +16,11 @@ abstract class AuthRepository {
   /// Returns [void] if successful, [Failure] if unsuccessful
   Future<Either<Failure, void>> logout();
 
+  /// Clear the locally stored session (access token, refresh token, user)
+  /// without calling the server
+  /// Returns [void] if successful, [Failure] if unsuccessful
+  Future<Either<Failure, void>> clearSession();
+
   /// Get the currently authenticated user
   /// Returns [User] if a user is logged in, [Failure] otherwise
   Future<Either<Failure, User>> getCurrentUser();
