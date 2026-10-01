@@ -1115,7 +1115,7 @@ void _registerErrorHandling() {
       dio: getIt<DioClient>().dio,
       authRepository: getIt<AuthRepository>(),
       onLogoutRequired: () =>
-          getIt<AuthBloc>().add(const LogoutRequested()),
+          getIt<AuthBloc>().add(const SessionExpired()),
     ),
   );
 

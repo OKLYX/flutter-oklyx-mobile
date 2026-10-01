@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/auth/domain/repositories/auth_repository.dart';
 import 'package:flutter_oklyn_mobile/features/auth/domain/usecases/get_current_user_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/auth/domain/usecases/login_usecase.dart';
@@ -22,6 +23,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }) : super(const AuthInitial()) {
     on<LoginRequested>(_onLoginRequested);
     on<LogoutRequested>(_onLogoutRequested);
+    on<SessionExpired>(_onSessionExpired);
     on<CheckAuthStatusRequested>(_onCheckAuthStatusRequested);
   }
 
@@ -47,6 +49,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthUnauthenticated());
   }
 
+  Future<void> _onSessionExpired(
+    SessionExpired event,
+    Emitter<AuthState> emit,
+  ) async {
+    await authRepository.clearSession();
+    emit(const AuthUnauthenticated());
+  }
+
   Future<void> _onCheckAuthStatusRequested(
     CheckAuthStatusRequested event,
     Emitter<AuthState> emit,
@@ -60,7 +70,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     // Phase 2: Fetch fresh data
     final result = await getCurrentUserUseCase();
     result.fold(
-      (failure) => emit(const AuthUnauthenticated()),
+      (failure) {
+        final isUnauthorized =
+            failure is ServerFailure && failure.statusCode == 401;
+        if (isUnauthorized || cachedUser == null) {
+          emit(const AuthUnauthenticated());
+        }
+      },
       (user) => emit(AuthAuthenticated(user: user)),
     );
   }

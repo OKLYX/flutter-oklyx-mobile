@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
+import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/alert/presentation/bloc/alert_summary_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/alert/presentation/bloc/alert_summary_event.dart';
 import 'package:flutter_oklyn_mobile/features/alert/presentation/bloc/alert_summary_state.dart';
+import 'package:flutter_oklyn_mobile/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/auth/presentation/bloc/auth_event.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/alert_badge.dart';
 
 /// 전 페이지 공통 Drawer.
@@ -362,7 +365,7 @@ class _AppDrawerState extends State<AppDrawer> {
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  context.go(Routes.loginPath);
+                  getIt<AuthBloc>().add(const LogoutRequested());
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.error,
