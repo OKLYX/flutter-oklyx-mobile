@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/app_router.dart';
+import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/alert/presentation/bloc/alert_summary_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/auth/presentation/bloc/auth_state.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_theme.dart';
 
 void main() {
@@ -31,6 +33,14 @@ class MyApp extends StatelessWidget {
       // ThemeMode.system ships separately after a dark-mode review pass.
       themeMode: ThemeMode.light,
       routerConfig: AppRouter.router,
+      // The single place that sends a signed-in user back to the login page
+      // (session expiry and the drawer logout button both land here).
+      builder: (context, child) => BlocListener<AuthBloc, AuthState>(
+        listenWhen: (previous, current) =>
+            previous is AuthAuthenticated && current is AuthUnauthenticated,
+        listener: (context, state) => AppRouter.router.go(Routes.loginPath),
+        child: child ?? const SizedBox.shrink(),
+      ),
     ),
   );
 }
