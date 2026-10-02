@@ -4,8 +4,9 @@ import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/listing_registration.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/detail_html_view.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 /// "상세 페이지 > HTML 직접수정" — raw HTML override (MANUAL_OVERRIDE). Edits
 /// or reverts the current saved copy. FEATURE_2609_80 / 06.
@@ -87,7 +88,7 @@ class _RawHtmlPaneState extends State<RawHtmlPane> {
   }
 
   Future<void> _handleClear() async {
-    final ok = await showMasterConfirmDialog(
+    final ok = await showAppConfirmDialog(
       context,
       message: '직접 수정한 내용을 버리고 템플릿 자동생성 결과로 되돌립니다. 계속하시겠습니까?',
       confirmText: '되돌리기',
@@ -151,8 +152,6 @@ class _RawHtmlPaneState extends State<RawHtmlPane> {
           ),
         ],
         const SizedBox(height: 12),
-        const Text('HTML 원본', style: TextStyle(fontSize: 14)),
-        const SizedBox(height: 8),
         SizedBox(
           height: 384,
           child: TextField(
@@ -164,7 +163,7 @@ class _RawHtmlPaneState extends State<RawHtmlPane> {
             keyboardType: TextInputType.multiline,
             style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
             decoration: const InputDecoration(
-              border: OutlineInputBorder(),
+              labelText: 'HTML 원본',
               contentPadding: EdgeInsets.all(8),
             ),
             onChanged: (value) => setState(() => _html = value),
@@ -191,12 +190,12 @@ class _RawHtmlPaneState extends State<RawHtmlPane> {
             FilledButton(
               onPressed: _busy ? null : _handleOverride,
               child:
-                  _isSaving ? const _BusyLabel('저장 중...') : const Text('저장하기'),
+                  _isSaving ? const AppBusyLabel('저장 중...') : const Text('저장하기'),
             ),
             OutlinedButton(
               onPressed: _busy ? null : _handleClear,
               child: _isClearing
-                  ? const _BusyLabel('초기화 중...')
+                  ? const AppBusyLabel('초기화 중...')
                   : const Text('변경 초기화'),
             ),
           ],
@@ -204,25 +203,4 @@ class _RawHtmlPaneState extends State<RawHtmlPane> {
       ],
     );
   }
-}
-
-/// Spinner + label inside a busy button (web `<Spinner label=… />`).
-class _BusyLabel extends StatelessWidget {
-  final String label;
-
-  const _BusyLabel(this.label);
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
-      );
 }

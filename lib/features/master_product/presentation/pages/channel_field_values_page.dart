@@ -9,6 +9,9 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/mas
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_tool_args.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 
 bool _isReserved(String key) => kBuiltinFieldKeys.contains(key);
 
@@ -131,7 +134,6 @@ class _ChannelFieldValuesPageState extends State<ChannelFieldValuesPage> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -143,58 +145,28 @@ class _ChannelFieldValuesPageState extends State<ChannelFieldValuesPage> {
         title: '채널별 필드값 편집',
         navBarIndex: 2,
         onBackPressed: _close,
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            16,
-            16,
-            16,
-            kBottomNavigationBarHeight + 24,
-          ),
+        body: AppPageBody(
           children: [
             if (_error.isNotEmpty) ...[
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: scheme.errorContainer,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  _error,
-                  style: TextStyle(fontSize: 14, color: scheme.error),
-                ),
-              ),
+              AppErrorBox(message: _error),
               const SizedBox(height: 16),
             ],
             if (_isLoading)
               const SizedBox(
                 height: 128,
-                child: Center(child: _BusyLabel('불러오는 중...', size: 24)),
+                child: Center(child: AppBusyLabel('불러오는 중...', size: 24)),
               )
             else if (_fields.isEmpty)
-              Text(
-                '기본 템플릿에 정의된 필드가 없습니다.',
-                style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
-              )
+              const AppEmpty('기본 템플릿에 정의된 필드가 없습니다.')
             else
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   for (final f in _fields) ...[
-                    Text(
-                      f.label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
                     TextField(
                       controller: _controllerFor(f.key),
                       decoration: InputDecoration(
-                        border: const OutlineInputBorder(),
-                        isDense: true,
+                        labelText: f.label,
                         hintText:
                             _isReserved(f.key) ? '등록상품값 사용' : '템플릿 기본값 사용',
                       ),
@@ -220,7 +192,7 @@ class _ChannelFieldValuesPageState extends State<ChannelFieldValuesPage> {
                     visualDensity: VisualDensity.compact,
                   ),
                   child: _isSaving
-                      ? const _BusyLabel('저장 중...')
+                      ? const AppBusyLabel('저장 중...')
                       : const Text('저장 후 재생성'),
                 ),
               ],
@@ -230,26 +202,4 @@ class _ChannelFieldValuesPageState extends State<ChannelFieldValuesPage> {
       ),
     );
   }
-}
-
-/// Spinner + label (web `<Spinner label=… />`).
-class _BusyLabel extends StatelessWidget {
-  final String label;
-  final double size;
-
-  const _BusyLabel(this.label, {this.size = 16});
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: size,
-            height: size,
-            child: const CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
-      );
 }

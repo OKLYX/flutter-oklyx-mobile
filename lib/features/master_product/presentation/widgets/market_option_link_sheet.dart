@@ -7,7 +7,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/lis
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/master_format.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_sheet.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
 
 String _formatWon(num v) => '${koNumber(v)}원';
 
@@ -40,7 +40,7 @@ Future<bool> showMarketOptionLinkSheet(
   required int optionId,
   required String optionName,
 }) async {
-  final result = await showMasterSheet<bool>(
+  final result = await showAppSheet<bool>(
     context,
     builder: (_) => _MarketOptionLinkSheet(
       listingId: listingId,

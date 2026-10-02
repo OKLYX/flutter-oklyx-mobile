@@ -235,7 +235,7 @@ class _CategoryTreeListState extends State<CategoryTreeList> {
     );
 
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
         border: Border.all(color: scheme.outlineVariant),

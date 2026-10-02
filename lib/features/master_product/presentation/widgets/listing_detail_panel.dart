@@ -8,6 +8,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/widget
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/tag_chips_input.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/info_bubble_icon.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 const String _channelOnlyReason = '마스터 옵션이 없는 채널 전용 옵션입니다';
 const String _optionLinkUnknownReason =
@@ -277,17 +278,13 @@ class _ListingDetailPanelState extends State<ListingDetailPanel> {
           TextField(
             controller: _nameController,
             enabled: !_savingName,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
             onChanged: (next) => setState(() => _nameDraft = next),
           ),
           OutlinedButton(
             onPressed:
                 _savingName || _trimmedName.isEmpty ? null : _saveName,
             style: _smallOutlined(foreground: AppColors.infoForeground),
-            child: _savingName ? const _BusyLabel('저장 중') : const Text('저장'),
+            child: _savingName ? const AppBusyLabel('저장 중') : const Text('저장'),
           ),
           OutlinedButton(
             onPressed: _savingName
@@ -320,7 +317,7 @@ class _ListingDetailPanelState extends State<ListingDetailPanel> {
     if (widget.optionsLoading && options.isEmpty) {
       content = const Padding(
         padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: _BusyLabel('옵션 불러오는 중'),
+        child: AppBusyLabel('옵션 불러오는 중', size: 12),
       );
     } else if (options.isEmpty) {
       content = Padding(
@@ -566,7 +563,7 @@ class _ListingDetailPanelState extends State<ListingDetailPanel> {
           OutlinedButton(
             onPressed: _savingTags ? null : _saveTags,
             style: _smallOutlined(foreground: AppColors.infoForeground),
-            child: _savingTags ? const _BusyLabel('저장 중') : const Text('저장'),
+            child: _savingTags ? const AppBusyLabel('저장 중') : const Text('저장'),
           ),
           OutlinedButton(
             onPressed: _savingTags
@@ -627,26 +624,5 @@ class _FieldLabel extends StatelessWidget {
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
-      );
-}
-
-/// Spinner + label (web `<Spinner label=… />`).
-class _BusyLabel extends StatelessWidget {
-  final String label;
-
-  const _BusyLabel(this.label);
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(
-            width: 12,
-            height: 12,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
       );
 }

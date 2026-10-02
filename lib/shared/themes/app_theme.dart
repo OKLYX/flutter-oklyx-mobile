@@ -86,11 +86,13 @@ class AppTheme {
           foregroundColor: AppColors.foregroundLight,
         ),
       ),
-      // Confirm / positive actions use brand green.
+      // One filled button for the whole app: brand yellow with a dark label
+      // (FEATURE_2610_02 · N11). Green is written at the call site only for
+      // the buttons listed in D101; red delete buttons keep their own color.
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: AppColors.brandGreen,
-          foregroundColor: Colors.white,
+          backgroundColor: AppColors.brandMain,
+          foregroundColor: AppColors.foregroundLight,
         ),
       ),
       // Brand yellow as text on light surfaces has poor contrast; use a dark
@@ -100,7 +102,11 @@ class AppTheme {
           foregroundColor: onSurface,
         ),
       ),
+      // Every input: outline border on all sides + dense height
+      // (FEATURE_2610_02 · N12). Pages do not write a border or `isDense`.
       inputDecorationTheme: const InputDecorationTheme(
+        border: OutlineInputBorder(),
+        isDense: true,
         focusedBorder: OutlineInputBorder(
           borderSide: BorderSide(color: AppColors.brandMain, width: 2),
         ),

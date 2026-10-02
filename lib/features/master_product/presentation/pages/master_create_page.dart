@@ -14,6 +14,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/widget
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_section_bar.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 
 // Sections while the product-relation overview is on (R-g).
 const String _secProducts = 'products';
@@ -155,13 +156,7 @@ class _MasterCreatePageState extends State<MasterCreatePage> {
       title: '판매 상품 관리 마스터',
       navBarIndex: 2,
       showAppBarDrawerButton: false,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(
-          16,
-          16,
-          16,
-          kBottomNavigationBarHeight + 24,
-        ),
+      body: AppPageBody.scroll(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

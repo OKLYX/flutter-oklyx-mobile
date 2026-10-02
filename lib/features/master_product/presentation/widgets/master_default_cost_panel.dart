@@ -10,6 +10,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/mas
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/master_format.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 // Web file-local `formatWon`.
 String _formatWon(num? v) => v == null ? '—' : '${koNumber(v)}원';
@@ -177,8 +178,6 @@ class _MasterDefaultCostPanelState extends State<MasterDefaultCostPanel> {
               isExpanded: true,
               hint: const Text('택배를 선택하세요'),
               decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                isDense: true,
               ),
               items: [
                 for (final r in widget.carrierRates)
@@ -210,8 +209,6 @@ class _MasterDefaultCostPanelState extends State<MasterDefaultCostPanel> {
               isExpanded: true,
               hint: const Text('상자를 선택하세요'),
               decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                isDense: true,
               ),
               items: [
                 for (final p in widget.packages)
@@ -257,7 +254,7 @@ class _MasterDefaultCostPanelState extends State<MasterDefaultCostPanel> {
                 FilledButton(
                   onPressed: _isSaving || _incomplete ? null : _handleSave,
                   child: _isSaving
-                      ? const _BusyLabel('저장 중...')
+                      ? const AppBusyLabel('저장 중...')
                       : const Text('저장'),
                 ),
                 OutlinedButton(
@@ -299,26 +296,5 @@ class _ReadOnlyBox extends StatelessWidget {
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text(text, style: const TextStyle(fontSize: 14)),
-      );
-}
-
-/// Spinner + label (web `<Spinner label=… />`).
-class _BusyLabel extends StatelessWidget {
-  final String label;
-
-  const _BusyLabel(this.label);
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
       );
 }

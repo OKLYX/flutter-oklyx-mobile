@@ -131,7 +131,6 @@ class _TagChipsInputState extends State<TagChipsInput> {
                   enabled: !widget.disabled,
                   style: const TextStyle(fontSize: 14),
                   decoration: InputDecoration(
-                    isDense: true,
                     border: InputBorder.none,
                     contentPadding:
                         const EdgeInsets.symmetric(horizontal: 4, vertical: 2),

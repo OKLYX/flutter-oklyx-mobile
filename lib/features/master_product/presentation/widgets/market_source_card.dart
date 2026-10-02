@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/market_source.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/master_format.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 
 // Status enum → display text (enum names are never shown to users). Kept
 // local on purpose, same as the web — importing the import sheet's map would
@@ -41,9 +42,7 @@ class MarketSourceCard extends StatelessWidget {
     final preview = market.preview;
     final label = kPlatformLabel[market.platform] ?? market.platform;
     final muted = TextStyle(fontSize: 14, color: scheme.onSurfaceVariant);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -129,7 +128,6 @@ class MarketSourceCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }

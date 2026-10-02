@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/detail_html_view.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_network_image.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_section_bar.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_sheet.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
 
 /// What the channel preview sheet shows (web `ChannelPreviewData`).
 class ChannelPreviewData {
@@ -54,7 +54,7 @@ Future<void> showChannelPreviewSheet(
   BuildContext context,
   ChannelPreviewData data,
 ) =>
-    showMasterSheet<void>(
+    showAppSheet<void>(
       context,
       builder: (_) => _ChannelPreviewSheet(data: data),
     );

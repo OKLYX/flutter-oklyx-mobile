@@ -5,8 +5,9 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/det
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/listing_registration.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/detail_html_view.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 /// "상세 페이지 > 템플릿 변경" (2609_20). Picks the detail template for this
 /// channel cell, previews it (not persisted) and then [저장]/[취소].
@@ -137,7 +138,7 @@ class _TemplateSwitchPaneState extends State<TemplateSwitchPane> {
 
   Future<void> _handleSave() async {
     if (_isOverridden) {
-      final ok = await showMasterConfirmDialog(
+      final ok = await showAppConfirmDialog(
         context,
         message: '직접 수정한 HTML 이 사라지고 선택한 템플릿의 자동생성본으로 대체됩니다. 계속하시겠습니까?',
         confirmText: '저장',
@@ -219,14 +220,12 @@ class _TemplateSwitchPaneState extends State<TemplateSwitchPane> {
           ),
         ],
         const SizedBox(height: 12),
-        const Text('상세 템플릿', style: TextStyle(fontSize: 14)),
-        const SizedBox(height: 8),
         DropdownButtonFormField<int?>(
           // An id outside the active list falls back to the default row
           // (a value missing from items would assert).
           initialValue: ids.contains(_selectedId) ? _selectedId : null,
           isExpanded: true,
-          decoration: const InputDecoration(border: OutlineInputBorder()),
+          decoration: const InputDecoration(labelText: '상세 템플릿'),
           items: [
             DropdownMenuItem<int?>(
               child: Text(
@@ -248,7 +247,7 @@ class _TemplateSwitchPaneState extends State<TemplateSwitchPane> {
         ),
         if (_isLoadingList) ...[
           const SizedBox(height: 8),
-          const _BusyLabel('목록 불러오는 중...'),
+          const AppBusyLabel('목록 불러오는 중...'),
         ],
         if (!_isLoadingList && !_listFailed && _templates.isEmpty) ...[
           const SizedBox(height: 8),
@@ -269,7 +268,7 @@ class _TemplateSwitchPaneState extends State<TemplateSwitchPane> {
           child: _isPreviewing
               ? const SizedBox(
                   height: 160,
-                  child: Center(child: _BusyLabel('불러오는 중...')),
+                  child: Center(child: AppBusyLabel('불러오는 중...')),
                 )
               : DetailHtmlView(html: _previewHtml, height: 480),
         ),
@@ -282,7 +281,7 @@ class _TemplateSwitchPaneState extends State<TemplateSwitchPane> {
           children: [
             FilledButton(
               onPressed: !_isDirty || _busy || _listFailed ? null : _handleSave,
-              child: _isSaving ? const _BusyLabel('저장 중...') : const Text('저장'),
+              child: _isSaving ? const AppBusyLabel('저장 중...') : const Text('저장'),
             ),
             OutlinedButton(
               onPressed: !_isDirty || _busy ? null : _handleCancel,
@@ -301,26 +300,5 @@ class _TemplateSwitchPaneState extends State<TemplateSwitchPane> {
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text(text, style: TextStyle(fontSize: 12, color: foreground)),
-      );
-}
-
-/// Spinner + label (web `<Spinner label=… />`).
-class _BusyLabel extends StatelessWidget {
-  final String label;
-
-  const _BusyLabel(this.label);
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
       );
 }

@@ -7,6 +7,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/widget
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_section_bar.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/structured_data_pane.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/thumbnail_pane.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 
 /// Detail editor tab shell (4 sections). FEATURE_2609_80 / 06.
 ///
@@ -53,7 +54,7 @@ class _DetailEditorTabsState extends State<DetailEditorTabs> {
   String _tab = 'preview';
 
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) => AppCard.flush(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

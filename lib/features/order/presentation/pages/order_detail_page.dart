@@ -698,7 +698,7 @@ class _AcknowledgeSection extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    // [내부 발주처리]는 [발주처리] 바로 옆 · 초록(FilledButton 테마 = brandGreen, D13).
+                    // [내부 발주처리] sits right next to [발주처리] and stays green — written here, not in the theme (D13 · D101).
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -726,6 +726,12 @@ class _AcknowledgeSection extends StatelessWidget {
                                   ),
                                 )
                               : FilledButton(
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: AppColors.brandGreen,
+                                    foregroundColor: Theme.of(context)
+                                        .colorScheme
+                                        .onSecondary,
+                                  ),
                                   onPressed: busy
                                       ? null
                                       : () => context

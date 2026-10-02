@@ -11,7 +11,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/mas
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_image_picker_sheet.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_network_image.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_pool_manage_sheet.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_sheet.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/zoomable_image_viewer.dart';
 import 'package:image_picker/image_picker.dart';
@@ -723,7 +723,7 @@ class _MasterImagePoolState extends State<MasterImagePool> {
     required bool Function(String fieldKey) alreadyIn,
     required void Function(String fieldKey) onPick,
   }) async {
-    final picked = await showMasterSheet<String>(
+    final picked = await showAppSheet<String>(
       context,
       builder: (sheetContext) => _FieldChooserSheet(
         fields: widget.fields,
@@ -770,7 +770,7 @@ class _MasterImagePoolState extends State<MasterImagePool> {
 
   // ---- [선택] picker (pool entries only) ----
   Future<void> _openPicker(ImageField field) async {
-    final tokens = await showMasterSheet<List<int>>(
+    final tokens = await showAppSheet<List<int>>(
       context,
       builder: (sheetContext) => MasterImagePickerSheet(
         fieldLabel: field.label,
@@ -790,7 +790,7 @@ class _MasterImagePoolState extends State<MasterImagePool> {
 
   // ---- [이미지 관리] sheet ----
   Future<void> _openManage() async {
-    await showMasterSheet<void>(
+    await showAppSheet<void>(
       context,
       builder: (sheetContext) => MasterPoolManageSheet(
         images: _manageImagesFor(widget.buffer),
@@ -940,7 +940,7 @@ class _MasterImagePoolState extends State<MasterImagePool> {
     final scheme = Theme.of(context).colorScheme;
     final tagFields = _fieldsForToken(entry.token);
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: scheme.outlineVariant),
@@ -1128,7 +1128,7 @@ class _MasterImagePoolState extends State<MasterImagePool> {
       height: 256,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: scheme.outlineVariant),
       ),
       child: Column(
@@ -1170,7 +1170,7 @@ class _MasterImagePoolState extends State<MasterImagePool> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: scheme.outlineVariant),
       ),
       child: Column(
@@ -1230,7 +1230,6 @@ class _MasterImagePoolState extends State<MasterImagePool> {
       child: DropdownButton<String>(
         value: current ? _activeGroup : null,
         hint: Text(hint, style: const TextStyle(fontSize: 11)),
-        isDense: true,
         underline: const SizedBox.shrink(),
         style: TextStyle(
           fontSize: 11,
@@ -1414,7 +1413,7 @@ class _MasterImagePoolState extends State<MasterImagePool> {
       return Container(
         constraints: const BoxConstraints(minHeight: 96),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(4),
           border: Border.all(color: scheme.outlineVariant),
         ),
         child: Center(child: _loadingRow(context, '이미지 풀 불러오는 중...')),

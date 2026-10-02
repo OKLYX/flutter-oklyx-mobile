@@ -4,9 +4,10 @@ import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/detail_content.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/listing_registration.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_image_pool.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_network_image.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 /// Tab 2 — structured data editing (plain block list, not WYSIWYG).
 /// FEATURE_2609_80 / 06.
@@ -112,7 +113,7 @@ class _StructuredDataPaneState extends State<StructuredDataPane> {
       return;
     }
     if (widget.generated.source == GeneratedSourceCode.manualOverride) {
-      final ok = await showMasterConfirmDialog(
+      final ok = await showAppConfirmDialog(
         context,
         message: '수동 수정본이 유지되고 썸네일·판매가만 갱신됩니다. 계속하시겠습니까?',
         confirmText: '계속',
@@ -209,7 +210,7 @@ class _StructuredDataPaneState extends State<StructuredDataPane> {
         FilledButton(
           onPressed: !_canSave || _isSaving ? null : _handleSave,
           child:
-              _isSaving ? const _BusyLabel('저장 중...') : const Text('저장 및 재생성'),
+              _isSaving ? const AppBusyLabel('저장 중...') : const Text('저장 및 재생성'),
         ),
       ],
     );
@@ -224,12 +225,10 @@ class _StructuredDataPaneState extends State<StructuredDataPane> {
       }
       return [
         const SizedBox(height: 16),
-        Text(key, style: const TextStyle(fontSize: 14)),
-        const SizedBox(height: 8),
         TextField(
           controller: controller,
           decoration: InputDecoration(
-            border: const OutlineInputBorder(),
+            labelText: key,
             hintText: block.defaultValue ?? '(상품정보에서 파생)',
           ),
           onChanged: (value) =>
@@ -248,25 +247,4 @@ class _StructuredDataPaneState extends State<StructuredDataPane> {
     }
     return const [];
   }
-}
-
-/// Spinner + label inside a busy button (web `<Spinner label=… />`).
-class _BusyLabel extends StatelessWidget {
-  final String label;
-
-  const _BusyLabel(this.label);
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
-      );
 }

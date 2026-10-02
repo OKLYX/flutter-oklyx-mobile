@@ -10,10 +10,13 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/mas
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/shipping_override.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_tool_args.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/shipping_override_fields.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/info_bubble_icon.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 
 /// Per-channel (listing) shipping override page — FEATURE_2609_80 / 08.
 ///
@@ -163,7 +166,7 @@ class _ChannelShippingPageState extends State<ChannelShippingPage> {
         '배송 설정 미완료가 되고 [쿠팡에 올리기]가 비활성화됩니다.',
       );
     }
-    final ok = await showMasterConfirmDialog(
+    final ok = await showAppConfirmDialog(
       context,
       title: '채널 배송 설정 초기화',
       message: message.toString(),
@@ -220,13 +223,7 @@ class _ChannelShippingPageState extends State<ChannelShippingPage> {
         title: '배송 설정 — ${widget.args.channelLabel}',
         navBarIndex: 2,
         onBackPressed: _close,
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            16,
-            16,
-            16,
-            kBottomNavigationBarHeight + 24,
-          ),
+        body: AppPageBody(
           children: [
             Text(
               '판매자·마스터 배송 설정이 채워져 있습니다. 바꾼 값만 이 채널에 저장되고, 그대로 둔 값은 '
@@ -235,26 +232,7 @@ class _ChannelShippingPageState extends State<ChannelShippingPage> {
             ),
             const SizedBox(height: 12),
             if (_error.isNotEmpty) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: scheme.errorContainer,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.error_outline, size: 16, color: scheme.error),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _error,
-                        style: TextStyle(fontSize: 14, color: scheme.error),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              AppErrorBox(message: _error),
               const SizedBox(height: 12),
             ],
             ShippingOverrideFields(
@@ -304,7 +282,7 @@ class _ChannelShippingPageState extends State<ChannelShippingPage> {
                   child: FilledButton(
                     onPressed: _busy ? null : _handleSave,
                     child: _isSaving
-                        ? const _BusyLabel('저장 중...')
+                        ? const AppBusyLabel('저장 중...')
                         : const Text('저장'),
                   ),
                 ),
@@ -315,25 +293,4 @@ class _ChannelShippingPageState extends State<ChannelShippingPage> {
       ),
     );
   }
-}
-
-/// Spinner + label (web `<Spinner label=… />`).
-class _BusyLabel extends StatelessWidget {
-  final String label;
-
-  const _BusyLabel(this.label);
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
-      );
 }

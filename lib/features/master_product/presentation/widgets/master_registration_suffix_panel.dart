@@ -6,6 +6,7 @@ import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/option_check_suffix_control.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 /// Master registration-name "옵션확인" suffix override panel on the master
 /// detail screen — FEATURE_2609_80 / 07.
@@ -153,7 +154,7 @@ class _MasterRegistrationSuffixPanelState
           if (_isLoading)
             const SizedBox(
               height: 64,
-              child: Center(child: _BusyLabel('불러오는 중...', size: 20)),
+              child: Center(child: AppBusyLabel('불러오는 중...', size: 20)),
             )
           else ...[
             OptionCheckSuffixControl(
@@ -178,33 +179,11 @@ class _MasterRegistrationSuffixPanelState
             const SizedBox(height: 12),
             FilledButton(
               onPressed: _isSaving ? null : _handleSave,
-              child: _isSaving ? const _BusyLabel('저장 중...') : const Text('저장'),
+              child: _isSaving ? const AppBusyLabel('저장 중...') : const Text('저장'),
             ),
           ],
         ],
       ),
     );
   }
-}
-
-/// Spinner + label (web `<Spinner label=… />`).
-class _BusyLabel extends StatelessWidget {
-  final String label;
-  final double size;
-
-  const _BusyLabel(this.label, {this.size = 16});
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: size,
-            height: size,
-            child: const CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
-      );
 }

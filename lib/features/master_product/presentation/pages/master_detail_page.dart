@@ -27,7 +27,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/widget
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/listing_row.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_basic_info_panel.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_category_panel.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_default_cost_panel.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_field_values_panel.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_image_pool.dart';
@@ -41,6 +41,10 @@ import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/info_bubble_icon.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 
 /// Why a channel cannot be created for a seller without outbound/return
 /// places (user decision 2026-08-28).
@@ -698,7 +702,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
     final lines = preview != null && !preview.inSync
         ? _syncSummaryLines(preview)
         : const <String>[];
-    final ok = await showMasterConfirmDialog(
+    final ok = await showAppConfirmDialog(
       context,
       title: '채널에 반영',
       message: '마스터 변경분을 연결된 채널에 반영합니다.'
@@ -785,7 +789,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
   }
 
   Future<void> _handleApplyNames() async {
-    final ok = await showMasterConfirmDialog(
+    final ok = await showAppConfirmDialog(
       context,
       title: '옵션명 일괄 적용',
       message: '채널에서 따로 지정한 옵션명이 마스터 옵션명으로 되돌아갑니다. 진행할까요?',
@@ -837,7 +841,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
     if (_isDeleting || master == null) {
       return;
     }
-    final ok = await showMasterConfirmDialog(
+    final ok = await showAppConfirmDialog(
       context,
       title: '마스터 삭제',
       message: '${master.name} 을(를) 삭제합니다. 되돌릴 수 없습니다.\n\n'
@@ -940,7 +944,6 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final matrix = _matrix;
     final master = _master;
     final preview = _syncPreview;
@@ -985,13 +988,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
       onBackPressed: () => context.go(Routes.masterProductsPath),
       // A single scroll (not a lazy ListView) so offstage sections are never
       // disposed while scrolled away (R9 — unsaved input).
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(
-          16,
-          16,
-          16,
-          kBottomNavigationBarHeight + 24,
-        ),
+      body: AppPageBody.scroll(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1025,11 +1022,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
             ],
             if (_error.isNotEmpty) ...[
               const SizedBox(height: 12),
-              _NoticeBox(
-                text: _error,
-                background: scheme.errorContainer,
-                foreground: scheme.error,
-              ),
+              AppErrorBox(message: _error),
             ],
             const SizedBox(height: 12),
             sectionBar,
@@ -1066,7 +1059,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
                     const SizedBox(height: 12, key: ValueKey('inner-tabs-gap')),
                   ],
                   if (master != null)
-                    Card(
+                    AppCard.flush(
                       key: const ValueKey('tabs-card'),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1164,7 +1157,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
         FilledButton(
           onPressed: selectedCount == 0 || _busy ? null : _handleBatchAdd,
           child: _isBatchAdding
-              ? const _BusyLabel('등록 중...')
+              ? const AppBusyLabel('등록 중...')
               : Text(
                   '선택 채널 일괄 등록${selectedCount > 0 ? ' ($selectedCount)' : ''}'),
         ),
@@ -1175,7 +1168,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
               // ⚠️ Strict `== true`: an unknown preview never blocks.
               onPressed: _isPropagating || inSync ? null : _handlePropagate,
               child: _isPropagating
-                  ? const _BusyLabel('반영 중...')
+                  ? const AppBusyLabel('반영 중...')
                   : Text(
                       '채널에 반영하기${preview != null && !preview.inSync ? ' (${preview.totals.affectedChannels})' : ''}'),
             ),
@@ -1196,7 +1189,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
                   ? null
                   : _handleDelete,
               child: _isDeleting
-                  ? const _BusyLabel('삭제 중...')
+                  ? const AppBusyLabel('삭제 중...')
                   : const Text('마스터 삭제'),
             ),
             if (_master == null)
@@ -1318,10 +1311,10 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
     if (_isLoading) {
       body = const SizedBox(
         height: 128,
-        child: Center(child: _BusyLabel('불러오는 중...')),
+        child: Center(child: AppBusyLabel('불러오는 중...')),
       );
     } else if (matrix == null || matrix.rows.isEmpty) {
-      body = Card(
+      body = AppCard.flush(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
           child: Text(
@@ -1354,7 +1347,10 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
               dense: true,
               contentPadding: EdgeInsets.zero,
             ),
-          for (final row in sortedRows) _buildAccountCard(context, matrix, row),
+          for (var i = 0; i < sortedRows.length; i++) ...[
+            if (i > 0) const SizedBox(height: 8),
+            _buildAccountCard(context, matrix, sortedRows[i]),
+          ],
         ],
       );
     }
@@ -1398,7 +1394,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
       foregroundColor: AppColors.infoForeground,
     );
 
-    return Card(
+    return AppCard.flush(
       key: ValueKey('account-${row.accountId}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1515,7 +1511,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
                                     '${row.sellerName} · ${row.platform}',
                                   ),
                           child: rowBusy
-                              ? const _BusyLabel('만드는 중', size: 12)
+                              ? const AppBusyLabel('만드는 중')
                               : const Text('쿠팡에 올리기'),
                         ),
                       ),
@@ -1532,7 +1528,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
                                     row.platform,
                                   ),
                           child: rowBusy
-                              ? const _BusyLabel('등록 중', size: 12)
+                              ? const AppBusyLabel('등록 중')
                               : const Text('등록'),
                         ),
                       ),
@@ -1593,7 +1589,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
                                   row.sellerId,
                                 ),
                         child: _shippingLoadingId == row.accountId
-                            ? const _BusyLabel('여는 중', size: 10)
+                            ? const AppBusyLabel('여는 중')
                             : const Text('배송 설정하기'),
                       ),
                     ],
@@ -1898,26 +1894,5 @@ class _NoticeBox extends StatelessWidget {
           text,
           style: TextStyle(fontSize: fontSize, color: foreground),
         ),
-      );
-}
-
-class _BusyLabel extends StatelessWidget {
-  final String label;
-  final double size;
-
-  const _BusyLabel(this.label, {this.size = 16});
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: size,
-            height: size,
-            child: const CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
       );
 }

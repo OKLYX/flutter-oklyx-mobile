@@ -7,9 +7,12 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/mas
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_route_args.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_network_image.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 
 /// Master product list (FEATURE_2609_80 / 04 — web `master-products/components/MasterProductList.tsx`
 /// + `MasterProductSearchCard.tsx` + `masterListQuery.ts` @09208a0).
@@ -143,7 +146,7 @@ class _MasterProductListPageState extends State<MasterProductListPage> {
   }
 
   Future<void> _delete(MasterProduct target) async {
-    final ok = await showMasterConfirmDialog(
+    final ok = await showAppConfirmDialog(
       context,
       title: '마스터 삭제',
       message: '${target.name} 을(를) 삭제합니다. 되돌릴 수 없습니다.\n\n'
@@ -175,46 +178,30 @@ class _MasterProductListPageState extends State<MasterProductListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return ScaffoldWithNavBar(
       title: '판매상품 마스터',
       navBarIndex: 2,
       showAppBarDrawerButton: false,
-      body: ListView(
+      body: AppPageBody(
         controller: _scrollController,
-        padding: const EdgeInsets.fromLTRB(
-          16,
-          16,
-          16,
-          kBottomNavigationBarHeight + 24,
-        ),
         children: [
           _buildSearchCard(),
-          if (_error.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              color: scheme.errorContainer,
-              child: Text(_error, style: TextStyle(color: scheme.error)),
-            ),
+          if (_error.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            AppErrorBox(message: _error),
+          ],
           const SizedBox(height: 12),
           if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(32),
-              child: Center(child: CircularProgressIndicator()),
-            )
+            const AppLoading()
           else if (_masters.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: Text(
-                  _query != null ? '검색 결과가 없습니다.' : '등록된 판매상품 마스터가 없습니다.',
-                  style: TextStyle(color: scheme.onSurfaceVariant),
-                ),
-              ),
+            AppEmpty(
+              _query != null ? '검색 결과가 없습니다.' : '등록된 판매상품 마스터가 없습니다.',
             )
           else
-            ..._masters.map(_buildRow),
+            for (var i = 0; i < _masters.length; i++) ...[
+              if (i > 0) const SizedBox(height: 8),
+              _buildRow(_masters[i]),
+            ],
           if (_isLoadingMore)
             const Padding(
               padding: EdgeInsets.all(16),
@@ -225,14 +212,10 @@ class _MasterProductListPageState extends State<MasterProductListPage> {
     );
   }
 
-  Widget _buildSearchCard() => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+  Widget _buildSearchCard() => AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('검색'),
-              const SizedBox(height: 8),
               ValueListenableBuilder<TextEditingValue>(
                 valueListenable: _searchController,
                 builder: (context, value, _) => TextField(
@@ -240,8 +223,8 @@ class _MasterProductListPageState extends State<MasterProductListPage> {
                   textInputAction: TextInputAction.search,
                   onSubmitted: (_) => _search(),
                   decoration: InputDecoration(
+                    labelText: '검색',
                     hintText: '이름 · 상품ID · 옵션ID',
-                    border: const OutlineInputBorder(),
                     suffixIcon: value.text.isEmpty
                         ? null
                         : IconButton(
@@ -253,11 +236,9 @@ class _MasterProductListPageState extends State<MasterProductListPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text('정렬'),
-              const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 initialValue: _sort,
-                decoration: const InputDecoration(border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: '정렬'),
                 items: [
                   for (final option in _sortOptions)
                     DropdownMenuItem(
@@ -286,18 +267,14 @@ class _MasterProductListPageState extends State<MasterProductListPage> {
               ),
             ],
           ),
-        ),
       );
 
-  Widget _buildRow(MasterProduct m) => Card(
-        child: InkWell(
+  Widget _buildRow(MasterProduct m) => AppCard.row(
           onTap: () => context.pushNamed(
             Routes.masterProductDetail,
             pathParameters: {'id': '${m.id}'},
             extra: const MasterDetailArgs(),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
             child: Row(
               children: [
                 MasterNetworkImage(
@@ -326,7 +303,5 @@ class _MasterProductListPageState extends State<MasterProductListPage> {
                 ),
               ],
             ),
-          ),
-        ),
       );
 }
