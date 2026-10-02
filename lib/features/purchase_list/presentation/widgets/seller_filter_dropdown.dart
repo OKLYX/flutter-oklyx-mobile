@@ -34,7 +34,6 @@ class SellerFilterDropdown extends StatelessWidget {
       hint: includeAll ? null : const Text('선택'),
       decoration: InputDecoration(
         labelText: labelText,
-        border: const OutlineInputBorder(),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),

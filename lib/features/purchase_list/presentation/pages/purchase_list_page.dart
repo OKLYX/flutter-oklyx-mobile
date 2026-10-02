@@ -11,6 +11,9 @@ import '../widgets/completed_purchase_filter.dart';
 import '../widgets/purchase_product_card.dart';
 import '../widgets/unmapped_orders_section.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 /// 구매목록 페이지 (하단 탭 3번째, `/list-to-shop`).
 ///
@@ -45,14 +48,15 @@ class _PurchaseListView extends StatelessWidget {
       showDrawer: true,
       showAppBarDrawerButton: false,
       body: BlocConsumer<PurchaseListBloc, PurchaseListState>(
-        // 일시적 오류와 입고 결과 안내(stockRecorded)를 SnackBar로 표시한다.
+        // Shows transient errors and the stock intake result notice
+        // (stockRecorded) as a toast.
         listenWhen: (prev, curr) =>
             curr is PurchaseListLoaded &&
             (curr.actionError != null || curr.stockRecorded != null),
         listener: (context, state) {
           final loaded = state as PurchaseListLoaded;
           if (loaded.actionError != null) {
-            _snack(context, loaded.actionError!);
+            showErrorToast(context, loaded.actionError!);
           }
           if (loaded.stockRecorded != null) {
             if (loaded.stockRecorded == false) {
@@ -65,13 +69,20 @@ class _PurchaseListView extends StatelessWidget {
         },
         builder: (context, state) {
           if (state is PurchaseListInitial || state is PurchaseListLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const AppPageBody(children: [AppLoading()]);
           }
           if (state is PurchaseListError) {
-            return _ErrorRetry(
-              message: state.message,
-              onRetry: () =>
-                  context.read<PurchaseListBloc>().add(LoadPurchaseList()),
+            return AppPageBody(
+              children: [
+                AppErrorBox(
+                  message: state.message,
+                  action: FilledButton(
+                    onPressed: () =>
+                        context.read<PurchaseListBloc>().add(LoadPurchaseList()),
+                    child: const Text('다시 시도'),
+                  ),
+                ),
+              ],
             );
           }
           return _LoadedBody(state: state as PurchaseListLoaded);
@@ -80,17 +91,11 @@ class _PurchaseListView extends StatelessWidget {
     );
   }
 
-  /// 하단 네비게이션이 오버레이라 floating + bottom:70 이 필수다.
+  /// Only the "stock not recorded" notice passes through here — kind =
+  /// notice. Action errors call showErrorToast directly
+  /// (FEATURE_2610_02 · N13).
   void _snack(BuildContext context, String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-        ),
-      );
+    showNoticeToast(context, message);
   }
 }
 
@@ -104,25 +109,14 @@ class _LoadedBody extends StatelessWidget {
     final bloc = context.read<PurchaseListBloc>();
     final busy = state.isRefreshing || state.isSyncing;
 
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 탭 스위처 (최상단)
-          _TabSwitcher(
-            activeTab: state.activeTab,
-            onChanged: (tab) => bloc.add(SwitchTab(tab: tab)),
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: state.activeTab == PurchaseTab.active
-                ? _ActiveTabBody(state: state, busy: busy)
-                : _CompletedTabBody(state: state, busy: busy),
-          ),
-        ],
-      ),
+    final tabs = _TabSwitcher(
+      activeTab: state.activeTab,
+      onChanged: (tab) => bloc.add(SwitchTab(tab: tab)),
     );
+    // Each tab owns one scroll; the tab switcher is its first block (D100).
+    return state.activeTab == PurchaseTab.active
+        ? _ActiveTabBody(state: state, busy: busy, tabs: tabs)
+        : _CompletedTabBody(state: state, busy: busy, tabs: tabs);
   }
 }
 
@@ -154,16 +148,27 @@ class _TabSwitcher extends StatelessWidget {
 class _ActiveTabBody extends StatelessWidget {
   final PurchaseListLoaded state;
   final bool busy;
+  final Widget tabs;
 
-  const _ActiveTabBody({required this.state, required this.busy});
+  const _ActiveTabBody({
+    required this.state,
+    required this.busy,
+    required this.tabs,
+  });
 
   @override
   Widget build(BuildContext context) {
     final bloc = context.read<PurchaseListBloc>();
 
-    return Column(
+    return AppPageBody.slivers(
+      extraBottom: MediaQuery.of(context).viewInsets.bottom,
+      slivers: [
+        SliverToBoxAdapter(
+          child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        tabs,
+        const SizedBox(height: 8),
         // 툴바: 주문내역 동기화 + 수동 추가 (판매자 드롭다운·재적재 없음)
         Row(
           children: [
@@ -245,18 +250,12 @@ class _ActiveTabBody extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        // 항목 리스트 + 미매핑 섹션을 하나의 스크롤 영역으로 합쳐
-        // 마지막 항목/섹션이 플로팅 하단바에 가리지 않도록 bottom 패딩을 둔다.
-        // 키보드가 올라와도 입력칸이 가리지 않도록 viewInsets 만큼 더 띄운다.
-        Expanded(
-          child: CustomScrollView(
-            slivers: [
+      ],
+          ),
+        ),
               if (state.items.isEmpty && state.unmappedOrders.isEmpty)
                 const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(child: Text('구매할 항목이 없습니다.')),
-                  ),
+                  child: AppEmpty('구매할 항목이 없습니다.'),
                 )
               else if (state.items.isNotEmpty)
                 SliverList.separated(
@@ -295,18 +294,10 @@ class _ActiveTabBody extends StatelessWidget {
                 ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.only(
-                    top: 8,
-                    bottom: kBottomNavigationBarHeight +
-                        24 +
-                        MediaQuery.of(context).viewInsets.bottom,
-                  ),
+                  padding: const EdgeInsets.only(top: 8),
                   child: UnmappedOrdersSection(orders: state.unmappedOrders),
                 ),
               ),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -315,45 +306,51 @@ class _ActiveTabBody extends StatelessWidget {
 class _CompletedTabBody extends StatelessWidget {
   final PurchaseListLoaded state;
   final bool busy;
+  final Widget tabs;
 
-  const _CompletedTabBody({required this.state, required this.busy});
+  const _CompletedTabBody({
+    required this.state,
+    required this.busy,
+    required this.tabs,
+  });
 
   @override
   Widget build(BuildContext context) {
     final bloc = context.read<PurchaseListBloc>();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        CompletedPurchaseFilter(
-          from: state.completedFrom,
-          to: state.completedTo,
-          isLoading: state.isLoadingCompleted,
-          onApply: (from, to) => bloc.add(
-            ApplyCompletedFilter(from: from, to: to),
+    return AppPageBody.slivers(
+      extraBottom: MediaQuery.of(context).viewInsets.bottom,
+      slivers: [
+        SliverToBoxAdapter(child: tabs),
+        const SliverToBoxAdapter(child: SizedBox(height: 8)),
+        SliverToBoxAdapter(
+          child: CompletedPurchaseFilter(
+            from: state.completedFrom,
+            to: state.completedTo,
+            isLoading: state.isLoadingCompleted,
+            onApply: (from, to) => bloc.add(
+              ApplyCompletedFilter(from: from, to: to),
+            ),
+            onReset: () => bloc.add(ResetCompletedFilter()),
           ),
-          onReset: () => bloc.add(ResetCompletedFilter()),
         ),
-        const SizedBox(height: 8),
-        Expanded(child: _buildList(context, bloc)),
+        const SliverToBoxAdapter(child: SizedBox(height: 8)),
+        _buildList(context, bloc),
       ],
     );
   }
 
   Widget _buildList(BuildContext context, PurchaseListBloc bloc) {
     if (state.isLoadingCompleted) {
-      return const Center(child: CircularProgressIndicator());
+      return const SliverToBoxAdapter(child: AppLoading());
     }
     final items = state.completedItems ?? const [];
     if (items.isEmpty) {
-      return const Center(child: Text('구매완료 내역이 없습니다.'));
+      return const SliverToBoxAdapter(
+        child: AppEmpty('구매완료 내역이 없습니다.'),
+      );
     }
-    return ListView.separated(
-      padding: EdgeInsets.only(
-        bottom: kBottomNavigationBarHeight +
-            24 +
-            MediaQuery.of(context).viewInsets.bottom,
-      ),
+    return SliverList.separated(
       itemCount: items.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
@@ -387,27 +384,6 @@ class _CompletedTabBody extends StatelessWidget {
           )),
         );
       },
-    );
-  }
-}
-
-class _ErrorRetry extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _ErrorRetry({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(message, textAlign: TextAlign.center),
-          const SizedBox(height: 12),
-          ElevatedButton(onPressed: onRetry, child: const Text('재시도')),
-        ],
-      ),
     );
   }
 }

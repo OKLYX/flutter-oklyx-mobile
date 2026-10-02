@@ -13,7 +13,11 @@ import '../bloc/stock_ledger_bloc.dart';
 import '../bloc/stock_ledger_event.dart';
 import '../bloc/stock_ledger_state.dart';
 import '../widgets/movement_tile.dart';
-import '../widgets/stock_error_retry.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import '../widgets/stock_product_picker_dialog.dart';
 
 /// 입고·조정 페이지 (`/stock/in-out`, PLAN 2609_28 D6~D10 · D22).
@@ -97,9 +101,6 @@ class _StockEntryViewState extends State<_StockEntryView> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset =
-        kBottomNavigationBarHeight + MediaQuery.of(context).padding.bottom;
-
     return ScaffoldWithNavBar(
       title: '입고·조정',
       navBarIndex: 2,
@@ -112,27 +113,33 @@ class _StockEntryViewState extends State<_StockEntryView> {
         listener: (context, state) {
           final loaded = state as StockLedgerLoaded;
           if (loaded.actionError != null) {
-            _snack(context, loaded.actionError!);
+            showErrorToast(context, loaded.actionError!);
           } else if (loaded.actionMessage != null) {
-            _snack(context, loaded.actionMessage!);
+            showSuccessToast(context, loaded.actionMessage!);
             _afterRecorded();
           }
           context.read<StockLedgerBloc>().add(ClearStockLedgerNotice());
         },
         builder: (context, state) {
           if (state is StockLedgerInitial || state is StockLedgerLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const AppPageBody(children: [AppLoading()]);
           }
           if (state is StockLedgerError) {
-            return StockErrorRetry(
-              message: state.message,
-              onRetry: () =>
-                  context.read<StockLedgerBloc>().add(LoadEntryData()),
+            return AppPageBody(
+              children: [
+                AppErrorBox(
+                  message: state.message,
+                  action: FilledButton(
+                    onPressed: () =>
+                        context.read<StockLedgerBloc>().add(LoadEntryData()),
+                    child: const Text('다시 시도'),
+                  ),
+                ),
+              ],
             );
           }
           final loaded = state as StockLedgerLoaded;
-          return SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, bottomInset + 24),
+          return AppPageBody.scroll(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -223,8 +230,6 @@ class _StockEntryViewState extends State<_StockEntryView> {
             helperText: _type == StockMovementType.adjust
                 ? '실사 차이는 음수로 입력할 수 있습니다'
                 : null,
-            border: const OutlineInputBorder(),
-            isDense: true,
           ),
         ),
         if (reasons.isNotEmpty) ...[
@@ -235,8 +240,6 @@ class _StockEntryViewState extends State<_StockEntryView> {
             hint: const Text('선택'),
             decoration: const InputDecoration(
               labelText: '사유',
-              border: OutlineInputBorder(),
-              isDense: true,
             ),
             items: reasons
                 .map((r) =>
@@ -261,8 +264,6 @@ class _StockEntryViewState extends State<_StockEntryView> {
             enabled: !busy,
             decoration: const InputDecoration(
               labelText: '메모 (필수)',
-              border: OutlineInputBorder(),
-              isDense: true,
             ),
           ),
         ],
@@ -278,8 +279,6 @@ class _StockEntryViewState extends State<_StockEntryView> {
             decoration: const InputDecoration(
               labelText: '단가 (선택)',
               helperText: '미입력 시 상품 등록가가 적용됩니다',
-              border: OutlineInputBorder(),
-              isDense: true,
             ),
           ),
         ],
@@ -289,8 +288,6 @@ class _StockEntryViewState extends State<_StockEntryView> {
           child: InputDecorator(
             decoration: const InputDecoration(
               labelText: '날짜',
-              border: OutlineInputBorder(),
-              isDense: true,
             ),
             child: Text(_movedOnText),
           ),
@@ -298,14 +295,10 @@ class _StockEntryViewState extends State<_StockEntryView> {
         const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
-          child: ElevatedButton(
+          child: FilledButton(
             onPressed: busy ? null : () => _submit(context),
             child: busy
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
+                ? const AppBusyLabel('기록')
                 : const Text('기록'),
           ),
         ),
@@ -323,8 +316,6 @@ class _StockEntryViewState extends State<_StockEntryView> {
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: '상품',
-          border: const OutlineInputBorder(),
-          isDense: true,
           helperText: locked ? '구매기록의 물품을 그대로 씁니다' : null,
         ),
         child: Text(
@@ -352,8 +343,6 @@ class _StockEntryViewState extends State<_StockEntryView> {
       child: InputDecorator(
         decoration: const InputDecoration(
           labelText: '구매기록',
-          border: OutlineInputBorder(),
-          isDense: true,
         ),
         child: Text(
           _purchase == null
@@ -383,8 +372,6 @@ class _StockEntryViewState extends State<_StockEntryView> {
       child: InputDecorator(
         decoration: const InputDecoration(
           labelText: '반품 건',
-          border: OutlineInputBorder(),
-          isDense: true,
         ),
         child: Text(
           _returnClaim == null
@@ -420,8 +407,8 @@ class _StockEntryViewState extends State<_StockEntryView> {
       _snack(context, '입고 대기 중인 구매기록이 없습니다.');
       return;
     }
-    final picked = await showModalBottomSheet<PurchaseCandidate>(
-      context: context,
+    final picked = await showAppSheet<PurchaseCandidate>(
+      context,
       builder: (_) => _PickerSheet(
         title: '입고 대기 구매',
         children: state.purchaseCandidates
@@ -455,8 +442,8 @@ class _StockEntryViewState extends State<_StockEntryView> {
       _snack(context, '반품 입고 대기 건이 없습니다.');
       return;
     }
-    final picked = await showModalBottomSheet<ReturnCandidate>(
-      context: context,
+    final picked = await showAppSheet<ReturnCandidate>(
+      context,
       builder: (_) => _PickerSheet(
         title: '반품 입고 대기',
         children: state.returnCandidates
@@ -500,12 +487,12 @@ class _StockEntryViewState extends State<_StockEntryView> {
   void _submit(BuildContext context) {
     final productId = _product?.id ?? _purchase?.productId;
     if (productId == null) {
-      _snack(context, '상품을 선택하세요.');
+      showInputNoticeToast(context, '상품을 선택하세요.');
       return;
     }
     final quantity = int.tryParse(_qtyController.text.trim());
     if (quantity == null || quantity == 0) {
-      _snack(context, '수량을 입력하세요.');
+      showInputNoticeToast(context, '수량을 입력하세요.');
       return;
     }
 
@@ -533,17 +520,11 @@ class _StockEntryViewState extends State<_StockEntryView> {
     _qtyFocusNode.requestFocus();
   }
 
-  /// 하단 내비가 오버레이라 floating + bottom:70 이 필수다.
+  /// Only "nothing waiting" notices pass through here — kind = notice.
+  /// Errors, results and input prompts call their own toast directly
+  /// (FEATURE_2610_02 · N13).
   void _snack(BuildContext context, String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-        ),
-      );
+    showNoticeToast(context, message);
   }
 }
 

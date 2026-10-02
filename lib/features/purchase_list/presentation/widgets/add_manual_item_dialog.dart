@@ -11,6 +11,7 @@ import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_state.dart';
 import 'product_thumbnail.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 /// 수동항목 추가 다이얼로그.
 ///
@@ -105,16 +106,10 @@ class _AddManualItemViewState extends State<_AddManualItemView> {
     Navigator.of(context).pop();
   }
 
+  /// Only input prompts pass through here — kind = input notice
+  /// (FEATURE_2610_02 · N13).
   void _toast(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-        ),
-      );
+    showInputNoticeToast(context, message);
   }
 
   @override
@@ -138,8 +133,6 @@ class _AddManualItemViewState extends State<_AddManualItemView> {
                 decoration: const InputDecoration(
                   hintText: '상품명 검색...',
                   prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(),
-                  isDense: true,
                   contentPadding:
                       EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
@@ -224,8 +217,6 @@ class _AddManualItemViewState extends State<_AddManualItemView> {
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       decoration: const InputDecoration(
                         labelText: '수량',
-                        isDense: true,
-                        border: OutlineInputBorder(),
                         contentPadding:
                             EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                       ),
@@ -237,7 +228,7 @@ class _AddManualItemViewState extends State<_AddManualItemView> {
                     child: const Text('취소'),
                   ),
                   const SizedBox(width: 4),
-                  ElevatedButton(
+                  FilledButton(
                     onPressed: _submit,
                     child: const Text('추가'),
                   ),

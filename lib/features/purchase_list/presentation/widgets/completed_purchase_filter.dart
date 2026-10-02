@@ -126,7 +126,7 @@ class _CompletedPurchaseFilterState extends State<CompletedPurchaseFilter> {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: ElevatedButton(
+              child: FilledButton(
                 onPressed: widget.isLoading
                     ? null
                     : () => widget.onApply(_from, _to),
@@ -161,7 +161,6 @@ class _DateField extends StatelessWidget {
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: label,
-          border: const OutlineInputBorder(),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           suffixIcon: const Icon(Icons.calendar_today, size: 18),
