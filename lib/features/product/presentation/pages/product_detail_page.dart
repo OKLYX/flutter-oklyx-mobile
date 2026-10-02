@@ -11,7 +11,12 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
-import 'package:flutter_oklyn_mobile/shared/widgets/app_drawer.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/zoomable_image_viewer.dart';
 import 'package:flutter_oklyn_mobile/core/constants/app_constants.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
@@ -38,7 +43,6 @@ class ProductDetailPage extends StatefulWidget {
 class _ProductDetailPageState extends State<ProductDetailPage> {
   late final ProductDetailBloc _productDetailBloc;
   late final PurchasePlaceBloc _purchasePlaceBloc;
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   late TextEditingController _nameController;
   late TextEditingController _brandController;
@@ -111,27 +115,17 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
     _netContentController.text = product.netContent?.toString() ?? '';
   }
 
-  void _showDeleteDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('상품 삭제'),
-        content: const Text('정말로 이 상품을 삭제하시겠습니까?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _productDetailBloc.add(const DeleteProductRequested());
-            },
-            child: const Text('삭제'),
-          ),
-        ],
-      ),
+  Future<void> _showDeleteDialog(BuildContext context) async {
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '상품 삭제',
+      message: '정말로 이 상품을 삭제하시겠습니까?',
+      confirmText: '삭제',
     );
+    if (!ok) {
+      return;
+    }
+    _productDetailBloc.add(const DeleteProductRequested());
   }
 
   void _onSave() {
@@ -142,9 +136,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       countUnit: _selectedCountUnit,
     );
     if (measureError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(measureError)),
-      );
+      showNoticeToast(context, measureError);
       return;
     }
 
@@ -182,85 +174,28 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
         if (state is ProductDetailLoaded) {
           _populateControllers(state.product);
           if (_previousState is ProductDetailUpdating) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('상품이 수정되었습니다')),
-            );
+            showSuccessToast(context, '상품이 수정되었습니다');
           }
         }
         if (state is ProductDetailEditing && state.errorMessage != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.errorMessage!)),
-          );
+          showErrorToast(context, state.errorMessage!);
         }
         if (state is ProductDetailDeleteSuccess) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('상품이 삭제되었습니다')),
-          );
+          showSuccessToast(context, '상품이 삭제되었습니다');
           context.go(Routes.productSearchPath);
         }
         if (state is ProductDetailDeleteError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message)),
-          );
+          showErrorToast(context, state.message);
         }
         if (state is ProductDetailImageError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message)),
-          );
+          showErrorToast(context, state.message);
         }
         _previousState = state;
       },
-      child: Scaffold(
-        key: _scaffoldKey,
-        drawerScrimColor: Theme.of(context)
-            .colorScheme
-            .scrim
-            .withValues(alpha: 0.3),
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.go(Routes.productSearchPath),
-          ),
-          title: const Text('상품상세'),
-          elevation: 0,
-          actions: [
-            BlocBuilder<ProductDetailBloc, ProductDetailState>(
-              builder: (context, state) {
-                if (state is ProductDetailLoaded) {
-                  return Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit),
-                        onPressed: () => _productDetailBloc.add(const EditModeToggled()),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete),
-                        onPressed: () => _showDeleteDialog(context),
-                      ),
-                    ],
-                  );
-                } else if (state is ProductDetailEditing) {
-                  return Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextButton(
-                        onPressed: _onSave,
-                        child: const Text('저장'),
-                      ),
-                      TextButton(
-                        onPressed: _onCancel,
-                        child: const Text('취소'),
-                      ),
-                    ],
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-          ],
-        ),
+      child: ScaffoldWithNavBar(
+        title: '상품상세',
+        navBarIndex: 2,
+        onBackPressed: () => context.go(Routes.productSearchPath),
         body: Stack(
           children: [
             BlocBuilder<ProductDetailBloc, ProductDetailState>(
@@ -271,24 +206,20 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   current is ProductDetailEditing,
               builder: (context, state) {
                 if (state is ProductDetailLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
+                  return const AppPageBody(children: [AppLoading()]);
                 }
 
                 if (state is ProductDetailError) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(state.message),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
+                  return AppPageBody(
+                    children: [
+                      AppErrorBox(
+                        message: state.message,
+                        action: FilledButton(
                           onPressed: () => _productDetailBloc.add(RetryLoadProductDetail(widget.productId)),
                           child: const Text('다시 시도'),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   );
                 }
 
@@ -296,10 +227,34 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                   final product = state is ProductDetailLoaded ? state.product : (state as ProductDetailEditing).product;
                   final isEditing = state is ProductDetailEditing;
 
-                  return SingleChildScrollView(
+                  return AppPageBody.scroll(
                     child: Column(
                       children: [
-                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: isEditing
+                              ? [
+                                  TextButton(
+                                    onPressed: _onSave,
+                                    child: const Text('저장'),
+                                  ),
+                                  TextButton(
+                                    onPressed: _onCancel,
+                                    child: const Text('취소'),
+                                  ),
+                                ]
+                              : [
+                                  IconButton(
+                                    icon: const Icon(Icons.edit),
+                                    onPressed: () => _productDetailBloc
+                                        .add(const EditModeToggled()),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete),
+                                    onPressed: () => _showDeleteDialog(context),
+                                  ),
+                                ],
+                        ),
                         _ImageSection(product: product),
                         const SizedBox(height: 12),
                         _EditableBasicInfoCard(
@@ -348,7 +303,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                         ),
                         const SizedBox(height: 12),
                         _TimestampsCard(product: product),
-                        const SizedBox(height: 80),
                       ],
                     ),
                   );
@@ -389,38 +343,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             ),
           ],
         ),
-        bottomNavigationBar: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: AppColors.brandMain,
-          currentIndex: 2,
-          items: [
-            BottomNavigationBarItem(icon: const Icon(Icons.menu), label: ''),
-            BottomNavigationBarItem(icon: const Icon(Icons.home), label: ''),
-            BottomNavigationBarItem(icon: const Icon(Icons.checklist), label: ''),
-            BottomNavigationBarItem(icon: const Icon(Icons.notifications), label: ''),
-          ],
-          onTap: (index) {
-            switch (index) {
-              case 0:
-                if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
-                  Navigator.pop(context);
-                } else {
-                  _scaffoldKey.currentState?.openDrawer();
-                }
-                break;
-              case 1:
-                context.go(Routes.dashboardPath);
-                break;
-              case 2:
-                context.go(Routes.productSearchPath);
-                break;
-              case 3:
-                context.go(Routes.notificationPath);
-                break;
-            }
-          },
-        ),
-        drawer: const AppDrawer(),
       ),
     ),
   );
@@ -463,23 +385,22 @@ class _ImageSectionState extends State<_ImageSection> {
       context.read<ProductDetailBloc>().add(UploadImageRequested(File(xFile.path)));
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('이미지 선택 실패: $e')),
-      );
+      showErrorToast(context, '이미지 선택 실패: $e');
     }
   }
 
   /// Save the original image to a user-picked location.
   ///
   /// saveAs opens the system dialog so the file lands where the user can find it
-  /// (saveFile writes to the app-private dir on Android). Cancel returns null → no SnackBar.
+  /// (saveFile writes to the app-private dir on Android). Cancel returns null → no toast.
   Future<void> _downloadImage(BuildContext context, dynamic product) async {
-    final messenger = ScaffoldMessenger.of(context);
     setState(() => _isDownloading = true);
     try {
       final bytes = await _loadProductImage(product.id as int);
       if (bytes == null) {
-        _notify(messenger, '이미지를 불러오지 못했습니다.');
+        if (context.mounted) {
+          showErrorToast(context, '이미지를 불러오지 못했습니다.');
+        }
         return;
       }
       final isPng = product.imageUrl
@@ -495,25 +416,16 @@ class _ImageSectionState extends State<_ImageSection> {
         mimeType: isPng ? MimeType.png : MimeType.jpeg,
       );
       if (path == null || path.isEmpty) return;
-      _notify(messenger, '이미지를 저장했습니다.');
+      if (context.mounted) {
+        showSuccessToast(context, '이미지를 저장했습니다.');
+      }
     } catch (_) {
-      _notify(messenger, '이미지 저장에 실패했습니다.');
+      if (context.mounted) {
+        showErrorToast(context, '이미지 저장에 실패했습니다.');
+      }
     } finally {
       if (mounted) setState(() => _isDownloading = false);
     }
-  }
-
-  // Floating + bottom margin so the nav bar overlay doesn't cover it.
-  void _notify(ScaffoldMessengerState messenger, String message) {
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-        ),
-      );
   }
 
   Widget _buildPlaceholder({bool showPlus = false}) {
@@ -692,10 +604,7 @@ class _EditableBasicInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -704,9 +613,6 @@ class _EditableBasicInfoCard extends StatelessWidget {
                 controller: nameController,
                 decoration: InputDecoration(
                   labelText: '상품명',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 ),
               )
@@ -729,7 +635,6 @@ class _EditableBasicInfoCard extends StatelessWidget {
               ),
           ],
         ),
-      ),
     );
   }
 }
@@ -776,9 +681,6 @@ class _EditablePricingCardState extends State<_EditablePricingCard> {
             : null,
         decoration: InputDecoration(
           labelText: label,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         ),
       );
@@ -803,9 +705,6 @@ class _EditablePricingCardState extends State<_EditablePricingCard> {
         value: widget.selectedUnit,
         decoration: InputDecoration(
           labelText: '단위',
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         ),
         items: Unit.values
@@ -834,9 +733,6 @@ class _EditablePricingCardState extends State<_EditablePricingCard> {
         value: widget.selectedCountUnit,
         decoration: InputDecoration(
           labelText: '개수 단위',
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         ),
         items: [
@@ -863,10 +759,7 @@ class _EditablePricingCardState extends State<_EditablePricingCard> {
     final placeNames = (widget.product.purchasePlaces as List<PurchasePlace>)
         .map((place) => place.name)
         .join(', ');
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -904,7 +797,6 @@ class _EditablePricingCardState extends State<_EditablePricingCard> {
             ],
           ],
         ),
-      ),
     );
   }
 }
@@ -932,9 +824,6 @@ class _EditableDimensionsCard extends StatelessWidget {
         controller: controller,
         decoration: InputDecoration(
           labelText: label,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         ),
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -953,10 +842,7 @@ class _EditableDimensionsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -990,7 +876,6 @@ class _EditableDimensionsCard extends StatelessWidget {
             ],
           ],
         ),
-      ),
     );
   }
 }
@@ -1015,9 +900,6 @@ class _EditableDetailsCard extends StatelessWidget {
         maxLines: maxLines,
         decoration: InputDecoration(
           labelText: label,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         ),
       );
@@ -1037,10 +919,7 @@ class _EditableDetailsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1086,7 +965,6 @@ class _EditableDetailsCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }
@@ -1098,10 +976,7 @@ class _TimestampsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1137,7 +1012,6 @@ class _TimestampsCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }

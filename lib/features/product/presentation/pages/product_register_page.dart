@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
-import 'package:flutter_oklyn_mobile/shared/widgets/app_drawer.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/count_unit.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/unit.dart';
@@ -26,7 +28,6 @@ class ProductRegisterPage extends StatefulWidget {
 class _ProductRegisterPageState extends State<ProductRegisterPage> {
   late final ProductRegisterBloc _bloc;
   late final PurchasePlaceBloc _purchasePlaceBloc;
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   late TextEditingController _nameController;
   late TextEditingController _barcodeController;
@@ -87,9 +88,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
   void _onCheckBarcode() {
     final barcode = _barcodeController.text.trim();
     if (barcode.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('바코드를 입력해주세요')),
-      );
+      showInputNoticeToast(context, '바코드를 입력해주세요');
       return;
     }
     _bloc.add(CheckBarcodeRequested(barcode));
@@ -118,17 +117,13 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
   void _onSubmit() {
     final productName = _nameController.text.trim();
     if (productName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('상품명을 입력해주세요')),
-      );
+      showInputNoticeToast(context, '상품명을 입력해주세요');
       return;
     }
 
     final barcode = _barcodeController.text.trim();
     if (barcode.isNotEmpty && (!_barcodeChecked || !_barcodeAvailable)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('바코드 중복 체크를 하세요')),
-      );
+      showInputNoticeToast(context, '바코드 중복 체크를 하세요');
       return;
     }
 
@@ -139,9 +134,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
       countUnit: _selectedCountUnit,
     );
     if (measureError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(measureError)),
-      );
+      showNoticeToast(context, measureError);
       return;
     }
 
@@ -165,17 +158,10 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
   @override
   Widget build(BuildContext context) => BlocProvider.value(
     value: _bloc,
-    child: Scaffold(
-      key: _scaffoldKey,
-      drawerScrimColor: Theme.of(context)
-          .colorScheme
-          .scrim
-          .withValues(alpha: 0.3),
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('상품등록'),
-        elevation: 0,
-      ),
+    child: ScaffoldWithNavBar(
+      title: '상품등록',
+      navBarIndex: 2,
+      showAppBarDrawerButton: false,
       body: BlocListener<ProductRegisterBloc, ProductRegisterState>(
             listenWhen: (previous, current) =>
                 current is BarcodeAvailable ||
@@ -185,46 +171,33 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
                 current is ProductRegisterError,
             listener: (context, state) {
               if (state is ProductRegisterSuccess) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('상품이 등록되었습니다')),
-                );
+                showSuccessToast(context, '상품이 등록되었습니다');
                 context.go(Routes.productSearchPath);
               } else if (state is ProductRegisterError) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(state.message)),
-                );
+                showErrorToast(context, state.message);
               } else if (state is BarcodeAvailable) {
                 setState(() {
                   _barcodeChecked = true;
                   _barcodeAvailable = true;
                 });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('사용 가능한 바코드입니다')),
-                );
+                showSuccessToast(context, '사용 가능한 바코드입니다');
               } else if (state is BarcodeUnavailable) {
                 setState(() {
                   _barcodeChecked = true;
                   _barcodeAvailable = false;
                 });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(state.message)),
-                );
+                showNoticeToast(context, state.message);
               } else if (state is BarcodeCheckError) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(state.message)),
-                );
+                showErrorToast(context, state.message);
               }
             },
             child: BlocBuilder<ProductRegisterBloc, ProductRegisterState>(
               builder: (context, state) {
                 if (state is ProductRegisterLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
+                  return const AppPageBody(children: [AppLoading()]);
                 }
 
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
+                return AppPageBody.scroll(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -266,7 +239,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
                       const SizedBox(height: 32),
                       SizedBox(
                         width: double.infinity,
-                        child: ElevatedButton(
+                        child: FilledButton(
                           onPressed: _bloc.state is ProductRegisterLoading ? null : _onSubmit,
                           child: const Text('상품 등록'),
                         ),
@@ -276,38 +249,6 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
                 );
               },
             ),
-          ),
-          drawer: const AppDrawer(),
-          bottomNavigationBar: BottomNavigationBar(
-            type: BottomNavigationBarType.fixed,
-            selectedItemColor: AppColors.brandMain,
-            currentIndex: 2,
-            items: [
-              BottomNavigationBarItem(icon: const Icon(Icons.menu), label: ''),
-              BottomNavigationBarItem(icon: const Icon(Icons.home), label: ''),
-              BottomNavigationBarItem(icon: const Icon(Icons.checklist), label: ''),
-              BottomNavigationBarItem(icon: const Icon(Icons.notifications), label: ''),
-            ],
-            onTap: (index) {
-              switch (index) {
-                case 0:
-                  if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
-                    Navigator.pop(context);
-                  } else {
-                    _scaffoldKey.currentState?.openDrawer();
-                  }
-                  break;
-                case 1:
-                  context.go(Routes.dashboardPath);
-                  break;
-                case 2:
-                  context.go(Routes.productSearchPath);
-                  break;
-                case 3:
-                  context.go(Routes.notificationPath);
-                  break;
-              }
-            },
           ),
         ),
     );
@@ -342,9 +283,6 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
           : null,
       decoration: InputDecoration(
         labelText: label,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       ),
     );
@@ -354,9 +292,6 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
         value: _selectedCountUnit,
         decoration: InputDecoration(
           labelText: '개수 단위',
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         ),
         items: [
@@ -403,7 +338,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
         const SizedBox(width: 8),
         SizedBox(
           height: 56,
-          child: ElevatedButton(
+          child: FilledButton(
             onPressed: isCheckingInProgress ? null : (showResetButton ? _onReset : _onCheckBarcode),
             child: Text(showResetButton ? '리셋' : '확인'),
           ),
@@ -417,9 +352,6 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
       value: _selectedUnit,
       decoration: InputDecoration(
         labelText: '단위',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       ),
       items: Unit.values
