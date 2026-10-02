@@ -6,6 +6,8 @@ import '../bloc/carrier_rate_create_event.dart';
 import '../bloc/carrier_rate_create_state.dart';
 import '../bloc/carrier_rate_list_bloc.dart';
 import '../bloc/carrier_rate_list_event.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 /// Carrier Rate Input Dialog
 ///
@@ -120,9 +122,7 @@ class _CarrierRateInputDialogState extends State<CarrierRateInputDialog> {
           print('[CarrierRateCreateBloc] State changed: $state');
           if (state is CarrierRateCreateSuccess) {
             print('[CarrierRateCreateBloc] Success state detected');
-            ScaffoldMessenger.of(listenerContext).showSnackBar(
-              const SnackBar(content: Text('택배비가 추가되었습니다')),
-            );
+            showSuccessToast(listenerContext, '택배비가 추가되었습니다');
             context.read<CarrierRateListBloc>().add(FetchCarrierRates());
             Future.delayed(const Duration(milliseconds: 500), () {
               print('[CarrierRateCreateBloc] Calling onClose');
@@ -130,9 +130,7 @@ class _CarrierRateInputDialogState extends State<CarrierRateInputDialog> {
             });
           } else if (state is CarrierRateCreateError) {
             print('[CarrierRateCreateBloc] Error state: ${state.message}');
-            ScaffoldMessenger.of(listenerContext).showSnackBar(
-              SnackBar(content: Text('오류: ${state.message}')),
-            );
+            showErrorToast(listenerContext, '오류: ${state.message}');
           }
         },
         child: SingleChildScrollView(
@@ -256,7 +254,6 @@ class _CarrierRateInputDialogState extends State<CarrierRateInputDialog> {
 
         final decoration = InputDecoration(
           labelText: '배송사',
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         );
 
         // Loading carriers → disabled field with spinner.
@@ -339,9 +336,6 @@ class _CarrierRateInputDialogState extends State<CarrierRateInputDialog> {
       keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: label,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
       ),
       onChanged: onChanged,
     );
@@ -353,9 +347,6 @@ class _CarrierRateInputDialogState extends State<CarrierRateInputDialog> {
       readOnly: true,
       decoration: InputDecoration(
         labelText: '가격 적용',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
         suffixIcon: const Icon(Icons.calendar_today),
       ),
       onTap: () => _selectDate(context),
@@ -378,7 +369,7 @@ class _CarrierRateInputDialogState extends State<CarrierRateInputDialog> {
               child: const Text('취소'),
             ),
             const SizedBox(width: 12),
-            ElevatedButton(
+            FilledButton(
               onPressed: (isSubmitting || !isFormValid)
                   ? null
                   : () {
@@ -387,11 +378,7 @@ class _CarrierRateInputDialogState extends State<CarrierRateInputDialog> {
                           );
                     },
               child: isSubmitting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                  ? const AppBusyLabel('추가')
                   : const Text('추가'),
             ),
           ],

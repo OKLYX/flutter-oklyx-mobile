@@ -8,6 +8,9 @@ import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/create_
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/create_category_event.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/create_category_state.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 class CreateCategoryPage extends StatefulWidget {
   const CreateCategoryPage({super.key});
@@ -51,18 +54,13 @@ class _CreateCategoryPageState extends State<CreateCategoryPage> {
       body: BlocListener<CreateCategoryBloc, CreateCategoryState>(
         listener: (context, state) {
           if (state is CreateCategorySuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('카테고리가 추가되었습니다.')),
-            );
+            showSuccessToast(context, '카테고리가 추가되었습니다.');
             context.pop(true);
           } else if (state is CreateCategoryError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('오류: ${state.message}')),
-            );
+            showErrorToast(context, '오류: ${state.message}');
           }
         },
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+        child: AppPageBody.scroll(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -76,7 +74,6 @@ class _CreateCategoryPageState extends State<CreateCategoryPage> {
                 decoration: const InputDecoration(
                   labelText: '카테고리명 *',
                   hintText: '카테고리 이름을 입력하세요',
-                  border: OutlineInputBorder(),
                 ),
                 maxLength: 100,
                 onChanged: (value) {
@@ -89,7 +86,6 @@ class _CreateCategoryPageState extends State<CreateCategoryPage> {
               DropdownButtonFormField<String>(
                 decoration: const InputDecoration(
                   labelText: '플랫폼 *',
-                  border: OutlineInputBorder(),
                 ),
                 value: _selectedPlatform.isEmpty ? null : _selectedPlatform,
                 items: ['COUPANG', 'GMARKET', 'AUCTION', 'SMARTSTORE']
@@ -111,7 +107,6 @@ class _CreateCategoryPageState extends State<CreateCategoryPage> {
                 decoration: const InputDecoration(
                   labelText: '플랫폼 카테고리 ID *',
                   hintText: '예: cat_001',
-                  border: OutlineInputBorder(),
                 ),
                 maxLength: 50,
                 onChanged: (value) {
@@ -128,7 +123,6 @@ class _CreateCategoryPageState extends State<CreateCategoryPage> {
                   return DropdownButtonFormField<int?>(
                     decoration: const InputDecoration(
                       labelText: '부모 카테고리',
-                      border: OutlineInputBorder(),
                     ),
                     value: _selectedParentId,
                     items: [
@@ -158,7 +152,7 @@ class _CreateCategoryPageState extends State<CreateCategoryPage> {
 
                   return SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
+                    child: FilledButton(
                       onPressed: isLoading || !isValid
                           ? null
                           : () {
@@ -167,13 +161,7 @@ class _CreateCategoryPageState extends State<CreateCategoryPage> {
                                   .add(CreateCategorySubmitted());
                             },
                       child: isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                              ),
-                            )
+                          ? const AppBusyLabel('추가')
                           : const Text('추가'),
                     ),
                   );

@@ -9,6 +9,10 @@ import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_cr
 import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_list_event.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 class SellerCreatePage extends StatefulWidget {
   const SellerCreatePage({super.key});
@@ -50,42 +54,27 @@ class _SellerCreatePageState extends State<SellerCreatePage> {
       body: BlocListener<SellerCreateBloc, SellerCreateState>(
         listener: (context, state) {
           if (state is SellerCreateSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('판매자가 추가되었습니다.'),
-                behavior: SnackBarBehavior.floating,
-                margin: EdgeInsets.only(bottom: 70, left: 16, right: 16),
-              ),
-            );
+            showSuccessToast(context, '판매자가 추가되었습니다.');
             GetIt.instance<SellerListBloc>().add(const FetchSellers());
             Future.delayed(const Duration(milliseconds: 500), () {
               context.pop();
             });
           } else if (state is SellerCreateError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-                behavior: SnackBarBehavior.floating,
-                margin: EdgeInsets.only(bottom: 70, left: 16, right: 16),
-              ),
-            );
+            showErrorToast(context, state.message);
           }
         },
         child: BlocBuilder<SellerCreateBloc, SellerCreateState>(
           builder: (context, state) {
             if (state is! SellerCreateLoaded) {
-              return const Center(child: CircularProgressIndicator());
+              return const AppPageBody(children: [AppLoading()]);
             }
 
             final isSubmitting = state is SellerCreateLoading;
             final isEnabled = _isSubmitEnabled(state);
             final bloc = context.read<SellerCreateBloc>();
 
-            return SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
+            return AppPageBody.scroll(
+              child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     TextField(
@@ -95,7 +84,6 @@ class _SellerCreatePageState extends State<SellerCreatePage> {
                       decoration: InputDecoration(
                         labelText: '판매자명',
                         errorText: state.validationErrors['sellerName'],
-                        border: const OutlineInputBorder(),
                       ),
                       onChanged: (v) =>
                           bloc.add(UpdateFormField(field: 'sellerName', value: v)),
@@ -109,7 +97,6 @@ class _SellerCreatePageState extends State<SellerCreatePage> {
                         labelText: '사업자등록번호 (10자리)',
                         hintText: '1234567890',
                         errorText: state.validationErrors['businessRegistration'],
-                        border: const OutlineInputBorder(),
                       ),
                       onChanged: (v) => bloc
                           .add(UpdateFormField(field: 'businessRegistration', value: v)),
@@ -118,23 +105,19 @@ class _SellerCreatePageState extends State<SellerCreatePage> {
                     Row(
                       children: [
                         Expanded(
-                          child: ElevatedButton(
+                          child: FilledButton(
                             onPressed: isSubmitting ? null : () => context.pop(),
                             child: const Text('취소'),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: ElevatedButton(
+                          child: FilledButton(
                             onPressed: (isSubmitting || !isEnabled)
                                 ? null
                                 : () => bloc.add(const SubmitSellerCreate()),
                             child: isSubmitting
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
+                                ? const AppBusyLabel('추가')
                                 : const Text('추가'),
                           ),
                         ),
@@ -142,7 +125,6 @@ class _SellerCreatePageState extends State<SellerCreatePage> {
                     ),
                   ],
                 ),
-              ),
             );
           },
         ),

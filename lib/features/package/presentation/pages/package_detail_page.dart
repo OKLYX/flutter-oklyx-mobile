@@ -11,6 +11,12 @@ import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_list_event.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_form_field.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 class PackageDetailPage extends StatelessWidget {
   final int packageId;
@@ -25,27 +31,20 @@ class PackageDetailPage extends StatelessWidget {
       body: BlocListener<PackageDetailBloc, PackageDetailState>(
         listener: (context, state) {
           if (state is PackageDetailUpdateSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('상자비가 수정되었습니다.')),
-            );
+            showSuccessToast(context, '상자비가 수정되었습니다.');
             context.read<PackageListBloc>().add(FetchPackages());
             context.go(Routes.packageSearchPath);
           } else if (state is PackageDetailDeleteSuccess) {
             context.go(Routes.packageSearchPath);
           } else if (state is PackageDetailError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
-            );
+            showErrorToast(context, state.message);
           }
         },
         child: BlocBuilder<PackageDetailBloc, PackageDetailState>(
           builder: (context, state) {
             final bloc = context.read<PackageDetailBloc>();
             if (state is PackageDetailLoading) {
-              return const Center(child: CircularProgressIndicator());
+              return const AppPageBody(children: [AppLoading()]);
             }
             if (state is PackageDetailLoaded) {
               return _PackageDetailsView(
@@ -57,18 +56,16 @@ class PackageDetailPage extends StatelessWidget {
               return _PackageEditForm(state: state, bloc: bloc);
             }
             if (state is PackageDetailError) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(state.message),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
+              return AppPageBody(
+                children: [
+                  AppErrorBox(
+                    message: state.message,
+                    action: FilledButton(
                       onPressed: () => bloc.add(LoadPackageDetail(packageId)),
-                      child: const Text('재시도'),
+                      child: const Text('다시 시도'),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               );
             }
             return const SizedBox.shrink();
@@ -87,10 +84,8 @@ class _PackageDetailsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fmt = NumberFormat('###,##0', 'ko_KR');
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+    return AppPageBody.scroll(
+      child: Column(
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -104,17 +99,17 @@ class _PackageDetailsView extends StatelessWidget {
                 ),
                 Row(
                   children: [
-                    ElevatedButton.icon(
+                    FilledButton.icon(
                       onPressed: onEdit,
                       icon: const Icon(Icons.edit),
                       label: const Text('수정'),
                     ),
                     const SizedBox(width: 8),
-                    ElevatedButton.icon(
+                    FilledButton.icon(
                       onPressed: () => _showDeleteDialog(context, package),
                       icon: const Icon(Icons.delete),
                       label: const Text('삭제'),
-                      style: ElevatedButton.styleFrom(
+                      style: FilledButton.styleFrom(
                         backgroundColor: Theme.of(context).colorScheme.error,
                         foregroundColor: Theme.of(context).colorScheme.onError,
                       ),
@@ -124,43 +119,14 @@ class _PackageDetailsView extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 24),
-            _DetailField('상자 유형', package.type),
-            _DetailField('비용', '${fmt.format(package.cost)}원'),
-            _DetailField('사이즈', package.sizeLabel),
-            _DetailField('기본값', package.isDefault ? '예' : '아니오'),
+            AppDetailField('상자 유형', package.type),
+            AppDetailField('비용', '${fmt.format(package.cost)}원'),
+            AppDetailField('사이즈', package.sizeLabel),
+            AppDetailField('기본값', package.isDefault ? '예' : '아니오'),
           ],
         ),
-      ),
     );
   }
-}
-
-class _DetailField extends StatelessWidget {
-  final String label, value;
-  const _DetailField(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontSize: 12,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-        ),
-        const Divider(),
-      ],
-    ),
-  );
 }
 
 class _PackageEditForm extends StatefulWidget {
@@ -223,23 +189,21 @@ class _PackageEditFormState extends State<_PackageEditForm> {
     final errors = widget.state.validationErrors;
     final hasChanges = _hasChanges();
 
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+    return AppPageBody.scroll(
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _FormField(
+            AppFormField(
               '상자 유형',
               typeCtrl,
               (v) => widget.bloc.add(UpdateFormField(field: 'type', value: v)),
-              errors['type'],
+              error: errors['type'],
             ),
-            _FormField(
+            AppFormField(
               '비용',
               costCtrl,
               (v) => widget.bloc.add(UpdateFormField(field: 'cost', value: double.tryParse(v) ?? 0)),
-              errors['cost'],
+              error: errors['cost'],
               keyboardType: TextInputType.number,
             ),
             if (widget.state.originalPackage.isSizeUnset)
@@ -256,7 +220,7 @@ class _PackageEditFormState extends State<_PackageEditForm> {
             Row(
               children: [
                 Expanded(
-                  child: _FormField(
+                  child: AppFormField(
                     '가로(cm)',
                     widthCtrl,
                     (v) => widget.bloc.add(
@@ -265,7 +229,7 @@ class _PackageEditFormState extends State<_PackageEditForm> {
                         value: double.tryParse(v) ?? 0,
                       ),
                     ),
-                    errors['widthCm'],
+                    error: errors['widthCm'],
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
@@ -273,7 +237,7 @@ class _PackageEditFormState extends State<_PackageEditForm> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: _FormField(
+                  child: AppFormField(
                     '세로(cm)',
                     lengthCtrl,
                     (v) => widget.bloc.add(
@@ -282,7 +246,7 @@ class _PackageEditFormState extends State<_PackageEditForm> {
                         value: double.tryParse(v) ?? 0,
                       ),
                     ),
-                    errors['lengthCm'],
+                    error: errors['lengthCm'],
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
@@ -290,7 +254,7 @@ class _PackageEditFormState extends State<_PackageEditForm> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: _FormField(
+                  child: AppFormField(
                     '높이(cm)',
                     heightCtrl,
                     (v) => widget.bloc.add(
@@ -299,7 +263,7 @@ class _PackageEditFormState extends State<_PackageEditForm> {
                         value: double.tryParse(v) ?? 0,
                       ),
                     ),
-                    errors['heightCm'],
+                    error: errors['heightCm'],
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
@@ -320,21 +284,17 @@ class _PackageEditFormState extends State<_PackageEditForm> {
             Row(
               children: [
                 Expanded(
-                  child: ElevatedButton(
+                  child: FilledButton(
                     onPressed: isSubmitting ? null : () => context.go(Routes.packageSearchPath),
                     child: const Text('취소'),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
+                  child: FilledButton(
                     onPressed: (isSubmitting || !hasChanges) ? null : () => widget.bloc.add(SubmitPackageUpdate()),
                     child: isSubmitting
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
+                        ? const AppBusyLabel('수정')
                         : const Text('수정'),
                   ),
                 ),
@@ -342,85 +302,20 @@ class _PackageEditFormState extends State<_PackageEditForm> {
             ),
           ],
         ),
-      ),
     );
   }
 }
 
-class _FormField extends StatelessWidget {
-  final String label;
-  final TextEditingController controller;
-  final Function(String) onChanged;
-  final String? error;
-  final TextInputType keyboardType;
-
-  const _FormField(
-    this.label,
-    this.controller,
-    this.onChanged,
-    this.error, {
-    this.keyboardType = TextInputType.text,
-  });
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 16),
-    child: TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-        errorText: error,
-      ),
-      onChanged: onChanged,
-    ),
+Future<void> _showDeleteDialog(BuildContext context, Package package) async {
+  final ok = await showAppConfirmDialog(
+    context,
+    title: '상자비 삭제',
+    message: '${package.type}을(를) 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.',
+    confirmText: '삭제',
+    isDangerous: true,
   );
-}
-
-void _showDeleteDialog(BuildContext context, Package package) {
-  showDialog(
-    context: context,
-    builder: (ctx) => _DeleteConfirmationDialog(
-      package: package,
-      onConfirm: () {
-        Navigator.pop(ctx);
-        context.read<PackageDetailBloc>().add(ConfirmDeletePackage());
-      },
-      onCancel: () => Navigator.pop(ctx),
-    ),
-  );
-}
-
-class _DeleteConfirmationDialog extends StatelessWidget {
-  final Package package;
-  final VoidCallback onConfirm;
-  final VoidCallback onCancel;
-  const _DeleteConfirmationDialog({
-    required this.package,
-    required this.onConfirm,
-    required this.onCancel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('상자비 삭제'),
-      content: Text('${package.type}을(를) 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.'),
-      actions: [
-        TextButton(
-          onPressed: onCancel,
-          child: const Text('취소'),
-        ),
-        FilledButton(
-          onPressed: onConfirm,
-          style: FilledButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.error,
-            foregroundColor: Theme.of(context).colorScheme.onError,
-          ),
-          child: const Text('삭제'),
-        ),
-      ],
-    );
+  if (!ok || !context.mounted) {
+    return;
   }
+  context.read<PackageDetailBloc>().add(ConfirmDeletePackage());
 }

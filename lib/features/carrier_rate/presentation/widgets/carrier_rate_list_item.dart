@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/entities/carrier_rate.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 
 class CarrierRateListItem extends StatelessWidget {
   final CarrierRate carrierRate;
@@ -16,10 +17,8 @@ class CarrierRateListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final costFormatter = NumberFormat('###,##0', 'ko_KR');
-    return InkWell(
+    return AppCard.row(
       onTap: onTap,
-      child: Padding(
-          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -51,7 +50,6 @@ class CarrierRateListItem extends StatelessWidget {
               Text('가격 적용: ${carrierRate.effectiveDate}'),
             ],
           ),
-        ),
     );
   }
 }

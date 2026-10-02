@@ -4,6 +4,7 @@ import 'package:flutter_oklyn_mobile/features/carrier/domain/entities/platform_c
 import 'package:flutter_oklyn_mobile/features/carrier/presentation/bloc/platform_code_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/carrier/presentation/bloc/platform_code_event.dart';
 import 'package:flutter_oklyn_mobile/features/carrier/presentation/bloc/platform_code_state.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 /// 플랫폼 코드 생성/수정 다이얼로그.
 ///
@@ -115,7 +116,6 @@ class _PlatformCodeInputDialogState extends State<PlatformCodeInputDialog> {
                   decoration: InputDecoration(
                     labelText: '플랫폼 *',
                     hintText: '예: COUPANG',
-                    border: const OutlineInputBorder(),
                     errorText: _platformError,
                   ),
                 ),
@@ -126,7 +126,6 @@ class _PlatformCodeInputDialogState extends State<PlatformCodeInputDialog> {
                   decoration: InputDecoration(
                     labelText: '배송사 코드 *',
                     hintText: '예: CJGLS',
-                    border: const OutlineInputBorder(),
                     errorText: _codeError,
                   ),
                 ),
@@ -141,13 +140,9 @@ class _PlatformCodeInputDialogState extends State<PlatformCodeInputDialog> {
             FilledButton(
               onPressed: isSubmitting ? null : _onSubmit,
               child: isSubmitting
-                  ? SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Theme.of(context).colorScheme.onSecondary,
-                      ),
+                  ? AppBusyLabel(
+                      widget.isEdit ? '저장' : '추가',
+                      color: Theme.of(context).colorScheme.onSecondary,
                     )
                   : Text(widget.isEdit ? '저장' : '추가'),
             ),

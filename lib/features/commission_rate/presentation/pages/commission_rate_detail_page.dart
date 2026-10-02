@@ -11,6 +11,12 @@ import '../../domain/entities/commission_rate.dart';
 import '../../../category/domain/entities/category.dart';
 import '../bloc/commission_rate_list_bloc.dart';
 import '../bloc/commission_rate_list_event.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_form_field.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 class CommissionRateDetailPage extends StatefulWidget {
   final int commissionRateId;
@@ -29,32 +35,19 @@ class _CommissionRateDetailPageState extends State<CommissionRateDetailPage> {
     );
   }
 
-  void _showDeleteDialog(BuildContext context, CommissionRate rate) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('수수료 삭제'),
-        content: Text('${rate.platform} 수수료를 삭제하시겠습니까?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('취소'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              context.read<CommissionRateDetailBloc>().add(
-                ConfirmDeleteCommissionRate(rate.id),
-              );
-            },
-            child: const Text('삭제'),
-          ),
-        ],
-      ),
+  Future<void> _showDeleteDialog(BuildContext context, CommissionRate rate) async {
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '수수료 삭제',
+      message: '${rate.platform} 수수료를 삭제하시겠습니까?',
+      confirmText: '삭제',
+      isDangerous: true,
+    );
+    if (!ok || !context.mounted) {
+      return;
+    }
+    context.read<CommissionRateDetailBloc>().add(
+      ConfirmDeleteCommissionRate(rate.id),
     );
   }
 
@@ -75,24 +68,15 @@ class _CommissionRateDetailPageState extends State<CommissionRateDetailPage> {
       body: BlocListener<CommissionRateDetailBloc, CommissionRateDetailState>(
         listener: (context, state) {
           if (state is CommissionRateDetailUpdateSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('수수료가 수정되었습니다')),
-            );
+            showSuccessToast(context, '수수료가 수정되었습니다');
             context.read<CommissionRateListBloc>().add(FetchCommissionRates());
             context.go(Routes.commissionRatePath);
           } else if (state is CommissionRateDetailDeleteSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('수수료가 삭제되었습니다')),
-            );
+            showSuccessToast(context, '수수료가 삭제되었습니다');
             context.read<CommissionRateListBloc>().add(FetchCommissionRates());
             context.go(Routes.commissionRatePath);
           } else if (state is CommissionRateDetailError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
-            );
+            showErrorToast(context, state.message);
           }
         },
         child: BlocBuilder<CommissionRateDetailBloc, CommissionRateDetailState>(
@@ -100,7 +84,7 @@ class _CommissionRateDetailPageState extends State<CommissionRateDetailPage> {
             final bloc = context.read<CommissionRateDetailBloc>();
 
             if (state is CommissionRateDetailLoading) {
-              return const Center(child: CircularProgressIndicator());
+              return const AppPageBody(children: [AppLoading()]);
             }
 
             if (state is CommissionRateDetailLoaded) {
@@ -119,20 +103,18 @@ class _CommissionRateDetailPageState extends State<CommissionRateDetailPage> {
             }
 
             if (state is CommissionRateDetailError) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(state.message),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
+              return AppPageBody(
+                children: [
+                  AppErrorBox(
+                    message: state.message,
+                    action: FilledButton(
                       onPressed: () => bloc.add(
                         FetchCommissionRateDetail(widget.commissionRateId),
                       ),
-                      child: const Text('재시도'),
+                      child: const Text('다시 시도'),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               );
             }
 
@@ -158,10 +140,8 @@ class _CommissionRateDetailsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+    return AppPageBody.scroll(
+      child: Column(
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -175,17 +155,17 @@ class _CommissionRateDetailsView extends StatelessWidget {
                 ),
                 Row(
                   children: [
-                    ElevatedButton.icon(
+                    FilledButton.icon(
                       onPressed: onEdit,
                       icon: const Icon(Icons.edit),
                       label: const Text('수정'),
                     ),
                     const SizedBox(width: 8),
-                    ElevatedButton.icon(
+                    FilledButton.icon(
                       onPressed: onDelete,
                       icon: const Icon(Icons.delete),
                       label: const Text('삭제'),
-                      style: ElevatedButton.styleFrom(
+                      style: FilledButton.styleFrom(
                         backgroundColor: Theme.of(context).colorScheme.error,
                         foregroundColor: Theme.of(context).colorScheme.onError,
                       ),
@@ -195,51 +175,19 @@ class _CommissionRateDetailsView extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 24),
-            _DetailField('플랫폼', rate.platform),
-            _DetailField(
+            AppDetailField('플랫폼', rate.platform),
+            AppDetailField(
               '카테고리',
               rate.categoryName ?? '기본값',
             ),
-            _DetailField(
+            AppDetailField(
               '수수료율',
               '${rate.rate.toStringAsFixed(4)}',
             ),
           ],
         ),
-      ),
     );
   }
-}
-
-// DetailField 컴포넌트 (Package와 동일)
-class _DetailField extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _DetailField(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontSize: 12,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-        ),
-        const Divider(),
-      ],
-    ),
-  );
 }
 
 // 편집 폼 (Page 내 inline)
@@ -291,37 +239,28 @@ class _CommissionRateEditFormState extends State<_CommissionRateEditForm> {
     final errors = widget.state.validationErrors;
     final hasChanges = _hasChanges();
 
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+    return AppPageBody.scroll(
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _FormField(
-              '플랫폼 (필수)',
-              _buildPlatformDropdown(),
-              errors['platform'],
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _buildPlatformDropdown(errors['platform']),
             ),
-            _FormField(
-              '카테고리 (선택)',
-              _buildCategoryDropdown(),
-              errors['categoryId'],
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _buildCategoryDropdown(errors['categoryId']),
             ),
-            _FormField(
+            AppFormField(
               '수수료율 (필수)',
-              TextFormField(
-                controller: rateCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: '예: 0.089',
-                  helperText: '0~1 범위의 소수 (예: 0.089 = 8.9%)',
-                ),
-                onChanged: (value) {
-                  widget.bloc.add(RateChanged(value));
-                },
-              ),
-              errors['rate'],
+              rateCtrl,
+              (value) {
+                widget.bloc.add(RateChanged(value));
+              },
+              error: errors['rate'],
+              keyboardType: TextInputType.number,
+              hintText: '예: 0.089',
+              helperText: '0~1 범위의 소수 (예: 0.089 = 8.9%)',
             ),
             const SizedBox(height: 24),
             Row(
@@ -334,31 +273,27 @@ class _CommissionRateEditFormState extends State<_CommissionRateEditForm> {
                   child: const Text('취소'),
                 ),
                 const SizedBox(width: 12),
-                ElevatedButton(
+                FilledButton(
                   onPressed: !hasChanges || isSubmitting
                       ? null
                       : () => widget.bloc.add(UpdateCommissionRateSubmitted()),
                   child: isSubmitting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
+                      ? const AppBusyLabel('저장')
                       : const Text('저장'),
                 ),
               ],
             ),
           ],
         ),
-      ),
     );
   }
 
-  Widget _buildPlatformDropdown() {
+  Widget _buildPlatformDropdown(String? error) {
     return DropdownButtonFormField<String>(
       value: widget.state.editingData['platform'],
-      decoration: const InputDecoration(
-        border: OutlineInputBorder(),
+      decoration: InputDecoration(
+        labelText: '플랫폼 (필수)',
+        errorText: error,
       ),
       items: CommissionRateDetailBloc.platforms.map((platform) {
         return DropdownMenuItem(value: platform, child: Text(platform));
@@ -371,15 +306,16 @@ class _CommissionRateEditFormState extends State<_CommissionRateEditForm> {
     );
   }
 
-  Widget _buildCategoryDropdown() {
+  Widget _buildCategoryDropdown(String? error) {
     final filteredCategories = widget.state.availableCategories
         .where((cat) => cat.platform == widget.state.editingData['platform'])
         .toList();
 
     return DropdownButtonFormField<int>(
       value: widget.state.editingData['categoryId'],
-      decoration: const InputDecoration(
-        border: OutlineInputBorder(),
+      decoration: InputDecoration(
+        labelText: '카테고리 (선택)',
+        errorText: error,
       ),
       items: [
         const DropdownMenuItem(value: null, child: Text('선택 안함')),
@@ -395,36 +331,4 @@ class _CommissionRateEditFormState extends State<_CommissionRateEditForm> {
       },
     );
   }
-}
-
-// FormField 래퍼 (에러 표시 포함)
-class _FormField extends StatelessWidget {
-  final String label;
-  final Widget field;
-  final String? error;
-
-  const _FormField(this.label, this.field, this.error);
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
-        const SizedBox(height: 8),
-        field,
-        if (error != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            error!,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.error,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ],
-    ),
-  );
 }

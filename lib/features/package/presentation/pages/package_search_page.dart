@@ -10,6 +10,9 @@ import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_
 import 'package:flutter_oklyn_mobile/features/package/presentation/dialogs/package_input_dialog.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/widgets/package_list_item.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 
 class PackageSearchPage extends StatefulWidget {
   const PackageSearchPage({super.key});
@@ -61,78 +64,82 @@ class _PackageSearchPageState extends State<PackageSearchPage> {
       navBarIndex: 2,
       showDrawer: true,
       showAppBarDrawerButton: false,
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: '상자명 검색...',
-                      border: OutlineInputBorder(),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    onChanged: (value) {
-                      context.read<PackageListBloc>().add(SearchPackages(query: value));
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _onAddPackagePressed,
-                  child: const Text('상자비 추가'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: BlocBuilder<PackageListBloc, PackageListState>(
-                builder: (context, state) {
-                  if (state is PackageListLoading) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (state is PackageListInitial) {
-                    return const Center(
-                      child: Text('검색 버튼을 클릭하여 상자비 정보를 조회해주세요.'),
-                    );
-                  } else if (state is PackageListEmpty) {
-                    return const Center(child: Text('조회 결과가 없습니다.'));
-                  } else if (state is PackageListError) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(state.message),
-                          ElevatedButton(
-                            onPressed: () {
-                              context.read<PackageListBloc>().add(FetchPackages());
-                            },
-                            child: const Text('재시도'),
-                          ),
-                        ],
+      body: AppPageBody.slivers(
+        slivers: [
+          SliverToBoxAdapter(
+            child: AppCard(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: const InputDecoration(
+                        hintText: '상자명 검색...',
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
-                    );
-                  } else if (state is PackageListLoaded) {
-                    return ListView.separated(
-                      itemCount: state.packages.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final pkg = state.packages[index];
-                        return PackageListItem(
-                          package: pkg,
-                          onTap: () => context.goNamed(Routes.packageDetail, pathParameters: {'id': pkg.id.toString()}),
-                        );
+                      onChanged: (value) {
+                        context
+                            .read<PackageListBloc>()
+                            .add(SearchPackages(query: value));
                       },
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: _onAddPackagePressed,
+                    child: const Text('상자비 추가'),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+          BlocBuilder<PackageListBloc, PackageListState>(
+            builder: (context, state) {
+              if (state is PackageListLoading) {
+                return const SliverToBoxAdapter(child: AppLoading());
+              } else if (state is PackageListInitial) {
+                return const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Text('검색 버튼을 클릭하여 상자비 정보를 조회해주세요.'),
+                  ),
+                );
+              } else if (state is PackageListEmpty) {
+                return const SliverToBoxAdapter(
+                  child: AppEmpty('조회 결과가 없습니다.'),
+                );
+              } else if (state is PackageListError) {
+                return SliverToBoxAdapter(
+                  child: AppErrorBox(
+                    message: state.message,
+                    action: FilledButton(
+                      onPressed: () {
+                        context.read<PackageListBloc>().add(FetchPackages());
+                      },
+                      child: const Text('다시 시도'),
+                    ),
+                  ),
+                );
+              } else if (state is PackageListLoaded) {
+                return SliverList.separated(
+                  itemCount: state.packages.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final pkg = state.packages[index];
+                    return PackageListItem(
+                      package: pkg,
+                      onTap: () => context.goNamed(Routes.packageDetail, pathParameters: {'id': pkg.id.toString()}),
+                    );
+                  },
+                );
+              }
+              return const SliverToBoxAdapter(child: SizedBox.shrink());
+            },
+          ),
+        ],
       ),
     );
   }
