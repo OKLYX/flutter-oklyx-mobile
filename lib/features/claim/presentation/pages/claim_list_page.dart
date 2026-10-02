@@ -12,6 +12,10 @@ import '../bloc/claim_list_state.dart';
 import '../widgets/claim_card.dart';
 import '../widgets/claim_status_filter_bar.dart';
 import '../widgets/claim_type_tabs.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 /// 주문관리 > 반품/교환 페이지 (FEATURE_2609_18 조회 + FEATURE_2609_70 동기화).
 ///
@@ -70,9 +74,11 @@ class _ClaimListViewState extends State<_ClaimListView> {
       showDrawer: true,
       showAppBarDrawerButton: false,
       body: BlocConsumer<ClaimListBloc, ClaimListState>(
-        // 재조회 실패·동기화 결과(기존 목록 유지)를 SnackBar 로 알린다.
-        // ⚠️ 문구가 **바뀔 때만** 띄운다 — 같은 문구를 실은 상태가 연달아 emit 되면 SnackBar 가
-        // 두 번 뜬다(고객문의 화면과 같은 가드).
+        // Reload failures and sync results (the current list is kept) are
+        // reported with a toast.
+        // ⚠️ Shown **only when the text changes** — when states carrying the
+        // same text are emitted in a row the toast shows twice (same guard as
+        // the customer inquiry screen).
         listenWhen: (prev, curr) =>
             curr is ClaimListLoaded &&
             _message(curr) != null &&
@@ -80,25 +86,29 @@ class _ClaimListViewState extends State<_ClaimListView> {
         listener: (context, state) {
           final message = _message(state);
           if (message == null) return;
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(
-              SnackBar(
-                content: Text(message),
-                behavior: SnackBarBehavior.floating,
-                margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-              ),
-            );
+          // actionError = failure, syncSummary = success (one field each).
+          if ((state as ClaimListLoaded).actionError != null) {
+            showErrorToast(context, message);
+          } else {
+            showSuccessToast(context, message);
+          }
         },
         builder: (context, state) {
           if (state is ClaimListInitial || state is ClaimListLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const AppPageBody(children: [AppLoading()]);
           }
 
           if (state is ClaimListError) {
-            return _ErrorRetry(
-              message: state.message,
-              onRetry: () => context.read<ClaimListBloc>().add(LoadClaims()),
+            return AppPageBody(
+              children: [
+                AppErrorBox(
+                  message: state.message,
+                  action: FilledButton(
+                    onPressed: () => context.read<ClaimListBloc>().add(LoadClaims()),
+                    child: const Text('다시 시도'),
+                  ),
+                ),
+              ],
             );
           }
 
@@ -112,7 +122,8 @@ class _ClaimListViewState extends State<_ClaimListView> {
   }
 }
 
-/// SnackBar 문구 — 실패([ClaimListLoaded.actionError])가 성공 요약보다 우선이다.
+/// Toast text — the failure ([ClaimListLoaded.actionError]) takes precedence
+/// over the success summary.
 String? _message(ClaimListState state) {
   if (state is! ClaimListLoaded) return null;
   return state.actionError ?? state.syncSummary;
@@ -132,9 +143,10 @@ class _LoadedBody extends StatelessWidget {
     // 조회·동기화 중에는 컨트롤을 잠근다(둘 다 서버 왕복이다).
     final busy = s.busy;
 
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return AppPageBody.slivers(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 반품 ↔ 교환 — 칩과 달리 서버를 다시 부른다(조회 중에는 잠근다).
@@ -144,9 +156,7 @@ class _LoadedBody extends StatelessWidget {
             onChanged: (t) => bloc.add(SelectClaimType(type: t)),
           ),
           const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
+          AppCard(
               child: Column(
                 children: [
                   Row(
@@ -157,7 +167,6 @@ class _LoadedBody extends StatelessWidget {
                           isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: '판매자',
-                            border: OutlineInputBorder(),
                             contentPadding: EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 8),
                           ),
@@ -183,7 +192,7 @@ class _LoadedBody extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      ElevatedButton(
+                      FilledButton(
                         onPressed:
                             busy ? null : () => bloc.add(SearchClaims()),
                         child: Text(s.isSearching ? '조회 중...' : '조회'),
@@ -199,7 +208,6 @@ class _LoadedBody extends StatelessWidget {
                     isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: '기간',
-                      border: OutlineInputBorder(),
                       contentPadding:
                           EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
@@ -225,8 +233,6 @@ class _LoadedBody extends StatelessWidget {
                         bloc.add(ChangeSearchTerm(term: value)),
                     onSubmitted: (_) => busy ? null : bloc.add(SearchClaims()),
                     decoration: InputDecoration(
-                      isDense: true,
-                      border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.search, size: 18),
                       hintText: '주문번호·접수번호·상품명 검색',
                       suffixIcon: s.searchTerm.isEmpty
@@ -278,7 +284,6 @@ class _LoadedBody extends StatelessWidget {
                   ],
                 ],
               ),
-            ),
           ),
           const SizedBox(height: 8),
 
@@ -315,34 +320,27 @@ class _LoadedBody extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-
-          Expanded(
-            child: s.isSearching
-                ? const Center(child: CircularProgressIndicator())
-                : claims.isEmpty
-                    ? Center(
-                        child: Text(
-                          // 문구 2종을 구분한다 — 칩으로 0건인지, 기간에 아예 없는지.
-                          s.selectedStatus != null
-                              ? '이 상태의 ${s.typeLabel}이 없습니다.'
-                              : '해당 기간에 ${s.typeLabel} 내역이 없습니다.',
-                        ),
-                      )
-                    : ListView.separated(
-                        // ScaffoldWithNavBar 는 내비바를 오버레이하므로 하단 여백을 확보한다.
-                        padding: EdgeInsets.only(
-                          bottom: kBottomNavigationBarHeight +
-                              MediaQuery.paddingOf(context).bottom +
-                              24,
-                        ),
-                        itemCount: claims.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
-                        itemBuilder: (context, index) =>
-                            ClaimCard(claim: claims[index]),
-                      ),
-          ),
         ],
-      ),
+          ),
+        ),
+        if (s.isSearching)
+          const SliverToBoxAdapter(child: AppLoading())
+        else if (claims.isEmpty)
+          SliverToBoxAdapter(
+            child: AppEmpty(
+              // 문구 2종을 구분한다 — 칩으로 0건인지, 기간에 아예 없는지.
+              s.selectedStatus != null
+                  ? '이 상태의 ${s.typeLabel}이 없습니다.'
+                  : '해당 기간에 ${s.typeLabel} 내역이 없습니다.',
+            ),
+          )
+        else
+          SliverList.separated(
+            itemCount: claims.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (context, index) => ClaimCard(claim: claims[index]),
+          ),
+      ],
     );
   }
 }
@@ -380,27 +378,6 @@ class _SyncProgress extends StatelessWidget {
           value: total == 0 ? null : done / total,
         ),
       ],
-    );
-  }
-}
-
-class _ErrorRetry extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _ErrorRetry({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(message, textAlign: TextAlign.center),
-          const SizedBox(height: 12),
-          ElevatedButton(onPressed: onRetry, child: const Text('다시 시도')),
-        ],
-      ),
     );
   }
 }

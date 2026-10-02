@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import '../../domain/entities/inquiry.dart';
 
 /// 문의 1건 카드 (고객문의 목록의 행 하나).
@@ -37,12 +38,8 @@ class InquiryCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final content = inquiry.content?.trim();
     final answeredAt = inquiry.answeredAt;
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
+    return AppCard.row(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -116,8 +113,6 @@ class InquiryCard extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
     );
   }
 }

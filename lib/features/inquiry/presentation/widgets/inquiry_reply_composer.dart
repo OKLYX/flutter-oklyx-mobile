@@ -2,17 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import '../../domain/entities/inquiry_detail.dart';
 import '../bloc/inquiry_detail_bloc.dart';
 import '../bloc/inquiry_detail_event.dart';
 
-/// 고객문의 답변 컴포저 — 상세 화면 스레드 **바로 아래**에 붙는다 (FEATURE_2609_36 / 03).
+/// Customer inquiry reply composer — attached **right below** the thread on
+/// the detail screen (FEATURE_2609_36 / 03).
 ///
-/// **용도**: 서버가 준 [ReplyCapability] 만 보고 입력창을 열지·몇 자까지 받을지·확인
-/// 대화상자를 띄울지를 정한다. 전송 이벤트는 [InquiryDetailBloc] 에 넘긴다.
-/// **파일**: lib/features/inquiry/presentation/widgets/inquiry_reply_composer.dart
+/// **Purpose**: looks only at the [ReplyCapability] given by the server to
+/// decide whether to open the input, how many characters to accept and whether
+/// to show the confirm dialog. The send event is handed to [InquiryDetailBloc].
+/// **File**: lib/features/inquiry/presentation/widgets/inquiry_reply_composer.dart
 ///
-/// **사용 예제**:
+/// **Usage**:
 /// ```dart
 /// InquiryReplyComposer(
 ///   capability: state.detail.replyCapability,
@@ -22,24 +26,33 @@ import '../bloc/inquiry_detail_event.dart';
 /// )
 /// ```
 ///
-/// 렌더 규칙(위에서부터 순서대로 판정):
-/// 1. [replyForbidden] → 입력 없이 권한 안내 한 줄만(PLAN M5)
-/// 2. [capability] == null → 아무것도 그리지 않는다(아직 로드 전)
-/// 3. `canReply == false` → 입력 없이 서버 [ReplyCapability.reason] 한 줄
-/// 4. 그 외 → 입력 영역
+/// Render rules (checked in order from the top):
+/// 1. [replyForbidden] → no input, only one line of permission notice (PLAN M5)
+/// 2. [capability] == null → draws nothing (not loaded yet)
+/// 3. `canReply == false` → no input, one line of the server's
+///    [ReplyCapability.reason]
+/// 4. otherwise → the input area
 ///
-/// 🔴 **금지 패턴**
-/// - 유형·플랫폼 분기(`if (type == PRODUCT_QNA)`) — 판정은 서버 한 곳이다(PLAN M3).
-/// - 길이 상수·사유 문구 하드코딩 — `minLength`·`maxLength`·`reason` 은 서버가 준다.
-/// - `once` 를 무시하고 확인을 **항상** 띄우는 하드코딩 — 판정은 서버가 소유한다.
-/// - 위젯에 `confirming` 같은 확인 단계 상태 — 이 위젯의 상태는 [TextEditingController]
-///   하나뿐이고, 확인 결과는 `await showDialog<bool>` 의 반환값으로만 받는다.
-/// - 확인 안내를 입력창 아래 **인라인**으로 그리는 것 — 답변이 이미 달린 것처럼 보인다(M11).
+/// 🔴 **Forbidden patterns**
+/// - Branching on type / platform (`if (type == PRODUCT_QNA)`) — the decision
+///   is made in one place, the server (PLAN M3).
+/// - Hard-coding length constants or reason texts — `minLength`, `maxLength`
+///   and `reason` come from the server.
+/// - Hard-coding that ignores `once` and **always** shows the confirmation —
+///   the server owns the decision.
+/// - A confirmation-step state such as `confirming` in the widget — the only
+///   state of this widget is the [TextEditingController], and the confirmation
+///   result is taken only from the return value of
+///   `await showAppConfirmDialog`.
+/// - Drawing the confirmation notice **inline** below the input — it looks as
+///   if the reply were already posted (M11).
 ///
-/// ⚠️ 전송은 되돌릴 수 없다(2609_23 D17) — 쿠팡에 답변 수정·삭제 API 가 없다.
-/// ⚠️ 글자수는 `trim().length` 로 세고 전송도 trim 한 값을 보낸다(서버가 `@NotBlank` + 길이검증).
-/// ⚠️ `TextField.maxLength` 로 하드 컷 하지 않는다 — 사용자가 쓴 글이 말없이 잘리는 것보다
-/// 버튼 비활성이 낫다.
+/// ⚠️ Sending cannot be undone (2609_23 D17) — Coupang has no API to edit or
+/// delete a reply.
+/// ⚠️ Characters are counted with `trim().length` and the trimmed value is
+/// what gets sent (the server has `@NotBlank` + length validation).
+/// ⚠️ No hard cut with `TextField.maxLength` — a disabled button is better
+/// than silently truncating what the user wrote.
 class InquiryReplyComposer extends StatefulWidget {
   /// 서버 판정(PLAN M3). null 이면 아직 단건 조회 전이다.
   final ReplyCapability? capability;
@@ -47,7 +60,8 @@ class InquiryReplyComposer extends StatefulWidget {
   /// 전송 중 — 입력·버튼을 잠근다.
   final bool submitting;
 
-  /// 403 을 받았다 → 권한 안내만 남긴다. ⚠️ 빨간 실패 SnackBar 를 띄우지 않는다.
+  /// A 403 was received → only the permission notice stays. ⚠️ No red failure
+  /// toast is shown.
   final bool replyForbidden;
 
   /// 502 — 전송 결과 미상. 입력을 잠근 채 경고만 띄운다(재전송 유도 금지).
@@ -153,7 +167,6 @@ class _InquiryReplyComposerState extends State<InquiryReplyComposer> {
             onChanged: (_) => setState(() {}),
             decoration: const InputDecoration(
               hintText: '고객에게 보낼 답변을 입력하세요.',
-              border: OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 8),
@@ -175,7 +188,7 @@ class _InquiryReplyComposerState extends State<InquiryReplyComposer> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               else
-                ElevatedButton(
+                FilledButton(
                   onPressed:
                       canSubmit ? () => _submit(context, capability) : null,
                   child: const Text('답변 전송'),
@@ -190,16 +203,15 @@ class _InquiryReplyComposerState extends State<InquiryReplyComposer> {
   /// 카드 + 위쪽 여백. 아무것도 그리지 않을 때는 여백도 남기지 않는다.
   Widget _wrap(Widget child) => Padding(
         padding: const EdgeInsets.only(top: 12),
-        child: Card(
-          margin: EdgeInsets.zero,
-          child: Padding(padding: const EdgeInsets.all(16), child: child),
-        ),
+        child: AppCard(child: child),
       );
 
-  /// 되돌릴 수 없는 전송이라 [ReplyCapability.once] 일 때 확인을 한 번 더 받는다(D17).
+  /// Sending cannot be undone, so when [ReplyCapability.once] is set one more
+  /// confirmation is asked for (D17).
   ///
-  /// ⚠️ 확인은 `AlertDialog` 안에서 시작해 다이얼로그와 함께 사라진다 — 화면에 잔류시키지
-  /// 않는다(M11). 바텀시트로 새 관례를 만들지 말 것(입력 없는 확인이다).
+  /// ⚠️ The confirmation starts inside `showAppConfirmDialog` and disappears
+  /// with the dialog — it is not left on the screen (M11). Do not start a new
+  /// convention with a bottom sheet (it is a confirmation without input).
   Future<void> _submit(
     BuildContext context,
     ReplyCapability capability,
@@ -210,36 +222,15 @@ class _InquiryReplyComposerState extends State<InquiryReplyComposer> {
     if (trimmed.isEmpty) return;
 
     if (capability.once) {
-      final ok = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('답변 전송'),
-          // 무엇을 확정하는지 본문 그대로 보여준다 — 길 수 있어 스크롤을 둔다.
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('전송한 답변은 수정하거나 삭제할 수 없습니다.'),
-                const SizedBox(height: 12),
-                Text(trimmed),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('취소'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('보내기'),
-            ),
-          ],
-        ),
+      final ok = await showAppConfirmDialog(
+        context,
+        title: '답변 전송',
+        // Shows what is being confirmed, the reply text as written.
+        message: '전송한 답변은 수정하거나 삭제할 수 없습니다.\n\n$trimmed',
+        confirmText: '보내기',
       );
       // 다이얼로그가 열려 있는 사이 페이지를 벗어날 수 있다.
-      if (ok != true || bloc.isClosed) return;
+      if (!ok || bloc.isClosed) return;
     }
 
     if (bloc.isClosed) return;

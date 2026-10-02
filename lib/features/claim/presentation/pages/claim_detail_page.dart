@@ -5,6 +5,8 @@ import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import '../../domain/entities/claim.dart';
 import '../widgets/claim_action_sheet.dart';
 
@@ -78,7 +80,7 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
         children: [
           const Text('반품 정보를 찾을 수 없습니다.'),
           const SizedBox(height: 12),
-          ElevatedButton(
+          FilledButton(
             onPressed: () => context.go(Routes.claimListPath),
             child: const Text('반품/교환으로'),
           ),
@@ -117,8 +119,7 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+    return AppPageBody.scroll(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -200,12 +201,6 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
               onActionDone: (updated) => setState(() => _claim = updated),
             ),
           ],
-          // ScaffoldWithNavBar 는 내비바를 오버레이하므로 하단 여백을 확보한다.
-          SizedBox(
-            height: kBottomNavigationBarHeight +
-                MediaQuery.paddingOf(context).bottom +
-                16,
-          ),
         ],
       ),
     );
@@ -224,10 +219,7 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -247,7 +239,6 @@ class _InfoCard extends StatelessWidget {
               ),
           ],
         ),
-      ),
     );
   }
 }

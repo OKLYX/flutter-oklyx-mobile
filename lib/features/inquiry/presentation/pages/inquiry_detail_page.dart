@@ -14,6 +14,10 @@ import '../bloc/inquiry_detail_state.dart';
 import '../widgets/inquiry_order_panel.dart';
 import '../widgets/inquiry_reply_composer.dart';
 import '../widgets/inquiry_thread.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 /// 문의 상세 페이지 (FEATURE_2609_36 / 02·03).
 ///
@@ -71,7 +75,7 @@ class InquiryDetailPage extends StatelessWidget {
           children: [
             const Text('문의 정보를 찾을 수 없습니다.'),
             const SizedBox(height: 12),
-            ElevatedButton(
+            FilledButton(
               onPressed: () => context.go(Routes.inquiryListPath),
               child: const Text('고객문의로'),
             ),
@@ -89,22 +93,16 @@ class _InquiryDetailView extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       BlocConsumer<InquiryDetailBloc, InquiryDetailState>(
-        // 전송 실패 문구는 **서버 문구 그대로** SnackBar 로 한 번만 띄우고 비운다.
-        // ⚠️ 403(권한 없음)·502(결과 미상)는 여기로 오지 않는다 — 컴포저가 안내로 그린다.
+        // The send failure text is shown **as the server wrote it** in a toast,
+        // once, and then cleared.
+        // ⚠️ 403 (no permission) and 502 (outcome unknown) do not come here —
+        // the composer draws them as a notice.
         listenWhen: (prev, curr) =>
             curr is InquiryDetailLoaded && curr.replyError != null,
         listener: (context, state) {
           final message = (state as InquiryDetailLoaded).replyError;
           if (message == null) return;
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(
-              SnackBar(
-                content: Text(message),
-                behavior: SnackBarBehavior.floating,
-                margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-              ),
-            );
+          showErrorToast(context, message);
           // 같은 문구가 다음 rebuild 에서 다시 뜨지 않게 소비 후 비운다.
           context.read<InquiryDetailBloc>().add(ReplyErrorCleared());
         },
@@ -116,8 +114,7 @@ class _InquiryDetailView extends StatelessWidget {
           final isLoading =
               state is InquiryDetailLoading || state is InquiryDetailInitial;
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+          return AppPageBody.scroll(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -141,17 +138,17 @@ class _InquiryDetailView extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 if (state is InquiryDetailError)
-                  _ErrorRetry(
+                  AppErrorBox(
                     message: state.message,
-                    onRetry: () =>
-                        context.read<InquiryDetailBloc>().add(ReloadInquiry()),
+                    action: FilledButton(
+                      onPressed: () =>
+                          context.read<InquiryDetailBloc>().add(ReloadInquiry()),
+                      child: const Text('다시 시도'),
+                    ),
                   )
                 else if (isLoading || detail == null)
                   // 스피너는 스레드·주문 패널 자리에만 놓는다(헤더는 이미 그려져 있다).
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 32),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
+                  const AppLoading()
                 else ...[
                   _Section(
                     title: '답변',
@@ -170,12 +167,6 @@ class _InquiryDetailView extends StatelessWidget {
                     relatedListing: detail.relatedListing,
                   ),
                 ],
-                // ScaffoldWithNavBar 는 내비바를 오버레이하므로 하단 여백을 확보한다.
-                SizedBox(
-                  height: kBottomNavigationBarHeight +
-                      MediaQuery.paddingOf(context).bottom +
-                      16,
-                ),
               ],
             ),
           );
@@ -208,10 +199,7 @@ class _Header extends StatelessWidget {
     final category = inquiry.category?.trim();
     final answeredAt = inquiry.answeredAt;
     final unanswered = inquiry.status == InquiryStatus.unanswered;
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -276,7 +264,6 @@ class _Header extends StatelessWidget {
               ),
           ],
         ),
-      ),
     );
   }
 }
@@ -289,10 +276,7 @@ class _Section extends StatelessWidget {
   const _Section({required this.title, required this.child});
 
   @override
-  Widget build(BuildContext context) => Card(
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+  Widget build(BuildContext context) => AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -307,7 +291,6 @@ class _Section extends StatelessWidget {
               child,
             ],
           ),
-        ),
       );
 }
 
@@ -364,31 +347,6 @@ class _Chip extends StatelessWidget {
             fontSize: 11,
             fontWeight: FontWeight.w600,
             color: color,
-          ),
-        ),
-      );
-}
-
-class _ErrorRetry extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _ErrorRetry({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) => Card(
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Text(message, textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: onRetry,
-                child: const Text('다시 시도'),
-              ),
-            ],
           ),
         ),
       );
