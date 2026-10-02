@@ -13,6 +13,9 @@ import 'package:flutter_oklyn_mobile/features/product/domain/entities/product.da
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_event.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_state.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/zoomable_image_viewer.dart';
 
@@ -82,70 +85,70 @@ class _ProductSearchViewState extends State<_ProductSearchView> {
     showDrawer: true,
     showAppBarDrawerButton: false,
     backgroundColor: Theme.of(context).colorScheme.surface,
-    body: Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          TextField(
-            controller: _searchController,
-            decoration: const InputDecoration(
-              hintText: '상품명 검색...',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    body: AppPageBody.slivers(
+      controller: _scrollController,
+      slivers: [
+        SliverToBoxAdapter(
+          child: AppCard(
+            child: TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                hintText: '상품명 검색...',
+                prefixIcon: Icon(Icons.search),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              onChanged: _onSearchChanged,
             ),
-            onChanged: _onSearchChanged,
           ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: BlocBuilder<ProductBloc, ProductState>(
-              builder: (context, state) {
-                if (state is ProductLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
-                }
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+        BlocBuilder<ProductBloc, ProductState>(
+          builder: (context, state) {
+            if (state is ProductLoading) {
+              return const SliverToBoxAdapter(child: AppLoading());
+            }
 
-                if (state is ProductError) {
-                  return Center(
-                    child: Text(state.message),
-                  );
-                }
+            if (state is ProductError) {
+              return SliverToBoxAdapter(
+                child: AppErrorBox(message: state.message),
+              );
+            }
 
-                if (state is ProductLoaded || state is ProductLoadingMore) {
-                  final products = state is ProductLoaded
-                      ? state.products
-                      : (state as ProductLoadingMore).products;
-                  final isLoadingMore = state is ProductLoadingMore;
+            if (state is ProductLoaded || state is ProductLoadingMore) {
+              final products = state is ProductLoaded
+                  ? state.products
+                  : (state as ProductLoadingMore).products;
+              final isLoadingMore = state is ProductLoadingMore;
 
-                  if (products.isEmpty) {
-                    return const Center(child: Text('조회 결과가 없습니다.'));
+              if (products.isEmpty) {
+                return const SliverToBoxAdapter(
+                  child: AppEmpty('조회 결과가 없습니다.'),
+                );
+              }
+
+              return SliverList.separated(
+                itemCount: products.length + (isLoadingMore ? 1 : 0),
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  if (index == products.length) {
+                    return const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Center(
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
                   }
+                  return _ProductCard(product: products[index]);
+                },
+              );
+            }
 
-                  return ListView.separated(
-                    controller: _scrollController,
-                    itemCount: products.length + (isLoadingMore ? 1 : 0),
-                    separatorBuilder: (context, index) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      if (index == products.length) {
-                        return const Padding(
-                          padding: EdgeInsets.all(16.0),
-                          child: Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                        );
-                      }
-                      return _ProductCard(product: products[index]);
-                    },
-                  );
-                }
-
-                return const SizedBox.shrink();
-              },
-            ),
-          ),
-        ],
-      ),
+            return const SliverToBoxAdapter(child: SizedBox.shrink());
+          },
+        ),
+      ],
     ),
   );
 }
@@ -182,12 +185,10 @@ class _ProductCardState extends State<_ProductCard> {
         widget.product.imageUrl.toString().isNotEmpty &&
         widget.product.imageUrl != 'null';
 
-    return InkWell(
+    return AppCard.row(
       onTap: () => context.go(
         '${Routes.productDetailPath.replaceFirst(':productId', widget.product.id.toString())}',
       ),
-      child: Padding(
-          padding: const EdgeInsets.all(12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -210,7 +211,7 @@ class _ProductCardState extends State<_ProductCard> {
                       return ImageWithZoomButton(
                         image: MemoryImage(snapshot.data!),
                         // The whole image area zooms; the rest of the row still
-                        // navigates to the detail page via its InkWell.
+                        // navigates to the detail page via the card's onTap.
                         child: Container(
                           width: 110,
                           height: 110,
@@ -300,7 +301,6 @@ class _ProductCardState extends State<_ProductCard> {
               ),
             ],
           ),
-        ),
     );
   }
 }
