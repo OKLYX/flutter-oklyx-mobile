@@ -26,7 +26,7 @@ class NotFoundPage extends StatelessWidget {
           const SizedBox(height: 16),
           const Text('Page Not Found'),
           const SizedBox(height: 24),
-          ElevatedButton(
+          FilledButton(
             onPressed: () => context.goNamed(Routes.dashboard),
             child: const Text('Go to Dashboard'),
           ),
