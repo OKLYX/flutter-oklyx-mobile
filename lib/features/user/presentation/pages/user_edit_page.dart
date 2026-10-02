@@ -7,6 +7,9 @@ import 'package:flutter_oklyn_mobile/features/user/domain/entities/user.dart';
 import 'package:flutter_oklyn_mobile/features/user/presentation/bloc/user_edit_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/user/presentation/bloc/user_edit_event.dart';
 import 'package:flutter_oklyn_mobile/features/user/presentation/bloc/user_edit_state.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 
 class UserEditPage extends StatefulWidget {
   final User user;
@@ -110,11 +113,10 @@ class _UserEditPageState extends State<UserEditPage> {
     return BlocProvider(
       create: (context) => getIt<UserEditBloc>()
         ..add(UserEditInitialized(widget.user)),
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('사용자 정보 수정'),
-          elevation: 0,
-        ),
+      child: ScaffoldWithNavBar(
+        title: '사용자 정보 수정',
+        navBarIndex: 0,
+        onBackPressed: () => context.pop(),
         body: BlocListener<UserEditBloc, UserEditState>(
           listenWhen: (previous, current) =>
               current is UserUpdateSuccess ||
@@ -123,22 +125,17 @@ class _UserEditPageState extends State<UserEditPage> {
               current is EmailDuplicate,
           listener: (context, state) {
             if (state is UserUpdateSuccess) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('사용자 정보가 수정되었습니다')),
-              );
+              showSuccessToast(context, '사용자 정보가 수정되었습니다');
               context.pop(state.user);
             } else if (state is UserEditError) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(state.message)),
-              );
+              showErrorToast(context, state.message);
             } else if (state is EmailAvailable) {
               _emailCheckStatus.value = 'available';
             } else if (state is EmailDuplicate) {
               _emailCheckStatus.value = 'duplicate';
             }
           },
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+          child: AppPageBody.scroll(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -147,9 +144,6 @@ class _UserEditPageState extends State<UserEditPage> {
                   decoration: InputDecoration(
                     labelText: '이름',
                     hintText: '사용자 이름',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -162,9 +156,6 @@ class _UserEditPageState extends State<UserEditPage> {
                       decoration: InputDecoration(
                         labelText: '이메일',
                         hintText: '사용자 이메일',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
                         errorText: status == 'duplicate'
                             ? '이미 사용 중인 이메일입니다'
                             : null,
@@ -184,9 +175,6 @@ class _UserEditPageState extends State<UserEditPage> {
                   onChanged: (value) => setState(() => _selectedRole = value),
                   decoration: InputDecoration(
                     labelText: '역할',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -196,9 +184,6 @@ class _UserEditPageState extends State<UserEditPage> {
                   decoration: InputDecoration(
                     labelText: '비밀번호',
                     hintText: '새 비밀번호 (선택)',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
                     errorText: _validatePassword(_passwordController.text),
                   ),
                   onChanged: (_) => setState(() {}),
@@ -210,9 +195,6 @@ class _UserEditPageState extends State<UserEditPage> {
                   decoration: InputDecoration(
                     labelText: '비밀번호 확인',
                     hintText: '비밀번호 확인',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
                     errorText: _validatePasswordMatch(),
                   ),
                   onChanged: (_) => setState(() {}),
@@ -223,9 +205,6 @@ class _UserEditPageState extends State<UserEditPage> {
                   decoration: InputDecoration(
                     labelText: '가입일',
                     hintText: _formatDate(widget.user.createdAt),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
                   ),
                   controller: TextEditingController(
                     text: _formatDate(widget.user.createdAt),
@@ -237,9 +216,6 @@ class _UserEditPageState extends State<UserEditPage> {
                   decoration: InputDecoration(
                     labelText: '수정일',
                     hintText: _formatDate(widget.user.updatedAt),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
                   ),
                   controller: TextEditingController(
                     text: _formatDate(widget.user.updatedAt),
@@ -249,7 +225,7 @@ class _UserEditPageState extends State<UserEditPage> {
                 Builder(
                   builder: (builderContext) => SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
+                    child: FilledButton(
                       onPressed: () => _handleSave(builderContext),
                       child: const Text('저장'),
                     ),

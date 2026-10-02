@@ -9,6 +9,8 @@ import 'package:flutter_oklyn_mobile/features/marketplace_account/presentation/d
 import 'package:flutter_oklyn_mobile/features/marketplace_account/presentation/dialogs/channel_form_dialog.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/presentation/widgets/platform_options.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 /// 판매자 행을 펼쳤을 때 노출되는 판매채널(MarketplaceAccount) 섹션.
 ///
@@ -42,18 +44,6 @@ class _SellerChannelSectionView extends StatelessWidget {
   final String sellerName;
 
   const _SellerChannelSectionView({required this.sellerId, required this.sellerName});
-
-  void _showSnackBar(BuildContext context, String message, {bool isError = false}) {
-    // Bottom nav 가 overlay 로 떠 있으므로 SnackBar 는 floating + 하단 여백으로 띄운다.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: isError ? Colors.red : null,
-        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-      ),
-    );
-  }
 
   void _openCreateDialog(BuildContext context) {
     final bloc = context.read<MarketplaceAccountBloc>();
@@ -100,34 +90,21 @@ class _SellerChannelSectionView extends StatelessWidget {
     );
   }
 
-  void _confirmDelete(BuildContext context, MarketplaceAccountBloc bloc, MarketplaceAccount channel) {
+  Future<void> _confirmDelete(BuildContext context, MarketplaceAccountBloc bloc, MarketplaceAccount channel) async {
     final label = (channel.accountAlias?.isNotEmpty ?? false)
         ? channel.accountAlias!
         : platformLabel(channel.platform);
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('삭제 확인'),
-        content: Text('정말로 "$label" 판매채널을 삭제하시겠습니까?\n이 작업은 취소할 수 없습니다.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
-            ),
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              bloc.add(DeleteChannelRequested(channel.id));
-            },
-            child: const Text('삭제'),
-          ),
-        ],
-      ),
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '삭제 확인',
+      message: '정말로 "$label" 판매채널을 삭제하시겠습니까?\n이 작업은 취소할 수 없습니다.',
+      confirmText: '삭제',
+      isDangerous: true,
     );
+    if (!ok) {
+      return;
+    }
+    bloc.add(DeleteChannelRequested(channel.id));
   }
 
   @override
@@ -138,9 +115,9 @@ class _SellerChannelSectionView extends StatelessWidget {
           current is MarketplaceAccountActionFailure,
       listener: (context, state) {
         if (state is MarketplaceAccountActionSuccess) {
-          _showSnackBar(context, state.message);
+          showSuccessToast(context, state.message);
         } else if (state is MarketplaceAccountActionFailure) {
-          _showSnackBar(context, state.message, isError: true);
+          showErrorToast(context, state.message);
         }
       },
       child: Container(
@@ -321,7 +298,7 @@ class _MessageBox extends StatelessWidget {
           ),
           if (onRetry != null) ...[
             const SizedBox(height: 8),
-            OutlinedButton(onPressed: onRetry, child: const Text('재시도')),
+            OutlinedButton(onPressed: onRetry, child: const Text('다시 시도')),
           ],
         ],
       ),

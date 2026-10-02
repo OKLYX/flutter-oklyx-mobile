@@ -6,6 +6,7 @@ import 'package:flutter_oklyn_mobile/features/marketplace_account/presentation/b
 import 'package:flutter_oklyn_mobile/features/marketplace_account/presentation/bloc/marketplace_account_event.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/presentation/bloc/marketplace_account_state.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/presentation/widgets/platform_options.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 /// 판매채널 추가/수정 다이얼로그.
 ///
@@ -190,7 +191,6 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
                   isExpanded: true,
                   decoration: InputDecoration(
                     labelText: '플랫폼 *',
-                    border: const OutlineInputBorder(),
                     errorText: _errors['platform'],
                   ),
                   hint: const Text('플랫폼을 선택하세요'),
@@ -208,7 +208,6 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
                   decoration: const InputDecoration(
                     labelText: '계정 별칭',
                     hintText: '예: 쿠팡 본점',
-                    border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -218,7 +217,6 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
                   decoration: InputDecoration(
                     labelText: '판매자(벤더) ID *',
                     hintText: '예: A00012345',
-                    border: const OutlineInputBorder(),
                     errorText: _errors['vendorId'],
                   ),
                 ),
@@ -229,7 +227,6 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
                   decoration: InputDecoration(
                     labelText: 'Access Key *',
                     hintText: 'Access Key를 입력하세요',
-                    border: const OutlineInputBorder(),
                     errorText: _errors['accessKey'],
                   ),
                 ),
@@ -243,7 +240,6 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
                     hintText: widget.isEdit
                         ? '변경 시에만 입력 (비워두면 기존 값 유지)'
                         : 'Secret Key를 입력하세요',
-                    border: const OutlineInputBorder(),
                     errorText: _errors['secretKey'],
                   ),
                 ),
@@ -258,13 +254,9 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
             FilledButton(
               onPressed: isSubmitting ? null : _onSubmit,
               child: isSubmitting
-                  ? SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Theme.of(context).colorScheme.onSecondary,
-                      ),
+                  ? AppBusyLabel(
+                      widget.isEdit ? '저장' : '등록',
+                      color: Theme.of(context).colorScheme.onSecondary,
                     )
                   : Text(widget.isEdit ? '저장' : '등록'),
             ),

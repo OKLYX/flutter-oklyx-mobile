@@ -6,6 +6,8 @@ import 'package:flutter_oklyn_mobile/features/carrier/presentation/bloc/platform
 import 'package:flutter_oklyn_mobile/features/carrier/presentation/bloc/platform_code_event.dart';
 import 'package:flutter_oklyn_mobile/features/carrier/presentation/bloc/platform_code_state.dart';
 import 'package:flutter_oklyn_mobile/features/carrier/presentation/dialogs/platform_code_input_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 /// 택배사 행을 펼쳤을 때 노출되는 플랫폼 코드 섹션.
 ///
@@ -34,18 +36,6 @@ class _PlatformCodeSectionView extends StatelessWidget {
 
   const _PlatformCodeSectionView({required this.carrierId});
 
-  void _showSnackBar(BuildContext context, String message, {bool isError = false}) {
-    // Bottom nav 가 overlay 로 떠 있으므로 SnackBar 는 floating + 하단 여백으로 띄운다.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: isError ? Colors.red : null,
-        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-      ),
-    );
-  }
-
   void _openCreateDialog(BuildContext context) {
     final bloc = context.read<PlatformCodeBloc>();
     showDialog(
@@ -68,31 +58,18 @@ class _PlatformCodeSectionView extends StatelessWidget {
     );
   }
 
-  void _confirmDelete(BuildContext context, PlatformCodeBloc bloc, PlatformCarrierCode code) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('삭제 확인'),
-        content: Text('"${code.platform} → ${code.deliveryCompanyCode}" 코드를 삭제하시겠습니까?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
-            ),
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              bloc.add(DeleteCode(codeId: code.id));
-            },
-            child: const Text('삭제'),
-          ),
-        ],
-      ),
+  Future<void> _confirmDelete(BuildContext context, PlatformCodeBloc bloc, PlatformCarrierCode code) async {
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '삭제 확인',
+      message: '"${code.platform} → ${code.deliveryCompanyCode}" 코드를 삭제하시겠습니까?',
+      confirmText: '삭제',
+      isDangerous: true,
     );
+    if (!ok) {
+      return;
+    }
+    bloc.add(DeleteCode(codeId: code.id));
   }
 
   @override
@@ -103,9 +80,9 @@ class _PlatformCodeSectionView extends StatelessWidget {
           current is PlatformCodeActionFailure,
       listener: (context, state) {
         if (state is PlatformCodeActionSuccess) {
-          _showSnackBar(context, state.message);
+          showSuccessToast(context, state.message);
         } else if (state is PlatformCodeActionFailure) {
-          _showSnackBar(context, state.message, isError: true);
+          showErrorToast(context, state.message);
         }
       },
       child: Container(
@@ -258,7 +235,7 @@ class _MessageBox extends StatelessWidget {
           ),
           if (onRetry != null) ...[
             const SizedBox(height: 8),
-            OutlinedButton(onPressed: onRetry, child: const Text('재시도')),
+            OutlinedButton(onPressed: onRetry, child: const Text('다시 시도')),
           ],
         ],
       ),

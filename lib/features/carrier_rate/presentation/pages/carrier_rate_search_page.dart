@@ -8,6 +8,9 @@ import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/car
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/dialogs/carrier_rate_input_dialog.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/widgets/carrier_rate_list_item.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 
 class CarrierRateSearchPage extends StatefulWidget {
   const CarrierRateSearchPage({super.key});
@@ -42,92 +45,98 @@ class _CarrierRateSearchPageState extends State<CarrierRateSearchPage> {
       navBarIndex: 2,
       showDrawer: true,
       showAppBarDrawerButton: false,
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: '배송사명 검색...',
-                      border: OutlineInputBorder(),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    onChanged: (value) {
-                      context.read<CarrierRateListBloc>().add(SearchCarrierRates(query: value));
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _onAddCarrierRatePressed,
-                  child: const Text('택배비 추가'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: BlocBuilder<CarrierRateListBloc, CarrierRateListState>(
-                builder: (context, state) {
-                  if (state is CarrierRateListLoading) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  if (state is CarrierRateListInitial) {
-                    return const Center(
-                      child: Text('검색 버튼을 클릭하여 택배비 정보를 조회해주세요.'),
-                    );
-                  }
-
-                  if (state is CarrierRateListEmpty) {
-                    return const Center(child: Text('조회 결과가 없습니다.'));
-                  }
-
-                  if (state is CarrierRateListError) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(state.message),
-                          ElevatedButton(
-                            onPressed: () {
-                              context.read<CarrierRateListBloc>().add(FetchCarrierRates());
-                            },
-                            child: const Text('재시도'),
-                          ),
-                        ],
+      body: AppPageBody.slivers(
+        slivers: [
+          SliverToBoxAdapter(
+            child: AppCard(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: const InputDecoration(
+                        hintText: '배송사명 검색...',
+                        contentPadding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
-                    );
-                  }
+                      onChanged: (value) {
+                        context
+                            .read<CarrierRateListBloc>()
+                            .add(SearchCarrierRates(query: value));
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: _onAddCarrierRatePressed,
+                    child: const Text('택배비 추가'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
+          BlocBuilder<CarrierRateListBloc, CarrierRateListState>(
+            builder: (context, state) {
+              if (state is CarrierRateListLoading) {
+                return const SliverToBoxAdapter(child: AppLoading());
+              }
 
-                  if (state is CarrierRateListLoaded) {
-                    return ListView.separated(
-                      itemCount: state.carrierRates.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final rate = state.carrierRates[index];
-                        return CarrierRateListItem(
-                          carrierRate: rate,
-                          onTap: () {
-                            context.goNamed(
-                              Routes.carrierRateDetail,
-                              pathParameters: {'id': rate.id.toString()},
-                            );
-                          },
+              if (state is CarrierRateListInitial) {
+                return const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Text('검색 버튼을 클릭하여 택배비 정보를 조회해주세요.'),
+                  ),
+                );
+              }
+
+              if (state is CarrierRateListEmpty) {
+                return const SliverToBoxAdapter(
+                  child: AppEmpty('조회 결과가 없습니다.'),
+                );
+              }
+
+              if (state is CarrierRateListError) {
+                return SliverToBoxAdapter(
+                  child: AppErrorBox(
+                    message: state.message,
+                    action: FilledButton(
+                      onPressed: () {
+                        context
+                            .read<CarrierRateListBloc>()
+                            .add(FetchCarrierRates());
+                      },
+                      child: const Text('다시 시도'),
+                    ),
+                  ),
+                );
+              }
+
+              if (state is CarrierRateListLoaded) {
+                return SliverList.separated(
+                  itemCount: state.carrierRates.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final rate = state.carrierRates[index];
+                    return CarrierRateListItem(
+                      carrierRate: rate,
+                      onTap: () {
+                        context.goNamed(
+                          Routes.carrierRateDetail,
+                          pathParameters: {'id': rate.id.toString()},
                         );
                       },
                     );
-                  }
+                  },
+                );
+              }
 
-                  return const SizedBox.shrink();
-                },
-              ),
-            ),
-          ],
-        ),
+              return const SliverToBoxAdapter(child: SizedBox.shrink());
+            },
+          ),
+        ],
       ),
     );
   }

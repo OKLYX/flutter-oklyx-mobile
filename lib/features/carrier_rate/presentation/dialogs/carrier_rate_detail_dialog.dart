@@ -6,6 +6,8 @@ import '../bloc/carrier_rate_detail_event.dart';
 import '../bloc/carrier_rate_detail_state.dart';
 import '../bloc/carrier_rate_list_bloc.dart';
 import '../bloc/carrier_rate_list_event.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 /// Carrier Rate Detail Dialog
 ///
@@ -129,9 +131,7 @@ class _CarrierRateDetailDialogState extends State<CarrierRateDetailDialog> {
           print('[CarrierRateDetailBloc] State changed: $state');
           if (state is CarrierRateDetailSuccess) {
             print('[CarrierRateDetailBloc] Success state detected');
-            ScaffoldMessenger.of(listenerContext).showSnackBar(
-              const SnackBar(content: Text('택배비가 수정되었습니다')),
-            );
+            showSuccessToast(listenerContext, '택배비가 수정되었습니다');
             context.read<CarrierRateListBloc>().add(FetchCarrierRates());
             Future.delayed(const Duration(milliseconds: 500), () {
               print('[CarrierRateDetailBloc] Calling onClose');
@@ -139,9 +139,7 @@ class _CarrierRateDetailDialogState extends State<CarrierRateDetailDialog> {
             });
           } else if (state is CarrierRateDetailError) {
             print('[CarrierRateDetailBloc] Error state: ${state.message}');
-            ScaffoldMessenger.of(listenerContext).showSnackBar(
-              SnackBar(content: Text('오류: ${state.message}')),
-            );
+            showErrorToast(listenerContext, '오류: ${state.message}');
           }
         },
         child: BlocBuilder<CarrierRateDetailBloc, CarrierRateDetailState>(
@@ -270,7 +268,6 @@ class _CarrierRateDetailDialogState extends State<CarrierRateDetailDialog> {
   ) {
     final decoration = InputDecoration(
       labelText: '배송사',
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
     );
 
     // Gate: wait until both detail fetch (carrierId) and carriers load finish.
@@ -360,9 +357,6 @@ class _CarrierRateDetailDialogState extends State<CarrierRateDetailDialog> {
       enabled: enabled,
       decoration: InputDecoration(
         labelText: label,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
       ),
       onChanged: onChanged,
     );
@@ -375,9 +369,6 @@ class _CarrierRateDetailDialogState extends State<CarrierRateDetailDialog> {
       enabled: !isSubmitting,
       decoration: InputDecoration(
         labelText: '가격 적용',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
         suffixIcon: const Icon(Icons.calendar_today),
       ),
       onTap: !isSubmitting ? () => _selectDate(context) : null,
@@ -396,7 +387,7 @@ class _CarrierRateDetailDialogState extends State<CarrierRateDetailDialog> {
           child: const Text('취소'),
         ),
         const SizedBox(width: 12),
-        ElevatedButton(
+        FilledButton(
           onPressed: (state.isSubmitting || !state.isValid)
               ? null
               : () {
@@ -405,11 +396,7 @@ class _CarrierRateDetailDialogState extends State<CarrierRateDetailDialog> {
                       );
                 },
           child: state.isSubmitting
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
+              ? const AppBusyLabel('수정')
               : const Text('수정'),
         ),
       ],

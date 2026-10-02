@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/presentation/widgets/seller_channel_section.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 
 /// 판매자 리스트 항목.
 ///
@@ -29,12 +30,13 @@ class _SellerListItemState extends State<SellerListItem> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return AppCard.flush(
+      child: Column(
         children: [
           InkWell(
             onTap: widget.onTap,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(4, 8, 12, 8),
+              padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
                   IconButton(
@@ -71,6 +73,7 @@ class _SellerListItemState extends State<SellerListItem> {
               sellerName: widget.seller.sellerName,
             ),
         ],
+      ),
     );
   }
 }

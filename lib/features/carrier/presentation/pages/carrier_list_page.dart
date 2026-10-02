@@ -11,6 +11,11 @@ import 'package:flutter_oklyn_mobile/features/carrier/presentation/dialogs/carri
 import 'package:flutter_oklyn_mobile/features/carrier/presentation/widgets/platform_code_section.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 class CarrierListPage extends StatefulWidget {
   const CarrierListPage({super.key});
@@ -32,18 +37,6 @@ class _CarrierListPageState extends State<CarrierListPage> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  void _showSnackBar(String message, {bool isError = false}) {
-    // Bottom nav 가 overlay 로 떠 있으므로 SnackBar 는 floating + 하단 여백으로 띄운다.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: isError ? Colors.red : null,
-        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-      ),
-    );
   }
 
   void _openCreateDialog() {
@@ -68,32 +61,19 @@ class _CarrierListPageState extends State<CarrierListPage> {
     );
   }
 
-  void _confirmDelete(Carrier carrier) {
+  Future<void> _confirmDelete(Carrier carrier) async {
     final bloc = context.read<CarrierFormBloc>();
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('삭제 확인'),
-        content: Text('"${carrier.name}" 택배사를 삭제하시겠습니까?\n이 작업은 취소할 수 없습니다.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
-            ),
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              bloc.add(DeleteCarrier(id: carrier.id));
-            },
-            child: const Text('삭제'),
-          ),
-        ],
-      ),
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '삭제 확인',
+      message: '"${carrier.name}" 택배사를 삭제하시겠습니까?\n이 작업은 취소할 수 없습니다.',
+      confirmText: '삭제',
+      isDangerous: true,
     );
+    if (!ok) {
+      return;
+    }
+    bloc.add(DeleteCarrier(id: carrier.id));
   }
 
   @override
@@ -106,90 +86,88 @@ class _CarrierListPageState extends State<CarrierListPage> {
       body: BlocListener<CarrierFormBloc, CarrierFormState>(
         listener: (context, state) {
           if (state is CarrierFormSuccess) {
-            _showSnackBar(state.message);
+            showSuccessToast(context, state.message);
             context.read<CarrierListBloc>().add(FetchCarriers());
           } else if (state is CarrierFormError) {
-            _showSnackBar(state.message, isError: true);
+            showErrorToast(context, state.message);
           }
         },
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: const InputDecoration(
-                        hintText: '택배사명 검색...',
-                        border: OutlineInputBorder(),
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      onChanged: (value) {
-                        context
-                            .read<CarrierListBloc>()
-                            .add(SearchCarriers(query: value));
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: _openCreateDialog,
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('추가'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: BlocBuilder<CarrierListBloc, CarrierListState>(
-                  builder: (context, state) {
-                    if (state is CarrierListLoading) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (state is CarrierListEmpty) {
-                      return const Center(child: Text('조회 결과가 없습니다.'));
-                    }
-                    if (state is CarrierListError) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(state.message),
-                            ElevatedButton(
-                              onPressed: () => context
-                                  .read<CarrierListBloc>()
-                                  .add(FetchCarriers()),
-                              child: const Text('재시도'),
-                            ),
-                          ],
+        child: AppPageBody.slivers(
+          slivers: [
+            SliverToBoxAdapter(
+              child: AppCard(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: const InputDecoration(
+                          hintText: '택배사명 검색...',
+                          contentPadding:
+                              EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         ),
-                      );
-                    }
-                    if (state is CarrierListLoaded) {
-                      return ListView.builder(
-                        itemCount: state.carriers.length,
-                        itemBuilder: (context, index) {
-                          final carrier = state.carriers[index];
-                          return _CarrierCard(
-                            carrier: carrier,
-                            onEdit: () => _openEditDialog(carrier),
-                            onDelete: () => _confirmDelete(carrier),
-                            onToggle: () => context
-                                .read<CarrierFormBloc>()
-                                .add(ToggleActive(carrier: carrier)),
-                          );
+                        onChanged: (value) {
+                          context
+                              .read<CarrierListBloc>()
+                              .add(SearchCarriers(query: value));
                         },
-                      );
-                    }
-                    return const SizedBox.shrink();
-                  },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton.icon(
+                      onPressed: _openCreateDialog,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('추가'),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+            BlocBuilder<CarrierListBloc, CarrierListState>(
+              builder: (context, state) {
+                if (state is CarrierListLoading) {
+                  return const SliverToBoxAdapter(child: AppLoading());
+                }
+                if (state is CarrierListEmpty) {
+                  return const SliverToBoxAdapter(
+                    child: AppEmpty('조회 결과가 없습니다.'),
+                  );
+                }
+                if (state is CarrierListError) {
+                  return SliverToBoxAdapter(
+                    child: AppErrorBox(
+                      message: state.message,
+                      action: FilledButton(
+                        onPressed: () =>
+                            context.read<CarrierListBloc>().add(FetchCarriers()),
+                        child: const Text('다시 시도'),
+                      ),
+                    ),
+                  );
+                }
+                if (state is CarrierListLoaded) {
+                  return SliverList.separated(
+                    itemCount: state.carriers.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final carrier = state.carriers[index];
+                      return _CarrierCard(
+                        carrier: carrier,
+                        onEdit: () => _openEditDialog(carrier),
+                        onDelete: () => _confirmDelete(carrier),
+                        onToggle: () => context
+                            .read<CarrierFormBloc>()
+                            .add(ToggleActive(carrier: carrier)),
+                      );
+                    },
+                  );
+                }
+                return const SliverToBoxAdapter(child: SizedBox.shrink());
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -212,9 +190,7 @@ class _CarrierCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      clipBehavior: Clip.antiAlias,
+    return AppCard.flush(
       child: ExpansionTile(
         shape: const Border(),
         collapsedShape: const Border(),

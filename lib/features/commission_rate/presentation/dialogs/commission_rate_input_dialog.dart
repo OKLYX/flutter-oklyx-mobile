@@ -6,6 +6,8 @@ import '../bloc/commission_rate_create_event.dart';
 import '../bloc/commission_rate_create_state.dart';
 import '../bloc/commission_rate_list_bloc.dart';
 import '../bloc/commission_rate_list_event.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 class CommissionRateInputDialog extends StatefulWidget {
   final VoidCallback onClose;
@@ -62,9 +64,7 @@ class _CommissionRateInputDialogState extends State<CommissionRateInputDialog> {
       child: BlocListener<CommissionRateCreateBloc, CommissionRateCreateState>(
         listener: (listenerContext, state) {
           if (state is CommissionRateCreateSuccess) {
-            ScaffoldMessenger.of(listenerContext).showSnackBar(
-              const SnackBar(content: Text('수수료가 추가되었습니다')),
-            );
+            showSuccessToast(listenerContext, '수수료가 추가되었습니다');
             context.read<CommissionRateListBloc>().add(FetchCommissionRates());
             widget.onClose();
           }
@@ -127,9 +127,6 @@ class _CommissionRateInputDialogState extends State<CommissionRateInputDialog> {
           value: state.platform.isEmpty ? null : state.platform,
           decoration: InputDecoration(
             labelText: 'Platform (필수)',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
           ),
           items: CommissionRateCreateBloc.platforms.map((platform) {
             return DropdownMenuItem(value: platform, child: Text(platform));
@@ -154,9 +151,6 @@ class _CommissionRateInputDialogState extends State<CommissionRateInputDialog> {
             decoration: InputDecoration(
               labelText: 'Category (선택)',
               hintText: '플랫폼을 먼저 선택해주세요',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
             ),
             items: [],
             onChanged: null,
@@ -184,9 +178,6 @@ class _CommissionRateInputDialogState extends State<CommissionRateInputDialog> {
           value: state.selectedCategoryId,
           decoration: InputDecoration(
             labelText: 'Category (선택)',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
           ),
           items: [
             const DropdownMenuItem(value: null, child: Text('선택 안함')),
@@ -216,9 +207,6 @@ class _CommissionRateInputDialogState extends State<CommissionRateInputDialog> {
       decoration: InputDecoration(
         labelText: 'Rate (필수)',
         hintText: '예) 5.5, 15.0 (0~100)',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
       ),
       onChanged: (value) {
         context.read<CommissionRateCreateBloc>().add(RateChanged(value));
@@ -245,7 +233,7 @@ class _CommissionRateInputDialogState extends State<CommissionRateInputDialog> {
               child: const Text('취소'),
             ),
             const SizedBox(width: 12),
-            ElevatedButton(
+            FilledButton(
               onPressed: !isValid
                   ? null
                   : () {
@@ -261,11 +249,7 @@ class _CommissionRateInputDialogState extends State<CommissionRateInputDialog> {
                       );
                     },
               child: isSubmitting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                  ? const AppBusyLabel('저장')
                   : const Text('저장'),
             ),
           ],

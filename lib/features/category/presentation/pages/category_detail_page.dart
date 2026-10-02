@@ -11,6 +11,12 @@ import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/categor
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_event.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_state.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_form_field.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 class CategoryDetailPage extends StatefulWidget {
   final int categoryId;
@@ -28,20 +34,20 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
   bool _isEditing = false;
   CategoryDetailLoaded? _lastLoadedState;
 
-  void _showDeleteDialog(BuildContext context, Category category) {
-    showDialog(
-      context: context,
-      builder: (ctx) => _DeleteConfirmationDialog(
-        category: category,
-        onConfirm: () {
-          Navigator.pop(ctx);
-          context
-              .read<CategoryDetailBloc>()
-              .add(DeleteCategoryRequested(category.id));
-        },
-        onCancel: () => Navigator.pop(ctx),
-      ),
+  Future<void> _showDeleteDialog(BuildContext context, Category category) async {
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '카테고리 삭제',
+      message: '${category.name}을(를) 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.',
+      confirmText: '삭제',
+      isDangerous: true,
     );
+    if (!ok || !context.mounted) {
+      return;
+    }
+    context
+        .read<CategoryDetailBloc>()
+        .add(DeleteCategoryRequested(category.id));
   }
 
   @override
@@ -63,17 +69,13 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
               current is CategoryDetailError,
           listener: (context, state) {
             if (state is CategoryDetailSuccess) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('카테고리가 수정되었습니다.')),
-              );
+              showSuccessToast(context, '카테고리가 수정되었습니다.');
               setState(() => _isEditing = false);
               context.read<CategoryDetailBloc>().add(
                 FetchCategoryRequested(categoryId: widget.categoryId),
               );
             } else if (state is CategoryDetailDeleteSuccess) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('카테고리가 삭제되었습니다.')),
-              );
+              showSuccessToast(context, '카테고리가 삭제되었습니다.');
               Future.delayed(const Duration(milliseconds: 500), () {
                 if (mounted) {
                   GetIt.instance<CategoryListBloc>().add(FetchCategoriesRequested());
@@ -81,19 +83,14 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
                 }
               });
             } else if (state is CategoryDetailError) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(state.message),
-                  backgroundColor: Colors.red,
-                ),
-              );
+              showErrorToast(context, state.message);
             }
           },
           child: BlocBuilder<CategoryDetailBloc, CategoryDetailState>(
             builder: (context, state) {
               final bloc = context.read<CategoryDetailBloc>();
               if (state is CategoryDetailLoading) {
-                return const Center(child: CircularProgressIndicator());
+                return const AppPageBody(children: [AppLoading()]);
               }
               if (state is CategoryDetailLoaded) {
                 _lastLoadedState = state;
@@ -135,20 +132,18 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
                 );
               }
               if (state is CategoryDetailError) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(state.message),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
+                return AppPageBody(
+                  children: [
+                    AppErrorBox(
+                      message: state.message,
+                      action: FilledButton(
                         onPressed: () => bloc.add(
                           FetchCategoryRequested(categoryId: widget.categoryId),
                         ),
-                        child: const Text('재시도'),
+                        child: const Text('다시 시도'),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 );
               }
               return const SizedBox.shrink();
@@ -237,10 +232,8 @@ class _CategoryDetailsViewState extends State<_CategoryDetailsView> {
           final List<Category> categories = state is CategoryListLoaded ? state.categories : [];
           final parentCategoryName = _getParentCategoryName(categories);
 
-          return SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
+          return AppPageBody.scroll(
+            child: Column(
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -254,17 +247,17 @@ class _CategoryDetailsViewState extends State<_CategoryDetailsView> {
                       ),
                       Row(
                         children: [
-                          ElevatedButton.icon(
+                          FilledButton.icon(
                             onPressed: () => widget.onEditChange(true),
                             icon: const Icon(Icons.edit),
                             label: const Text('수정'),
                           ),
                           const SizedBox(width: 8),
-                          ElevatedButton.icon(
+                          FilledButton.icon(
                             onPressed: widget.onDeletePressed,
                             icon: const Icon(Icons.delete),
                             label: const Text('삭제'),
-                            style: ElevatedButton.styleFrom(
+                            style: FilledButton.styleFrom(
                               backgroundColor:
                                   Theme.of(context).colorScheme.error,
                               foregroundColor:
@@ -276,21 +269,20 @@ class _CategoryDetailsViewState extends State<_CategoryDetailsView> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  _DetailField('카테고리명', widget.category.category.name),
-                  _DetailField('플랫폼', widget.category.category.platform),
-                  _DetailField('플랫폼 카테고리 ID', widget.category.category.platformCategoryId),
-                  _DetailField('부모 카테고리', parentCategoryName),
-                  _DetailField(
+                  AppDetailField('카테고리명', widget.category.category.name),
+                  AppDetailField('플랫폼', widget.category.category.platform),
+                  AppDetailField('플랫폼 카테고리 ID', widget.category.category.platformCategoryId),
+                  AppDetailField('부모 카테고리', parentCategoryName),
+                  AppDetailField(
                     '생성일',
                     widget.category.category.createdDate.toString().split('.')[0],
                   ),
-                  _DetailField(
+                  AppDetailField(
                     '수정일',
                     widget.category.category.modifiedDate.toString().split('.')[0],
                   ),
                 ],
               ),
-            ),
           );
         },
       );
@@ -300,23 +292,21 @@ class _CategoryDetailsViewState extends State<_CategoryDetailsView> {
       builder: (context, listState) {
         final List<Category> categories = listState is CategoryListLoaded ? listState.categories : [];
 
-        return SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
+        return AppPageBody.scroll(
+          child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _FormField(
+                AppFormField(
                   '카테고리명',
                   _nameCtrl,
                   (v) => context.read<CategoryDetailBloc>().add(NameDetailChanged(v)),
                 ),
-                _FormField(
+                AppFormField(
                   '플랫폼',
                   _platformCtrl,
                   (v) => context.read<CategoryDetailBloc>().add(PlatformDetailChanged(v)),
                 ),
-                _FormField(
+                AppFormField(
                   '플랫폼 카테고리 ID',
                   _platformCategoryIdCtrl,
                   (v) => context.read<CategoryDetailBloc>().add(PlatformCategoryIdDetailChanged(v)),
@@ -325,7 +315,6 @@ class _CategoryDetailsViewState extends State<_CategoryDetailsView> {
                 DropdownButtonFormField<int?>(
                   decoration: const InputDecoration(
                     labelText: '부모 카테고리',
-                    border: OutlineInputBorder(),
                   ),
                   value: _selectedParentId,
                   items: [
@@ -357,14 +346,14 @@ class _CategoryDetailsViewState extends State<_CategoryDetailsView> {
                     return Row(
                       children: [
                         Expanded(
-                          child: ElevatedButton(
+                          child: FilledButton(
                             onPressed: () => widget.onEditChange(false),
                             child: const Text('취소'),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: ElevatedButton(
+                          child: FilledButton(
                             onPressed: isLoading || !isEnabled
                                 ? null
                                 : () {
@@ -373,13 +362,7 @@ class _CategoryDetailsViewState extends State<_CategoryDetailsView> {
                                         .add(UpdateCategorySubmitted());
                                   },
                             child: isLoading
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
+                                ? const AppBusyLabel('수정')
                                 : const Text('수정'),
                           ),
                         ),
@@ -389,101 +372,8 @@ class _CategoryDetailsViewState extends State<_CategoryDetailsView> {
                 ),
               ],
             ),
-          ),
         );
       },
-    );
-  }
-}
-
-class _FormField extends StatelessWidget {
-  final String label;
-  final TextEditingController controller;
-  final Function(String) onChanged;
-  final TextInputType keyboardType;
-
-  const _FormField(
-    this.label,
-    this.controller,
-    this.onChanged, {
-    this.keyboardType = TextInputType.text,
-  });
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 16),
-    child: TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-      ),
-      onChanged: onChanged,
-    ),
-  );
-}
-
-class _DetailField extends StatelessWidget {
-  final String label, value;
-
-  const _DetailField(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontSize: 12,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-        ),
-        const Divider(),
-      ],
-    ),
-  );
-}
-
-class _DeleteConfirmationDialog extends StatelessWidget {
-  final Category category;
-  final VoidCallback onConfirm;
-  final VoidCallback onCancel;
-
-  const _DeleteConfirmationDialog({
-    required this.category,
-    required this.onConfirm,
-    required this.onCancel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('카테고리 삭제'),
-      content:
-          Text('${category.name}을(를) 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.'),
-      actions: [
-        TextButton(
-          onPressed: onCancel,
-          child: const Text('취소'),
-        ),
-        FilledButton(
-          onPressed: onConfirm,
-          style: FilledButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.error,
-            foregroundColor: Theme.of(context).colorScheme.onError,
-          ),
-          child: const Text('삭제'),
-        ),
-      ],
     );
   }
 }
