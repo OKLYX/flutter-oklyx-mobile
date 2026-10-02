@@ -8,15 +8,16 @@ import '../bloc/reserved_shipment_bloc.dart';
 import '../bloc/reserved_shipment_event.dart';
 import '../bloc/reserved_shipment_state.dart';
 import 'reserved_shipment_row_tile.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
 
 /// 출고관리 내부 단계 주문 카드의 [송장 수정] — 그 주문의 「송장」을 바텀시트로 연다 (FEATURE_2609_75 / D18).
 ///
 /// **파일**: lib/features/shipping_label/presentation/widgets/stored_invoice_section.dart
 /// ⚠️ 시트마다 [ReservedShipmentBloc] 을 새로 만든다(그 주문 범위). 닫으면 폐기된다.
 Future<void> showStoredInvoiceSheet(BuildContext context, String externalOrderId) =>
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
+    showAppSheet<void>(
+      context,
       builder: (_) => BlocProvider(
         create: (_) => getIt<ReservedShipmentBloc>()
           ..add(ReservedShipmentsRequested(externalOrderId: externalOrderId)),
@@ -29,15 +30,24 @@ Future<void> showStoredInvoiceSheet(BuildContext context, String externalOrderId
       ),
     );
 
-/// 「송장」 — 내부 단계 배송 묶음 1개 = 1줄(배송번호 · 단계 배지 · 택배사 · 송장번호 · [송장 수정]) (FEATURE_2609_75 / D18).
+/// 「송장」 — one internal-stage shipment bundle = one row (shipment number ·
+/// stage badge · carrier · invoice number · [송장 수정])
+/// (FEATURE_2609_75 / D18).
 ///
-/// **용도**: 「내부 상품준비중」·「발송대기중」 동안 언제나 택배사·송장번호를 넣거나 고친다(E14 조회 · E12 저장).
-/// 예약을 취소해도 송장은 남는다 — 이 송장으로 [저장된 송장으로 발송]을 한다.
-/// **사용처**: 주문 상세(「예약 발송 기록」 위) · [showStoredInvoiceSheet](출고관리 [송장 수정]).
-/// ⚠️ 위에 그 주문 범위(`ReservedShipmentsRequested(externalOrderId: …)`)의 [ReservedShipmentBloc] 이 있어야 한다.
-/// ⚠️ 오류는 섹션 안에 빨간 글자로 보인다 — 바텀시트 안에서는 SnackBar 가 시트 뒤에 깔린다.
-/// [inSheet] = true 면 불러오는 중·권한 없음·대상 없음도 글자로 보인다(시트가 비지 않게). false 면 그때 아무것도 그리지 않는다.
-/// ❌ 결과 행 id 로 저장하지 않는다 — 경로 변수는 배송 묶음 id 다.
+/// **Purpose**: during 「내부 상품준비중」 · 「발송대기중」 the carrier and invoice
+/// number can be entered or corrected at any time (E14 fetch · E12 save).
+/// The invoice stays even when the reservation is cancelled —
+/// [저장된 송장으로 발송] sends with this invoice.
+/// **Used in**: order detail (above 「예약 발송 기록」) ·
+/// [showStoredInvoiceSheet] (shipment management [송장 수정]).
+/// ⚠️ A [ReservedShipmentBloc] of that order's scope
+/// (`ReservedShipmentsRequested(externalOrderId: …)`) must be above it.
+/// ⚠️ Errors are shown as red text inside the section.
+/// With [inSheet] = true, loading · no permission · no target are also shown
+/// as text (so the sheet is not empty). With false nothing is drawn in those
+/// cases.
+/// ❌ Do not save by the result row id — the path variable is the shipment
+/// bundle id.
 class StoredInvoiceSection extends StatelessWidget {
   final bool inSheet;
 
@@ -145,12 +155,7 @@ class StoredInvoiceSection extends StatelessWidget {
                           child: state.busyAction ==
                                       ReservedAction.storedInvoice &&
                                   state.busyId == invoice.orderShipmentId
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
-                                )
+                              ? const AppBusyLabel('송장 수정')
                               : const Text('송장 수정'),
                         ),
                     ],
