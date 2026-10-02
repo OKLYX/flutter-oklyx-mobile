@@ -7,6 +7,11 @@ import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../bloc/order_setting_bloc.dart';
 import '../bloc/order_setting_event.dart';
 import '../bloc/order_setting_state.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 /// 주문관리 > 주문관리 설정 페이지 (FEATURE_2609_75 / D4·D12).
 ///
@@ -40,38 +45,19 @@ class _OrderSettingsView extends StatelessWidget {
       body: BlocConsumer<OrderSettingBloc, OrderSettingState>(
         listenWhen: (prev, curr) => curr.saved && !prev.saved,
         listener: (context, state) {
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(
-              const SnackBar(
-                content: Text('저장했습니다.'),
-                behavior: SnackBarBehavior.floating,
-                margin: EdgeInsets.only(left: 16, right: 16, bottom: 70),
-              ),
-            );
+          showSuccessToast(context, '저장했습니다.');
         },
         builder: (context, state) {
           if (state.loading) {
-            return const Center(child: CircularProgressIndicator());
+            return const AppPageBody(children: [AppLoading()]);
           }
           if (state.forbidden) {
             return const Center(child: Text('관리자만 설정할 수 있습니다.'));
           }
           final setting = state.setting;
-          return ListView(
-            padding: EdgeInsets.fromLTRB(
-              16,
-              16,
-              16,
-              kBottomNavigationBarHeight +
-                  MediaQuery.paddingOf(context).bottom +
-                  16,
-            ),
+          return AppPageBody(
             children: [
-              Card(
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
+              AppCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -98,12 +84,7 @@ class _OrderSettingsView extends StatelessWidget {
                                 : () => _pickAndSave(
                                     context, setting.reservedShipmentTime),
                             child: state.saving
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2),
-                                  )
+                                ? const AppBusyLabel('변경')
                                 : const Text('변경'),
                           ),
                         ],
@@ -137,7 +118,6 @@ class _OrderSettingsView extends StatelessWidget {
                       ],
                     ],
                   ),
-                ),
               ),
             ],
           );

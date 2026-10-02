@@ -117,8 +117,6 @@ class _QuantityStepperState extends State<QuantityStepper> {
             textAlign: TextAlign.right,
             style: const TextStyle(fontSize: 14),
             decoration: const InputDecoration(
-              isDense: true,
-              border: OutlineInputBorder(),
               contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             ),
             onChanged: widget.onChanged,

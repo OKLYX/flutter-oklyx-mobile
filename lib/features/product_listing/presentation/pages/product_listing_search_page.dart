@@ -11,6 +11,10 @@ import '../bloc/product_listing_list_event.dart';
 import '../bloc/product_listing_list_state.dart';
 import '../product_listing_refresh.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 /// 판매상품 조회 페이지 (목록 + 검색)
 ///
@@ -93,9 +97,7 @@ class _ProductListingSearchViewState extends State<_ProductListingSearchView> {
   void _onSearch() {
     final platform = _selectedPlatform;
     if (platform == null || platform.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('플랫폼을 선택해주세요.')),
-      );
+      showInputNoticeToast(context, '플랫폼을 선택해주세요.');
       return;
     }
     context
@@ -109,13 +111,10 @@ class _ProductListingSearchViewState extends State<_ProductListingSearchView> {
         navBarIndex: 2,
         showDrawer: true,
         showAppBarDrawerButton: false,
-        body: Padding(
-          // 좌우 패딩은 헤더(검색/결과개수)에만 적용하고, 리스트는 화면 끝까지 닿게 한다.
-          padding: const EdgeInsets.only(top: 16.0),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        body: AppPageBody.slivers(
+          controller: _scrollController,
+          slivers: [
+            SliverToBoxAdapter(
                 child: Row(
                 children: [
                   Expanded(
@@ -124,7 +123,6 @@ class _ProductListingSearchViewState extends State<_ProductListingSearchView> {
                       isExpanded: true,
                       decoration: const InputDecoration(
                         labelText: '플랫폼',
-                        border: OutlineInputBorder(),
                         contentPadding:
                             EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       ),
@@ -145,7 +143,7 @@ class _ProductListingSearchViewState extends State<_ProductListingSearchView> {
                   BlocBuilder<ProductListingListBloc, ProductListingListState>(
                     builder: (context, state) {
                       final isLoading = state is ProductListingListLoading;
-                      return ElevatedButton(
+                      return FilledButton(
                         onPressed: isLoading ? null : _onSearch,
                         child: Text(isLoading ? '검색 중...' : '검색'),
                       );
@@ -153,11 +151,10 @@ class _ProductListingSearchViewState extends State<_ProductListingSearchView> {
                   ),
                 ],
                 ),
-              ),
-              const SizedBox(height: 8),
-              // 프론트 ProductListingSearchCard와 동일: 결과 개수 표시 (N개의 결과)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 8)),
+            // 프론트 ProductListingSearchCard와 동일: 결과 개수 표시 (N개의 결과)
+            SliverToBoxAdapter(
                 child: BlocBuilder<ProductListingListBloc, ProductListingListState>(
                   builder: (context, state) {
                     if (state is ProductListingListLoaded &&
@@ -177,47 +174,47 @@ class _ProductListingSearchViewState extends State<_ProductListingSearchView> {
                     return const SizedBox.shrink();
                   },
                 ),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: BlocBuilder<ProductListingListBloc, ProductListingListState>(
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 8)),
+            BlocBuilder<ProductListingListBloc, ProductListingListState>(
                   builder: (context, state) {
                     if (state is ProductListingListInitial) {
-                      return const Center(
-                        child: Text('플랫폼을 선택하고 검색해주세요.'),
+                      return const SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Center(
+                          child: Text('플랫폼을 선택하고 검색해주세요.'),
+                        ),
                       );
                     }
 
                     if (state is ProductListingListLoading) {
-                      return const Center(child: CircularProgressIndicator());
+                      return const SliverToBoxAdapter(child: AppLoading());
                     }
 
                     if (state is ProductListingListError) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(state.message),
-                            const SizedBox(height: 12),
-                            ElevatedButton(
-                              onPressed: _onSearch,
-                              child: const Text('재시도'),
-                            ),
-                          ],
+                      return SliverToBoxAdapter(
+                        child: AppErrorBox(
+                          message: state.message,
+                          action: FilledButton(
+                            onPressed: _onSearch,
+                            child: const Text('다시 시도'),
+                          ),
                         ),
                       );
                     }
 
                     if (state is ProductListingListLoaded) {
                       if (state.listings.isEmpty) {
-                        return const Center(child: Text('조회 결과가 없습니다.'));
+                        return const SliverToBoxAdapter(
+                          child: AppEmpty('조회 결과가 없습니다.'),
+                        );
                       }
 
-                      return ListView.separated(
-                        controller: _scrollController,
+                      return SliverList.separated(
                         itemCount:
                             state.listings.length + (state.isLoadingMore ? 1 : 0),
-                        separatorBuilder: (context, index) => const Divider(height: 1),
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 8),
                         itemBuilder: (context, index) {
                           if (index == state.listings.length) {
                             return const Padding(
@@ -240,12 +237,10 @@ class _ProductListingSearchViewState extends State<_ProductListingSearchView> {
                       );
                     }
 
-                    return const SizedBox.shrink();
+                    return const SliverToBoxAdapter(child: SizedBox.shrink());
                   },
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
 }
@@ -265,7 +260,8 @@ class _ProductListingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return AppCard.flush(
+      child: Column(
         children: [
           InkWell(
             onTap: onTap,
@@ -343,6 +339,7 @@ class _ProductListingCard extends StatelessWidget {
               child: _OptionsSection(options: listing.options),
             ),
         ],
+      ),
     );
   }
 }

@@ -10,6 +10,8 @@ import 'package:flutter_oklyn_mobile/features/auth/presentation/bloc/auth_event.
 import 'package:flutter_oklyn_mobile/features/auth/presentation/bloc/auth_state.dart';
 import 'package:flutter_oklyn_mobile/features/auth/presentation/widgets/email_field.dart';
 import 'package:flutter_oklyn_mobile/features/auth/presentation/widgets/password_field.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -36,9 +38,7 @@ class _LoginPageState extends State<LoginPage> {
           builder: (context, state) => BlocListener<AuthBloc, AuthState>(
             listener: (context, state) {
               if (state is AuthError) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(state.message)),
-                );
+                showErrorToast(context, state.message);
               } else if (state is AuthAuthenticated) {
                 context.go(Routes.dashboardPath);
               }
@@ -82,21 +82,6 @@ class _LoginPageState extends State<LoginPage> {
                                         _submitAttempted && _emailField.invalid
                                             ? _emailField.error
                                             : null,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                      borderSide: BorderSide(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .outline),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                      borderSide: const BorderSide(
-                                          color: AppColors.brandMain, width: 2),
-                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 16),
@@ -113,21 +98,6 @@ class _LoginPageState extends State<LoginPage> {
                                             _passwordField.invalid
                                         ? _passwordField.error
                                         : null,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                      borderSide: BorderSide(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .outline),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                      borderSide: const BorderSide(
-                                          color: AppColors.brandMain, width: 2),
-                                    ),
                                   ),
                                 ),
                               ],
@@ -135,8 +105,8 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         const Spacer(),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
+                        FilledButton(
+                          style: FilledButton.styleFrom(
                             backgroundColor: AppColors.brandMain,
                             foregroundColor: AppColors.foregroundLight,
                           ),
@@ -155,13 +125,9 @@ class _LoginPageState extends State<LoginPage> {
                                 }
                               : null,
                           child: state is AuthLoading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                          AppColors.foregroundLight)),
+                              ? const AppBusyLabel(
+                                  'LOGIN',
+                                  color: AppColors.foregroundLight,
                                 )
                               : const Text('LOGIN'),
                         ),

@@ -9,6 +9,11 @@ import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_de
 import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/seller/presentation/bloc/seller_list_event.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 class SellerDetailPage extends StatefulWidget {
   final int sellerId;
@@ -50,31 +55,18 @@ class _SellerDetailPageState extends State<SellerDetailPage> {
     _businessRegController.text = seller.businessRegistration;
   }
 
-  void _showDeleteDialog(BuildContext context, Seller seller) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('판매자 삭제'),
-        content: Text('${seller.sellerName}을(를) 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              _sellerDetailBloc.add(const ConfirmDeleteSeller());
-            },
-            child: const Text('삭제'),
-          ),
-        ],
-      ),
+  Future<void> _showDeleteDialog(BuildContext context, Seller seller) async {
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '판매자 삭제',
+      message: '${seller.sellerName}을(를) 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.',
+      confirmText: '삭제',
+      isDangerous: true,
     );
+    if (!ok) {
+      return;
+    }
+    _sellerDetailBloc.add(const ConfirmDeleteSeller());
   }
 
   void _onCancel() {
@@ -106,28 +98,19 @@ class _SellerDetailPageState extends State<SellerDetailPage> {
             }
           }
           if (state is SellerDetailUpdateSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('판매자 정보가 수정되었습니다.')),
-            );
+            showSuccessToast(context, '판매자 정보가 수정되었습니다.');
             context.read<SellerListBloc>().add(const FetchSellers());
             Future.delayed(const Duration(milliseconds: 500), () {
               if (mounted) context.go(Routes.sellerPath);
             });
           } else if (state is SellerDetailDeleteSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('판매자가 삭제되었습니다.')),
-            );
+            showSuccessToast(context, '판매자가 삭제되었습니다.');
             context.read<SellerListBloc>().add(const FetchSellers());
             Future.delayed(const Duration(milliseconds: 500), () {
               if (mounted) context.go(Routes.sellerPath);
             });
           } else if (state is SellerDetailError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
-            );
+            showErrorToast(context, state.message);
           }
         },
         child: BlocBuilder<SellerDetailBloc, SellerDetailState>(
@@ -137,33 +120,28 @@ class _SellerDetailPageState extends State<SellerDetailPage> {
               current is SellerDetailLoaded,
           builder: (context, state) {
             if (state is SellerDetailLoading) {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
+              return const AppPageBody(children: [AppLoading()]);
             }
 
             if (state is SellerDetailError) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(state.message),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
+              return AppPageBody(
+                children: [
+                  AppErrorBox(
+                    message: state.message,
+                    action: FilledButton(
                       onPressed: () => _sellerDetailBloc.add(LoadSellerDetail(widget.sellerId)),
                       child: const Text('다시 시도'),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               );
             }
 
             if (state is SellerDetailLoaded) {
               final seller = state.seller;
-              return SingleChildScrollView(
+              return AppPageBody.scroll(
                 child: Column(
                   children: [
-                    const SizedBox(height: 16),
                     if (_isEditing)
                       _EditableBasicInfoCard(
                         seller: seller,
@@ -188,7 +166,6 @@ class _SellerDetailPageState extends State<SellerDetailPage> {
                       ),
                     const SizedBox(height: 12),
                     _TimestampsCard(seller: seller),
-                    const SizedBox(height: 80),
                   ],
                 ),
               );
@@ -209,10 +186,7 @@ class _BasicInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -233,7 +207,6 @@ class _BasicInfoCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }
@@ -245,10 +218,7 @@ class _DetailsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -263,7 +233,6 @@ class _DetailsCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }
@@ -281,10 +250,7 @@ class _EditableBasicInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -292,9 +258,6 @@ class _EditableBasicInfoCard extends StatelessWidget {
               controller: sellerNameController,
               decoration: InputDecoration(
                 labelText: '판매자명',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               ),
             ),
@@ -305,9 +268,6 @@ class _EditableBasicInfoCard extends StatelessWidget {
               decoration: InputDecoration(
                 labelText: '사업자등록번호',
                 hintText: '0000000000',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               ),
               keyboardType: TextInputType.number,
@@ -322,7 +282,6 @@ class _EditableBasicInfoCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }
@@ -338,14 +297,11 @@ class _ActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return AppCard(
         child: Row(
           children: [
             Expanded(
-              child: ElevatedButton(
+              child: FilledButton(
                 onPressed: onEditPressed,
                 child: const Text('수정'),
               ),
@@ -363,7 +319,6 @@ class _ActionCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }
@@ -379,10 +334,7 @@ class _EditActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return AppCard(
         child: Row(
           children: [
             Expanded(
@@ -400,7 +352,6 @@ class _EditActionCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }
@@ -412,10 +363,7 @@ class _TimestampsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -451,7 +399,6 @@ class _TimestampsCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }

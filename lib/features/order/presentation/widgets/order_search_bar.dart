@@ -78,8 +78,6 @@ class OrderSearchBar extends StatelessWidget {
           controller: controller,
           onChanged: onTermChanged,
           decoration: InputDecoration(
-            isDense: true,
-            border: const OutlineInputBorder(),
             prefixIcon: const Icon(Icons.search, size: 18),
             hintText: kOrderSearchHints[field],
             suffixIcon: term.isEmpty

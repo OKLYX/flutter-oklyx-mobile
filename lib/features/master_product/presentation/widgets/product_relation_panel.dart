@@ -10,6 +10,7 @@ import 'package:flutter_oklyn_mobile/features/product/domain/usecases/get_produc
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/get_products_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/product_thumbnail.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 /// Max results per search — when there are more, ask for a narrower query.
 const int _searchSize = 20;
@@ -244,7 +245,7 @@ class _ProductRelationPanelState extends State<ProductRelationPanel> {
       ),
       const SizedBox(height: 12),
       if (componentIds == null)
-        const _BusyLabel('불러오는 중...')
+        const AppBusyLabel('불러오는 중...', gap: 8)
       else if (componentIds.isEmpty)
         Text(
           '구성상품이 없습니다.',
@@ -275,9 +276,7 @@ class _ProductRelationPanelState extends State<ProductRelationPanel> {
               textInputAction: TextInputAction.search,
               onSubmitted: (_) => _runSearch(),
               decoration: const InputDecoration(
-                border: OutlineInputBorder(),
                 hintText: '상품명으로 검색',
-                isDense: true,
               ),
             ),
           ),
@@ -287,7 +286,7 @@ class _ProductRelationPanelState extends State<ProductRelationPanel> {
             onPressed: _searching || _searchController.text.trim().isEmpty
                 ? null
                 : _runSearch,
-            child: _searching ? const _BusyLabel('검색 중...') : const Text('검색'),
+            child: _searching ? const AppBusyLabel('검색 중...') : const Text('검색'),
           ),
         ],
       ),
@@ -339,7 +338,7 @@ class _ProductRelationPanelState extends State<ProductRelationPanel> {
     }
     final scheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         border: Border.all(color: scheme.outlineVariant),
         borderRadius: BorderRadius.circular(4),
@@ -535,24 +534,4 @@ class _ProductBrief extends StatelessWidget {
       ],
     );
   }
-}
-
-class _BusyLabel extends StatelessWidget {
-  final String label;
-
-  const _BusyLabel(this.label);
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 8),
-          Text(label),
-        ],
-      );
 }

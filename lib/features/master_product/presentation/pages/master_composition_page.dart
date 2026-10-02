@@ -11,6 +11,8 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/widget
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/product.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/get_products_usecase.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 
 /// Master **composition change page** (FEATURE_2609_80 / 05 — web
 /// `master-products/[id]/composition/components/MasterCompositionContainer.tsx`
@@ -106,17 +108,9 @@ class _MasterCompositionPageState extends State<MasterCompositionPage> {
       title: '구성상품 변경',
       navBarIndex: 2,
       onBackPressed: _toDetail,
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          16,
-          16,
-          16,
-          kBottomNavigationBarHeight + 24,
-        ),
+      body: AppPageBody(
         children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+          AppCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -174,7 +168,6 @@ class _MasterCompositionPageState extends State<MasterCompositionPage> {
                     ),
                 ],
               ),
-            ),
           ),
         ],
       ),

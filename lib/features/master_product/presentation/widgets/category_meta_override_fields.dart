@@ -235,30 +235,29 @@ class _CategoryMetaOverrideFieldsState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text.rich(
-          TextSpan(
-            text: n.label,
-            children: [
-              if (n.required)
-                TextSpan(text: ' *', style: TextStyle(color: scheme.error)),
-              if (auto)
-                TextSpan(
-                  text: ' (개당·수량에서 자동)',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w400,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-            ],
-          ),
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-        ),
-        const SizedBox(height: 4),
         Row(
           children: [
             Expanded(
               child: _MetaTextField(
                 key: ValueKey('notice-${n.key}'),
+                label: Text.rich(
+                  TextSpan(
+                    text: n.label,
+                    children: [
+                      if (n.required)
+                        TextSpan(
+                            text: ' *', style: TextStyle(color: scheme.error)),
+                      if (auto)
+                        TextSpan(
+                          text: ' (개당·수량에서 자동)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w400,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
                 value: widget.noticeValues[n.key] ?? '',
                 enabled: !widget.disabled && !auto,
                 hintText: auto ? '개당 값을 입력하면 자동으로 채워집니다' : '값 입력',
@@ -403,8 +402,6 @@ class _CategoryMetaOverrideFieldsState
                     enabled: false,
                     style: TextStyle(fontSize: 14),
                     decoration: InputDecoration(
-                      isDense: true,
-                      border: OutlineInputBorder(),
                       contentPadding:
                           EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                       hintText: '구분 먼저 선택',
@@ -521,8 +518,6 @@ Widget _select(
       initialValue: value,
       isExpanded: true,
       decoration: const InputDecoration(
-        isDense: true,
-        border: OutlineInputBorder(),
         contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       ),
       style: TextStyle(
@@ -547,6 +542,7 @@ class _MetaTextField extends StatefulWidget {
   final ValueChanged<String> onChanged;
   final bool enabled;
   final String? hintText;
+  final Widget? label;
   final TextInputType? keyboardType;
   final List<TextInputFormatter>? inputFormatters;
 
@@ -556,6 +552,7 @@ class _MetaTextField extends StatefulWidget {
     super.key,
     this.enabled = true,
     this.hintText,
+    this.label,
     this.keyboardType,
     this.inputFormatters,
   });
@@ -595,8 +592,7 @@ class _MetaTextFieldState extends State<_MetaTextField> {
         inputFormatters: widget.inputFormatters,
         style: const TextStyle(fontSize: 14),
         decoration: InputDecoration(
-          isDense: true,
-          border: const OutlineInputBorder(),
+          label: widget.label,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
           hintText: widget.hintText,

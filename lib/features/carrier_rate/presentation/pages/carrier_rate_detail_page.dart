@@ -11,6 +11,11 @@ import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/car
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/presentation/bloc/carrier_rate_list_event.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_form_field.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 class CarrierRateDetailPage extends StatefulWidget {
   final int carrierRateId;
@@ -23,20 +28,20 @@ class CarrierRateDetailPage extends StatefulWidget {
 class _CarrierRateDetailPageState extends State<CarrierRateDetailPage> {
   bool _isEditing = false;
 
-  void _showDeleteDialog(BuildContext context, CarrierRate carrierRate) {
-    showDialog(
-      context: context,
-      builder: (ctx) => _DeleteConfirmationDialog(
-        carrierRate: carrierRate,
-        onConfirm: () {
-          Navigator.pop(ctx);
-          context.read<CarrierRateDetailBloc>().add(
-                ConfirmDeleteCarrierRate(carrierRate.id),
-              );
-        },
-        onCancel: () => Navigator.pop(ctx),
-      ),
+  Future<void> _showDeleteDialog(BuildContext context, CarrierRate carrierRate) async {
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '택배비 삭제',
+      message: '${carrierRate.carrier}의 ${carrierRate.type}을(를) 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.',
+      confirmText: '삭제',
+      isDangerous: true,
     );
+    if (!ok || !context.mounted) {
+      return;
+    }
+    context.read<CarrierRateDetailBloc>().add(
+          ConfirmDeleteCarrierRate(carrierRate.id),
+        );
   }
 
   @override
@@ -54,32 +59,23 @@ class _CarrierRateDetailPageState extends State<CarrierRateDetailPage> {
       body: BlocListener<CarrierRateDetailBloc, CarrierRateDetailState>(
         listener: (context, state) {
           if (state is CarrierRateDetailSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('택배비가 수정되었습니다.')),
-            );
+            showSuccessToast(context, '택배비가 수정되었습니다.');
             context.read<CarrierRateListBloc>().add(FetchCarrierRates());
             setState(() => _isEditing = false);
             context.go(Routes.carrierRatePath);
           } else if (state is CarrierRateDetailDeleteSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('택배비가 삭제되었습니다.')),
-            );
+            showSuccessToast(context, '택배비가 삭제되었습니다.');
             context.read<CarrierRateListBloc>().add(FetchCarrierRates());
             context.go(Routes.carrierRatePath);
           } else if (state is CarrierRateDetailError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
-            );
+            showErrorToast(context, state.message);
           }
         },
         child: BlocBuilder<CarrierRateDetailBloc, CarrierRateDetailState>(
           builder: (context, state) {
             final bloc = context.read<CarrierRateDetailBloc>();
             if (state is CarrierRateDetailLoading) {
-              return const Center(child: CircularProgressIndicator());
+              return const AppPageBody(children: [AppLoading()]);
             }
             if (state is CarrierRateDetailLoaded) {
               // Resolve carrier name from loaded carriers for display.
@@ -109,18 +105,16 @@ class _CarrierRateDetailPageState extends State<CarrierRateDetailPage> {
               );
             }
             if (state is CarrierRateDetailError) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(state.message),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
+              return AppPageBody(
+                children: [
+                  AppErrorBox(
+                    message: state.message,
+                    action: FilledButton(
                       onPressed: () => bloc.add(FetchCarrierRateDetail(widget.carrierRateId)),
-                      child: const Text('재시도'),
+                      child: const Text('다시 시도'),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               );
             }
             return const SizedBox.shrink();
@@ -177,7 +171,6 @@ class _CarrierRateDetailsViewState extends State<_CarrierRateDetailsView> {
   Widget _buildCarrierDropdown() {
     final decoration = const InputDecoration(
       labelText: '배송사',
-      border: OutlineInputBorder(),
     );
 
     if (widget.carriersLoading) {
@@ -252,10 +245,8 @@ class _CarrierRateDetailsViewState extends State<_CarrierRateDetailsView> {
     final fmt = NumberFormat('###,##0', 'ko_KR');
 
     if (!widget.isEditing) {
-      return SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
+      return AppPageBody.scroll(
+        child: Column(
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -269,7 +260,7 @@ class _CarrierRateDetailsViewState extends State<_CarrierRateDetailsView> {
                   ),
                   Row(
                     children: [
-                      ElevatedButton.icon(
+                      FilledButton.icon(
                         onPressed: () {
                           widget.onEditChange(true);
                         },
@@ -277,11 +268,11 @@ class _CarrierRateDetailsViewState extends State<_CarrierRateDetailsView> {
                         label: const Text('수정'),
                       ),
                       const SizedBox(width: 8),
-                      ElevatedButton.icon(
+                      FilledButton.icon(
                         onPressed: widget.onDeletePressed,
                         icon: const Icon(Icons.delete),
                         label: const Text('삭제'),
-                        style: ElevatedButton.styleFrom(
+                        style: FilledButton.styleFrom(
                           backgroundColor: Theme.of(context).colorScheme.error,
                           foregroundColor:
                               Theme.of(context).colorScheme.onError,
@@ -292,41 +283,38 @@ class _CarrierRateDetailsViewState extends State<_CarrierRateDetailsView> {
                 ],
               ),
               const SizedBox(height: 24),
-              _DetailField('배송사', widget.carrierRate.carrier),
-              _DetailField('타입', widget.carrierRate.type),
-              _DetailField('비용', '${fmt.format(widget.carrierRate.cost.toInt())}원'),
-              _DetailField('가격 적용', widget.carrierRate.effectiveDate),
-              _DetailField(
+              AppDetailField('배송사', widget.carrierRate.carrier),
+              AppDetailField('타입', widget.carrierRate.type),
+              AppDetailField('비용', '${fmt.format(widget.carrierRate.cost.toInt())}원'),
+              AppDetailField('가격 적용', widget.carrierRate.effectiveDate),
+              AppDetailField(
                 '기본값',
                 widget.carrierRate.isDefault ? '예' : '아니오',
               ),
             ],
           ),
-        ),
       );
     }
 
     // Edit form
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+    return AppPageBody.scroll(
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildCarrierDropdown(),
             const SizedBox(height: 16),
-            _FormField(
+            AppFormField(
               '타입',
               _typeCtrl,
               (v) => context.read<CarrierRateDetailBloc>().add(TypeDetailChanged(v)),
             ),
-            _FormField(
+            AppFormField(
               '비용',
               _costCtrl,
               (v) => context.read<CarrierRateDetailBloc>().add(CostDetailChanged(v)),
               keyboardType: TextInputType.number,
             ),
-            _FormField(
+            AppFormField(
               '가격 적용',
               _dateCtrl,
               (v) => context
@@ -345,14 +333,14 @@ class _CarrierRateDetailsViewState extends State<_CarrierRateDetailsView> {
             Row(
               children: [
                 Expanded(
-                  child: ElevatedButton(
+                  child: FilledButton(
                     onPressed: () => widget.onEditChange(false),
                     child: const Text('취소'),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
+                  child: FilledButton(
                     onPressed: () {
                       context.read<CarrierRateDetailBloc>().add(
                             UpdateCarrierRateSubmitted(widget.carrierRate.id),
@@ -365,99 +353,6 @@ class _CarrierRateDetailsViewState extends State<_CarrierRateDetailsView> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _FormField extends StatelessWidget {
-  final String label;
-  final TextEditingController controller;
-  final Function(String) onChanged;
-  final TextInputType keyboardType;
-
-  const _FormField(
-    this.label,
-    this.controller,
-    this.onChanged, {
-    this.keyboardType = TextInputType.text,
-  });
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 16),
-    child: TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-      ),
-      onChanged: onChanged,
-    ),
-  );
-}
-
-class _DetailField extends StatelessWidget {
-  final String label, value;
-  const _DetailField(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            fontSize: 12,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-        ),
-        const Divider(),
-      ],
-    ),
-  );
-}
-
-class _DeleteConfirmationDialog extends StatelessWidget {
-  final CarrierRate carrierRate;
-  final VoidCallback onConfirm;
-  final VoidCallback onCancel;
-
-  const _DeleteConfirmationDialog({
-    required this.carrierRate,
-    required this.onConfirm,
-    required this.onCancel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('택배비 삭제'),
-      content: Text(
-        '${carrierRate.carrier}의 ${carrierRate.type}을(를) 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.',
-      ),
-      actions: [
-        TextButton(
-          onPressed: onCancel,
-          child: const Text('취소'),
-        ),
-        FilledButton(
-          onPressed: onConfirm,
-          style: FilledButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.error,
-            foregroundColor: Theme.of(context).colorScheme.onError,
-          ),
-          child: const Text('삭제'),
-        ),
-      ],
     );
   }
 }

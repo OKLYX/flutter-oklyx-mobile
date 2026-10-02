@@ -11,6 +11,9 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/master
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/shipping_override_fields.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 
 /// Shipping management page for one sales channel (marketplace account) =
 /// the account default — FEATURE_2609_80 / 08 (UX D83).
@@ -119,7 +122,6 @@ class _MasterShippingConfigPageState extends State<MasterShippingConfigPage> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final account = widget.args.account;
     final alias = account.accountAlias;
     final label = alias == null || alias.isEmpty ? account.platform : alias;
@@ -149,40 +151,10 @@ class _MasterShippingConfigPageState extends State<MasterShippingConfigPage> {
                   ],
                 ),
               )
-            : ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  16,
-                  16,
-                  16,
-                  kBottomNavigationBarHeight + 24,
-                ),
+            : AppPageBody(
                 children: [
                   if (_error.isNotEmpty) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: scheme.errorContainer,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.error_outline,
-                            size: 16,
-                            color: scheme.error,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _error,
-                              style:
-                                  TextStyle(fontSize: 14, color: scheme.error),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    AppErrorBox(message: _error),
                     const SizedBox(height: 20),
                   ],
                   ShippingOverrideFields(
@@ -209,20 +181,7 @@ class _MasterShippingConfigPageState extends State<MasterShippingConfigPage> {
                         child: FilledButton(
                           onPressed: _isSaving ? null : _handleSave,
                           child: _isSaving
-                              ? const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    ),
-                                    SizedBox(width: 4),
-                                    Text('저장 중...'),
-                                  ],
-                                )
+                              ? const AppBusyLabel('저장 중...')
                               : const Text('저장'),
                         ),
                       ),

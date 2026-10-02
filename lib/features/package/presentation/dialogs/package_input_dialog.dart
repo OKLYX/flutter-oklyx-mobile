@@ -5,6 +5,8 @@ import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_create_state.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/package/presentation/bloc/package_list_event.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 /// Package Input Dialog
 ///
@@ -70,16 +72,12 @@ class _PackageInputDialogState extends State<PackageInputDialog> {
       child: BlocListener<PackageCreateBloc, PackageCreateState>(
         listener: (context, state) {
           if (state is PackageCreateSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('상자비가 추가되었습니다')),
-            );
+            showSuccessToast(context, '상자비가 추가되었습니다');
             context.read<PackageListBloc>().add(FetchPackages());
             context.read<PackageCreateBloc>().add(ResetCreateForm());
             Navigator.of(context).pop();
           } else if (state is PackageCreateError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('오류: ${state.message}')),
-            );
+            showErrorToast(context, '오류: ${state.message}');
           }
         },
         child: SingleChildScrollView(
@@ -248,9 +246,6 @@ class _PackageInputDialogState extends State<PackageInputDialog> {
       keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: label,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
       ),
       onChanged: onChanged,
     );
@@ -275,7 +270,7 @@ class _PackageInputDialogState extends State<PackageInputDialog> {
               child: const Text('취소'),
             ),
             const SizedBox(width: 12),
-            ElevatedButton(
+            FilledButton(
               onPressed: (isCreating || !isFormValid)
                   ? null
                   : () {
@@ -284,11 +279,7 @@ class _PackageInputDialogState extends State<PackageInputDialog> {
                       );
                     },
               child: isCreating
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                  ? const AppBusyLabel('추가')
                   : const Text('추가'),
             ),
           ],

@@ -10,6 +10,9 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/master
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 
 /// Per-channel (cell) option name page (2609_22/D3) — FEATURE_2609_80 / 08.
 ///
@@ -180,13 +183,7 @@ class _ChannelOptionNamePageState extends State<ChannelOptionNamePage> {
         title: '채널별 옵션명',
         navBarIndex: 2,
         onBackPressed: _close,
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            16,
-            16,
-            16,
-            kBottomNavigationBarHeight + 24,
-          ),
+        body: AppPageBody(
           children: [
             Text(
               widget.args.channelLabel,
@@ -194,30 +191,16 @@ class _ChannelOptionNamePageState extends State<ChannelOptionNamePage> {
             ),
             const SizedBox(height: 8),
             if (_error.isNotEmpty) ...[
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: scheme.errorContainer,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  _error,
-                  style: TextStyle(fontSize: 14, color: scheme.error),
-                ),
-              ),
+              AppErrorBox(message: _error),
               const SizedBox(height: 16),
             ],
             if (_isLoading)
               const SizedBox(
                 height: 128,
-                child: Center(child: _BusyLabel('불러오는 중...', size: 24)),
+                child: Center(child: AppBusyLabel('불러오는 중...', size: 24)),
               )
             else if (_rows.isEmpty)
-              Text(
-                '이 채널에 옵션이 없습니다.',
-                style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
-              )
+              const AppEmpty('이 채널에 옵션이 없습니다.')
             else ...[
               Text(
                 '입력한 이름은 이 채널에만 적용됩니다. 마스터 옵션명으로 되돌리려면 [기본값으로 변경]을 '
@@ -251,7 +234,7 @@ class _ChannelOptionNamePageState extends State<ChannelOptionNamePage> {
                       visualDensity: VisualDensity.compact,
                     ),
                     child: _isSaving
-                        ? const _BusyLabel('저장 중...')
+                        ? const AppBusyLabel('저장 중...')
                         : const Text('저장'),
                   ),
                 ],
@@ -268,7 +251,7 @@ class _ChannelOptionNamePageState extends State<ChannelOptionNamePage> {
     final willRestore = _restore.contains(r.optionId);
     final empty = !willRestore && _raw(r.optionId).trim() == '';
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         border: Border.all(color: scheme.outlineVariant),
         borderRadius: BorderRadius.circular(4),
@@ -279,10 +262,6 @@ class _ChannelOptionNamePageState extends State<ChannelOptionNamePage> {
           TextField(
             controller: _controllerFor(r.optionId),
             enabled: !willRestore && !_isSaving,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
             onChanged: (next) => setState(
               () => _draft = {..._draft, r.optionId: next},
             ),
@@ -360,26 +339,4 @@ class _ChannelOptionNamePageState extends State<ChannelOptionNamePage> {
       ),
     );
   }
-}
-
-/// Spinner + label (web `<Spinner label=… />`).
-class _BusyLabel extends StatelessWidget {
-  final String label;
-  final double size;
-
-  const _BusyLabel(this.label, {this.size = 16});
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: size,
-            height: size,
-            child: const CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
-      );
 }

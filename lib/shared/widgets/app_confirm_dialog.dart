@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 
-/// Confirmation dialog for the master screens — mobile counterpart of the web
-/// `ConfirmDialog` / `window.confirm` (FEATURE_2609_80 R-d).
+/// The one confirmation dialog of the app (FEATURE_2610_02 · N9; moved here
+/// from the master screens).
 ///
-/// **File**: lib/features/master_product/presentation/widgets/master_confirm_dialog.dart
+/// **Purpose**: title · one block of text · two text buttons ([취소] / confirm).
+/// A dangerous action shows the confirm label in red. Tapping outside cancels.
+/// **File**: lib/shared/widgets/app_confirm_dialog.dart
 /// Returns `true` on confirm; cancel, barrier tap and back return `false`.
 ///
 /// **Usage**:
 /// ```dart
-/// final ok = await showMasterConfirmDialog(
+/// final ok = await showAppConfirmDialog(
 ///   context,
 ///   title: '마스터 삭제',
 ///   message: '… 되돌릴 수 없습니다.',
@@ -18,11 +20,12 @@ import 'package:flutter/material.dart';
 /// if (!ok) return;
 /// ```
 ///
-/// ⚠️ Copy title, body and button labels verbatim from the web call site. The
-///    web `window.confirm` has no title, so leave [title] `null` there.
-/// ❌ Do not add new confirmations — they exist only for marketplace pushes
-///    and irreversible removals (D23/D29/D32).
-Future<bool> showMasterConfirmDialog(
+/// ⚠️ A body made of several blocks is joined with one blank line (`\n\n`)
+///    into [message]; the wording stays as it was.
+/// ⚠️ [isDangerous] is `true` only where the confirm button was already red.
+/// ❌ Do not add new confirmations and do not remove existing ones.
+/// ❌ Do not build an `AlertDialog` for a yes/no question in a page.
+Future<bool> showAppConfirmDialog(
   BuildContext context, {
   required String message,
   String? title,

@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/entities/commission_rate.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 
-/// 수수료 리스트 아이템 위젯
+/// Commission rate list item widget
 ///
-/// **용도**: Commission Rate 리스트의 각 항목을 표시
-/// **필수 규칙**: CommissionRateSearchPage의 ListView에서만 사용
-/// **파일 위치**: lib/features/commission_rate/presentation/widgets/commission_rate_list_item.dart
+/// **Purpose**: shows one entry of the commission rate list
+/// **Required rule**: use only in the SliverList of CommissionRateSearchPage
+/// **File location**: lib/features/commission_rate/presentation/widgets/commission_rate_list_item.dart
 ///
-/// **사용 예제**:
+/// **Usage**:
 /// ```dart
 /// CommissionRateListItem(
 ///   commissionRate: rate,
@@ -16,13 +17,13 @@ import '../../domain/entities/commission_rate.dart';
 /// )
 /// ```
 ///
-/// **표시 정보**:
-/// - Platform: 예) "COUPANG"
-/// - Category: categoryId가 있으면 "카테고리 #{categoryId}", null이면 "기본값"
-/// - Rate: "15.5%" 형식 (rate * 100)
-/// - IsDefault: 배지 표시
+/// **Shown fields**:
+/// - Platform: e.g. "COUPANG"
+/// - Category: "카테고리 #{categoryId}" when categoryId is set, "기본값" when null
+/// - Rate: "15.5%" format (rate * 100)
+/// - IsDefault: shown as a badge
 ///
-/// ⚠️ onTap 콜백 필수 (상세 페이지 네비게이션)
+/// ⚠️ The onTap callback is required (navigation to the detail page)
 class CommissionRateListItem extends StatelessWidget {
   final CommissionRate commissionRate;
   final VoidCallback onTap;
@@ -35,7 +36,10 @@ class CommissionRateListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
+    return AppCard.row(
+      onTap: onTap,
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
         title: Text(commissionRate.platform),
         subtitle: Text(
           commissionRate.categoryId == null
@@ -57,7 +61,7 @@ class CommissionRateListItem extends StatelessWidget {
               ),
           ],
         ),
-        onTap: onTap,
+      ),
     );
   }
 }

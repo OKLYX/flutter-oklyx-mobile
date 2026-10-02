@@ -10,6 +10,8 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/master
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/detail_editor_tabs.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 
 /// Detail page editor for one channel cell (FEATURE_2609_80 / 06 — web
 /// `master-products/[id]/detail/[listingId]/page.tsx` @09208a0).
@@ -113,13 +115,7 @@ class _MasterDetailEditPageState extends State<MasterDetailEditPage> {
       title: _masterName.isEmpty ? '상세 편집' : _masterName,
       navBarIndex: 2,
       onBackPressed: _toDetail,
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(
-          16,
-          16,
-          16,
-          kBottomNavigationBarHeight + 24,
-        ),
+      body: AppPageBody(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -158,17 +154,7 @@ class _MasterDetailEditPageState extends State<MasterDetailEditPage> {
           ),
           const SizedBox(height: 16),
           if (_error.isNotEmpty) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: scheme.errorContainer,
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                _error,
-                style: TextStyle(fontSize: 14, color: scheme.error),
-              ),
-            ),
+            AppErrorBox(message: _error),
             const SizedBox(height: 16),
           ],
           if (_isLoading)
@@ -199,10 +185,7 @@ class _MasterDetailEditPageState extends State<MasterDetailEditPage> {
               onTemplateChanged: (next) => setState(() => _template = next),
             )
           else if (_error.isEmpty)
-            Text(
-              '표시할 상세 데이터가 없습니다.',
-              style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
-            ),
+            const AppEmpty('표시할 상세 데이터가 없습니다.'),
         ],
       ),
     );

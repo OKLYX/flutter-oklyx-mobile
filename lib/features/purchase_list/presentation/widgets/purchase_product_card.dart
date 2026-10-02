@@ -7,6 +7,7 @@ import 'product_thumbnail.dart';
 import 'purchase_intake_card.dart';
 import 'purchase_line_tile.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 
 /// 구매목록 상품(물품) 카드 (펼침 가능).
 ///
@@ -62,8 +63,7 @@ class _PurchaseProductCardState extends State<PurchaseProductCard> {
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
-    return Card(
-      clipBehavior: Clip.antiAlias,
+    return AppCard.flush(
       child: Column(
         children: [
           InkWell(

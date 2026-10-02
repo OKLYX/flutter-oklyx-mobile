@@ -8,7 +8,9 @@ import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/user/presentation/bloc/user_register_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/user/presentation/bloc/user_register_event.dart';
 import 'package:flutter_oklyn_mobile/features/user/presentation/bloc/user_register_state.dart';
-import 'package:flutter_oklyn_mobile/shared/widgets/app_drawer.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 
 class UserRegisterPage extends StatefulWidget {
   const UserRegisterPage({super.key});
@@ -22,8 +24,6 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
   late final TextEditingController _passwordController;
   late final TextEditingController _nameController;
   late final ValueNotifier<String> _emailCheckStatus;
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  bool _previousDrawerState = false;
 
   final _emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
 
@@ -34,15 +34,6 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
     _passwordController = TextEditingController();
     _nameController = TextEditingController();
     _emailCheckStatus = ValueNotifier<String>('');
-    WidgetsBinding.instance.addPersistentFrameCallback((_) {
-      final isOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
-      if (isOpen != _previousDrawerState) {
-        _previousDrawerState = isOpen;
-        if (mounted) {
-          setState(() {});
-        }
-      }
-    });
   }
 
   @override
@@ -112,23 +103,17 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
     final name = _nameController.text.trim();
 
     if (!_isValidEmail(email)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('유효한 이메일을 입력해주세요')),
-      );
+      showInputNoticeToast(context, '유효한 이메일을 입력해주세요');
       return;
     }
 
     if (!_isValidPassword(password)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('비밀번호는 8자 이상 20자 이하여야 합니다')),
-      );
+      showInputNoticeToast(context, '비밀번호는 8자 이상 20자 이하여야 합니다');
       return;
     }
 
     if (!_isValidName(name)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이름은 2자 이상 50자 이하여야 합니다')),
-      );
+      showInputNoticeToast(context, '이름은 2자 이상 50자 이하여야 합니다');
       return;
     }
 
@@ -142,19 +127,10 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Stack(
-    children: [
-      Scaffold(
-        key: _scaffoldKey,
-        drawerScrimColor: Theme.of(context)
-            .colorScheme
-            .scrim
-            .withValues(alpha: 0.3),
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          title: const Text('회원등록'),
-          elevation: 0,
-        ),
+  Widget build(BuildContext context) => ScaffoldWithNavBar(
+        title: '회원등록',
+        navBarIndex: 0,
+        showAppBarDrawerButton: false,
         body: BlocProvider(
           create: (context) => getIt<UserRegisterBloc>(),
           child: BlocListener<UserRegisterBloc, UserRegisterState>(
@@ -166,9 +142,7 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
               if (state is UserRegisterSuccess) {
                 _showSuccessDialog(context);
               } else if (state is UserRegisterError) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(state.message)),
-                );
+                showErrorToast(context, state.message);
               }
             },
             child: BlocListener<UserRegisterBloc, UserRegisterState>(
@@ -181,8 +155,7 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
                   _emailCheckStatus.value = state.message;
                 }
               },
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+              child: AppPageBody.scroll(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -196,9 +169,6 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
                       controller: _emailController,
                       decoration: InputDecoration(
                         hintText: '이메일',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
                       ),
                       keyboardType: TextInputType.emailAddress,
                       onChanged: (_) => setState(() {}),
@@ -245,9 +215,6 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
                       controller: _passwordController,
                       decoration: InputDecoration(
                         hintText: '비밀번호',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
                         errorText: _passwordController.text.isNotEmpty &&
                                 !_isValidPassword(_passwordController.text)
                             ? '비밀번호는 8자 이상 20자 이하여야 합니다'
@@ -261,9 +228,6 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
                       controller: _nameController,
                       decoration: InputDecoration(
                         hintText: '이름',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
                         errorText: _nameController.text.isNotEmpty &&
                                 !_isValidName(_nameController.text)
                             ? '이름은 2자 이상 50자 이하여야 합니다'
@@ -299,7 +263,7 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
 
                         return SizedBox(
                           width: double.infinity,
-                          child: ElevatedButton(
+                          child: FilledButton(
                             onPressed:
                                 isButtonDisabled
                                     ? null
@@ -315,72 +279,5 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
             ),
           ),
         ),
-        bottomNavigationBar: SizedBox.shrink(),
-        drawer: const AppDrawer(),
-      ),
-      Positioned(
-        bottom: 0,
-        left: 0,
-        right: 0,
-        child: Builder(
-          builder: (context) {
-            final isDrawerOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
-
-            return BottomNavigationBar(
-              type: BottomNavigationBarType.fixed,
-              selectedItemColor: AppColors.brandMain,
-              currentIndex: 0,
-              items: [
-                BottomNavigationBarItem(
-                  icon: Icon(
-                    Icons.menu,
-                    color: isDrawerOpen
-                        ? AppColors.brandMain
-                        : Theme.of(context).colorScheme.onSurface,
-                  ),
-                  label: '',
-                ),
-                BottomNavigationBarItem(
-                  icon: const Icon(Icons.home),
-                  label: '',
-                ),
-                BottomNavigationBarItem(
-                  icon: const Icon(Icons.checklist),
-                  label: '',
-                ),
-                BottomNavigationBarItem(
-                  icon: const Icon(Icons.notifications),
-                  label: '',
-                ),
-              ],
-              onTap: (index) {
-                switch (index) {
-                  case 0:
-                    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
-                      Navigator.pop(context);
-                    } else {
-                      _scaffoldKey.currentState?.openDrawer();
-                    }
-                    setState(() {});
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) setState(() {});
-                    });
-                    break;
-                  case 1:
-                    context.go(Routes.dashboardPath);
-                    break;
-                  case 2:
-                    context.go(Routes.listToShopPath);
-                    break;
-                  case 3:
-                    context.go(Routes.notificationPath);
-                    break;
-                }
-              },
-            );
-          },
-        ),
-      ),
-    ],
-  );
+      );
 }

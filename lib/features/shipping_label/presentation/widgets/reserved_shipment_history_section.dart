@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/reserved_shipment_bloc.dart';
 import '../bloc/reserved_shipment_state.dart';
 import 'reserved_shipment_row_tile.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 /// 주문 상세 「예약 발송 기록」 (FEATURE_2609_75 / D30).
 ///
@@ -19,21 +20,14 @@ class ReservedShipmentHistorySection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<ReservedShipmentBloc, ReservedShipmentState>(
-      // 「송장」의 오류는 그 섹션이 스스로 보인다(errorAction == storedInvoice) — 여기서는 SnackBar 로 겹치지 않는다.
+      // Errors of 「송장」 are shown by that section itself
+      // (errorAction == storedInvoice) — no toast is stacked on top here.
       listenWhen: (prev, curr) =>
           curr.actionError != null &&
           curr.actionError != prev.actionError &&
           curr.errorAction != ReservedAction.storedInvoice,
       listener: (context, state) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content: Text(state.actionError!),
-              behavior: SnackBarBehavior.floating,
-              margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-            ),
-          );
+        showErrorToast(context, state.actionError!);
       },
       builder: (context, state) {
         if (state.forbidden || state.rows.isEmpty) {

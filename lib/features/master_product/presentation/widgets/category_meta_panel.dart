@@ -12,6 +12,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/category_meta_fields.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 // When every master-owned notice of the selected group is empty, fill them
 // with "전체 상품 상세페이지 참조" (checked by default).
@@ -241,7 +242,7 @@ class _CategoryMetaPanelState extends State<CategoryMetaPanel> {
         padding: EdgeInsets.all(16),
         child: SizedBox(
           height: 64,
-          child: Center(child: _BusyLabel('불러오는 중...', size: 20)),
+          child: Center(child: AppBusyLabel('불러오는 중...', size: 20)),
         ),
       );
     }
@@ -304,7 +305,7 @@ class _CategoryMetaPanelState extends State<CategoryMetaPanel> {
           else
             FilledButton(
               onPressed: _isSaving || missingRequired ? null : _handleSave,
-              child: _isSaving ? const _BusyLabel('저장 중...') : const Text('저장'),
+              child: _isSaving ? const AppBusyLabel('저장 중...') : const Text('저장'),
             ),
         ],
       ),
@@ -338,27 +339,5 @@ class _Banner extends StatelessWidget {
           text,
           style: TextStyle(fontSize: fontSize, color: foreground),
         ),
-      );
-}
-
-/// Spinner + label (web `<Spinner label=… />`).
-class _BusyLabel extends StatelessWidget {
-  final String label;
-  final double size;
-
-  const _BusyLabel(this.label, {this.size = 16});
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: size,
-            height: size,
-            child: const CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
       );
 }

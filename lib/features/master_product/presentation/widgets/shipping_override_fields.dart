@@ -9,6 +9,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/
 import 'package:flutter_oklyn_mobile/features/shipping_label/data/models/carrier_option.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/domain/usecases/shipping_label_usecase.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
 
 // Coupang product-creation enums (backend register payload SSOT).
 const List<(String, String)> _deliveryMethods = [
@@ -442,10 +443,9 @@ class _ShippingOverrideFieldsState extends State<ShippingOverrideFields> {
         _ynLabel(inherited?.remoteAreaDeliverable),
       ),
       _labeled('택배사', _buildCarrier(context)),
-      _labeled(
-        '배송비 유형',
-        _select(
-          context,
+      _select(
+        context,
+        label: '배송비 유형',
           fieldKey: 'deliveryChargeType-$chargeType',
           value: _inList(_deliveryChargeTypes, chargeType),
           items: [
@@ -459,7 +459,6 @@ class _ShippingOverrideFieldsState extends State<ShippingOverrideFields> {
           onChanged: disabled
               ? null
               : (v) => _setField('deliveryChargeType', v.isEmpty ? null : v),
-        ),
       ),
       _renderToggle(
         '묶음배송',
@@ -469,21 +468,16 @@ class _ShippingOverrideFieldsState extends State<ShippingOverrideFields> {
         _unionLabel(inherited?.unionDeliveryType),
       ),
       if (chargeType == 'NOT_FREE' || chargeType == 'CONDITIONAL_FREE')
-        _labeled(
-          '기본배송비',
-          _numberInput('deliveryCharge', value.deliveryCharge,
-              _numStr(inherited?.deliveryCharge)),
-        ),
+        _numberInput('deliveryCharge', value.deliveryCharge,
+            _numStr(inherited?.deliveryCharge),
+            label: '기본배송비'),
       if (chargeType == 'CONDITIONAL_FREE')
-        _labeled(
-          '무료배송 기준금액',
-          _numberInput('freeShipOverAmount', value.freeShipOverAmount,
-              _numStr(inherited?.freeShipOverAmount) ?? '이 금액 이상 무료'),
-        ),
-      _labeled(
-        '배송방법',
-        _select(
-          context,
+        _numberInput('freeShipOverAmount', value.freeShipOverAmount,
+            _numStr(inherited?.freeShipOverAmount) ?? '이 금액 이상 무료',
+            label: '무료배송 기준금액'),
+      _select(
+        context,
+        label: '배송방법',
           fieldKey: 'deliveryMethod-${value.deliveryMethod}',
           value: _inList(_deliveryMethods, value.deliveryMethod),
           items: [
@@ -497,7 +491,6 @@ class _ShippingOverrideFieldsState extends State<ShippingOverrideFields> {
           onChanged: disabled
               ? null
               : (v) => _setField('deliveryMethod', v.isEmpty ? null : v),
-        ),
       ),
       if (showExtraInfo && !isCommon)
         _labeled(
@@ -820,14 +813,13 @@ class _ShippingOverrideFieldsState extends State<ShippingOverrideFields> {
         );
       }
     } else {
-      Widget text(String key, String label, String? current) => _labeled(
-            label,
-            _ShippingTextField(
-              key: ValueKey(key),
-              value: current ?? '',
-              enabled: !disabled,
-              onChanged: (v) => _setField(key, v.isEmpty ? null : v),
-            ),
+      Widget text(String key, String label, String? current) =>
+          _ShippingTextField(
+            key: ValueKey(key),
+            label: label,
+            value: current ?? '',
+            enabled: !disabled,
+            onChanged: (v) => _setField(key, v.isEmpty ? null : v),
           );
       body = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -869,24 +861,20 @@ class _ShippingOverrideFieldsState extends State<ShippingOverrideFields> {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           border: Border.all(color: scheme.outlineVariant),
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(4),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _labeled(
-              '초도배송(편도)',
-              _numberInput(
-                  'deliveryChargeOnReturn',
-                  value.deliveryChargeOnReturn,
-                  _numStr(inherited?.deliveryChargeOnReturn)),
-            ),
+            _numberInput(
+                'deliveryChargeOnReturn',
+                value.deliveryChargeOnReturn,
+                _numStr(inherited?.deliveryChargeOnReturn),
+                label: '초도배송(편도)'),
             const SizedBox(height: 8),
-            _labeled(
-              '반품배송비(편도)',
-              _numberInput('returnCharge', value.returnCharge,
-                  _numStr(inherited?.returnCharge)),
-            ),
+            _numberInput('returnCharge', value.returnCharge,
+                _numStr(inherited?.returnCharge),
+                label: '반품배송비(편도)'),
             const SizedBox(height: 8),
             Text.rich(
               TextSpan(
@@ -1052,9 +1040,11 @@ class _ShippingOverrideFieldsState extends State<ShippingOverrideFields> {
     );
   }
 
-  Widget _numberInput(String key, num? current, String? hintText) =>
+  Widget _numberInput(String key, num? current, String? hintText,
+          {String? label}) =>
       _ShippingTextField(
         key: ValueKey(key),
+        label: label,
         value: _numStr(current) ?? '',
         enabled: !widget.disabled,
         hintText: hintText,
@@ -1077,15 +1067,11 @@ Future<T?> _showPlacePicker<T>(
   required bool Function(T item) isActive,
   required List<Widget> Function(BuildContext context, T item) itemBuilder,
 }) =>
-    showModalBottomSheet<T>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
+    showAppSheet<T>(
+      context,
       builder: (sheetContext) {
         final scheme = Theme.of(sheetContext).colorScheme;
-        return FractionallySizedBox(
-          heightFactor: 0.9,
-          child: Column(
+        return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
@@ -1147,8 +1133,7 @@ Future<T?> _showPlacePicker<T>(
                       ),
               ),
             ],
-          ),
-        );
+          );
       },
     );
 
@@ -1161,15 +1146,16 @@ Widget _select(
   required String value,
   required List<(String, String)> items,
   required ValueChanged<String>? onChanged,
+  String? label,
 }) =>
     DropdownButtonFormField<String>(
       key: ValueKey(fieldKey),
       initialValue: value,
       isExpanded: true,
-      decoration: const InputDecoration(
-        isDense: true,
-        border: OutlineInputBorder(),
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: InputDecoration(
+        labelText: label,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       ),
       style: TextStyle(
           fontSize: 14, color: Theme.of(context).colorScheme.onSurface),
@@ -1197,6 +1183,7 @@ class _ShippingTextField extends StatefulWidget {
   final ValueChanged<String> onChanged;
   final bool enabled;
   final String? hintText;
+  final String? label;
   final TextInputType? keyboardType;
   final List<TextInputFormatter>? inputFormatters;
   final int maxLines;
@@ -1208,6 +1195,7 @@ class _ShippingTextField extends StatefulWidget {
     super.key,
     this.enabled = true,
     this.hintText,
+    this.label,
     this.keyboardType,
     this.inputFormatters,
     this.maxLines = 1,
@@ -1251,8 +1239,7 @@ class _ShippingTextFieldState extends State<_ShippingTextField> {
         maxLength: widget.maxLength,
         style: const TextStyle(fontSize: 14),
         decoration: InputDecoration(
-          isDense: true,
-          border: const OutlineInputBorder(),
+          labelText: widget.label,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           hintText: widget.hintText,

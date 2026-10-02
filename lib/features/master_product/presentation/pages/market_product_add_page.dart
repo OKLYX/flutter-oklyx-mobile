@@ -14,6 +14,9 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/quantity_stepper.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 
 // Status enum → screen text. ⚠️ Never show the raw enum.
 const Map<String, String> _statusLabel = {
@@ -363,21 +366,13 @@ class _MarketProductAddPageState extends State<MarketProductAddPage> {
         title: '마켓 상품 추가하기',
         navBarIndex: 2,
         onBackPressed: _close,
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            16,
-            16,
-            16,
-            kBottomNavigationBarHeight + 24,
-          ),
+        body: AppPageBody(
           children: [
             Text(
               '${_args.sellerName} · ${_args.platform}',
               style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: 12),
-            const Text('쿠팡 상품 ID', style: TextStyle(fontSize: 14)),
-            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -385,10 +380,7 @@ class _MarketProductAddPageState extends State<MarketProductAddPage> {
                     controller: _productIdController,
                     enabled: !_busy && !lockedToInitial,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
+                    decoration: const InputDecoration(labelText: '쿠팡 상품 ID'),
                     onChanged: (next) => setState(() => _productId = next),
                   ),
                 ),
@@ -407,11 +399,7 @@ class _MarketProductAddPageState extends State<MarketProductAddPage> {
             ),
             const SizedBox(height: 12),
             if (_error.isNotEmpty) ...[
-              _Banner(
-                text: _error,
-                background: scheme.errorContainer,
-                foreground: scheme.error,
-              ),
+              AppErrorBox(message: _error),
               const SizedBox(height: 12),
             ],
             if (preview != null) ..._previewSection(context, preview),
@@ -431,7 +419,7 @@ class _MarketProductAddPageState extends State<MarketProductAddPage> {
                       visualDensity: VisualDensity.compact,
                     ),
                     child: _busy
-                        ? const _BusyLabel('가져오는 중…')
+                        ? const AppBusyLabel('가져오는 중…')
                         : const Text('가져오기'),
                   ),
                 ],
@@ -563,17 +551,12 @@ class _MarketProductAddPageState extends State<MarketProductAddPage> {
             ],
           ),
           const SizedBox(height: 8),
-          const Text('마스터 옵션', style: TextStyle(fontSize: 14)),
-          const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             // Rebuild when a quantity change re-picks the option.
             key: ValueKey('$key:${row.masterOptionId}'),
             initialValue: isNew ? _newOption : '${row.masterOptionId}',
             isExpanded: true,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
+            decoration: const InputDecoration(labelText: '마스터 옵션'),
             items: [
               for (final m in masterOptions)
                 DropdownMenuItem<String>(
@@ -612,15 +595,10 @@ class _MarketProductAddPageState extends State<MarketProductAddPage> {
           ),
           if (isNew) ...[
             const SizedBox(height: 8),
-            const Text('새 옵션 이름', style: TextStyle(fontSize: 14)),
-            const SizedBox(height: 8),
             TextField(
               controller: _nameControllerFor(key),
               enabled: !_busy,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
+              decoration: const InputDecoration(labelText: '새 옵션 이름'),
               onChanged: (next) =>
                   _patchRow(key, _rowOf(key).copyWith(masterOptionName: next)),
             ),
@@ -703,26 +681,5 @@ class _Banner extends StatelessWidget {
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text(text, style: TextStyle(fontSize: 14, color: foreground)),
-      );
-}
-
-/// Spinner + label (web `<Spinner label=… />`).
-class _BusyLabel extends StatelessWidget {
-  final String label;
-
-  const _BusyLabel(this.label);
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
       );
 }

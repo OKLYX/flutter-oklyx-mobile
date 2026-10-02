@@ -16,6 +16,7 @@ import '../bloc/shipment_confirm_event.dart';
 import '../bloc/shipment_confirm_state.dart';
 import '../utils/reserved_time_picker.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 /// 발송처리(운송장 업로드) 다이얼로그.
 ///
@@ -636,7 +637,7 @@ class _Actions extends StatelessWidget {
               child: const Text('다른 파일 업로드'),
             ),
           const SizedBox(width: 8),
-          ElevatedButton(
+          FilledButton(
             onPressed: () => Navigator.pop(context, state.hasSucceeded),
             child: const Text('닫기'),
           ),
@@ -648,37 +649,29 @@ class _Actions extends StatelessWidget {
     final canUpload =
         (bloc.storedOrderItemIds != null || state.fileBytes != null) && !busy;
     final canReserve = canUpload && state.executeAt != null;
-    Widget progress(String label) => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            const SizedBox(width: 8),
-            Text(label),
-          ],
-        );
-    // [예약 발송] = 초록(FilledButton 테마 = brandGreen) · [지금 발송] = 기존 업로드 버튼(D20).
+    // [예약 발송] stays green — written here, not in the theme · [지금 발송] = the upload button (D20 · D101).
     return Row(
       children: [
         Expanded(
           child: FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.brandGreen,
+              foregroundColor: Theme.of(context).colorScheme.onSecondary,
+            ),
             onPressed:
                 canReserve ? () => bloc.add(const ReserveShipment()) : null,
             child: state.isReserving
-                ? progress('예약 중...')
+                ? const AppBusyLabel('예약 중...')
                 : const Text('예약 발송'),
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: ElevatedButton(
+          child: FilledButton(
             onPressed:
                 canUpload ? () => bloc.add(const UploadShipment()) : null,
             child: state.isUploading
-                ? progress('처리 중...')
+                ? const AppBusyLabel('처리 중...')
                 : const Text('지금 발송'),
           ),
         ),

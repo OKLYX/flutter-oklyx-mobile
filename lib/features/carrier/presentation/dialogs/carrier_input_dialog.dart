@@ -4,6 +4,7 @@ import 'package:flutter_oklyn_mobile/features/carrier/domain/entities/carrier.da
 import 'package:flutter_oklyn_mobile/features/carrier/presentation/bloc/carrier_form_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/carrier/presentation/bloc/carrier_form_event.dart';
 import 'package:flutter_oklyn_mobile/features/carrier/presentation/bloc/carrier_form_state.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 /// 택배사 생성/수정 다이얼로그.
 ///
@@ -124,7 +125,6 @@ class _CarrierInputDialogState extends State<CarrierInputDialog> {
                   decoration: InputDecoration(
                     labelText: '택배사명 *',
                     hintText: '예: CJ대한통운',
-                    border: const OutlineInputBorder(),
                     errorText: _nameError,
                   ),
                 ),
@@ -148,13 +148,9 @@ class _CarrierInputDialogState extends State<CarrierInputDialog> {
             FilledButton(
               onPressed: isSubmitting ? null : _onSubmit,
               child: isSubmitting
-                  ? SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Theme.of(context).colorScheme.onSecondary,
-                      ),
+                  ? AppBusyLabel(
+                      widget.isEdit ? '저장' : '추가',
+                      color: Theme.of(context).colorScheme.onSecondary,
                     )
                   : Text(widget.isEdit ? '저장' : '추가'),
             ),

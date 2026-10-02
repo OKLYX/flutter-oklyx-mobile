@@ -8,10 +8,11 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/lis
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/listing_detail_panel.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_sheet.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/info_bubble_icon.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 /// Why the listing cannot go to Coupang yet (77). [쿠팡에 올리기] and this
 /// sheet share the text.
@@ -52,7 +53,7 @@ Future<bool> showListingOptionPickerSheet(
   required int listingId,
   required String channelLabel,
 }) async {
-  final result = await showMasterSheet<bool>(
+  final result = await showAppSheet<bool>(
     context,
     builder: (_) => _ListingOptionPickerSheet(
       mode: mode,
@@ -274,7 +275,7 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
                 FilledButton(
                   onPressed: _canConfirm ? _handleConfirm : null,
                   child: _busy
-                      ? _BusyLabel(_isUpload ? '올리는 중...' : '저장 중...')
+                      ? AppBusyLabel(_isUpload ? '올리는 중...' : '저장 중...')
                       : Text(_isUpload ? '올리기' : '저장'),
                 ),
               ],
@@ -303,7 +304,7 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
           ),
         ];
       }
-      return const [_BusyLabel('옵션 불러오는 중')];
+      return const [AppBusyLabel('옵션 불러오는 중', size: 14)];
     }
     if (_prices.isEmpty) {
       return [
@@ -350,25 +351,4 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
       ],
     );
   }
-}
-
-/// Spinner + label (web `<Spinner label=… />`).
-class _BusyLabel extends StatelessWidget {
-  final String label;
-
-  const _BusyLabel(this.label);
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
-      );
 }

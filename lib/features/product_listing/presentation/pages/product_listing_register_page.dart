@@ -9,6 +9,9 @@ import 'package:flutter_oklyn_mobile/features/product_listing/domain/entities/pr
 import 'package:flutter_oklyn_mobile/features/product_listing/presentation/product_listing_refresh.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 const List<String> PLATFORMS = ['COUPANG', 'GMARKET', 'AUCTION', 'SMARTSTORE'];
 
@@ -229,14 +232,7 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
       body: BlocListener<ProductListingCreateBloc, ProductListingCreateState>(
         listener: (context, state) {
           if (state is ProductListingCreateSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('판매상품이 수정되었습니다!'),
-                backgroundColor: Colors.green,
-                behavior: SnackBarBehavior.floating,
-                margin: const EdgeInsets.only(bottom: 70, left: 16, right: 16),
-              ),
-            );
+            showSuccessToast(context, '판매상품이 수정되었습니다!');
             // 조회 페이지가 변경 내용을 반영하도록 갱신 신호 발행
             notifyProductListingChanged();
             Future.delayed(const Duration(milliseconds: 500), () {
@@ -246,14 +242,7 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
             // 수정/서버 실패를 사용자에게 표시 (프론트의 에러 배너와 동일 역할).
             // 마스터에 연결된 셀이면 서버가 400 으로 거부하며 그 메시지가 여기에 뜬다.
             if (_submitting) setState(() => _submitting = false);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-                behavior: SnackBarBehavior.floating,
-                margin: const EdgeInsets.only(bottom: 70, left: 16, right: 16),
-              ),
-            );
+            showErrorToast(context, state.message);
           } else if (state is ProductListingCreateLoaded) {
             // 폼으로 복귀(검증 실패 등) 시 수정 진행 상태 해제
             if (_submitting) setState(() => _submitting = false);
@@ -275,7 +264,9 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
             }
 
             if (state is! ProductListingCreateLoaded) {
-              return const Center(child: Text('오류가 발생했습니다'));
+              return const AppPageBody(
+                children: [AppErrorBox(message: '오류가 발생했습니다')],
+              );
             }
 
             final bloc = context.read<ProductListingCreateBloc>();
@@ -288,18 +279,7 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
             final hasCarrierRates = state.carrierRates.isNotEmpty;
             final hasPackages = state.packages.isNotEmpty;
 
-            return SingleChildScrollView(
-              child: Padding(
-                // 하단은 floating bottom nav bar(높이 + safe area)보다 넉넉히 여백을
-                // 줘서 마지막 '수정 완료' 버튼이 nav bar에 가려지지 않도록 한다.
-                padding: EdgeInsets.fromLTRB(
-                  16,
-                  16,
-                  16,
-                  32 +
-                      kBottomNavigationBarHeight +
-                      MediaQuery.of(context).padding.bottom,
-                ),
+            return AppPageBody.scroll(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -337,7 +317,7 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                             if (!hasPackages)
                               const Text('• 패키지 목록을 로드하지 못했습니다'),
                             const SizedBox(height: 12),
-                            ElevatedButton(
+                            FilledButton(
                               onPressed: () {
                                 // 재로드 때도 editListing 을 넘겨야 프리필이 유지된다.
                                 context
@@ -346,10 +326,6 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                                       editListing: widget.editListing,
                                     ));
                               },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.warningForeground,
-                                foregroundColor: AppColors.warningSurface,
-                              ),
                               child: const Text('데이터 다시 불러오기'),
                             ),
                           ],
@@ -374,7 +350,6 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                               decoration: InputDecoration(
                                 labelText: '판매자 *',
                                 errorText: state.validationErrors['sellerId'],
-                                border: const OutlineInputBorder(),
                               ),
                               items: [
                                 const DropdownMenuItem(
@@ -408,7 +383,6 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                         decoration: InputDecoration(
                           labelText: '플랫폼 *',
                           errorText: state.validationErrors['platform'],
-                          border: const OutlineInputBorder(),
                         ),
                         items: [
                           const DropdownMenuItem(
@@ -446,7 +420,6 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                           labelText: '판매상품 이름 *',
                           hintText: '판매상품의 이름을 입력해주세요',
                           errorText: state.validationErrors['name'],
-                          border: const OutlineInputBorder(),
                           counterText: '',
                         ),
                         onChanged: (v) {
@@ -475,7 +448,6 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                               labelText: '플랫폼 상품 ID *',
                               errorText:
                                   state.validationErrors['platformProductId'],
-                              border: const OutlineInputBorder(),
                             ),
                             onChanged: (v) {
                               bloc.add(UpdateFormField(
@@ -493,7 +465,6 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                             decoration: InputDecoration(
                               labelText: '카테고리 *',
                               errorText: state.validationErrors['categoryId'],
-                              border: const OutlineInputBorder(),
                             ),
                             items: [
                               const DropdownMenuItem(
@@ -537,7 +508,6 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                             isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: '배송사 *',
-                              border: OutlineInputBorder(),
                             ),
                             items: [
                               const DropdownMenuItem(
@@ -562,7 +532,6 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                             decoration: InputDecoration(
                               labelText: '택배비 *',
                               errorText: state.validationErrors['carrierId'],
-                              border: const OutlineInputBorder(),
                             ),
                             items: [
                               const DropdownMenuItem(
@@ -594,7 +563,6 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                             decoration: InputDecoration(
                               labelText: '패키지 *',
                               errorText: state.validationErrors['packageId'],
-                              border: const OutlineInputBorder(),
                             ),
                             items: [
                               const DropdownMenuItem(
@@ -635,7 +603,7 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                                     .toList(),
                               ),
                             ),
-                          ElevatedButton(
+                          FilledButton(
                             onPressed: (formData['categoryId']?.isEmpty ??
                                         true) ||
                                     (formData['carrierId']?.isEmpty ?? true) ||
@@ -652,7 +620,7 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                     const SizedBox(height: 32),
 
                     // Submit Button
-                    ElevatedButton(
+                    FilledButton(
                       onPressed: (!isFormComplete || _submitting)
                           ? null
                           : () {
@@ -661,17 +629,13 @@ class _ProductListingRegisterPageState extends State<ProductListingRegisterPage>
                                 const SubmitProductListingCreate(),
                               );
                             },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.brandGreen,
-                        foregroundColor:
-                            Theme.of(context).colorScheme.onSecondary,
+                      style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                       child: Text(_submitting ? '수정 중...' : '수정 완료'),
                     ),
                   ],
                 ),
-              ),
             );
           },
         ),
@@ -1000,9 +964,7 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
   void _applyMarginRate() {
     final rate = double.tryParse(_marginRateCtrl.text);
     if (rate == null || rate < 0 || rate >= 100) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('마진율은 0 이상 100 미만이어야 합니다')),
-      );
+      showInputNoticeToast(context, '마진율은 0 이상 100 미만이어야 합니다');
       return;
     }
     final price = _calcSellingPriceFromMarginRate(
@@ -1012,9 +974,7 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
       commissionRate: widget.commissionRate,
     );
     if (price <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('해당 마진율로는 판매가를 계산할 수 없습니다')),
-      );
+      showNoticeToast(context, '해당 마진율로는 판매가를 계산할 수 없습니다');
       return;
     }
     setState(() {
@@ -1025,9 +985,7 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
 
   void _submit() {
     if (_nameCtrl.text.trim().isEmpty || _priceCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('옵션명과 판매가를 입력해주세요')),
-      );
+      showInputNoticeToast(context, '옵션명과 판매가를 입력해주세요');
       return;
     }
 
@@ -1081,7 +1039,6 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
                 decoration: const InputDecoration(
                   labelText: '옵션명 *',
                   hintText: 'Blue M',
-                  border: OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 16),
@@ -1099,7 +1056,6 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
                 decoration: const InputDecoration(
                   labelText: '판매가 *',
                   hintText: '29900',
-                  border: OutlineInputBorder(),
                 ),
                 onChanged: (_) => setState(() {}),
               ),
@@ -1151,7 +1107,7 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
                   border: Border.all(
                     color: Theme.of(context).colorScheme.outlineVariant,
                   ),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1167,19 +1123,12 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
                             keyboardType: TextInputType.number,
                             decoration: const InputDecoration(
                               hintText: '목표 마진율 (%)',
-                              border: OutlineInputBorder(),
-                              isDense: true,
                             ),
                           ),
                         ),
                         const SizedBox(width: 8),
-                        ElevatedButton(
+                        FilledButton(
                           onPressed: _applyMarginRate,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.brandTeal,
-                            foregroundColor:
-                                Theme.of(context).colorScheme.onTertiary,
-                          ),
                           child: const Text('적용'),
                         ),
                       ],
@@ -1193,7 +1142,6 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
                 decoration: const InputDecoration(
                   labelText: '플랫폼 옵션 ID',
                   hintText: 'option_abc123',
-                  border: OutlineInputBorder(),
                 ),
               ),
             ],
@@ -1205,7 +1153,7 @@ class _OptionFormDialogState extends State<_OptionFormDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('취소'),
         ),
-        ElevatedButton(
+        FilledButton(
           onPressed: _submit,
           child: Text(_isEdit ? '저장' : '옵션 설정 완료'),
         ),
@@ -1259,7 +1207,7 @@ class _OptionProductsView extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),

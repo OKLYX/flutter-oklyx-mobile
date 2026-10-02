@@ -18,6 +18,9 @@ import 'package:flutter_oklyn_mobile/features/seller/domain/usecases/get_sellers
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 
 // Status enum -> screen text (never show the raw enum). Kept local like the web.
 const Map<String, String> _statusLabel = {
@@ -496,22 +499,7 @@ class _MasterFromMarketPageState extends State<MasterFromMarketPage> {
         extra: const MasterDetailArgs(),
       );
 
-  Widget _busyLabel(String label) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 8),
-          Text(label),
-        ],
-      );
-
-  Widget _card(String? title, List<Widget> children) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+  Widget _card(String? title, List<Widget> children) => AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -528,12 +516,6 @@ class _MasterFromMarketPageState extends State<MasterFromMarketPage> {
               ...children,
             ],
           ),
-        ),
-      );
-
-  Widget _label(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(text, style: const TextStyle(fontSize: 14)),
       );
 
   Widget _hint(String text) => Text(
@@ -646,7 +628,7 @@ class _MasterFromMarketPageState extends State<MasterFromMarketPage> {
                         ? null
                         : () => unawaited(_openAttach(rows[i].id)),
                     child: _attachLoadingId == rows[i].id
-                        ? _busyLabel('여는 중…')
+                        ? const AppBusyLabel('여는 중…')
                         : const Text('이 마스터에 붙이기'),
                   ),
                 ],
@@ -670,9 +652,7 @@ class _MasterFromMarketPageState extends State<MasterFromMarketPage> {
             child: TextField(
               controller: controller,
               decoration: InputDecoration(
-                border: const OutlineInputBorder(),
                 hintText: hintText,
-                isDense: true,
               ),
               onChanged: (_) => setState(() {}),
               onSubmitted: (_) => onSearch(),
@@ -684,7 +664,7 @@ class _MasterFromMarketPageState extends State<MasterFromMarketPage> {
               visualDensity: VisualDensity.compact,
             ),
             onPressed: busy || controller.text.trim().isEmpty ? null : onSearch,
-            child: busy ? _busyLabel('검색 중…') : const Text('검색'),
+            child: busy ? const AppBusyLabel('검색 중…') : const Text('검색'),
           ),
         ],
       );
@@ -703,25 +683,16 @@ class _MasterFromMarketPageState extends State<MasterFromMarketPage> {
       title: '마켓 상품으로 시작',
       navBarIndex: 2,
       showAppBarDrawerButton: false,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(
-          16,
-          16,
-          16,
-          kBottomNavigationBarHeight + 24,
-        ),
+      body: AppPageBody.scroll(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _card(null, [
               // ① seller · sales channel — two fields (UX D72)
-              _label('판매자'),
               DropdownButtonFormField<int>(
                 initialValue: _sellerId,
                 isExpanded: true,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: '판매자'),
                 hint: const Text('판매자를 선택하세요'),
                 items: [
                   for (final s in _sellers)
@@ -732,13 +703,10 @@ class _MasterFromMarketPageState extends State<MasterFromMarketPage> {
                     : (value) => setState(() => _sellerId = value),
               ),
               const SizedBox(height: 12),
-              _label('판매채널'),
               DropdownButtonFormField<String>(
                 initialValue: _platform,
                 isExpanded: true,
-                decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: '판매채널'),
                 items: [
                   for (final p in _platforms)
                     DropdownMenuItem(value: p.$1, child: Text(p.$2)),
@@ -753,7 +721,6 @@ class _MasterFromMarketPageState extends State<MasterFromMarketPage> {
               ),
               const SizedBox(height: 16),
               // ② product identifier — label / input mode come from the platform
-              _label(meta.$3),
               Row(
                 children: [
                   Expanded(
@@ -763,10 +730,7 @@ class _MasterFromMarketPageState extends State<MasterFromMarketPage> {
                       keyboardType:
                           meta.$4 ? TextInputType.number : TextInputType.text,
                       textInputAction: TextInputAction.search,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                      ),
+                      decoration: InputDecoration(labelText: meta.$3),
                       onChanged: (_) => setState(() {}),
                       onSubmitted: (_) => unawaited(_handleLookup()),
                     ),
@@ -778,7 +742,9 @@ class _MasterFromMarketPageState extends State<MasterFromMarketPage> {
                     ),
                     onPressed:
                         canLookup ? () => unawaited(_handleLookup()) : null,
-                    child: _looking ? _busyLabel('조회 중…') : const Text('조회'),
+                    child: _looking
+                        ? const AppBusyLabel('조회 중…')
+                        : const Text('조회'),
                   ),
                 ],
               ),
@@ -899,9 +865,9 @@ class _MasterFromMarketPageState extends State<MasterFromMarketPage> {
                 ),
                 const SizedBox(height: 8),
                 if (_candidateLoading)
-                  Align(
+                  const Align(
                     alignment: Alignment.centerLeft,
-                    child: _busyLabel('물품 후보를 찾는 중…'),
+                    child: AppBusyLabel('물품 후보를 찾는 중…', gap: 8),
                   )
                 else if (_candidates.isEmpty)
                   _muted('상품명으로 찾은 물품 후보가 없습니다.')
@@ -933,9 +899,9 @@ class _MasterFromMarketPageState extends State<MasterFromMarketPage> {
                 if (_selectedProducts.isEmpty)
                   _muted('물품을 고르면 그 물품이 하나라도 들어간 마스터를 물품 조합과 함께 보여 줍니다.')
                 else if (_overlapLoading)
-                  Align(
+                  const Align(
                     alignment: Alignment.centerLeft,
-                    child: _busyLabel('마스터를 찾는 중…'),
+                    child: AppBusyLabel('마스터를 찾는 중…', gap: 8),
                   )
                 else if (_overlapMasters.isEmpty)
                   _muted('고른 물품이 들어간 마스터가 없습니다.')

@@ -8,10 +8,11 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/mas
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/shipping_override.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_sheet.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/shipping_override_fields.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/info_bubble_icon.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 /// One registered channel cell of this master — the force-apply selection
 /// unit (web `ForceApplyChannel`).
@@ -213,7 +214,7 @@ class _MasterShippingOverridePanelState
     final picked = <int>{
       ...preselect ?? widget.channels.map((c) => c.listingId),
     };
-    final confirmed = await showMasterSheet<bool>(
+    final confirmed = await showAppSheet<bool>(
       context,
       builder: (sheetContext) => _ForceApplySheet(
         channels: widget.channels,
@@ -324,7 +325,7 @@ class _MasterShippingOverridePanelState
           if (_isLoading)
             const SizedBox(
               height: 64,
-              child: Center(child: _BusyLabel('불러오는 중...', size: 20)),
+              child: Center(child: AppBusyLabel('불러오는 중...', size: 20)),
             )
           else
             _buildBody(context),
@@ -406,7 +407,7 @@ class _MasterShippingOverridePanelState
           children: [
             FilledButton(
               onPressed: _busy ? null : _handleSave,
-              child: _isSaving ? const _BusyLabel('저장 중...') : const Text('저장'),
+              child: _isSaving ? const AppBusyLabel('저장 중...') : const Text('저장'),
             ),
             Row(
               mainAxisSize: MainAxisSize.min,
@@ -416,7 +417,7 @@ class _MasterShippingOverridePanelState
                       ? null
                       : () => _openPicker(),
                   child: _isApplying
-                      ? const _BusyLabel('적용 중...')
+                      ? const AppBusyLabel('적용 중...')
                       : const Text('채널에 강제 적용'),
                 ),
                 if (widget.channels.isEmpty)
@@ -648,27 +649,5 @@ class _Notice extends StatelessWidget {
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text(text, style: TextStyle(fontSize: 14, color: foreground)),
-      );
-}
-
-/// Spinner + label (web `<Spinner label=… />`).
-class _BusyLabel extends StatelessWidget {
-  final String label;
-  final double size;
-
-  const _BusyLabel(this.label, {this.size = 16});
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: size,
-            height: size,
-            child: const CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
       );
 }

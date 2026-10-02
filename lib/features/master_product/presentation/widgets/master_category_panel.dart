@@ -10,8 +10,9 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/mas
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/category_tree_list.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 /// Standard category assignment panel on the master detail screen —
 /// FEATURE_2609_80 / 07. A master points at one standard category; per-mall
@@ -145,7 +146,7 @@ class _MasterCategoryPanelState extends State<MasterCategoryPanel> {
   }
 
   Future<void> _handleClear() async {
-    final ok = await showMasterConfirmDialog(
+    final ok = await showAppConfirmDialog(
       context,
       message: '표준 카테고리 지정을 해제하시겠습니까?',
       confirmText: '해제',
@@ -194,7 +195,7 @@ class _MasterCategoryPanelState extends State<MasterCategoryPanel> {
           if (_isLoading)
             const SizedBox(
               height: 64,
-              child: Center(child: _BusyLabel('불러오는 중...', size: 20)),
+              child: Center(child: AppBusyLabel('불러오는 중...', size: 20)),
             )
           else if (current != null) ...[
             Text.rich(
@@ -290,10 +291,10 @@ class _MasterCategoryPanelState extends State<MasterCategoryPanel> {
                       foregroundColor: scheme.error,
                     ),
                     child: _isClearing
-                        ? const _BusyLabel('해제 중...')
+                        ? const AppBusyLabel('해제 중...')
                         : const Text('해제'),
                   ),
-                if (_isSaving) const _BusyLabel('저장 중...'),
+                if (_isSaving) const AppBusyLabel('저장 중...'),
               ],
             ),
             if (_isTreeOpen) ...[
@@ -368,26 +369,4 @@ class _ErrorBox extends StatelessWidget {
       child: Text(text, style: TextStyle(fontSize: 14, color: scheme.error)),
     );
   }
-}
-
-/// Spinner + label (web `<Spinner label=… />`).
-class _BusyLabel extends StatelessWidget {
-  final String label;
-  final double size;
-
-  const _BusyLabel(this.label, {this.size = 16});
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: size,
-            height: size,
-            child: const CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
-      );
 }

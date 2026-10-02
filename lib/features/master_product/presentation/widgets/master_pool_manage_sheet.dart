@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_network_image.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
@@ -33,7 +33,7 @@ class ManageImage {
 ///
 /// **Usage**:
 /// ```dart
-/// await showMasterSheet<void>(
+/// await showAppSheet<void>(
 ///   context,
 ///   builder: (_) => MasterPoolManageSheet(
 ///     images: manageImages,
@@ -43,7 +43,7 @@ class ManageImage {
 /// ```
 ///
 /// ⚠️ Product references are auto-managed and never listed here.
-/// ❌ Open it only through `showMasterSheet` (PLAN R24).
+/// ❌ Open it only through `showAppSheet` (PLAN R24).
 class MasterPoolManageSheet extends StatefulWidget {
   final List<ManageImage> images;
   final Future<List<ManageImage>> Function(List<int> tokens) onDelete;
@@ -81,7 +81,7 @@ class _MasterPoolManageSheetState extends State<MasterPoolManageSheet> {
     if (_selected.isEmpty) {
       return;
     }
-    final ok = await showMasterConfirmDialog(
+    final ok = await showAppConfirmDialog(
       context,
       message: '선택한 ${_selected.length}개 이미지를 삭제할까요? 매핑돼 있으면 함께 해제됩니다.',
       confirmText: '삭제',
