@@ -10,6 +10,8 @@ import '../bloc/product_listing_detail_bloc.dart';
 import '../bloc/product_listing_detail_event.dart';
 import '../bloc/product_listing_detail_state.dart';
 import 'product_listing_register_page.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 
 /// 판매상품 수정 페이지.
 ///
@@ -50,20 +52,18 @@ class ProductListingEditPage extends StatelessWidget {
               navBarIndex: 2,
               showDrawer: true,
               onBackPressed: () => context.go(Routes.salesProductsPath),
-              body: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(state.message),
-                    const SizedBox(height: 12),
-                    ElevatedButton(
+              body: AppPageBody(
+                children: [
+                  AppErrorBox(
+                    message: state.message,
+                    action: FilledButton(
                       onPressed: () => context
                           .read<ProductListingDetailBloc>()
                           .add(LoadProductListingDetail(id)),
                       child: const Text('다시 시도'),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             );
           }
@@ -73,7 +73,7 @@ class ProductListingEditPage extends StatelessWidget {
             navBarIndex: 2,
             showDrawer: true,
             onBackPressed: () => context.go(Routes.salesProductsPath),
-            body: const Center(child: CircularProgressIndicator()),
+            body: const AppPageBody(children: [AppLoading()]),
           );
         },
       ),

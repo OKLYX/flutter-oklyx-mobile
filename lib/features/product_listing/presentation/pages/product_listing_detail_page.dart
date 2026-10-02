@@ -10,7 +10,11 @@ import '../bloc/product_listing_detail_bloc.dart';
 import '../bloc/product_listing_detail_event.dart';
 import '../bloc/product_listing_detail_state.dart';
 import '../product_listing_refresh.dart';
-import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 /// 판매상품 상세 페이지
 ///
@@ -55,36 +59,29 @@ class _ProductListingDetailView extends StatelessWidget {
             notifyProductListingChanged();
             context.go(Routes.salesProductsPath);
           } else if (state is ProductListingDetailDeleteFailure) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
-            );
+            showErrorToast(context, state.message);
           }
         },
         builder: (context, state) {
           if (state is ProductListingDetailLoading ||
               state is ProductListingDetailInitial ||
               state is ProductListingDetailDeleteSuccess) {
-            return const Center(child: CircularProgressIndicator());
+            return const AppPageBody(children: [AppLoading()]);
           }
 
           if (state is ProductListingDetailError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(state.message),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
+            return AppPageBody(
+              children: [
+                AppErrorBox(
+                  message: state.message,
+                  action: FilledButton(
                     onPressed: () => context
-                        .read<ProductListingDetailBloc>()
-                        .add(LoadProductListingDetail(id)),
+                      .read<ProductListingDetailBloc>()
+                      .add(LoadProductListingDetail(id)),
                     child: const Text('다시 시도'),
                   ),
-                ],
-              ),
+                ),
+              ],
             );
           }
 
@@ -106,8 +103,7 @@ class _ProductListingDetailView extends StatelessWidget {
           if (listing != null) {
             // 클로저(버튼 콜백)에서 non-null 승격을 유지하기 위해 final 로 고정.
             final ProductListing loaded = listing;
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+            return AppPageBody.scroll(
               child: Column(
                 // 카드가 가로를 꽉 채우도록 stretch (좌우 패딩 16px 동일)
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -116,18 +112,14 @@ class _ProductListingDetailView extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      ElevatedButton(
+                      FilledButton(
                         onPressed: () => _onEdit(context),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.brandMain,
-                          foregroundColor: AppColors.foregroundLight,
-                        ),
                         child: const Text('수정'),
                       ),
                       const SizedBox(width: 8),
-                      ElevatedButton(
+                      FilledButton(
                         onPressed: () => _onDelete(context, loaded),
-                        style: ElevatedButton.styleFrom(
+                        style: FilledButton.styleFrom(
                           backgroundColor: Theme.of(context).colorScheme.error,
                           foregroundColor:
                               Theme.of(context).colorScheme.onError,
@@ -157,7 +149,6 @@ class _ProductListingDetailView extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   _OptionsCard(options: options),
-                  const SizedBox(height: 80),
                 ],
               ),
             );
@@ -184,61 +175,22 @@ class _ProductListingDetailView extends StatelessWidget {
     context.push(Routes.salesProductsEditRoute(id));
   }
 
-  // 삭제 확인 다이얼로그 표시(상자비/택배비 상세와 동일한 UI).
-  // 확인 시 다이얼로그를 닫고 BLoC delete 이벤트 발행 →
-  // 성공/실패 처리는 페이지 상단의 BlocListener가 담당.
-  void _onDelete(BuildContext context, ProductListing listing) {
+  // Shows the delete confirmation; on confirm fires the BLoC delete event —
+  // success / failure is handled by the BlocListener at the top of the page.
+  Future<void> _onDelete(BuildContext context, ProductListing listing) async {
     final bloc = context.read<ProductListingDetailBloc>();
-    showDialog(
-      context: context,
-      builder: (ctx) => _DeleteConfirmationDialog(
-        listingName: '${_platformLabel(listing.platform)} - '
-            '${listing.platformProductId}',
-        onConfirm: () {
-          Navigator.pop(ctx);
-          bloc.add(DeleteProductListing(listing.id));
-        },
-        onCancel: () => Navigator.pop(ctx),
-      ),
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '판매상품 삭제',
+      message: '${_platformLabel(listing.platform)} - '
+          '${listing.platformProductId}을(를) 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.',
+      confirmText: '삭제',
+      isDangerous: true,
     );
-  }
-}
-
-/// 삭제 확인 다이얼로그
-///
-/// 상자비(PackageDetailPage)·택배비(CarrierRateDetailPage) 상세의 삭제 모달과
-/// 동일한 UI/구조: 간단한 AlertDialog + 취소(TextButton)/삭제(빨간 FilledButton).
-class _DeleteConfirmationDialog extends StatelessWidget {
-  final String listingName;
-  final VoidCallback onConfirm;
-  final VoidCallback onCancel;
-
-  const _DeleteConfirmationDialog({
-    required this.listingName,
-    required this.onConfirm,
-    required this.onCancel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('판매상품 삭제'),
-      content: Text('$listingName을(를) 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.'),
-      actions: [
-        TextButton(
-          onPressed: onCancel,
-          child: const Text('취소'),
-        ),
-        FilledButton(
-          onPressed: onConfirm,
-          style: FilledButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.error,
-            foregroundColor: Theme.of(context).colorScheme.onError,
-          ),
-          child: const Text('삭제'),
-        ),
-      ],
-    );
+    if (!ok) {
+      return;
+    }
+    bloc.add(DeleteProductListing(listing.id));
   }
 }
 
@@ -250,10 +202,7 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -265,7 +214,6 @@ class _InfoCard extends StatelessWidget {
             ...rows,
           ],
         ),
-      ),
     );
   }
 }
@@ -312,10 +260,7 @@ class _OptionsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -370,7 +315,6 @@ class _OptionsCard extends StatelessWidget {
             ],
           ],
         ),
-      ),
     );
   }
 
