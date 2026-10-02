@@ -80,12 +80,6 @@ class AppTheme {
         elevation: 0,
         scrolledUnderElevation: 1,
       ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.brandMain,
-          foregroundColor: AppColors.foregroundLight,
-        ),
-      ),
       // One filled button for the whole app: brand yellow with a dark label
       // (FEATURE_2610_02 · N11). Green is written at the call site only for
       // the buttons listed in D101; red delete buttons keep their own color.

@@ -17,6 +17,10 @@ import 'package:flutter_oklyn_mobile/features/claim/domain/usecases/claim_usecas
 import 'package:flutter_oklyn_mobile/features/inquiry/domain/usecases/inquiry_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/marketplace_account/presentation/widgets/platform_options.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 /// 알림 화면 = 처리해야 할 일 목록 (FEATURE_2609_51).
 ///
@@ -82,7 +86,8 @@ class _NotificationViewState extends State<_NotificationView> {
         showDrawer: true,
         showAppBarDrawerButton: false,
         body: BlocConsumer<AlertFeedBloc, AlertFeedState>(
-          // 다음 장 실패만 SnackBar 로 알린다 — 보던 목록은 그대로 둔다.
+          // Only a next-page failure is reported with a toast — the list on
+          // screen stays as it is.
           listenWhen: (prev, curr) =>
               curr is AlertFeedLoaded &&
               curr.loadMoreError != null &&
@@ -90,68 +95,63 @@ class _NotificationViewState extends State<_NotificationView> {
           listener: (context, state) {
             final message = _loadMoreError(state);
             if (message == null) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(message),
-                behavior: SnackBarBehavior.floating,
-                margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-              ),
-            );
+            showErrorToast(context, message);
           },
-          builder: (context, state) => Column(
-            children: [
-              _FilterBar(filter: _filterOf(state)),
-              Expanded(child: _body(context, state)),
-            ],
-          ),
+          builder: (context, state) => _body(context, state),
         ),
       );
 
   Widget _body(BuildContext context, AlertFeedState state) {
+    final filterBar = _FilterBar(filter: _filterOf(state));
     if (state is AlertFeedLoading || state is AlertFeedInitial) {
-      return const Center(child: CircularProgressIndicator());
+      return AppPageBody(children: [filterBar, const AppLoading()]);
     }
     if (state is AlertFeedError) {
-      return _ErrorBody(message: state.message);
-    }
-    final loaded = state as AlertFeedLoaded;
-    final bottomInset =
-        kBottomNavigationBarHeight + MediaQuery.paddingOf(context).bottom;
-
-    if (loaded.items.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: _refresh,
-        // 비어 있어도 당겨서 새로고침이 되게 스크롤 가능한 목록으로 감싼다.
-        child: ListView(
-          controller: _scrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            SizedBox(height: MediaQuery.sizeOf(context).height * 0.3),
-            const Center(child: Text('처리해야 할 일이 없습니다.')),
-          ],
-        ),
+      return AppPageBody(
+        children: [
+          filterBar,
+          AppErrorBox(
+            message: state.message,
+            action: FilledButton(
+              onPressed: () =>
+                  context.read<AlertFeedBloc>().add(LoadAlertFeed()),
+              child: const Text('다시 시도'),
+            ),
+          ),
+        ],
       );
     }
+    final loaded = state as AlertFeedLoaded;
 
     return RefreshIndicator(
       onRefresh: _refresh,
-      child: ListView.builder(
+      child: AppPageBody.slivers(
         controller: _scrollController,
+        // Pull-to-refresh must work even when the list is short or empty.
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.fromLTRB(12, 8, 12, bottomInset + 16),
-        // 마지막 장이면 꼬리를 그리지 않는다 — `모두 확인했습니다` 같은 문구는 할 일이
-        // 끝났다는 오해를 준다. 읽는 중일 때만 스피너 한 줄.
-        itemCount: loaded.items.length + (loaded.isLoadingMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index >= loaded.items.length) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-          final item = loaded.items[index];
-          return _AlertCard(item: item, onTap: () => _open(item));
-        },
+        slivers: [
+          SliverToBoxAdapter(child: filterBar),
+          if (loaded.items.isEmpty)
+            const SliverToBoxAdapter(child: AppEmpty('처리해야 할 일이 없습니다.'))
+          else
+            SliverList.separated(
+              itemCount: loaded.items.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final item = loaded.items[index];
+                return _AlertCard(item: item, onTap: () => _open(item));
+              },
+            ),
+          // 마지막 장이면 꼬리를 그리지 않는다 — `모두 확인했습니다` 같은 문구는 할 일이
+          // 끝났다는 오해를 준다. 읽는 중일 때만 스피너 한 줄.
+          if (loaded.isLoadingMore)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -188,13 +188,7 @@ class _NotificationViewState extends State<_NotificationView> {
   /// 조회 실패는 한 줄로 알리고 **이동하지 않는다**(`extra: null` 은 "정보를 찾을 수 없습니다" 화면이 된다).
   void _showError(Failure failure) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(failure.message),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-      ),
-    );
+    showErrorToast(context, failure.message);
   }
 
   static AlertType? _filterOf(AlertFeedState state) {
@@ -222,7 +216,7 @@ class _FilterBar extends StatelessWidget {
       (AlertType.inquiry, '문의'),
     ];
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
           Expanded(
@@ -274,12 +268,8 @@ class _AlertCard extends StatelessWidget {
     final title = item.itemName?.trim();
     final showItemCount = item.itemCount != null && item.itemCount! > 1;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
+    return AppCard.row(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -338,8 +328,6 @@ class _AlertCard extends StatelessWidget {
               ],
             ],
           ),
-        ),
-      ),
     );
   }
 
@@ -364,29 +352,4 @@ class _AlertCard extends StatelessWidget {
     ];
     return parts.join(' · ');
   }
-}
-
-class _ErrorBody extends StatelessWidget {
-  final String message;
-
-  const _ErrorBody({required this.message});
-
-  @override
-  Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(message, textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: () =>
-                    context.read<AlertFeedBloc>().add(LoadAlertFeed()),
-                child: const Text('다시 시도'),
-              ),
-            ],
-          ),
-        ),
-      );
 }

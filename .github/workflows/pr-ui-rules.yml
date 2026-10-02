@@ -1,0 +1,20 @@
+# PR gate — UI rules of the mobile app (FEATURE_2610_02 · T9).
+#
+# Plain text search (scripts/check_ui_rules.sh): no Flutter setup, no packages.
+# This is not `flutter analyze` — it only stops hand-made dialogs, sheets,
+# snack bars, input borders and bottom-nav paddings from coming back.
+
+name: PR check — UI rules
+
+on:
+  pull_request:
+    branches: [develop, main]
+
+jobs:
+  ui-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: UI rules
+        run: bash scripts/check_ui_rules.sh

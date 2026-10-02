@@ -362,12 +362,12 @@ class _AppDrawerState extends State<AppDrawer> {
             ),
             child: SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
+              child: FilledButton(
                 onPressed: () {
                   Navigator.pop(context);
                   getIt<AuthBloc>().add(const LogoutRequested());
                 },
-                style: ElevatedButton.styleFrom(
+                style: FilledButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.error,
                   foregroundColor: Theme.of(context).colorScheme.onError,
                 ),
