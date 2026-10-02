@@ -11,7 +11,11 @@ import '../bloc/stock_ledger_bloc.dart';
 import '../bloc/stock_ledger_event.dart';
 import '../bloc/stock_ledger_state.dart';
 import '../widgets/movement_tile.dart';
-import '../widgets/stock_error_retry.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 /// 재고 조회 페이지 (`/stock/search`, PLAN 2609_28 D14 / 2609_29 D5).
 ///
@@ -59,9 +63,6 @@ class _StockBalanceViewState extends State<_StockBalanceView> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset =
-        kBottomNavigationBarHeight + MediaQuery.of(context).padding.bottom;
-
     return ScaffoldWithNavBar(
       title: '재고 조회',
       navBarIndex: 2,
@@ -76,71 +77,66 @@ class _StockBalanceViewState extends State<_StockBalanceView> {
         },
         builder: (context, state) {
           if (state is StockLedgerInitial || state is StockLedgerLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const AppPageBody(children: [AppLoading()]);
           }
           if (state is StockLedgerError) {
-            return StockErrorRetry(
-              message: state.message,
-              onRetry: () =>
-                  context.read<StockLedgerBloc>().add(LoadBalances()),
+            return AppPageBody(
+              children: [
+                AppErrorBox(
+                  message: state.message,
+                  action: FilledButton(
+                    onPressed: () =>
+                        context.read<StockLedgerBloc>().add(LoadBalances()),
+                    child: const Text('다시 시도'),
+                  ),
+                ),
+              ],
             );
           }
           final loaded = state as StockLedgerLoaded;
           final bloc = context.read<StockLedgerBloc>();
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _searchController,
-                      decoration: const InputDecoration(
-                        hintText: '상품명 검색',
-                        prefixIcon: Icon(Icons.search),
-                        border: OutlineInputBorder(),
-                        isDense: true,
+          return AppPageBody.slivers(
+            slivers: [
+              SliverToBoxAdapter(
+                child: AppCard(
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: _searchController,
+                        decoration: const InputDecoration(
+                          hintText: '상품명 검색',
+                          prefixIcon: Icon(Icons.search),
+                        ),
+                        onChanged: (value) =>
+                            _onSearchChanged(context, value, loaded.sellerId),
                       ),
-                      onChanged: (value) =>
-                          _onSearchChanged(context, value, loaded.sellerId),
-                    ),
-                    const SizedBox(height: 8),
-                    SellerFilterDropdown(
-                      sellers: loaded.sellers,
-                      selectedSellerId: loaded.sellerId,
-                      onChanged: (value) => bloc.add(LoadBalances(
-                        keyword: _searchController.text,
-                        sellerId: value,
-                      )),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      SellerFilterDropdown(
+                        sellers: loaded.sellers,
+                        selectedSellerId: loaded.sellerId,
+                        onChanged: (value) => bloc.add(LoadBalances(
+                          keyword: _searchController.text,
+                          sellerId: value,
+                        )),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              Expanded(
-                child: loaded.balances.isEmpty
-                    ? Center(
-                        child: Text(
-                          '재고 데이터가 없습니다.',
-                          style: TextStyle(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      )
-                    : ListView.separated(
-                        padding:
-                            EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 24),
-                        itemCount: loaded.balances.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
-                        itemBuilder: (context, index) => _BalanceRow(
-                          balance: loaded.balances[index],
-                          onTap: () => _showHistory(context, bloc,
-                              loaded.balances[index]),
-                        ),
-                      ),
-              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 8)),
+              if (loaded.balances.isEmpty)
+                const SliverToBoxAdapter(child: AppEmpty('재고 데이터가 없습니다.'))
+              else
+                SliverList.separated(
+                  itemCount: loaded.balances.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) => _BalanceRow(
+                    balance: loaded.balances[index],
+                    onTap: () =>
+                        _showHistory(context, bloc, loaded.balances[index]),
+                  ),
+                ),
             ],
           );
         },
@@ -158,9 +154,8 @@ class _StockBalanceViewState extends State<_StockBalanceView> {
       productId: balance.productId,
       sellerId: balance.sellerId,
     ));
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
+    showAppSheet<void>(
+      context,
       builder: (_) => BlocProvider.value(
         value: bloc,
         child: _HistorySheet(balance: balance),
@@ -168,17 +163,10 @@ class _StockBalanceViewState extends State<_StockBalanceView> {
     );
   }
 
-  /// 하단 내비가 오버레이라 floating + bottom:70 이 필수다.
+  /// Only action errors pass through here — kind = error
+  /// (FEATURE_2610_02 · N13).
   void _snack(BuildContext context, String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-        ),
-      );
+    showErrorToast(context, message);
   }
 }
 
@@ -192,8 +180,11 @@ class _BalanceRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final negative = balance.onHand < 0;
-    return ListTile(
+    return AppCard.row(
+      onTap: onTap,
+      child: ListTile(
       dense: true,
+      contentPadding: EdgeInsets.zero,
       title: Text(
         balance.productName,
         maxLines: 1,
@@ -227,7 +218,7 @@ class _BalanceRow extends StatelessWidget {
             ),
         ],
       ),
-      onTap: onTap,
+      ),
     );
   }
 }
@@ -240,12 +231,7 @@ class _HistorySheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.6,
-      maxChildSize: 0.9,
-      builder: (context, scrollController) {
-        return BlocBuilder<StockLedgerBloc, StockLedgerState>(
+    return BlocBuilder<StockLedgerBloc, StockLedgerState>(
           builder: (context, state) {
             final loaded = state is StockLedgerLoaded ? state : null;
             return Column(
@@ -276,7 +262,6 @@ class _HistorySheet extends StatelessWidget {
                 else
                   Expanded(
                     child: ListView(
-                      controller: scrollController,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       children: loaded.movements
                           .map((m) => MovementTile(movement: m))
@@ -287,7 +272,5 @@ class _HistorySheet extends StatelessWidget {
             );
           },
         );
-      },
-    );
   }
 }

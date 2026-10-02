@@ -8,6 +8,7 @@ import '../../domain/entities/purchase_record.dart';
 import '../../domain/usecases/get_recent_purchases_usecase.dart';
 import 'seller_filter_dropdown.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 /// 금액 입력 모드 (PLAN 2609_28 D2) — 영수증 표기가 총액/단가 어느 쪽이든 받는다.
 enum _AmountMode { total, unit }
@@ -172,16 +173,10 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
     });
   }
 
+  /// Only input prompts pass through here — kind = input notice
+  /// (FEATURE_2610_02 · N13).
   void _toast(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-        ),
-      );
+    showInputNoticeToast(context, message);
   }
 
   /// 펼칠 때 한 번만 조회한다 — 이미 받아둔 캐시가 있으면 재호출하지 않는다.
@@ -272,14 +267,10 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'^-?\d*')),
                   ],
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     hintText: '수량',
-                    isDense: true,
-                    filled: true,
-                    fillColor: Theme.of(context).colorScheme.surface,
-                    border: const OutlineInputBorder(),
                     contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                        EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                   ),
                 ),
               ),
@@ -295,10 +286,6 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
                   ],
                   decoration: InputDecoration(
                     hintText: _amountMode == _AmountMode.total ? '총액' : '단가',
-                    isDense: true,
-                    filled: true,
-                    fillColor: Theme.of(context).colorScheme.surface,
-                    border: const OutlineInputBorder(),
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 12),
                   ),
@@ -377,7 +364,7 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
                 ),
               ),
               const SizedBox(width: 6),
-              ElevatedButton(
+              FilledButton(
                 onPressed: _canSubmit ? _submit : null,
                 child: const Text('입고'),
               ),

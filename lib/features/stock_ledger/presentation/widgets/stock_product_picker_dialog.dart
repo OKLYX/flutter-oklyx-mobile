@@ -100,8 +100,6 @@ class _StockProductPickerViewState extends State<_StockProductPickerView> {
                 decoration: const InputDecoration(
                   hintText: '상품명 검색...',
                   prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(),
-                  isDense: true,
                   contentPadding:
                       EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),

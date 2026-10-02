@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../domain/entities/outbound_order.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 /// 출고 확인 카드 — 주문 라인 1건 + 소진할 물품 줄.
 ///
@@ -70,10 +72,7 @@ class _OutboundOrderCardState extends State<OutboundOrderCard> {
   Widget build(BuildContext context) {
     final order = widget.order;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+    return AppCard.row(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -103,7 +102,6 @@ class _OutboundOrderCardState extends State<OutboundOrderCard> {
             ...order.products.map(_buildProductRow),
           ],
         ),
-      ),
     );
   }
 
@@ -147,8 +145,6 @@ class _OutboundOrderCardState extends State<OutboundOrderCard> {
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: const InputDecoration(
-                    isDense: true,
-                    border: OutlineInputBorder(),
                     contentPadding:
                         EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                   ),
@@ -162,7 +158,7 @@ class _OutboundOrderCardState extends State<OutboundOrderCard> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               else
-                ElevatedButton(
+                FilledButton(
                   onPressed: done || widget.busy
                       ? null
                       : () => _confirm(line, controller),
@@ -188,16 +184,9 @@ class _OutboundOrderCardState extends State<OutboundOrderCard> {
     widget.onConfirm(line.productId, quantity);
   }
 
-  /// 하단 내비가 오버레이라 floating + bottom:70 이 필수다.
+  /// Only input prompts pass through here — kind = input notice
+  /// (FEATURE_2610_02 · N13).
   void _toast(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-        ),
-      );
+    showInputNoticeToast(context, message);
   }
 }

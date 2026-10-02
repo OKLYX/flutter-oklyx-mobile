@@ -10,7 +10,9 @@ import '../bloc/stock_ledger_bloc.dart';
 import '../bloc/stock_ledger_event.dart';
 import '../bloc/stock_ledger_state.dart';
 import '../widgets/outbound_order_card.dart';
-import '../widgets/stock_error_retry.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 /// 출고 확인 페이지 (`/stock/outbound`, PLAN 2609_28 D11·D12·D13).
@@ -37,9 +39,6 @@ class _StockOutboundView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset =
-        kBottomNavigationBarHeight + MediaQuery.of(context).padding.bottom;
-
     return ScaffoldWithNavBar(
       title: '출고 확인',
       navBarIndex: 2,
@@ -51,92 +50,82 @@ class _StockOutboundView extends StatelessWidget {
             (curr.actionError != null || curr.actionMessage != null),
         listener: (context, state) {
           final loaded = state as StockLedgerLoaded;
-          _snack(context, loaded.actionError ?? loaded.actionMessage!);
+          if (loaded.actionError != null) {
+            showErrorToast(context, loaded.actionError!);
+          } else {
+            showSuccessToast(context, loaded.actionMessage!);
+          }
           context.read<StockLedgerBloc>().add(ClearStockLedgerNotice());
         },
         builder: (context, state) {
           if (state is StockLedgerInitial || state is StockLedgerLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const AppPageBody(children: [AppLoading()]);
           }
           if (state is StockLedgerError) {
-            return StockErrorRetry(
-              message: state.message,
-              onRetry: () =>
-                  context.read<StockLedgerBloc>().add(LoadOutbound()),
+            return AppPageBody(
+              children: [
+                AppErrorBox(
+                  message: state.message,
+                  action: FilledButton(
+                    onPressed: () =>
+                        context.read<StockLedgerBloc>().add(LoadOutbound()),
+                    child: const Text('다시 시도'),
+                  ),
+                ),
+              ],
             );
           }
           final loaded = state as StockLedgerLoaded;
           final bloc = context.read<StockLedgerBloc>();
           final busy = loaded.actionInProgressKey != null;
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          return AppPageBody(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: SellerFilterDropdown(
-                        sellers: loaded.sellers,
-                        selectedSellerId: loaded.sellerId,
-                        enabled: !busy,
-                        onChanged: (value) =>
-                            bloc.add(LoadOutbound(sellerId: value)),
+              Row(
+                children: [
+                  Expanded(
+                    child: SellerFilterDropdown(
+                      sellers: loaded.sellers,
+                      selectedSellerId: loaded.sellerId,
+                      enabled: !busy,
+                      onChanged: (value) =>
+                          bloc.add(LoadOutbound(sellerId: value)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: busy
+                        ? null
+                        : () => bloc.add(LoadOutbound(sellerId: loaded.sellerId)),
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('새로고침'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (loaded.outbound.isEmpty)
+                const AppEmpty('출고할 주문이 없습니다.')
+              else
+                for (var i = 0; i < loaded.outbound.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 8),
+                  OutboundOrderCard(
+                    key: ValueKey(loaded.outbound[i].orderLineId),
+                    order: loaded.outbound[i],
+                    busy: busy,
+                    inProgressProductId:
+                        _inProgressProductId(loaded, loaded.outbound[i]),
+                    onConfirm: (productId, quantity) => bloc.add(
+                      ConfirmOutbound(
+                        orderLineId: loaded.outbound[i].orderLineId,
+                        productId: productId,
+                        quantity: quantity,
+                        movedOn: _today(),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    OutlinedButton.icon(
-                      onPressed: busy
-                          ? null
-                          : () => bloc.add(LoadOutbound(sellerId: loaded.sellerId)),
-                      icon: const Icon(Icons.refresh, size: 18),
-                      label: const Text('새로고침'),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: ListView(
-                  padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 24),
-                  children: [
-                    if (loaded.outbound.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 24),
-                        child: Center(
-                          child: Text(
-                            '출고할 주문이 없습니다.',
-                            style: TextStyle(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      )
-                    else
-                      ...loaded.outbound.map(
-                        (order) => OutboundOrderCard(
-                          key: ValueKey(order.orderLineId),
-                          order: order,
-                          busy: busy,
-                          inProgressProductId:
-                              _inProgressProductId(loaded, order),
-                          onConfirm: (productId, quantity) => bloc.add(
-                            ConfirmOutbound(
-                              orderLineId: order.orderLineId,
-                              productId: productId,
-                              quantity: quantity,
-                              movedOn: _today(),
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (loaded.unexpanded.isNotEmpty)
-                      _UnexpandedSection(items: loaded.unexpanded),
-                  ],
-                ),
-              ),
+                  ),
+                ],
+              if (loaded.unexpanded.isNotEmpty)
+                _UnexpandedSection(items: loaded.unexpanded),
             ],
           );
         },
@@ -163,19 +152,6 @@ class _StockOutboundView extends StatelessWidget {
     final month = now.month.toString().padLeft(2, '0');
     final day = now.day.toString().padLeft(2, '0');
     return '${now.year}-$month-$day';
-  }
-
-  /// 하단 내비가 오버레이라 floating + bottom:70 이 필수다.
-  void _snack(BuildContext context, String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-        ),
-      );
   }
 }
 
