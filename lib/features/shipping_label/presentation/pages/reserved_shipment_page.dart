@@ -8,6 +8,9 @@ import '../bloc/reserved_shipment_bloc.dart';
 import '../bloc/reserved_shipment_event.dart';
 import '../bloc/reserved_shipment_state.dart';
 import '../widgets/reserved_shipment_row_tile.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 /// 출고관리 > 예약 발송 현황 페이지 (FEATURE_2609_75 / D15·D16·D17·D18·D30).
 ///
@@ -45,38 +48,28 @@ class _ReservedShipmentView extends StatelessWidget {
         listenWhen: (prev, curr) =>
             curr.actionError != null && curr.actionError != prev.actionError,
         listener: (context, state) {
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(
-              SnackBar(
-                content: Text(state.actionError!),
-                behavior: SnackBarBehavior.floating,
-                margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-              ),
-            );
+          showErrorToast(context, state.actionError!);
         },
         builder: (context, state) {
           if (state.loading && state.rows.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
+            return const AppPageBody(children: [AppLoading()]);
           }
           if (state.forbidden) {
             return const Center(child: Text('관리자만 볼 수 있습니다.'));
           }
           if (state.loadError != null && state.rows.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(state.loadError!, textAlign: TextAlign.center),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
+            return AppPageBody(
+              children: [
+                AppErrorBox(
+                  message: state.loadError!,
+                  action: FilledButton(
                     onPressed: () => context
                         .read<ReservedShipmentBloc>()
                         .add(const ReservedShipmentsRequested()),
-                    child: const Text('재시도'),
+                    child: const Text('다시 시도'),
                   ),
-                ],
-              ),
+                ),
+              ],
             );
           }
           final completed = state.rows
@@ -87,22 +80,12 @@ class _ReservedShipmentView extends StatelessWidget {
             onRefresh: () async => context
                 .read<ReservedShipmentBloc>()
                 .add(const ReservedShipmentsRequested()),
-            child: state.rows.isEmpty
-                ? ListView(
-                    children: const [
-                      SizedBox(height: 120),
-                      Center(child: Text('예약 발송이 없습니다.')),
-                    ],
-                  )
-                : ListView.separated(
-                    padding: EdgeInsets.fromLTRB(
-                      16,
-                      16,
-                      16,
-                      kBottomNavigationBarHeight +
-                          MediaQuery.paddingOf(context).bottom +
-                          16,
-                    ),
+            child: AppPageBody.slivers(
+              slivers: [
+                if (state.rows.isEmpty)
+                  const SliverToBoxAdapter(child: AppEmpty('예약 발송이 없습니다.'))
+                else
+                  SliverList.separated(
                     itemCount: state.rows.length + 1,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, index) => index == 0
@@ -116,6 +99,8 @@ class _ReservedShipmentView extends StatelessWidget {
                             showInvoiceEdit: true,
                           ),
                   ),
+              ],
+            ),
           );
         },
       ),

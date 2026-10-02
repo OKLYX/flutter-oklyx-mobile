@@ -16,6 +16,11 @@ import '../widgets/order_search_bar.dart';
 import '../widgets/order_status_filter_bar.dart';
 import '../widgets/sync_progress_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 /// 주문관리 > 주문내역 페이지 (조회 + 동기화)
 ///
@@ -101,25 +106,24 @@ class _OrderHistoryViewState extends State<_OrderHistoryView> {
           }
           final message = s.actionError;
           if (message == null) return;
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(
-              SnackBar(
-                content: Text(message),
-                behavior: SnackBarBehavior.floating,
-                margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-              ),
-            );
+          showErrorToast(context, message);
         },
         builder: (context, state) {
           if (state is OrderListInitial || state is OrderListLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const AppPageBody(children: [AppLoading()]);
           }
 
           if (state is OrderListError) {
-            return _ErrorRetry(
-              message: state.message,
-              onRetry: () => context.read<OrderListBloc>().add(LoadOrders()),
+            return AppPageBody(
+              children: [
+                AppErrorBox(
+                  message: state.message,
+                  action: FilledButton(
+                    onPressed: () => context.read<OrderListBloc>().add(LoadOrders()),
+                    child: const Text('다시 시도'),
+                  ),
+                ),
+              ],
             );
           }
 
@@ -143,31 +147,19 @@ class _OrderHistoryViewState extends State<_OrderHistoryView> {
     final bloc = context.read<OrderListBloc>();
     // 🔴 목록이 담고 있는 기간이다(selectedPeriod 아님).
     final period = s.appliedPeriod;
-    showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('${s.backfillPrompt} 주문 데이터가 없습니다'),
-        content: const Text(
-          '쿠팡에서 이 기간의 주문을 불러올까요?\n계정 수에 따라 수십 초가 걸릴 수 있습니다.\n\n'
+    showAppConfirmDialog(
+      context,
+      title: '${s.backfillPrompt} 주문 데이터가 없습니다',
+      message: '쿠팡에서 이 기간의 주문을 불러올까요?\n계정 수에 따라 수십 초가 걸릴 수 있습니다.\n\n'
           '· 이미 불러온 주문은 중복되지 않습니다.\n'
           '· 이 기간의 취소 내역은 일부 반영되지 않을 수 있습니다.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('닫기'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('불러오기'),
-          ),
-        ],
-      ),
+      confirmText: '불러오기',
+      cancelText: '닫기',
     ).then((confirmed) {
       _backfillDialogOpen = false;
       if (bloc.isClosed) return;
       bloc.add(DismissBackfillPrompt()); // 어느 쪽이든 상태를 비운다
-      if (confirmed == true) bloc.add(BackfillPeriod(period: period));
+      if (confirmed) bloc.add(BackfillPeriod(period: period));
     });
   }
 
@@ -244,15 +236,14 @@ class _LoadedBody extends StatelessWidget {
         ? chScoped
         : chScoped.where((o) => o.status == s.selectedStatus).toList();
 
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
+    return AppPageBody.slivers(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 판매자 필터 + 조회/동기화 컨트롤 (프론트 OrderSearchCard)
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
+          AppCard(
               child: Column(
                 children: [
                   Row(
@@ -263,7 +254,6 @@ class _LoadedBody extends StatelessWidget {
                           isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: '판매자',
-                            border: OutlineInputBorder(),
                             contentPadding: EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 8),
                           ),
@@ -289,7 +279,7 @@ class _LoadedBody extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      ElevatedButton(
+                      FilledButton(
                         onPressed: busy ? null : () => bloc.add(SearchOrders()),
                         child: Text(s.isSearching ? '조회 중...' : '조회'),
                       ),
@@ -304,7 +294,6 @@ class _LoadedBody extends StatelessWidget {
                     isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: '기간',
-                      border: OutlineInputBorder(),
                       contentPadding:
                           EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
@@ -329,7 +318,6 @@ class _LoadedBody extends StatelessWidget {
                     isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: '채널',
-                      border: OutlineInputBorder(),
                       contentPadding:
                           EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
@@ -356,16 +344,7 @@ class _LoadedBody extends StatelessWidget {
                             if (value == null || syncableIds.contains(value)) {
                               return;
                             }
-                            ScaffoldMessenger.of(context)
-                              ..hideCurrentSnackBar()
-                              ..showSnackBar(
-                                const SnackBar(
-                                  content: Text('동기화할 수 없는 채널입니다(비활성).'),
-                                  behavior: SnackBarBehavior.floating,
-                                  margin: EdgeInsets.only(
-                                      left: 16, right: 16, bottom: 70),
-                                ),
-                              );
+                            showNoticeToast(context, '동기화할 수 없는 채널입니다(비활성).');
                           },
                   ),
                   const SizedBox(height: 8),
@@ -414,7 +393,6 @@ class _LoadedBody extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
           ),
           const SizedBox(height: 8),
 
@@ -508,22 +486,18 @@ class _LoadedBody extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-
-          Expanded(
-            child: orders.isEmpty
-                ? const Center(child: Text('조회 결과가 없습니다.'))
-                : ListView.separated(
-                    padding: const EdgeInsets.only(
-                      bottom: kBottomNavigationBarHeight + 24,
-                    ),
-                    itemCount: orders.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) =>
-                        OrderCard(order: orders[index]),
-                  ),
-          ),
         ],
-      ),
+          ),
+        ),
+        if (orders.isEmpty)
+          const SliverToBoxAdapter(child: AppEmpty('조회 결과가 없습니다.'))
+        else
+          SliverList.separated(
+            itemCount: orders.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (context, index) => OrderCard(order: orders[index]),
+          ),
+      ],
     );
   }
 }
@@ -593,26 +567,5 @@ class _ChannelStatusBanner extends StatelessWidget {
       return '(실패) ${target.lastSyncError ?? ''}'.trim();
     }
     return target.lastSyncError ?? '부분 성공';
-  }
-}
-
-class _ErrorRetry extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _ErrorRetry({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(message, textAlign: TextAlign.center),
-          const SizedBox(height: 12),
-          ElevatedButton(onPressed: onRetry, child: const Text('재시도')),
-        ],
-      ),
-    );
   }
 }

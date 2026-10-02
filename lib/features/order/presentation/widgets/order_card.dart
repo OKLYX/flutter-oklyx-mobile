@@ -5,30 +5,38 @@ import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
 import '../../domain/entities/order_item.dart';
 import 'internal_stage_badge.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 
-/// 주문 1건 카드 — 주문내역·출고관리 두 화면이 공유한다.
+/// Card for one order — shared by the two screens, order history and shipment
+/// management.
 ///
-/// **용도**: 주문 목록의 행 하나. 표시 항목은 프론트 `OrderTable` 컬럼과 동일하다
-/// (주문번호 / 고객명 / 상품명 / 주문수량 / 취소 / 결제일).
-/// **필수 규칙**: 주문 목록을 그리는 새 화면은 이 위젯을 쓴다. 화면별로 카드를 다시 만들지 말 것.
-/// **파일**: lib/features/order/presentation/widgets/order_card.dart
+/// **Purpose**: one row of the order list. The shown items are the same as the
+/// columns of the front-end `OrderTable`
+/// (order number / customer name / product name / ordered quantity /
+/// cancelled / paid date).
+/// **Required rule**: a new screen that draws an order list uses this widget.
+/// Do not build the card again per screen.
+/// **File**: lib/features/order/presentation/widgets/order_card.dart
 ///
-/// **사용 예제**:
+/// **Usage**:
 /// ```dart
-/// ListView.separated(
+/// SliverList.separated(
 ///   itemCount: orders.length,
 ///   separatorBuilder: (_, __) => const SizedBox(height: 8),
 ///   itemBuilder: (context, index) => OrderCard(order: orders[index]),
 /// )
 /// ```
 ///
-/// ⚠️ 탭 → 주문 상세 이동은 위젯 내부에 있다(`context.push` + `extra`). 화면이 정하지 않는다 —
-/// `onTap` 을 파라미터로 빼거나 `context.go` 로 바꾸면 뒤로가기 동선이 달라진다.
-/// ⚠️ 상태 라벨·날짜 포맷은 위젯이 직접 만들지 않는다 — `getOrderStatusLabel` ·
-/// `formatOrderDateTime` 를 쓴다.
-/// ⚠️ 선택 체크박스는 **옵션**이다([onToggleSelect] 미전달 = 지금과 완전히 같은 카드).
-/// 발주처리(출고관리)만 넘긴다 — 주문내역은 넘기지 않는다.
-/// ❌ 화면마다 `_OrderCard` 사본을 만들지 말 것(두 화면의 카드가 조용히 갈라진다).
+/// ⚠️ Tap → navigation to the order detail lives inside the widget
+/// (`context.push` + `extra`). The screen does not decide it — pulling `onTap`
+/// out as a parameter or switching to `context.go` changes the back navigation.
+/// ⚠️ The widget does not build the status label or the date format itself —
+/// it uses `getOrderStatusLabel` · `formatOrderDateTime`.
+/// ⚠️ The selection checkbox is **optional** ([onToggleSelect] not passed =
+/// exactly the card as it is now). Only order acknowledgement (shipment
+/// management) passes it — order history does not.
+/// ❌ Do not make a `_OrderCard` copy per screen (the cards of the two screens
+/// silently drift apart).
 class OrderCard extends StatelessWidget {
   final OrderItem order;
 
@@ -56,16 +64,12 @@ class OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        // 항목 탭 → 주문 상세 페이지로 이동 (선택한 OrderItem 을 extra 로 전달).
-        onTap: () => context.push(Routes.orderHistoryDetailPath, extra: order),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          // 카드 항목은 프론트 OrderTable 컬럼과 동일:
-          // 주문번호 / 고객명 / 상품명 / 주문수량 / 취소 / 결제일.
-          child: _withCheckbox(
+    return AppCard.row(
+      // 항목 탭 → 주문 상세 페이지로 이동 (선택한 OrderItem 을 extra 로 전달).
+      onTap: () => context.push(Routes.orderHistoryDetailPath, extra: order),
+      // 카드 항목은 프론트 OrderTable 컬럼과 동일:
+      // 주문번호 / 고객명 / 상품명 / 주문수량 / 취소 / 결제일.
+      child: _withCheckbox(
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -131,8 +135,6 @@ class OrderCard extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ),
     );
   }
 

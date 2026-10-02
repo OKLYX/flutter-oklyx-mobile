@@ -39,6 +39,11 @@ import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/bloc/r
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/widgets/reserved_shipment_history_section.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/widgets/stored_invoice_section.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 // Platform display labels — same shape as product_listing_detail_page;
 // unknown codes fall back to the raw value.
@@ -86,7 +91,7 @@ class OrderDetailPage extends StatelessWidget {
         children: [
           const Text('주문 정보를 찾을 수 없습니다.'),
           const SizedBox(height: 12),
-          ElevatedButton(
+          FilledButton(
             onPressed: () => context.go(Routes.orderHistoryPath),
             child: const Text('주문내역으로'),
           ),
@@ -141,8 +146,7 @@ class OrderDetailPage extends StatelessWidget {
               ..add(ReservedShipmentsRequested(externalOrderId: o.externalOrderId)),
           ),
       ],
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+      child: AppPageBody.scroll(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -151,8 +155,9 @@ class OrderDetailPage extends StatelessWidget {
             // 슬롯을 새로 뚫지 않는다. 🔴 발주·발송이 있는 하단 액션 영역에도 두지 않는다 —
             // 그쪽은 마켓에 쓰는 작업 자리이고 상태 갱신은 읽기다.
             if (isCoupang) _RefreshRow(order: o),
-            // ⚠️ BlocBuilder 는 이 카드 하나만 감싼다 — Column 이나 SingleChildScrollView 를
-            // 감싸면 전송할 때마다 송장시트 섹션까지 리빌드돼 편집 중이던 택배수량이 튄다.
+            // ⚠️ BlocBuilder wraps only this one card — wrapping the Column or
+            // AppPageBody.scroll would rebuild even the shipping-label sheet
+            // section on every send and the edited parcel count would jump.
             _buildInfoCard(o, isCoupang: isCoupang),
             const SizedBox(height: 12),
             _InfoCard(
@@ -212,12 +217,6 @@ class OrderDetailPage extends StatelessWidget {
               const SizedBox(height: 12),
               _HideWhenFullyCancelled(child: _AcknowledgeSection(order: o)),
             ],
-            // ScaffoldWithNavBar 는 내비바를 오버레이하므로 하단 여백을 확보한다.
-            SizedBox(
-              height: kBottomNavigationBarHeight +
-                  MediaQuery.paddingOf(context).bottom +
-                  16,
-            ),
           ],
         ),
       ),
@@ -341,10 +340,7 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -356,7 +352,6 @@ class _InfoCard extends StatelessWidget {
             ...rows,
           ],
         ),
-      ),
     );
   }
 }
@@ -508,10 +503,7 @@ class _ActionTabsState extends State<_ActionTabs> {
                       if (!internalStage) {
                         return _ManualShipmentSection(order: order);
                       }
-                      return const Card(
-                        margin: EdgeInsets.zero,
-                        child: Padding(
-                          padding: EdgeInsets.all(16),
+                      return const AppCard(
                           child: Text(
                             '내부 단계 주문은 여기서 발송처리할 수 없습니다. 「송장」에 송장을 저장한 뒤 출고관리의 [저장된 송장으로 발송]을 누르세요',
                             style: TextStyle(
@@ -519,7 +511,6 @@ class _ActionTabsState extends State<_ActionTabs> {
                               color: AppColors.warningForeground,
                             ),
                           ),
-                        ),
                       );
                     },
                   ),
@@ -566,7 +557,8 @@ class _RefreshRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<OrderRefreshBloc, OrderRefreshState>(
-      // 같은 값이 다시 emit 될 때 SnackBar 가 겹치지 않도록 전이만 듣는다.
+      // Listens only to transitions so that toasts do not pile up when the
+      // same value is emitted again.
       listenWhen: (prev, curr) =>
           (curr.result != null && curr.result != prev.result) ||
           (curr.errorMessage != null && curr.errorMessage != prev.errorMessage),
@@ -575,14 +567,20 @@ class _RefreshRow extends StatelessWidget {
         if (result != null) {
           // 실패 사유는 서버 원문 그대로 보여준다. empty(쿠팡 0박스)는 실패가 아니다.
           // 마켓에서 취소·반품된 건은 서버가 로컬까지 정리했으므로 그렇게 알린다.
-          final message = result.failed.isNotEmpty
-              ? result.failed.first.reason
-              : result.cancelled.isNotEmpty
-                  ? (result.cancelled.first.cancelledLines > 0
-                      ? '마켓에서 취소·반품된 주문입니다. 발송 전이라 취소로 정리했습니다.'
-                      : '마켓에서 취소·반품된 주문입니다. 이미 발송한 건이라 금액은 그대로 두었습니다.')
-                  : (result.refreshed > 0 ? '최신 상태로 갱신했습니다.' : '이미 최신입니다.');
-          _showSnackBar(context, message);
+          if (result.failed.isNotEmpty) {
+            showErrorToast(context, result.failed.first.reason);
+          } else if (result.cancelled.isNotEmpty) {
+            _showSnackBar(
+              context,
+              result.cancelled.first.cancelledLines > 0
+                  ? '마켓에서 취소·반품된 주문입니다. 발송 전이라 취소로 정리했습니다.'
+                  : '마켓에서 취소·반품된 주문입니다. 이미 발송한 건이라 금액은 그대로 두었습니다.',
+            );
+          } else if (result.refreshed > 0) {
+            showSuccessToast(context, '최신 상태로 갱신했습니다.');
+          } else {
+            _showSnackBar(context, '이미 최신입니다.');
+          }
           context.read<OrderRefreshBloc>().add(const RefreshResultCleared());
           // 바뀐 게 있을 때만 목록으로 돌아간다(D22). 이미 최신이거나 실패면 그 자리에
           // 머문다 — 보여줄 변화가 없는데 화면을 옮기면 사용자가 뭘 눌렀는지 놓친다.
@@ -593,7 +591,7 @@ class _RefreshRow extends StatelessWidget {
         }
         final error = state.errorMessage;
         if (error == null) return;
-        _showSnackBar(context, error);
+        showErrorToast(context, error);
         context.read<OrderRefreshBloc>().add(const RefreshResultCleared());
       },
       builder: (context, state) => Align(
@@ -617,17 +615,12 @@ class _RefreshRow extends StatelessWidget {
     );
   }
 
-  /// 하단 내비를 오버레이하는 [ScaffoldWithNavBar] 를 피해 floating + bottom 70 으로 띄운다.
+  /// Only the notice texts of the refresh result pass through here (order
+  /// cancelled in the marketplace, already current) — kind = notice. The
+  /// failure reason, the refreshed text and a failed request call the toast
+  /// of their own kind directly (FEATURE_2610_02 · N13 · D124).
   void _showSnackBar(BuildContext context, String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-        ),
-      );
+    showNoticeToast(context, message);
   }
 }
 
@@ -668,10 +661,7 @@ class _AcknowledgeSection extends StatelessWidget {
               order.internalStage == null && !internal.forbidden;
           final busy = state.submitting || internal.submitting != null;
 
-          return Card(
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+          return AppCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -704,16 +694,11 @@ class _AcknowledgeSection extends StatelessWidget {
                       runSpacing: 8,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        ElevatedButton(
+                        FilledButton(
                           onPressed:
                               busy ? null : () => _confirmAndSubmit(context),
                           child: state.submitting
-                              ? const SizedBox(
-                                  height: 18,
-                                  width: 18,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
-                                )
+                              ? const AppBusyLabel('발주처리')
                               : const Text('발주처리'),
                         ),
                         if (canMarkInternal)
@@ -742,12 +727,7 @@ class _AcknowledgeSection extends StatelessWidget {
                                           )),
                                   child: internal.submitting ==
                                           InternalStageAction.mark
-                                      ? const SizedBox(
-                                          height: 18,
-                                          width: 18,
-                                          child: CircularProgressIndicator(
-                                              strokeWidth: 2),
-                                        )
+                                      ? const AppBusyLabel('내부 발주처리')
                                       : const Text('내부 발주처리'),
                                 ),
                       ],
@@ -775,7 +755,6 @@ class _AcknowledgeSection extends StatelessWidget {
                   ],
                 ],
               ),
-            ),
           );
         },
       ),
@@ -788,27 +767,16 @@ class _AcknowledgeSection extends StatelessWidget {
     final bloc = context.read<OrderAcknowledgeBloc>();
     final reserved = order.internalStage != null ||
         _internalMarked(context.read<OrderInternalStageBloc>().state);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(reserved ? '예약된 주문 포함' : '발주처리'),
-        content: Text(reserved
-            ? '예약된 주문입니다. 쿠팡에 지금 발주처리하면 해당 주문의 내부 발주·예약 발송이 해제됩니다. 계속할까요?'
-            : '이 주문을 발주처리합니다. 되돌릴 수 없습니다.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('취소'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('발주처리'),
-          ),
-        ],
-      ),
+    final ok = await showAppConfirmDialog(
+      context,
+      title: reserved ? '예약된 주문 포함' : '발주처리',
+      message: reserved
+          ? '예약된 주문입니다. 쿠팡에 지금 발주처리하면 해당 주문의 내부 발주·예약 발송이 해제됩니다. 계속할까요?'
+          : '이 주문을 발주처리합니다. 되돌릴 수 없습니다.',
+      confirmText: '발주처리',
     );
     // 다이얼로그가 열려 있는 사이 페이지를 벗어날 수 있다.
-    if (ok != true || bloc.isClosed) return;
+    if (!ok || bloc.isClosed) return;
     bloc.add(AcknowledgeRequested([order.id]));
   }
 }
@@ -863,20 +831,14 @@ class _CancelSectionState extends State<_CancelSection> {
   Widget build(BuildContext context) {
     final order = widget.order;
     return BlocConsumer<OrderCancelBloc, OrderCancelState>(
-      // 결과가 처음 도착한 순간에만 알린다 — 리빌드마다 띄우면 SnackBar 가 반복된다.
+      // Notifies only at the moment the result first arrives — showing it on
+      // every rebuild would repeat the toast.
       listenWhen: (prev, curr) =>
           prev.result != curr.result && curr.result != null,
       listener: (context, state) {
         final result = state.result!;
         if (result.cancelled.isEmpty) return;
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          // ScaffoldWithNavBar 가 하단 내비바를 오버레이한다 — floating + 여백이 필수다.
-          ..showSnackBar(SnackBar(
-            content: Text('취소 접수 완료 — ${result.succeededQty}개'),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-          ));
+        showSuccessToast(context, '취소 접수 완료 — ${result.succeededQty}개');
       },
       builder: (context, state) {
         // 결제완료·상품준비중 쿠팡 주문에만 노출한다(D2·D10). 403 이면 진입점을 숨긴다.
@@ -903,10 +865,7 @@ class _CancelSectionState extends State<_CancelSection> {
             _reasonCode != null &&
             quantityValid;
 
-        return Card(
-          margin: EdgeInsets.zero,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+        return AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -969,8 +928,6 @@ class _CancelSectionState extends State<_CancelSection> {
                       isExpanded: true, // 라벨이 길다 — overflow 방지
                       decoration: const InputDecoration(
                         labelText: '취소 사유',
-                        border: OutlineInputBorder(),
-                        isDense: true,
                       ),
                       items: state.reasons
                           .map((r) => DropdownMenuItem<String>(
@@ -995,8 +952,6 @@ class _CancelSectionState extends State<_CancelSection> {
                     onChanged: (_) => setState(() {}),
                     decoration: InputDecoration(
                       labelText: '취소 수량',
-                      border: const OutlineInputBorder(),
-                      isDense: true,
                       errorText: quantityValid
                           ? null
                           : '1~$remainingQty 사이로 입력하세요',
@@ -1018,15 +973,11 @@ class _CancelSectionState extends State<_CancelSection> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  ElevatedButton(
+                  FilledButton(
                     onPressed:
                         canSubmit ? () => _confirmAndSubmit(context, state) : null,
                     child: state.submitting
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
+                        ? const AppBusyLabel('주문 취소')
                         : const Text('주문 취소'),
                   ),
                 ],
@@ -1078,7 +1029,6 @@ class _CancelSectionState extends State<_CancelSection> {
                 ],
               ],
             ),
-          ),
         );
       },
     );
@@ -1100,30 +1050,17 @@ class _CancelSectionState extends State<_CancelSection> {
         )
         .label;
 
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('주문 취소'),
-        content: Text('$quantity개를 "$label" 사유로 취소합니다.\n'
-            '되돌릴 수 없고 판매자 점수가 하락합니다.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('닫기'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
-            ),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('주문 취소'),
-          ),
-        ],
-      ),
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '주문 취소',
+      message: '$quantity개를 "$label" 사유로 취소합니다.\n'
+          '되돌릴 수 없고 판매자 점수가 하락합니다.',
+      confirmText: '주문 취소',
+      cancelText: '닫기',
+      isDangerous: true,
     );
     // 다이얼로그가 열려 있는 사이 페이지를 벗어날 수 있다.
-    if (ok != true || bloc.isClosed) return;
+    if (!ok || bloc.isClosed) return;
     bloc.add(CancelRequested(
       [
         {'orderItemId': widget.order.id, 'quantity': quantity}
@@ -1206,10 +1143,7 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
         // 미발송이면 늘 열려 있고, 발송된 건은 [송장 수정하기] 를 누른 뒤에만 열린다.
         final formOpen = !shipped || _editing;
 
-        return Card(
-          margin: EdgeInsets.zero,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+        return AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -1271,8 +1205,6 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
                       isExpanded: true, // 코드표가 길다 — 긴 이름이 overflow 하지 않게
                       decoration: const InputDecoration(
                         labelText: '택배사',
-                        border: OutlineInputBorder(),
-                        isDense: true,
                       ),
                       items: state.options
                           .map((o) => DropdownMenuItem<String>(
@@ -1304,8 +1236,6 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
                         _onInvoiceChanged(context, state.errorMessage),
                     decoration: const InputDecoration(
                       labelText: '송장번호',
-                      border: OutlineInputBorder(),
-                      isDense: true,
                     ),
                   ),
                   // 조회 실패와 '등록된 택배사 없음' 은 안내가 다르다 — 합치면 거짓 안내가 된다.
@@ -1334,7 +1264,7 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
                       ),
                     ),
                   const SizedBox(height: 8),
-                  ElevatedButton(
+                  FilledButton(
                     onPressed: canSubmit
                         ? () => context.read<ManualShipmentBloc>().add(
                               SubmitManualShipment(
@@ -1344,11 +1274,7 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
                             )
                         : null,
                     child: state.submitting
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
+                        ? AppBusyLabel(shipped ? '송장 수정 요청' : '발송처리')
                         : Text(shipped ? '송장 수정 요청' : '발송처리'),
                   ),
                 ],
@@ -1368,13 +1294,13 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
                 ],
               ],
             ),
-          ),
         );
       },
     );
   }
 
-  // 결과는 인라인으로 남긴다(SnackBar ❌ — 스크롤해서 다시 볼 수 있어야 한다).
+  // The result stays inline (toast ❌ — it must be possible to scroll back and
+  // see it again).
   List<Widget> _buildResult(ManualShipmentResult result) {
     final widgets = <Widget>[];
     if (result.succeeded > 0 && result.failed.isEmpty) {
@@ -1435,7 +1361,7 @@ class _OrderSheetSection extends StatelessWidget {
         if (state is OrderSheetExportSuccess) {
           _saveAndNotify(context, state.bytes);
         } else if (state is OrderSheetExportFailure) {
-          _showSnackBar(context, state.message);
+          showErrorToast(context, state.message);
         }
       },
       builder: (context, state) {
@@ -1458,7 +1384,7 @@ class _OrderSheetSection extends StatelessWidget {
                 children: [
                   Text(state.message, textAlign: TextAlign.center),
                   const SizedBox(height: 12),
-                  ElevatedButton(
+                  FilledButton(
                     onPressed: () => context
                         .read<OrderSheetBloc>()
                         .add(LoadOrderSheet(order.id)),
@@ -1487,7 +1413,7 @@ class _OrderSheetSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ElevatedButton.icon(
+            FilledButton.icon(
               onPressed: _isCoupang
                   ? () => context
                       .read<OrderSheetBloc>()
@@ -1529,10 +1455,7 @@ class _OrderSheetSection extends StatelessWidget {
     final hasMissingPhone = rows.any((r) => r.receiverPhone.trim().isEmpty);
     final platformLabel = _platformLabels[order.platform] ?? order.platform;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -1586,7 +1509,7 @@ class _OrderSheetSection extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 4),
-            ElevatedButton.icon(
+            FilledButton.icon(
               onPressed: isEmpty || isExporting
                   ? null
                   : () => context
@@ -1603,13 +1526,10 @@ class _OrderSheetSection extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 
   Future<void> _saveAndNotify(BuildContext context, Uint8List bytes) async {
-    final messenger = ScaffoldMessenger.of(context);
-    String message;
     try {
       // saveAs: 시스템 저장 다이얼로그로 사용자가 위치 선택 → 실제 보이는 파일로 저장.
       // saveFile(bytes) 는 Android 에서 앱 전용 디렉토리에만 써서 사용자가 못 찾는다.
@@ -1619,29 +1539,17 @@ class _OrderSheetSection extends StatelessWidget {
         ext: 'xlsx',
         mimeType: MimeType.microsoftExcel,
       );
-      // 사용자가 다이얼로그를 취소하면 null → SnackBar 없이 종료.
+      // null when the user cancels the dialog → ends without a toast.
       if (path == null || path.isEmpty) return;
-      message = '주문목록을 저장했습니다.';
     } catch (_) {
-      message = '파일 저장에 실패했습니다.';
+      if (context.mounted) {
+        showErrorToast(context, '파일 저장에 실패했습니다.');
+      }
+      return;
     }
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(_snackBar(message));
+    if (!context.mounted) return;
+    showSuccessToast(context, '주문목록을 저장했습니다.');
   }
-
-  void _showSnackBar(BuildContext context, String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(_snackBar(message));
-  }
-
-  // 내비바 오버레이에 가리지 않도록 floating + bottom 여백.
-  SnackBar _snackBar(String message) => SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-      );
 }
 
 /// 시트 한 라인 카드 — 배송지 앞부분 / 상품명 / 내품수량 + 택배수량 편집(-, 값, +).

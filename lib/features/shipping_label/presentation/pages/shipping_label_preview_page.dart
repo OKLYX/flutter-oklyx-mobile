@@ -11,6 +11,10 @@ import '../../data/models/shipping_label_preview_row.dart';
 import '../bloc/shipping_label_preview_bloc.dart';
 import '../bloc/shipping_label_preview_event.dart';
 import '../bloc/shipping_label_preview_state.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 /// 주문목록 확인(Shipping Label V2) 페이지.
 ///
@@ -49,7 +53,8 @@ class _PreviewView extends StatelessWidget {
       showDrawer: true,
       onBackPressed: () => context.pop(),
       body: BlocConsumer<ShippingLabelPreviewBloc, ShippingLabelPreviewState>(
-        // export 성공(transient)만 리스닝 → bytes 저장 + 완료 SnackBar.
+        // Listens only to export success (transient) → saves the bytes + shows
+        // the completion toast.
         listenWhen: (prev, curr) => curr is PreviewExportSuccess,
         listener: (context, state) => _saveAndNotify(
           context,
@@ -59,15 +64,22 @@ class _PreviewView extends StatelessWidget {
           if (state is PreviewInitial ||
               state is PreviewLoading ||
               state is PreviewExporting) {
-            return const Center(child: CircularProgressIndicator());
+            return const AppPageBody(children: [AppLoading()]);
           }
 
           if (state is PreviewError) {
-            return _ErrorRetry(
-              message: state.message,
-              onRetry: () => context
-                  .read<ShippingLabelPreviewBloc>()
-                  .add(LoadPreview(null, internal)),
+            return AppPageBody(
+              children: [
+                AppErrorBox(
+                  message: state.message,
+                  action: FilledButton(
+                    onPressed: () => context
+                      .read<ShippingLabelPreviewBloc>()
+                      .add(LoadPreview(null, internal)),
+                    child: const Text('다시 시도'),
+                  ),
+                ),
+              ],
             );
           }
 
@@ -100,8 +112,6 @@ class _PreviewView extends StatelessWidget {
     BuildContext context,
     PreviewExportSuccess state,
   ) async {
-    final messenger = ScaffoldMessenger.of(context);
-    String message;
     try {
       // saveAs: 시스템 저장 다이얼로그로 사용자가 위치 선택 → 실제 보이는 파일로 저장.
       // saveFile(bytes) 는 Android 에서 앱 전용 디렉토리에만 써서 다운로드 폴더에
@@ -115,21 +125,16 @@ class _PreviewView extends StatelessWidget {
         ext: 'xlsx',
         mimeType: MimeType.microsoftExcel,
       );
-      // 사용자가 다이얼로그를 취소하면 null → SnackBar 없이 종료.
+      // null when the user cancels the dialog → ends without a toast.
       if (path == null || path.isEmpty) return;
-      message = '주문목록을 저장했습니다.';
     } catch (_) {
-      message = '파일 저장에 실패했습니다.';
+      if (context.mounted) {
+        showErrorToast(context, '파일 저장에 실패했습니다.');
+      }
+      return;
     }
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-        ),
-      );
+    if (!context.mounted) return;
+    showSuccessToast(context, '주문목록을 저장했습니다.');
   }
 }
 
@@ -155,21 +160,22 @@ class _LoadedBody extends StatelessWidget {
     final bloc = context.read<ShippingLabelPreviewBloc>();
     final isEmpty = rows.isEmpty;
 
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return Column(
+      children: [
+        Expanded(
+          child: AppPageBody.slivers(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 판매자 필터 — 변경 시 새 sellerId 로 재조회(LoadPreview 재dispatch).
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
+          AppCard(
               child: DropdownButtonFormField<int?>(
                 value: sellerId,
                 isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: '판매자',
-                  border: OutlineInputBorder(),
                   contentPadding:
                       EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
@@ -187,7 +193,6 @@ class _LoadedBody extends StatelessWidget {
                 ],
                 onChanged: (value) => bloc.add(LoadPreview(value, internal)),
               ),
-            ),
           ),
           const SizedBox(height: 8),
           if (internal && notAcceptedCount > 0) ...[
@@ -215,38 +220,45 @@ class _LoadedBody extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Expanded(
-            child: isEmpty
-                ? const Center(child: Text('발송 대상 주문 없음'))
-                : ListView.separated(
-                    padding: const EdgeInsets.only(
-                      bottom: kBottomNavigationBarHeight + 16,
-                    ),
-                    itemCount: rows.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) => _PreviewRowCard(
-                      row: rows[index],
-                      onChanged: (parcel) => bloc.add(
-                        UpdateParcelQuantity(rows[index].rowKey, parcel),
-                      ),
+        ],
+                ),
+              ),
+              if (isEmpty)
+                const SliverToBoxAdapter(child: AppEmpty('발송 대상 주문 없음'))
+              else
+                SliverList.separated(
+                  itemCount: rows.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) => _PreviewRowCard(
+                    row: rows[index],
+                    onChanged: (parcel) => bloc.add(
+                      UpdateParcelQuantity(rows[index].rowKey, parcel),
                     ),
                   ),
+                ),
+            ],
           ),
-          // 하단 다운로드 버튼 — rows 비면 disabled. nav 겹침 방지 하단 패딩.
-          Padding(
-            padding: const EdgeInsets.only(bottom: kBottomNavigationBarHeight),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed:
-                    isEmpty ? null : () => bloc.add(const ExportRequested()),
-                icon: const Icon(Icons.download, size: 18),
-                label: const Text('엑셀 다운로드'),
-              ),
+        ),
+        // Download button pinned above the bottom nav (D112) — disabled when
+        // there are no rows.
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            0,
+            16,
+            AppPageBody.navBarInset(context) + 16,
+          ),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed:
+                  isEmpty ? null : () => bloc.add(const ExportRequested()),
+              icon: const Icon(Icons.download, size: 18),
+              label: const Text('엑셀 다운로드'),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -267,9 +279,7 @@ class _PreviewRowCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+    return AppCard.row(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -308,7 +318,6 @@ class _PreviewRowCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }
@@ -344,27 +353,6 @@ class _ParcelStepper extends StatelessWidget {
           icon: const Icon(Icons.add_circle_outline),
         ),
       ],
-    );
-  }
-}
-
-class _ErrorRetry extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _ErrorRetry({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(message, textAlign: TextAlign.center),
-          const SizedBox(height: 12),
-          ElevatedButton(onPressed: onRetry, child: const Text('재시도')),
-        ],
-      ),
     );
   }
 }

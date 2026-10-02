@@ -9,6 +9,8 @@ import '../bloc/reserved_shipment_bloc.dart';
 import '../bloc/reserved_shipment_event.dart';
 import '../bloc/reserved_shipment_state.dart';
 import '../utils/reserved_time_picker.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 
 /// 예약 발송 행 1개 카드 (FEATURE_2609_75 / D15·D16·D18·D30).
 ///
@@ -31,12 +33,6 @@ class ReservedShipmentRowTile extends StatelessWidget {
     required this.state,
     required this.showInvoiceEdit,
   });
-
-  Widget _progress() => const SizedBox(
-        width: 16,
-        height: 16,
-        child: CircularProgressIndicator(strokeWidth: 2),
-      );
 
   bool _isBusy(ReservedAction action) =>
       state.busyId == row.id && state.busyAction == action;
@@ -76,10 +72,7 @@ class ReservedShipmentRowTile extends StatelessWidget {
     final anyBusy = state.busyId != null;
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+    return AppCard.row(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -134,7 +127,7 @@ class ReservedShipmentRowTile extends StatelessWidget {
                   OutlinedButton(
                     onPressed: anyBusy ? null : () => _changeTime(context),
                     child: _isBusy(ReservedAction.time)
-                        ? _progress()
+                        ? const AppBusyLabel('시각 변경')
                         : const Text('시각 변경'),
                   ),
                 if (showInvoiceEdit &&
@@ -143,16 +136,16 @@ class ReservedShipmentRowTile extends StatelessWidget {
                   OutlinedButton(
                     onPressed: anyBusy ? null : () => _changeInvoice(context),
                     child: _isBusy(ReservedAction.invoice)
-                        ? _progress()
+                        ? const AppBusyLabel('송장 수정')
                         : const Text('송장 수정'),
                   ),
                 if (row.status == 'STOPPED' && row.result == 'FAILED')
-                  ElevatedButton(
+                  FilledButton(
                     onPressed: anyBusy
                         ? null
                         : () => bloc.add(ReservationRetryRequested(row)),
                     child: _isBusy(ReservedAction.retry)
-                        ? _progress()
+                        ? const AppBusyLabel('다시 시도')
                         : const Text('다시 시도'),
                   ),
                 if (row.isOpen && row.status != 'RUNNING')
@@ -161,14 +154,13 @@ class ReservedShipmentRowTile extends StatelessWidget {
                         ? null
                         : () => bloc.add(ReservationCancelRequested(row)),
                     child: _isBusy(ReservedAction.cancel)
-                        ? _progress()
+                        ? const AppBusyLabel('예약 취소')
                         : const Text('예약 취소'),
                   ),
               ],
             ),
           ],
         ),
-      ),
     );
   }
 }
@@ -230,8 +222,6 @@ class _InvoiceEditDialogState extends State<InvoiceEditDialog> {
             isExpanded: true,
             decoration: const InputDecoration(
               labelText: '택배사',
-              border: OutlineInputBorder(),
-              isDense: true,
             ),
             items: widget.options
                 .map((o) => DropdownMenuItem<String>(
@@ -247,8 +237,6 @@ class _InvoiceEditDialogState extends State<InvoiceEditDialog> {
             controller: _invoiceController,
             decoration: const InputDecoration(
               labelText: '송장번호',
-              border: OutlineInputBorder(),
-              isDense: true,
             ),
             onChanged: (_) => setState(() {}),
           ),
