@@ -3,15 +3,17 @@ import 'package:flutter/material.dart';
 import '../../domain/entities/claim.dart';
 import 'claim_action_sheet.dart';
 
-/// 교환 거부 사유 선택 바텀시트 (FEATURE_2609_21 / 07).
+/// Bottom sheet for choosing the exchange rejection reason
+/// (FEATURE_2609_21 / 07).
 ///
-/// **용도**: `requires == 'REJECT_CODE'` 인 액션의 추가 입력(거부 사유 코드) 하나를 받는다.
-/// **파일**: lib/features/claim/presentation/widgets/claim_reject_sheet.dart
+/// **Purpose**: takes the one extra input (rejection reason code) of an action
+/// with `requires == 'REJECT_CODE'`.
+/// **File**: lib/features/claim/presentation/widgets/claim_reject_sheet.dart
 ///
-/// **사용 예제**:
+/// **Usage**:
 /// ```dart
-/// showModalBottomSheet<void>(
-///   context: context,
+/// showAppSheet<void>(
+///   context,
 ///   builder: (ctx) => ClaimRejectSheet(
 ///     claim: claim,
 ///     action: action,
@@ -22,17 +24,23 @@ import 'claim_action_sheet.dart';
 /// );
 /// ```
 ///
-/// 🔴 **코드→라벨 맵을 앱에 만들지 않는다**(D19). 선택지는 서버가 [ClaimAction.choices] 로
-/// 내려주고, 값도 라벨도 그대로 쓴다 — 쿠팡 거부코드를 앱에 두면 네이버가 다른 코드
-/// 집합을 쓰는 날 **앱을 재배포**해야 한다(웹과 달리 즉시 반영되지 않는다).
+/// 🔴 **No code→label map is built in the app** (D19). The choices come down
+/// from the server as [ClaimAction.choices] and both value and label are used
+/// as they are — if Coupang's rejection codes lived in the app, **the app would
+/// have to be redeployed** the day Naver uses a different code set (unlike the
+/// web, it is not reflected immediately).
 ///
-/// ⚠️ **`claimType` 을 보지 않는다** — 교환에만 있다는 사실은 서버가 `availableActions` 로 이미
-/// 표현했다. 여기서 다시 판정하면 판정이 두 곳이 되고 웹(06)과 갈린다.
-/// ⚠️ **자유 입력 사유란을 만들지 말 것** — 쿠팡이 받지 않는다. 적었는데 전송되지 않는 칸이 된다.
-/// ⚠️ **전송하지 않는다.** 확인까지가 이 시트의 몫이고, 시트를 먼저 닫은 뒤 [onSubmit] 을 1회
-/// 부른다. 전송·로딩·SnackBar·재조회는 전부 [ClaimActionSheet] 가 맡는다 —
-/// `showModalBottomSheet` 의 내용은 부모의 `setState` 로 다시 그려지지 않아 시트 안에서 전송
-/// 상태를 그릴 수 없다.
+/// ⚠️ **`claimType` is not looked at** — the fact that this exists only for
+/// exchanges is already expressed by the server through `availableActions`.
+/// Deciding again here would put the decision in two places and diverge from
+/// the web (06).
+/// ⚠️ **Do not add a free-text reason field** — Coupang does not accept it. It
+/// would be a field that is filled in but never sent.
+/// ⚠️ **This sheet does not send.** Its job ends at the confirmation; it closes
+/// the sheet first and then calls [onSubmit] once. Sending, loading, toasts and
+/// reloading are all handled by [ClaimActionSheet] — the content of a bottom
+/// sheet is not redrawn by the parent's `setState`, so the sending state cannot
+/// be drawn inside the sheet.
 class ClaimRejectSheet extends StatefulWidget {
   final Claim claim;
 

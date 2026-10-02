@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
 import 'package:flutter_oklyn_mobile/features/order/domain/entities/order_item.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import '../../domain/entities/inquiry_detail.dart';
 
 /// 문의 상세의 관련 주문 / 관련 상품 패널 — 3가지 상태를 그린다.
@@ -165,10 +166,7 @@ class _Panel extends StatelessWidget {
   const _Panel({required this.title, required this.children});
 
   @override
-  Widget build(BuildContext context) => Card(
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+  Widget build(BuildContext context) => AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -183,7 +181,6 @@ class _Panel extends StatelessWidget {
               ...children,
             ],
           ),
-        ),
       );
 }
 

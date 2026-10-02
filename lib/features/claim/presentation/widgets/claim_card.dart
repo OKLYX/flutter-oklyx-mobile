@@ -5,29 +5,36 @@ import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
 import '../../domain/entities/claim.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 
-/// 클레임 1건 카드 (반품/교환 목록의 행 하나).
+/// Card for one claim (one row of the return / exchange list).
 ///
-/// **용도**: 주문번호 + 상태 / 상품명 / 수량 · 사유 / 접수일 을 보여준다.
-/// **필수 규칙**: 클레임 목록을 그리는 새 화면은 이 위젯을 쓴다. 화면별로 카드를 다시 만들지 말 것.
-/// **파일**: lib/features/claim/presentation/widgets/claim_card.dart
+/// **Purpose**: shows order number + status / product name /
+/// quantity · reason / received date.
+/// **Required rule**: a new screen that draws a claim list uses this widget. Do
+/// not build the card again per screen.
+/// **File**: lib/features/claim/presentation/widgets/claim_card.dart
 ///
-/// **사용 예제**:
+/// **Usage**:
 /// ```dart
-/// ListView.separated(
+/// SliverList.separated(
 ///   itemCount: claims.length,
 ///   separatorBuilder: (_, __) => const SizedBox(height: 8),
 ///   itemBuilder: (context, index) => ClaimCard(claim: claims[index]),
 /// )
 /// ```
 ///
-/// ⚠️ 탭 → 상세 이동은 위젯 내부에 있다(`context.push` + `extra`) — `OrderCard` 와 같은
-/// 관용구다. `pushNamed` 나 `context.go` 로 바꾸면 뒤로가기 동선이 카드마다 달라진다.
-/// ⚠️ 상태 라벨·날짜 포맷은 위젯이 직접 만들지 않는다 — `getClaimStatusLabel` ·
-/// `formatOrderDateTime` 를 쓴다.
-/// ⚠️ 플랫폼 원문 상태(`platformStatus`)는 카드에 노출하지 않는다 — 상세 전용이다.
-/// ⚠️ 「우리 기록」 뱃지는 회수송장이 **우리 장부에만** 있는 건(2609_70 / D6)에만 붙는다 —
-/// `collectInvoiceSource` 가 null(출처 불명인 기존 행)·`PLATFORM` 이면 아무 표시도 하지 않는다.
+/// ⚠️ Tap → navigation to the detail lives inside the widget (`context.push` +
+/// `extra`) — the same idiom as `OrderCard`. Switching to `pushNamed` or
+/// `context.go` makes the back navigation differ from card to card.
+/// ⚠️ The widget does not build the status label or the date format itself —
+/// it uses `getClaimStatusLabel` · `formatOrderDateTime`.
+/// ⚠️ The platform's raw status (`platformStatus`) is not exposed on the card —
+/// it is for the detail only.
+/// ⚠️ The 「우리 기록」 badge is attached only to claims whose collect invoice
+/// exists **only in our own ledger** (2609_70 / D6) — when
+/// `collectInvoiceSource` is null (existing rows of unknown origin) or
+/// `PLATFORM`, nothing is shown.
 class ClaimCard extends StatelessWidget {
   final Claim claim;
 
@@ -35,12 +42,8 @@ class ClaimCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
+    return AppCard.row(
         onTap: () => context.push(Routes.claimDetailPath, extra: claim),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -124,8 +127,6 @@ class ClaimCard extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
     );
   }
 }

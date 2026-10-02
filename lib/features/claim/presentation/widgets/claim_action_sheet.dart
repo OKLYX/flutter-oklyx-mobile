@@ -4,7 +4,11 @@ import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/data/models/carrier_option.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/domain/usecases/shipping_label_usecase.dart';
-import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import '../../domain/entities/claim.dart';
 import '../../domain/usecases/claim_usecase.dart';
 import 'claim_reject_sheet.dart';
@@ -67,10 +71,12 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
   /// 이 줄이 없으면 사용자는 "아직 이른가 보다" 하며 무한히 재시도한다.
   static const _reshipRetryHint = '여러 번 반복되면 관리자에게 알려주세요.';
 
-  /// 🔴 **`action` 코드로 분기하는 곳은 이 위젯에서 딱 두 곳**이다 —
-  /// ① 송장 시트의 보조 문구([_invoiceSubtitles]) ② X3 의 400 톤([_execute]).
-  /// "분기는 `requires` 로만" 규칙의 **의도적 예외**이고, 늘리지 말 것 — 세 번째가 생기려 하면
-  /// 그건 서버가 내려줄 것이 하나 빠진 것이다.
+  /// 🔴 **This widget branches on the `action` code in exactly two places** —
+  /// ① the helper text of the invoice sheet ([_invoiceSubtitles]) ② the hint
+  /// appended to the 400 of X3 and reopening the sheet ([_execute]).
+  /// They are **intentional exceptions** to the "branch only on `requires`"
+  /// rule and must not grow — if a third one is about to appear, the server is
+  /// missing something it should send down.
   static const _actionExchangeReshipInvoice = 'EXCHANGE_RESHIP_INVOICE';
 
   /// 교환에는 송장 액션이 둘이라 제목만으로는 어느 쪽에 넣는지 알 수 없다.
@@ -134,10 +140,7 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
         .toList();
     if (actions.isEmpty) return const SizedBox.shrink();
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -156,7 +159,6 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
             if (_hasInvoiceAction) _buildCarrierNotice(),
           ],
         ),
-      ),
     );
   }
 
@@ -234,11 +236,7 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
       style: style,
       onPressed: busy || blocked ? null : () => _onPressed(action),
       child: isSendingThis
-          ? const SizedBox(
-              height: 18,
-              width: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
+          ? AppBusyLabel(action.label.isEmpty ? action.action : action.label)
           // 라벨은 서버 값 그대로 쓴다(D18) — 앱에 코드→라벨 상수를 만들지 않는다.
           : Text(action.label.isEmpty ? action.action : action.label),
     );
@@ -261,8 +259,8 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
   /// 둘 다 띄우면 확인이 2단이 아니라 3단이 되고, 사유가 안 보이는 확인이 하나 낀다.
   Future<void> _openRejectSheet(ClaimAction action) async {
     String? rejectCode;
-    await showModalBottomSheet<void>(
-      context: context,
+    await showAppSheet<void>(
+      context,
       builder: (ctx) => ClaimRejectSheet(
         claim: widget.claim,
         action: action,
@@ -298,18 +296,20 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
     );
   }
 
-  /// 송장 입력 바텀시트. `isScrollControlled` + `viewInsets` 로 키보드에 가리지 않게 한다.
+  /// Invoice input bottom sheet. `showAppSheet` + `viewInsets` keep it from
+  /// being covered by the keyboard.
   ///
-  /// X3(재발송 송장)의 400 은 **이른 요청**이라 재시도가 정상 경로다 — 그래서 그 400 에서만
-  /// 입력값을 그대로 담아 시트를 다시 연다(사용자가 택배사·송장번호를 다시 치지 않게).
-  /// 전송 중에 시트를 열어 두지는 않는다 — 시트 안은 부모의 `setState` 로 다시 그려지지 않아
-  /// `isSending` 이 갱신되지 않는다.
+  /// The 400 of X3 (reship invoice) is an **early request**, so retrying is the
+  /// normal path — that is why only on that 400 the sheet is reopened with the
+  /// input kept as it was (so the user does not retype the carrier and invoice
+  /// number). The sheet is not kept open while sending — the inside of the
+  /// sheet is not redrawn by the parent's `setState`, so `isSending` would not
+  /// update.
   Future<void> _openInvoiceSheet(ClaimAction action) async {
     _InvoiceInput? prefill;
     while (true) {
-      final input = await showModalBottomSheet<_InvoiceInput>(
-        context: context,
-        isScrollControlled: true,
+      final input = await showAppSheet<_InvoiceInput>(
+        context,
         builder: (ctx) => _InvoiceSheet(
           // 제목은 서버 라벨(D18), 보조 문구만 앱이 붙인다 — 회수/재발송을 구분하는 유일한 표시다.
           title: action.label.isEmpty ? action.action : action.label,
@@ -350,7 +350,7 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
         if (actionResult.localRecordOnly) {
           _showLocalRecordNotice(actionResult);
         } else {
-          _snack(_successMessage);
+          showSuccessToast(context, _successMessage);
         }
         await _reload();
       },
@@ -369,7 +369,7 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
     if (status == 409) {
       // 재조회하면 availableActions 가 비어 버튼이 사라진다 —
       // 웹(03: 버튼 즉시 감춤)과 결과가 같다. 로컬에서 버튼만 지우지 않는다.
-      _snack(_conflictMessage);
+      showErrorToast(context, _conflictMessage);
       await _reload();
       return false;
     }
@@ -379,22 +379,26 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
       return false;
     }
     if (status == 401 || status == 403) {
-      _snack(_forbiddenMessage, isError: true);
+      showErrorToast(context, _forbiddenMessage);
       return false;
     }
     // 400(입력값·미등록 택배사·현재 상태에서 불가) 은 서버 메시지가 사유를 담고 있다.
     final message = f?.message ?? failure.message;
     if (status == 400 && request.action == _actionExchangeReshipInvoice) {
-      // 재발송 송장은 입고확인 후 **약 10분** 뒤에 받아진다 — 그 전의 400 은 잘못이 아니라
-      // 이른 것이다. 에러색으로 띄우지 않고, 꼬리말을 붙여 무한 재시도를 막는다.
+      // A reship invoice is accepted **about 10 minutes** after the receipt
+      // confirmation — a 400 before that is not a mistake, it is just early.
+      // The hint is appended to stop endless retries.
       //
-      // ⚠️ 톤 판정이 **액션 단위**라 재발송송장의 다른 400(미매핑 택배사 등)도 안내색으로 나온다.
-      // 문구는 서버 메시지 그대로라 내용은 맞고 색만 순해진다 — 감수한다.
-      // 🔴 색으로 원인을 구분하려고 서버 문구를 파싱하지 말 것(문구가 바뀌면 조용히 깨진다).
-      _snack('$message\n$_reshipRetryHint');
+      // Shown as an error (red, 6s) like every other failure in this method —
+      // FEATURE_2610_02 D124 reversed the FEATURE_2609_21 rule that kept this
+      // one in the notice color. The other 400s of the reship-invoice action
+      // (e.g. unmapped carrier) pass through here too and get the same hint.
+      // 🔴 Do not parse the server text to tell causes apart by color (it
+      // breaks silently when the text changes).
+      showErrorToast(context, '$message\n$_reshipRetryHint');
       return true;
     }
-    _snack(message, isError: true);
+    showErrorToast(context, message);
     return false;
   }
 
@@ -412,7 +416,8 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
     _showLongBody(body, warning: true);
   }
 
-  /// 502 는 원문이 길 수 있어 다이얼로그로 편다(짧으면 SnackBar 로 충분하다).
+  /// The raw text of a 502 can be long, so it is opened in a dialog (a toast
+  /// is enough when it is short).
   void _showRawResponse(ClaimActionFailure? f) {
     final raw = [
       if (f?.resultCode != null) f!.resultCode!,
@@ -422,11 +427,18 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
     _showLongBody(body);
   }
 
-  /// 긴 문구는 다이얼로그, 짧으면 SnackBar — 쿠팡 원문을 보여주는 두 경로(502 실패 ·
-  /// 로컬 기록 안내)가 **같은 자리**를 쓰게 한다.
+  /// Long text goes to a dialog, short text to a toast — the two paths that
+  /// show Coupang's raw text (502 failure · local-record notice) use **the
+  /// same place**.
   void _showLongBody(String body, {bool warning = false}) {
     if (body.length <= 60) {
-      _snack(body, isWarning: warning);
+      // warning == true: local-record notice (plain notice).
+      // warning == false: the short raw text of a 502 failure (error).
+      if (warning) {
+        showNoticeToast(context, body);
+      } else {
+        showErrorToast(context, body);
+      }
       return;
     }
     showDialog<void>(
@@ -452,40 +464,14 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
     result.fold((_) {}, widget.onActionDone);
   }
 
-  /// [isError] = 사용자가 **잘못한** 결과(일반 400·권한). 안내(성공·409·X3 이른 요청)는 보통 톤이다 —
-  /// 잘못이 아닌 것을 붉게 띄우면 사용자가 재시도를 멈춘다.
-  ///
-  /// [isWarning] = 쿠팡엔 못 넣었지만 **우리 장부에는 남은** 회차(D6). 실패(빨강)도 성공(보통)도
-  /// 아니라서 주황 계열로 낸다 — 두 플래그를 동시에 켜지 않는다.
-  void _snack(String message, {bool isError = false, bool isWarning = false}) {
-    final scheme = Theme.of(context).colorScheme;
-    final foreground = isError
-        ? scheme.onError
-        : (isWarning ? AppColors.warningForeground : null);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: foreground == null ? null : TextStyle(color: foreground),
-        ),
-        backgroundColor: isError
-            ? scheme.error
-            : (isWarning ? AppColors.warningSurface : null),
-        // ScaffoldWithNavBar 가 내비바를 오버레이한다 — 기본값이면 SnackBar 가 가린다.
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.only(left: 16, right: 16, bottom: 70),
-      ),
-    );
-  }
 }
 
-/// 되돌릴 수 없는 액션의 2단 확인 다이얼로그 (D10).
+/// Confirmation for an irreversible claim action (D10) — shared by
+/// [ClaimActionSheet] (return approval …) and [ClaimRejectSheet] (exchange
+/// rejection) so both show the same dialog.
 ///
-/// **용도**: [ClaimActionSheet](반품 승인 등)와 [ClaimRejectSheet](교환 거부)가 **같은** 확인을
-/// 쓰게 한다 — 복사해 두 벌을 만들면 기본 강조·바깥 탭 규칙이 조용히 갈린다.
-/// **파일**: lib/features/claim/presentation/widgets/claim_action_sheet.dart
+/// **File**: lib/features/claim/presentation/widgets/claim_action_sheet.dart
 ///
-/// **사용 예제**:
 /// ```dart
 /// final ok = await showClaimConfirmDialog(
 ///   context,
@@ -495,61 +481,30 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
 /// );
 /// ```
 ///
-/// [lines] 는 **마지막 줄이 경고 문구**다 — 앞줄들(수량·반품비·사유)은 회색 상세로, 마지막 줄만
-/// 본문 색으로 그린다. 반품에는 반품비가 있고 교환 거부에는 사유가 있어 **줄 목록을 인자로 받는다**
-/// (확정되는 금액이 없는 교환에서는 그 자리를 사유가 대신한다).
+/// [lines]: the last line is the warning sentence; the lines before it are
+/// the details (quantity · return fee · reason). They are joined into one
+/// block of text — details, one blank line, warning (FEATURE_2610_02 · N9).
 ///
-/// ⚠️ 기본 강조는 **취소**다 — 확정 버튼을 강조하면 오탭 한 번이 환불 확정이 된다.
-/// ⚠️ [confirmLabel] 은 **서버 라벨**을 넘긴다(D18) — 앱이 '승인' 같은 말을 지어내지 않는다.
+/// ⚠️ The standard dialog is used: two text buttons, the confirm label in red,
+///    tapping outside cancels (D109 — the old "cancel is emphasized" rule of
+///    FEATURE_2609_21 is withdrawn).
+/// ⚠️ [confirmLabel] is the server label (D18) — the app does not invent one.
 Future<bool> showClaimConfirmDialog(
   BuildContext context, {
   required String title,
   required List<String> lines,
   required String confirmLabel,
-}) async {
+}) {
   final details = lines.length > 1 ? lines.sublist(0, lines.length - 1) : const <String>[];
   final warning = lines.isEmpty ? '' : lines.last;
 
-  final confirmed = await showDialog<bool>(
-    context: context,
-    // 바깥 탭이 곧 취소가 되게 둔다.
-    barrierDismissible: true,
-    builder: (ctx) => AlertDialog(
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 4),
-          ...details.map(
-            (line) => Text(
-              line,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(warning),
-        ],
-      ),
-      actions: [
-        // 기본 강조는 취소다.
-        FilledButton(
-          onPressed: () => Navigator.pop(ctx, false),
-          child: const Text('취소'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, true),
-          child: Text(
-            confirmLabel,
-            style: TextStyle(color: Theme.of(ctx).colorScheme.error),
-          ),
-        ),
-      ],
-    ),
+  return showAppConfirmDialog(
+    context,
+    title: title,
+    message: details.isEmpty ? warning : '${details.join('\n')}\n\n$warning',
+    confirmText: confirmLabel,
+    isDangerous: true,
   );
-  return confirmed == true;
 }
 
 /// 송장 바텀시트가 돌려주는 입력값.
@@ -649,8 +604,6 @@ class _InvoiceSheetState extends State<_InvoiceSheet> {
             isExpanded: true, // 코드표가 길다 — 긴 이름이 overflow 하지 않게
             decoration: const InputDecoration(
               labelText: '택배사',
-              border: OutlineInputBorder(),
-              isDense: true,
             ),
             items: widget.carriers
                 .map(
@@ -672,8 +625,6 @@ class _InvoiceSheetState extends State<_InvoiceSheet> {
             onChanged: (_) => setState(() {}), // 버튼 활성 갱신
             decoration: const InputDecoration(
               labelText: '송장번호',
-              border: OutlineInputBorder(),
-              isDense: true,
             ),
           ),
           const SizedBox(height: 8),
