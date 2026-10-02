@@ -932,8 +932,8 @@ class _LoadedBody extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  // 버튼이 늘어 한 줄에 다 들어가지 않는다 — Wrap 으로 줄을 넘긴다.
-                  // [내부 발주처리]는 [발주처리] 바로 옆 · 초록(FilledButton 테마, FEATURE_2609_75 / D13).
+                  // More buttons than one line holds — Wrap breaks the line.
+                  // [내부 발주처리] sits right next to [발주처리] and stays green — written here, not in the theme (FEATURE_2609_75 / D13 · FEATURE_2610_02 / D101).
                   Wrap(
                     alignment: WrapAlignment.end,
                     spacing: 8,
@@ -976,6 +976,11 @@ class _LoadedBody extends StatelessWidget {
                       if (internalTargetIds.isNotEmpty &&
                           !internalState.forbidden)
                         FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.brandGreen,
+                            foregroundColor:
+                                Theme.of(context).colorScheme.onSecondary,
+                          ),
                           onPressed: internalState.submitting != null
                               ? null
                               : () => onInternal(internalTargetIds),

@@ -256,10 +256,9 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
                 ),
                 const SizedBox(height: 8),
                 for (final n in group.value) ...[
-                  _fieldLabel(context, n.label, required: n.required),
-                  const SizedBox(height: 4),
                   _MetaTextField(
                     key: ValueKey('notice-${n.key}'),
+                    label: _fieldLabel(context, n.label, required: n.required),
                     value: noticeValues[n.key] ?? '',
                     enabled: !disabled && !refAll,
                     onChanged: (v) => widget.onNoticeChange(n.key, v),
@@ -344,49 +343,44 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
     final suffix = unitSuffix(a);
     final current = widget.attrValues[a.name] ?? '';
     final hint = unitPlaceholder(a);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text.rich(
-          TextSpan(
-            text: a.name,
-            children: [
-              if (suffix.isNotEmpty)
-                TextSpan(
-                  text: ' $suffix',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w400,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              if (a.required)
-                TextSpan(text: ' *', style: TextStyle(color: scheme.error)),
-            ],
-          ),
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-        ),
-        const SizedBox(height: 4),
-        if (a.inputType == 'SELECT')
-          _select(
-            context,
-            fieldKey: 'attr-${a.name}-$current',
-            value: a.options.contains(current) ? current : '',
-            items: [('', '선택'), for (final o in a.options) (o, o)],
-            onChanged:
-                widget.disabled ? null : (v) => widget.onAttrChange(a.name, v),
-          )
-        else
-          _MetaTextField(
-            key: ValueKey('attr-${a.name}'),
-            value: current,
-            enabled: !widget.disabled,
-            keyboardType: a.inputType == 'NUMBER'
-                ? const TextInputType.numberWithOptions(decimal: true)
-                : null,
-            hintText: hint.isNotEmpty ? hint : null,
-            onChanged: (v) => widget.onAttrChange(a.name, v),
-          ),
-      ],
+    final label = Text.rich(
+      TextSpan(
+        text: a.name,
+        children: [
+          if (suffix.isNotEmpty)
+            TextSpan(
+              text: ' $suffix',
+              style: TextStyle(
+                fontWeight: FontWeight.w400,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+          if (a.required)
+            TextSpan(text: ' *', style: TextStyle(color: scheme.error)),
+        ],
+      ),
+    );
+    if (a.inputType == 'SELECT') {
+      return _select(
+        context,
+        label: label,
+        fieldKey: 'attr-${a.name}-$current',
+        value: a.options.contains(current) ? current : '',
+        items: [('', '선택'), for (final o in a.options) (o, o)],
+        onChanged:
+            widget.disabled ? null : (v) => widget.onAttrChange(a.name, v),
+      );
+    }
+    return _MetaTextField(
+      key: ValueKey('attr-${a.name}'),
+      label: label,
+      value: current,
+      enabled: !widget.disabled,
+      keyboardType: a.inputType == 'NUMBER'
+          ? const TextInputType.numberWithOptions(decimal: true)
+          : null,
+      hintText: hint.isNotEmpty ? hint : null,
+      onChanged: (v) => widget.onAttrChange(a.name, v),
     );
   }
 }
@@ -402,7 +396,6 @@ Widget _fieldLabel(BuildContext context, String text,
           TextSpan(text: ' *', style: TextStyle(color: scheme.error)),
       ],
     ),
-    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
   );
 }
 
@@ -424,15 +417,15 @@ Widget _select(
   required String value,
   required List<(String, String)> items,
   required ValueChanged<String>? onChanged,
+  Widget? label,
 }) =>
     DropdownButtonFormField<String>(
       key: ValueKey(fieldKey),
       initialValue: value,
       isExpanded: true,
-      decoration: const InputDecoration(
-        isDense: true,
-        border: OutlineInputBorder(),
-        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: InputDecoration(
+        label: label,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       ),
       style: TextStyle(
           fontSize: 14, color: Theme.of(context).colorScheme.onSurface),
@@ -456,6 +449,7 @@ class _MetaTextField extends StatefulWidget {
   final ValueChanged<String> onChanged;
   final bool enabled;
   final String? hintText;
+  final Widget? label;
   final TextInputType? keyboardType;
 
   const _MetaTextField({
@@ -464,6 +458,7 @@ class _MetaTextField extends StatefulWidget {
     super.key,
     this.enabled = true,
     this.hintText,
+    this.label,
     this.keyboardType,
   });
 
@@ -501,8 +496,7 @@ class _MetaTextFieldState extends State<_MetaTextField> {
         keyboardType: widget.keyboardType,
         style: const TextStyle(fontSize: 14),
         decoration: InputDecoration(
-          isDense: true,
-          border: const OutlineInputBorder(),
+          label: widget.label,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
           hintText: widget.hintText,

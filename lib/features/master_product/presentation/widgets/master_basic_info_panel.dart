@@ -9,6 +9,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/mas
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 /// Master basic info (name) inline edit + read-only component list on the
 /// master detail screen — FEATURE_2609_80 / 07.
@@ -137,10 +138,6 @@ class _MasterBasicInfoPanelState extends State<MasterBasicInfoPanel> {
             TextField(
               controller: _nameController,
               enabled: !_isSaving,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
               onChanged: (_) => setState(() => _saved = false),
             )
           else
@@ -234,7 +231,7 @@ class _MasterBasicInfoPanelState extends State<MasterBasicInfoPanel> {
                 FilledButton(
                   onPressed: _isSaving || nameBlank ? null : _handleSave,
                   child: _isSaving
-                      ? const _BusyLabel('저장 중...')
+                      ? const AppBusyLabel('저장 중...')
                       : const Text('저장'),
                 ),
                 OutlinedButton(
@@ -293,25 +290,4 @@ class _ErrorBox extends StatelessWidget {
       child: Text(text, style: TextStyle(fontSize: 14, color: scheme.error)),
     );
   }
-}
-
-/// Spinner + label (web `<Spinner label=… />`).
-class _BusyLabel extends StatelessWidget {
-  final String label;
-
-  const _BusyLabel(this.label);
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
-      );
 }

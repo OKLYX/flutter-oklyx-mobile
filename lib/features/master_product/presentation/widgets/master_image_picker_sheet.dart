@@ -25,7 +25,7 @@ class PickerImage {
 ///
 /// **Usage**:
 /// ```dart
-/// final tokens = await showMasterSheet<List<int>>(
+/// final tokens = await showAppSheet<List<int>>(
 ///   context,
 ///   builder: (_) => MasterImagePickerSheet(
 ///     fieldLabel: field.label,
@@ -37,7 +37,7 @@ class PickerImage {
 /// if (tokens != null) commit(field.key, tokens);
 /// ```
 ///
-/// ❌ Open it only through `showMasterSheet` (PLAN R24).
+/// ❌ Open it only through `showAppSheet` (PLAN R24).
 class MasterImagePickerSheet extends StatefulWidget {
   final String fieldLabel;
   final bool single;

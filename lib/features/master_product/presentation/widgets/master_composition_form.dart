@@ -5,7 +5,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/mas
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/master_format.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/quantity_stepper.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/product.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/product_thumbnail.dart';
@@ -322,7 +322,7 @@ class _MasterCompositionFormState extends State<MasterCompositionForm> {
     final deletedText = deletedNames.isNotEmpty
         ? ' 옵션 ${deletedNames.join(', ')} 가 삭제됩니다 — 채널에서는 꺼지고 기록은 남습니다.'
         : '';
-    final ok = await showMasterConfirmDialog(
+    final ok = await showAppConfirmDialog(
       context,
       title: '구성상품 변경',
       confirmText: '저장',
@@ -430,8 +430,6 @@ class _MasterCompositionFormState extends State<MasterCompositionForm> {
                 onSubmitted: (_) => _handleProductSearch(),
                 style: const TextStyle(fontSize: 14),
                 decoration: const InputDecoration(
-                  isDense: true,
-                  border: OutlineInputBorder(),
                   hintText: '상품명으로 검색',
                 ),
               ),
@@ -618,7 +616,7 @@ class _MasterCompositionFormState extends State<MasterCompositionForm> {
         if (removedOptions.isNotEmpty) ...[
           const SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: scheme.surfaceContainerHighest,
               border: Border.all(color: scheme.outlineVariant),
@@ -676,8 +674,6 @@ class _MasterCompositionFormState extends State<MasterCompositionForm> {
                     onChanged: (v) => _setDraftName(d.key, v),
                     style: const TextStyle(fontSize: 14),
                     decoration: const InputDecoration(
-                      isDense: true,
-                      border: OutlineInputBorder(),
                       hintText: '옵션명',
                     ),
                   ),

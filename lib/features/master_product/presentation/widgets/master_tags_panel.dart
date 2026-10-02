@@ -8,6 +8,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/mas
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/tag_chips_input.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 /// Master registration name (auto, read-only) + tag pool inline edit panel
 /// on the master detail screen — FEATURE_2609_80 / 07.
@@ -203,7 +204,7 @@ class _MasterTagsPanelState extends State<MasterTagsPanel> {
                 FilledButton(
                   onPressed: _isSaving ? null : _handleSave,
                   child: _isSaving
-                      ? const _BusyLabel('저장 중...')
+                      ? const AppBusyLabel('저장 중...')
                       : const Text('저장'),
                 ),
                 OutlinedButton(
@@ -223,25 +224,4 @@ class _MasterTagsPanelState extends State<MasterTagsPanel> {
       ),
     );
   }
-}
-
-/// Spinner + label (web `<Spinner label=… />`).
-class _BusyLabel extends StatelessWidget {
-  final String label;
-
-  const _BusyLabel(this.label);
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
-      );
 }

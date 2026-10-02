@@ -8,9 +8,10 @@ import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/listing_registration.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_support.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_network_image.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 bool _isReserved(String key) => kBuiltinFieldKeys.contains(key);
 
@@ -208,7 +209,7 @@ class _ThumbnailPaneState extends State<ThumbnailPane> {
   }
 
   Future<void> _handleClear() async {
-    final ok = await showMasterConfirmDialog(
+    final ok = await showAppConfirmDialog(
       context,
       message: '수동 썸네일을 삭제하고 자동 생성으로 되돌립니다.',
       confirmText: '되돌리기',
@@ -331,7 +332,7 @@ class _ThumbnailPaneState extends State<ThumbnailPane> {
             height: 40,
             child: Align(
               alignment: Alignment.centerLeft,
-              child: _BusyLabel('필드 불러오는 중...'),
+              child: AppBusyLabel('필드 불러오는 중...'),
             ),
           )
         else
@@ -346,20 +347,20 @@ class _ThumbnailPaneState extends State<ThumbnailPane> {
             FilledButton(
               onPressed: _busy ? null : _handleRegenerate,
               child: _isRegenerating
-                  ? const _BusyLabel('재생성 중...')
+                  ? const AppBusyLabel('재생성 중...')
                   : const Text('저장 후 재생성'),
             ),
             OutlinedButton(
               onPressed: _busy ? null : _handleUpload,
               child: _isUploading
-                  ? const _BusyLabel('업로드 중...')
+                  ? const AppBusyLabel('업로드 중...')
                   : const Text('이미지 업로드로 교체'),
             ),
             if (isOverridden)
               OutlinedButton(
                 onPressed: _busy ? null : _handleClear,
                 child: _isClearing
-                    ? const _BusyLabel('되돌리는 중...')
+                    ? const AppBusyLabel('되돌리는 중...')
                     : const Text('자동 생성으로 되돌리기'),
               ),
           ],
@@ -375,13 +376,11 @@ class _ThumbnailPaneState extends State<ThumbnailPane> {
     }
     return [
       const SizedBox(height: 12),
-      Text(f.label, style: const TextStyle(fontSize: 14)),
-      const SizedBox(height: 8),
       TextField(
         controller: controller,
         enabled: !_busy,
         decoration: InputDecoration(
-          border: const OutlineInputBorder(),
+          labelText: f.label,
           hintText: _isReserved(f.key) ? '등록상품값 사용' : '템플릿 기본값 사용',
         ),
         onChanged: (value) =>
@@ -389,25 +388,4 @@ class _ThumbnailPaneState extends State<ThumbnailPane> {
       ),
     ];
   }
-}
-
-/// Spinner + label (web `<Spinner label=… />`).
-class _BusyLabel extends StatelessWidget {
-  final String label;
-
-  const _BusyLabel(this.label);
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
-      );
 }

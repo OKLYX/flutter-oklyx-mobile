@@ -11,6 +11,9 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/master
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 
 /// Per-channel (cell) option stock page (102/103) — FEATURE_2609_80 / 08.
 ///
@@ -191,13 +194,7 @@ class _ChannelStockPageState extends State<ChannelStockPage> {
         title: '채널별 재고 설정',
         navBarIndex: 2,
         onBackPressed: _close,
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            16,
-            16,
-            16,
-            kBottomNavigationBarHeight + 24,
-          ),
+        body: AppPageBody(
           children: [
             Text(
               widget.args.channelLabel,
@@ -205,11 +202,7 @@ class _ChannelStockPageState extends State<ChannelStockPage> {
             ),
             const SizedBox(height: 8),
             if (_error.isNotEmpty) ...[
-              _Banner(
-                text: _error,
-                background: scheme.errorContainer,
-                foreground: scheme.error,
-              ),
+              AppErrorBox(message: _error),
               const SizedBox(height: 16),
             ],
             if (_notice.isNotEmpty) ...[
@@ -223,13 +216,10 @@ class _ChannelStockPageState extends State<ChannelStockPage> {
             if (_isLoading)
               const SizedBox(
                 height: 128,
-                child: Center(child: _BusyLabel('불러오는 중...', size: 24)),
+                child: Center(child: AppBusyLabel('불러오는 중...', size: 24)),
               )
             else if (_rows.isEmpty)
-              Text(
-                '이 채널에 재고를 설정할 활성 옵션이 없습니다.',
-                style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
-              )
+              const AppEmpty('이 채널에 재고를 설정할 활성 옵션이 없습니다.')
             else ...[
               Text(
                 '비우면 마스터 재고를 그대로 사용하고, 0은 품절입니다. 마스터 재고보다 크게 설정할 수 '
@@ -262,7 +252,7 @@ class _ChannelStockPageState extends State<ChannelStockPage> {
                     visualDensity: VisualDensity.compact,
                   ),
                   child:
-                      _isSaving ? const _BusyLabel('저장 중...') : const Text('저장'),
+                      _isSaving ? const AppBusyLabel('저장 중...') : const Text('저장'),
                 ),
               ],
             ),
@@ -291,7 +281,7 @@ class _ChannelStockPageState extends State<ChannelStockPage> {
       );
     }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         border: Border.all(color: scheme.outlineVariant),
         borderRadius: BorderRadius.circular(4),
@@ -316,8 +306,6 @@ class _ChannelStockPageState extends State<ChannelStockPage> {
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   decoration: InputDecoration(
-                    border: const OutlineInputBorder(),
-                    isDense: true,
                     hintText: '마스터 ${r.maxStock}',
                   ),
                   onChanged: (next) => setState(
@@ -391,27 +379,5 @@ class _Banner extends StatelessWidget {
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text(text, style: TextStyle(fontSize: 14, color: foreground)),
-      );
-}
-
-/// Spinner + label (web `<Spinner label=… />`).
-class _BusyLabel extends StatelessWidget {
-  final String label;
-  final double size;
-
-  const _BusyLabel(this.label, {this.size = 16});
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: size,
-            height: size,
-            child: const CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
       );
 }

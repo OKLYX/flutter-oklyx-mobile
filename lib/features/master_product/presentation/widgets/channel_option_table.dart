@@ -6,6 +6,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/copy_id_button.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/info_bubble_icon.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 // Same notation as the matrix price column (`12,900원`).
 String _formatWon(num v) => '${koNumber(v)}원';
@@ -162,7 +163,7 @@ class ChannelOptionTable extends StatelessWidget {
         padding: EdgeInsets.all(16),
         child: SizedBox(
           height: 96,
-          child: Center(child: _BusyLabel('불러오는 중...')),
+          child: Center(child: AppBusyLabel('불러오는 중...', size: 20)),
         ),
       );
     }
@@ -393,7 +394,7 @@ class _ChannelOnlyBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         border: Border.all(color: scheme.outlineVariant),
         borderRadius: BorderRadius.circular(4),
@@ -501,25 +502,4 @@ class _OptionIdCell extends StatelessWidget {
       ],
     );
   }
-}
-
-/// Spinner + label (web `<Spinner label=… />`).
-class _BusyLabel extends StatelessWidget {
-  final String label;
-
-  const _BusyLabel(this.label);
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
-      );
 }

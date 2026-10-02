@@ -11,10 +11,11 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/mas
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_tool_args.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/listing_option_picker_sheet.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/info_bubble_icon.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 /// [쿠팡에서 보기] = the WING seller product screen. `platformProductId` is the
 /// Coupang sellerProductId (not the buyer page id).
@@ -315,7 +316,7 @@ class _CellActionsState extends State<CellActions> {
   // ── Confirmations (D23 · D29 · D32) ────────────────────────────────────
 
   Future<void> _confirmUpdateRequest() async {
-    final ok = await showMasterConfirmDialog(
+    final ok = await showAppConfirmDialog(
       context,
       title: '수정 요청',
       message: '수정한 값을 마켓에 다시 보내고 재심사를 요청합니다. 계속하시겠습니까?',
@@ -327,7 +328,7 @@ class _CellActionsState extends State<CellActions> {
   }
 
   Future<void> _confirmCategorySource() async {
-    final ok = await showMasterConfirmDialog(
+    final ok = await showAppConfirmDialog(
       context,
       title: '마스터 카테고리로 변경',
       message: '이 채널의 카테고리를 마스터 카테고리로 바꿉니다.\n'
@@ -344,7 +345,7 @@ class _CellActionsState extends State<CellActions> {
   }
 
   Future<void> _confirmApplyNames() async {
-    final ok = await showMasterConfirmDialog(
+    final ok = await showAppConfirmDialog(
       context,
       title: '마스터 옵션명 반영',
       message: '${widget.channelLabel} 채널의 옵션명을 마스터 옵션 이름으로 바꿉니다.\n'
@@ -362,7 +363,7 @@ class _CellActionsState extends State<CellActions> {
 
   Future<void> _confirmUnlink(MatrixCell cell) async {
     final pid = cell.platformProductId;
-    final ok = await showMasterConfirmDialog(
+    final ok = await showAppConfirmDialog(
       context,
       title: '마스터 연결 해제',
       message: '${widget.channelLabel} 채널'
@@ -382,7 +383,7 @@ class _CellActionsState extends State<CellActions> {
   }
 
   Future<void> _confirmDeleteCell(MatrixCell cell) async {
-    final ok = await showMasterConfirmDialog(
+    final ok = await showAppConfirmDialog(
       context,
       title: '채널 삭제',
       message: '${widget.channelLabel} 채널 1줄을 지웁니다. 아직 쿠팡에 보낸 적이 없는 채널입니다.\n'
@@ -674,7 +675,7 @@ class _CellActionsState extends State<CellActions> {
                   busy != null || _shippingBlocked ? null : _handleRegister,
               style: style(AppColors.infoForeground),
               child: busy == _busyRegister
-                  ? const _BusyLabel('요청 중...')
+                  ? const AppBusyLabel('요청 중...')
                   : const Text('마켓 등록'),
             ),
             if (blockedIcon != null) blockedIcon,
@@ -685,7 +686,7 @@ class _CellActionsState extends State<CellActions> {
           onPressed: busy != null ? null : _confirmUpdateRequest,
           style: style(AppColors.warningForeground),
           child: busy == _busyUpdate
-              ? const _BusyLabel('요청 중...')
+              ? const AppBusyLabel('요청 중...')
               : const Text('수정 요청'),
         );
       default:
@@ -783,25 +784,4 @@ class _CellActionsState extends State<CellActions> {
       ],
     );
   }
-}
-
-/// Spinner + label (web `<Spinner label=… />`).
-class _BusyLabel extends StatelessWidget {
-  final String label;
-
-  const _BusyLabel(this.label);
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(
-            width: 12,
-            height: 12,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 4),
-          Text(label),
-        ],
-      );
 }

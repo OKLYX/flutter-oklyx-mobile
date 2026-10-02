@@ -660,11 +660,15 @@ class _Actions extends StatelessWidget {
             Text(label),
           ],
         );
-    // [예약 발송] = 초록(FilledButton 테마 = brandGreen) · [지금 발송] = 기존 업로드 버튼(D20).
+    // [예약 발송] stays green — written here, not in the theme · [지금 발송] = the upload button (D20 · D101).
     return Row(
       children: [
         Expanded(
           child: FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.brandGreen,
+              foregroundColor: Theme.of(context).colorScheme.onSecondary,
+            ),
             onPressed:
                 canReserve ? () => bloc.add(const ReserveShipment()) : null,
             child: state.isReserving

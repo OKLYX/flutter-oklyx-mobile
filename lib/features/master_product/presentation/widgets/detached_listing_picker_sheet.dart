@@ -6,7 +6,7 @@ import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/listing_registration.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_sheet.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
 // Status enum → screen text.
@@ -47,7 +47,7 @@ Future<String?> showDetachedListingPickerSheet(
   required String platform,
   required String sellerName,
 }) =>
-    showMasterSheet<String>(
+    showAppSheet<String>(
       context,
       builder: (_) => _DetachedListingPickerSheet(
         masterId: masterId,
@@ -172,8 +172,6 @@ class _DetachedListingPickerSheetState
                       controller: _draftController,
                       textInputAction: TextInputAction.search,
                       decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        isDense: true,
                         hintText: '상품명 또는 쿠팡 상품 ID',
                       ),
                       onSubmitted: (_) => _handleSearch(),

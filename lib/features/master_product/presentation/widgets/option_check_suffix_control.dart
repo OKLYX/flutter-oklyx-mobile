@@ -107,8 +107,6 @@ class _OptionCheckSuffixControlState extends State<OptionCheckSuffixControl> {
           maxLength: 50,
           style: const TextStyle(fontSize: 14),
           decoration: const InputDecoration(
-            isDense: true,
-            border: OutlineInputBorder(),
             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             hintText: '예: 옵션확인',
             counterText: '',

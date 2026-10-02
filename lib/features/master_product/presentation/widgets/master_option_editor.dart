@@ -16,7 +16,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/option_notice_compose.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/category_meta_override_fields.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/quantity_stepper.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/info_bubble_icon.dart';
@@ -854,7 +854,7 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
   }
 
   Future<void> _handleDeleteServer(MasterOption opt) async {
-    final ok = await showMasterConfirmDialog(
+    final ok = await showAppConfirmDialog(
       context,
       message: '옵션 "${opt.name}" 을(를) 삭제하시겠습니까?',
       confirmText: '삭제',
@@ -1086,22 +1086,13 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
     );
   }
 
-  Widget _labeled(String label, Widget field) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 14)),
-          const SizedBox(height: 8),
-          field,
-        ],
-      );
-
   Widget _deliverySelect() {
     final defaults = widget.masterDefaults;
     final ids = widget.carrierRates.map((r) => r.id).toSet();
     return DropdownButtonFormField<int?>(
       initialValue: ids.contains(_optDeliveryId) ? _optDeliveryId : null,
       isExpanded: true,
-      decoration: const InputDecoration(border: OutlineInputBorder()),
+      decoration: const InputDecoration(labelText: '택배비'),
       items: [
         const DropdownMenuItem<int?>(child: Text('마스터 기본값 사용')),
         for (final r in widget.carrierRates)
@@ -1124,7 +1115,7 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
     return DropdownButtonFormField<int?>(
       initialValue: ids.contains(_optPackageId) ? _optPackageId : null,
       isExpanded: true,
-      decoration: const InputDecoration(border: OutlineInputBorder()),
+      decoration: const InputDecoration(labelText: '상자비'),
       items: [
         const DropdownMenuItem<int?>(child: Text('마스터 기본값 사용')),
         for (final p in widget.packages)
@@ -1272,7 +1263,7 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(4),
         border: Border.all(color: scheme.outlineVariant),
       ),
       child: Column(
@@ -1311,13 +1302,10 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
             _errorBox(context, _formError),
             const SizedBox(height: 8),
           ],
-          _labeled(
-            '옵션 이름 *',
-            TextField(
-              controller: _nameController,
-              enabled: !marketLocked,
-              decoration: const InputDecoration(border: OutlineInputBorder()),
-            ),
+          TextField(
+            controller: _nameController,
+            enabled: !marketLocked,
+            decoration: const InputDecoration(labelText: '옵션 이름 *'),
           ),
           if (marketLocked) ...[
             const SizedBox(height: 4),
@@ -1328,20 +1316,17 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
           ],
           const SizedBox(height: 12),
           // ⚠️ Not an 84 lock target — stock stays editable on sale.
-          _labeled(
-            '재고수량',
-            SizedBox(
-              width: 128,
-              child: TextField(
-                controller: _stockController,
-                enabled: !marketLocked,
-                keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(5),
-                ],
-                decoration: const InputDecoration(border: OutlineInputBorder()),
-              ),
+          SizedBox(
+            width: 128,
+            child: TextField(
+              controller: _stockController,
+              enabled: !marketLocked,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(5),
+              ],
+              decoration: const InputDecoration(labelText: '재고수량'),
             ),
           ),
           const SizedBox(height: 4),
@@ -1384,9 +1369,9 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
             ),
           ],
           const SizedBox(height: 12),
-          _labeled('택배비', _deliverySelect()),
+          _deliverySelect(),
           const SizedBox(height: 8),
-          _labeled('상자비', _packageSelect()),
+          _packageSelect(),
           const SizedBox(height: 8),
           Text(
             '비우거나 마스터 기본값과 같으면 마스터 기본 택배/박스를 그대로 사용합니다.',

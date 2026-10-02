@@ -21,10 +21,10 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/master
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/category_meta_create_fields.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/category_tree_list.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_confirm_dialog.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_image_pool.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_option_editor.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_sheet.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/meta_platform_tabs.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/product_relation_panel.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/shipping_override_fields.dart';
@@ -34,6 +34,8 @@ import 'package:flutter_oklyn_mobile/features/product/domain/usecases/get_produc
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/get_products_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/product_thumbnail.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 /// Web local `formatWon`.
 String _formatWon(num? v) => v == null ? '—' : '${koNumber(v)}원';
@@ -379,7 +381,7 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
 
   // Web `setConfirmDialog({ message, onConfirm })`.
   Future<void> _confirmDiscard(String message, VoidCallback onConfirm) async {
-    final ok = await showMasterConfirmDialog(
+    final ok = await showAppConfirmDialog(
       context,
       title: _isMarket ? '구성 수량 지우기 확인' : '옵션 삭제 확인',
       message: message,
@@ -1044,7 +1046,7 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
       widget.onCancel();
       return;
     }
-    final ok = await showMasterConfirmDialog(
+    final ok = await showAppConfirmDialog(
       context,
       title: '작성 취소',
       message: '작성 중인 내용이 저장되지 않고 사라집니다. 나가시겠습니까?',
@@ -1058,7 +1060,7 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
   }
 
   void _openProductDetail(Product product) {
-    unawaited(showMasterSheet<void>(
+    unawaited(showAppSheet<void>(
       context,
       builder: (sheetContext) => _ProductDetailSheet(product: product),
     ));
@@ -1086,11 +1088,8 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
           Offstage(
             key: const ValueKey('create-form'),
             offstage: widget.overviewOpen,
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: _buildFormBody(context),
-              ),
+            child: AppCard(
+              child: _buildFormBody(context),
             ),
           ),
         ],
@@ -1172,9 +1171,7 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
                 textInputAction: TextInputAction.search,
                 onSubmitted: (_) => _handleProductSearch(),
                 decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
                   hintText: '상품명으로 검색',
-                  isDense: true,
                 ),
               ),
             ),
@@ -1203,6 +1200,7 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
                 style: FilledButton.styleFrom(
                   visualDensity: VisualDensity.compact,
                   backgroundColor: AppColors.brandGreen,
+                  foregroundColor: Theme.of(context).colorScheme.onSecondary,
                 ),
                 onPressed: _optionFormOpen ||
                         _selectedIds.isEmpty ||
@@ -1210,7 +1208,7 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
                     ? null
                     : () => unawaited(_applyComponents()),
                 child: _checkingComponents
-                    ? const _BusyLabel('확인 중...')
+                    ? const AppBusyLabel('확인 중...')
                     : const Text('설정적용'),
               ),
           ],
@@ -1472,14 +1470,9 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _FieldLabel('마스터 이름 *'),
-        const SizedBox(height: 8),
         TextField(
           controller: _nameController,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            isDense: true,
-          ),
+          decoration: const InputDecoration(labelText: '마스터 이름 *'),
         ),
         const SizedBox(height: 16),
         _buildCategory(context),
@@ -1503,13 +1496,10 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
           const _FieldLabel('템플릿 필드값 (선택)'),
           const SizedBox(height: 8),
           for (final f in _fields) ...[
-            Text(f.label, style: const TextStyle(fontSize: 14)),
-            const SizedBox(height: 8),
             TextField(
               controller: _fieldControllers[f.key],
               decoration: InputDecoration(
-                border: const OutlineInputBorder(),
-                isDense: true,
+                labelText: f.label,
                 hintText: kBuiltinFieldKeys.contains(f.key)
                     ? '등록상품값 사용'
                     : '템플릿 기본값 사용',
@@ -1545,16 +1535,11 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
           sourceProducts: _sourceProducts,
         ),
         const SizedBox(height: 16),
-        const _FieldLabel('기본 택배비 *'),
-        const SizedBox(height: 8),
         DropdownButtonFormField<int>(
           key: ValueKey('delivery-${_carrierRates.length}'),
           initialValue: _defaultDeliveryId,
           isExpanded: true,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            isDense: true,
-          ),
+          decoration: const InputDecoration(labelText: '기본 택배비 *'),
           items: [
             for (final r in _carrierRates)
               DropdownMenuItem(
@@ -1565,16 +1550,11 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
           onChanged: (v) => setState(() => _defaultDeliveryId = v),
         ),
         const SizedBox(height: 12),
-        const _FieldLabel('기본 상자비 *'),
-        const SizedBox(height: 8),
         DropdownButtonFormField<int>(
           key: ValueKey('package-${_packages.length}'),
           initialValue: _defaultPackageId,
           isExpanded: true,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            isDense: true,
-          ),
+          decoration: const InputDecoration(labelText: '기본 상자비 *'),
           items: [
             for (final p in _packages)
               DropdownMenuItem(
@@ -1692,9 +1672,7 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
                 textInputAction: TextInputAction.search,
                 onSubmitted: (_) => _handleCategorySearch(),
                 decoration: const InputDecoration(
-                  border: OutlineInputBorder(),
                   hintText: '카테고리 이름으로 검색',
-                  isDense: true,
                 ),
               ),
             ),
@@ -1709,7 +1687,7 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
                   ? null
                   : _handleCategorySearch,
               child: _catSearching
-                  ? const _BusyLabel('검색 중...')
+                  ? const AppBusyLabel('검색 중...')
                   : const Text('검색'),
             ),
             const SizedBox(width: 8),
@@ -1726,6 +1704,7 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
                 style: FilledButton.styleFrom(
                   visualDensity: VisualDensity.compact,
                   backgroundColor: AppColors.brandGreen,
+                  foregroundColor: Theme.of(context).colorScheme.onSecondary,
                 ),
                 onPressed: _selectedCategoryId == null ? null : _applyCategory,
                 child: const Text('설정적용'),
@@ -1877,26 +1856,6 @@ class _Banner extends StatelessWidget {
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text(text, style: TextStyle(fontSize: 14, color: foreground)),
-      );
-}
-
-class _BusyLabel extends StatelessWidget {
-  final String label;
-
-  const _BusyLabel(this.label);
-
-  @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 8),
-          Text(label),
-        ],
       );
 }
 
