@@ -80,6 +80,13 @@ class AppTheme {
         elevation: 0,
         scrolledUnderElevation: 1,
       ),
+      // Cards use the plain surface color (white in light mode) like the web
+      // cards. Without this the Material 3 default (`surfaceContainerLow`,
+      // derived from the yellow seed) gives every card a cream tint.
+      cardTheme: CardThemeData(
+        color: surface,
+        surfaceTintColor: Colors.transparent,
+      ),
       // One filled button for the whole app: brand yellow with a dark label
       // (FEATURE_2610_02 · N11). Green is written at the call site only for
       // the buttons listed in D101; red delete buttons keep their own color.
