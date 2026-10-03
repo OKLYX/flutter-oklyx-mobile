@@ -5,12 +5,10 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
-import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/dialogs/shipment_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/widgets/stored_invoice_section.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/order_item.dart';
-import '../../domain/entities/sync_target.dart';
 import '../bloc/order_acknowledge_bloc.dart';
 import '../bloc/order_acknowledge_event.dart';
 import '../bloc/order_acknowledge_state.dart';
@@ -34,6 +32,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_filter_chip.dart';
 
 /// 주문관리 > 출고관리 페이지 (미발송 주문 작업대)
 ///
@@ -555,7 +554,8 @@ class _LoadedBody extends StatelessWidget {
 
     // 출고관리는 미발송 주문만 다루므로 채널 옵션 = 동기화 대상 그대로다(주문내역과 다름, D7-a).
     final targets = s.syncTargets;
-    // 대상 목록이 늦게 오거나 바뀌면 고른 값이 items 에서 사라져 드롭다운이 assert 로 죽는다.
+    // When the targets arrive late or change, the picked account can drop out
+    // of the options — fall back to all channels.
     final accountValue = targets.any((t) => t.accountId == selectedAccountId)
         ? selectedAccountId
         : null;
@@ -655,35 +655,57 @@ class _LoadedBody extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: DropdownButtonFormField<int?>(
-                          value: s.selectedSellerId,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: '판매자',
-                            contentPadding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                          ),
-                          items: [
-                            const DropdownMenuItem<int?>(
-                              value: null,
-                              child: Text('전체'),
-                            ),
-                            ...s.sellers.map(
-                              (Seller seller) => DropdownMenuItem<int?>(
-                                value: seller.id,
-                                child: Text(
-                                  seller.sellerName,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              AppFilterChip<int?>(
+                                label: s.sellers
+                                        .where((seller) =>
+                                            seller.id == s.selectedSellerId)
+                                        .firstOrNull
+                                        ?.sellerName ??
+                                    '판매자',
+                                value: s.selectedSellerId,
+                                options: [
+                                  const AppFilterOption(null, '전체'),
+                                  for (final seller in s.sellers)
+                                    AppFilterOption(
+                                        seller.id, seller.sellerName),
+                                ],
+                                highlighted: s.selectedSellerId != null,
+                                onSelected: busy
+                                    ? null
+                                    : (value) {
+                                        onClearSelection();
+                                        bloc.add(SelectSeller(sellerId: value));
+                                      },
                               ),
-                            ),
-                          ],
-                          onChanged: busy
-                              ? null
-                              : (value) {
-                                  onClearSelection();
-                                  bloc.add(SelectSeller(sellerId: value));
-                                },
+                              const SizedBox(width: 8),
+                              // 채널(계정) 필터 — 목록과 동기화 범위를 함께 좁힌다(D7).
+                              AppFilterChip<int?>(
+                                label: accountValue == null
+                                    ? '채널'
+                                    : targets
+                                            .firstWhere((t) =>
+                                                t.accountId == accountValue)
+                                            .accountAlias ??
+                                        '채널 #$accountValue',
+                                value: accountValue,
+                                options: [
+                                  const AppFilterOption(null, '전체'),
+                                  for (final target in targets)
+                                    AppFilterOption(
+                                      target.accountId,
+                                      target.accountAlias ??
+                                          '채널 #${target.accountId}',
+                                    ),
+                                ],
+                                highlighted: accountValue != null,
+                                onSelected: busy ? null : onSelectAccount,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -697,33 +719,6 @@ class _LoadedBody extends StatelessWidget {
                         child: Text(s.isSearching ? '조회 중...' : '조회'),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 8),
-                  // 채널(계정) 필터 — 목록과 동기화 범위를 함께 좁힌다(D7).
-                  DropdownButtonFormField<int?>(
-                    value: accountValue,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: '채널',
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    items: [
-                      const DropdownMenuItem<int?>(
-                        value: null,
-                        child: Text('전체'),
-                      ),
-                      ...targets.map(
-                        (SyncTarget target) => DropdownMenuItem<int?>(
-                          value: target.accountId,
-                          child: Text(
-                            target.accountAlias ?? '채널 #${target.accountId}',
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                    ],
-                    onChanged: busy ? null : onSelectAccount,
                   ),
                   // The server processes sheet/confirm by sellerId, so the channel
                   // filter does not narrow them (same notice as web).
@@ -744,7 +739,6 @@ class _LoadedBody extends StatelessWidget {
                   OrderSearchBar(
                     controller: searchController,
                     field: s.searchField,
-                    term: s.searchTerm,
                     onFieldChanged: (f) {
                       onClearSelection();
                       bloc.add(ChangeSearchField(field: f));
@@ -1046,7 +1040,7 @@ class _LoadedBody extends StatelessWidget {
         else
           SliverList.separated(
             itemCount: visible.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (_, __) => const AppRowGap(),
             itemBuilder: (context, index) {
               final o = visible[index];
               return OrderCard(
