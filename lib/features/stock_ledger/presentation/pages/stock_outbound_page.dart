@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
-import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/seller_filter_dropdown.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/outbound_order.dart';
 import '../../domain/entities/stock_enums.dart';
@@ -14,6 +13,8 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_filter_chip.dart';
 
 /// 출고 확인 페이지 (`/stock/outbound`, PLAN 2609_28 D11·D12·D13).
 ///
@@ -83,16 +84,24 @@ class _StockOutboundView extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Expanded(
-                    child: SellerFilterDropdown(
-                      sellers: loaded.sellers,
-                      selectedSellerId: loaded.sellerId,
-                      enabled: !busy,
-                      onChanged: (value) =>
-                          bloc.add(LoadOutbound(sellerId: value)),
-                    ),
+                  AppFilterChip<int?>(
+                    label: loaded.sellers
+                            .where((s) => s.id == loaded.sellerId)
+                            .firstOrNull
+                            ?.sellerName ??
+                        '판매자',
+                    value: loaded.sellerId,
+                    options: [
+                      const AppFilterOption(null, '전체'),
+                      for (final s in loaded.sellers)
+                        AppFilterOption(s.id, s.sellerName),
+                    ],
+                    highlighted: loaded.sellerId != null,
+                    onSelected: busy
+                        ? null
+                        : (value) => bloc.add(LoadOutbound(sellerId: value)),
                   ),
-                  const SizedBox(width: 8),
+                  const Spacer(),
                   OutlinedButton.icon(
                     onPressed: busy
                         ? null
@@ -107,7 +116,7 @@ class _StockOutboundView extends StatelessWidget {
                 const AppEmpty('출고할 주문이 없습니다.')
               else
                 for (var i = 0; i < loaded.outbound.length; i++) ...[
-                  if (i > 0) const SizedBox(height: 8),
+                  if (i > 0) const AppRowGap(),
                   OutboundOrderCard(
                     key: ValueKey(loaded.outbound[i].orderLineId),
                     order: loaded.outbound[i],

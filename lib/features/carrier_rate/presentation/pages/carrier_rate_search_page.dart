@@ -11,6 +11,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_search_field.dart';
 
 class CarrierRateSearchPage extends StatefulWidget {
   const CarrierRateSearchPage({super.key});
@@ -52,13 +53,9 @@ class _CarrierRateSearchPageState extends State<CarrierRateSearchPage> {
               child: Row(
                 children: [
                   Expanded(
-                    child: TextField(
+                    child: AppSearchField(
                       controller: _searchController,
-                      decoration: const InputDecoration(
-                        hintText: '배송사명 검색...',
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
+                      hintText: '배송사명 검색...',
                       onChanged: (value) {
                         context
                             .read<CarrierRateListBloc>()
@@ -116,8 +113,7 @@ class _CarrierRateSearchPageState extends State<CarrierRateSearchPage> {
               if (state is CarrierRateListLoaded) {
                 return SliverList.separated(
                   itemCount: state.carrierRates.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 8),
+                  separatorBuilder: (context, index) => const AppRowGap(),
                   itemBuilder: (context, index) {
                     final rate = state.carrierRates[index];
                     return CarrierRateListItem(

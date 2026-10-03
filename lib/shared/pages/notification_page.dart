@@ -136,7 +136,7 @@ class _NotificationViewState extends State<_NotificationView> {
           else
             SliverList.separated(
               itemCount: loaded.items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              separatorBuilder: (_, __) => const AppRowGap(),
               itemBuilder: (context, index) {
                 final item = loaded.items[index];
                 return _AlertCard(item: item, onTap: () => _open(item));

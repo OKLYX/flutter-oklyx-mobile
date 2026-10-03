@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
-import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/seller_filter_dropdown.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/stock_balance.dart';
 import '../bloc/stock_ledger_bloc.dart';
@@ -16,6 +15,8 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_search_field.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_filter_chip.dart';
 
 /// 재고 조회 페이지 (`/stock/search`, PLAN 2609_28 D14 / 2609_29 D5).
 ///
@@ -100,22 +101,31 @@ class _StockBalanceViewState extends State<_StockBalanceView> {
             slivers: [
               SliverToBoxAdapter(
                 child: AppCard(
-                  child: Column(
+                  child: Row(
                     children: [
-                      TextField(
-                        controller: _searchController,
-                        decoration: const InputDecoration(
+                      Expanded(
+                        child: AppSearchField(
+                          controller: _searchController,
                           hintText: '상품명 검색',
-                          prefixIcon: Icon(Icons.search),
+                          onChanged: (value) =>
+                              _onSearchChanged(context, value, loaded.sellerId),
                         ),
-                        onChanged: (value) =>
-                            _onSearchChanged(context, value, loaded.sellerId),
                       ),
-                      const SizedBox(height: 8),
-                      SellerFilterDropdown(
-                        sellers: loaded.sellers,
-                        selectedSellerId: loaded.sellerId,
-                        onChanged: (value) => bloc.add(LoadBalances(
+                      const SizedBox(width: 8),
+                      AppFilterChip<int?>(
+                        label: loaded.sellers
+                                .where((s) => s.id == loaded.sellerId)
+                                .firstOrNull
+                                ?.sellerName ??
+                            '판매자',
+                        value: loaded.sellerId,
+                        options: [
+                          const AppFilterOption(null, '전체'),
+                          for (final s in loaded.sellers)
+                            AppFilterOption(s.id, s.sellerName),
+                        ],
+                        highlighted: loaded.sellerId != null,
+                        onSelected: (value) => bloc.add(LoadBalances(
                           keyword: _searchController.text,
                           sellerId: value,
                         )),
@@ -130,7 +140,7 @@ class _StockBalanceViewState extends State<_StockBalanceView> {
               else
                 SliverList.separated(
                   itemCount: loaded.balances.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, __) => const AppRowGap(),
                   itemBuilder: (context, index) => _BalanceRow(
                     balance: loaded.balances[index],
                     onTap: () =>

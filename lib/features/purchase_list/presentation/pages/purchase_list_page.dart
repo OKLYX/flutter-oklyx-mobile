@@ -14,6 +14,7 @@ import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 
 /// 구매목록 페이지 (하단 탭 3번째, `/list-to-shop`).
 ///
@@ -260,7 +261,7 @@ class _ActiveTabBody extends StatelessWidget {
               else if (state.items.isNotEmpty)
                 SliverList.separated(
                   itemCount: state.items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, __) => const AppRowGap(),
                   itemBuilder: (context, index) {
                     final item = state.items[index];
                     return PurchaseProductCard(
@@ -352,7 +353,7 @@ class _CompletedTabBody extends StatelessWidget {
     }
     return SliverList.separated(
       itemCount: items.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, __) => const AppRowGap(),
       itemBuilder: (context, index) {
         final item = items[index];
         // 완료 탭도 구매목록 탭과 **같은 카드**를 쓴다(D21) — 추가 입고·정정이 가능하다.

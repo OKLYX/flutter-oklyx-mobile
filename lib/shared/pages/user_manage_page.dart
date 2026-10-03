@@ -14,6 +14,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_search_field.dart';
 
 class UserManagePage extends StatefulWidget {
   const UserManagePage({super.key});
@@ -91,21 +92,17 @@ class _UserManagePageState extends State<UserManagePage> {
                   child: Row(
                     children: [
                       Expanded(
-                        child: TextField(
+                        child: AppSearchField(
                           controller: _nameController,
-                          decoration: const InputDecoration(
-                            hintText: '이름',
-                          ),
+                          hintText: '이름',
                           onSubmitted: (_) => _handleSearch(builderContext),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: TextField(
+                        child: AppSearchField(
                           controller: _emailController,
-                          decoration: const InputDecoration(
-                            hintText: '이메일',
-                          ),
+                          hintText: '이메일',
                           onSubmitted: (_) => _handleSearch(builderContext),
                         ),
                       ),
@@ -137,7 +134,7 @@ class _UserManagePageState extends State<UserManagePage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           for (var i = 0; i < state.users.length; i++) ...[
-                            if (i > 0) const SizedBox(height: 8),
+                            if (i > 0) const AppRowGap(),
                             AppCard.row(
                               onTap: () =>
                                   _navigateToUserEdit(context, state.users[i]),

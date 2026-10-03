@@ -9,6 +9,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_search_field.dart';
 
 class CategoryListPage extends StatefulWidget {
   const CategoryListPage({super.key});
@@ -55,13 +56,9 @@ class _CategoryListPageState extends State<CategoryListPage> {
               child: Row(
                 children: [
                   Expanded(
-                    child: TextField(
+                    child: AppSearchField(
                       controller: _searchController,
-                      decoration: const InputDecoration(
-                        hintText: '카테고리명 검색...',
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
+                      hintText: '카테고리명 검색...',
                       onChanged: (value) {
                         context
                             .read<CategoryListBloc>()
@@ -93,8 +90,7 @@ class _CategoryListPageState extends State<CategoryListPage> {
                 }
                 return SliverList.separated(
                   itemCount: state.categories.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 8),
+                  separatorBuilder: (context, index) => const AppRowGap(),
                   itemBuilder: (context, index) {
                     final category = state.categories[index];
                     return AppCard.row(
