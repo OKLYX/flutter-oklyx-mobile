@@ -13,13 +13,15 @@ import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_search_field.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_filter_chip.dart';
 
 /// Master product list (FEATURE_2609_80 / 04 — web `master-products/components/MasterProductList.tsx`
 /// + `MasterProductSearchCard.tsx` + `masterListQuery.ts` @09208a0).
 ///
 /// **File**: lib/features/master_product/presentation/pages/master_product_list_page.dart
 ///
-/// - The search term is committed by [검색] or the keyboard done key (no query per keystroke — same as the web).
+/// - The search term is committed by the keyboard search key (no query per keystroke — same as the web).
 /// - Sort changes re-query immediately. No page-size picker — infinite scroll, 25 per page (PLAN R-c).
 /// - Tapping a row opens the detail. The only row action is [삭제] (hard delete, confirm dialog D32).
 /// ❌ No [마스터 추가] button on the list (same as the web — the entry is the drawer).
@@ -191,6 +193,10 @@ class _MasterProductListPageState extends State<MasterProductListPage> {
             AppErrorBox(message: _error),
           ],
           const SizedBox(height: 12),
+          if (_totalElements > 0) ...[
+            Text('$_totalElements개의 결과'),
+            const SizedBox(height: 8),
+          ],
           if (_isLoading)
             const AppLoading()
           else if (_masters.isEmpty)
@@ -199,7 +205,7 @@ class _MasterProductListPageState extends State<MasterProductListPage> {
             )
           else
             for (var i = 0; i < _masters.length; i++) ...[
-              if (i > 0) const SizedBox(height: 8),
+              if (i > 0) const AppRowGap(),
               _buildRow(_masters[i]),
             ],
           if (_isLoadingMore)
@@ -213,60 +219,35 @@ class _MasterProductListPageState extends State<MasterProductListPage> {
   }
 
   Widget _buildSearchCard() => AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ValueListenableBuilder<TextEditingValue>(
-                valueListenable: _searchController,
-                builder: (context, value, _) => TextField(
-                  controller: _searchController,
-                  textInputAction: TextInputAction.search,
-                  onSubmitted: (_) => _search(),
-                  decoration: InputDecoration(
-                    labelText: '검색',
-                    hintText: '이름 · 상품ID · 옵션ID',
-                    suffixIcon: value.text.isEmpty
-                        ? null
-                        : IconButton(
-                            tooltip: '검색어 지우기',
-                            icon: const Icon(Icons.close, size: 16),
-                            onPressed: _searchController.clear,
-                          ),
-                  ),
-                ),
+        child: Row(
+          children: [
+            Expanded(
+              child: AppSearchField(
+                controller: _searchController,
+                hintText: '이름 · 상품ID · 옵션ID',
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => _search(),
               ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _sort,
-                decoration: const InputDecoration(labelText: '정렬'),
-                items: [
-                  for (final option in _sortOptions)
-                    DropdownMenuItem(
-                      value: option.value,
-                      child: Text(option.label),
-                    ),
-                ],
-                onChanged: (next) {
-                  if (next == null || next == _sort) {
-                    return;
-                  }
-                  setState(() => _sort = next);
-                  _reload();
-                },
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  if (_totalElements > 0) Text('$_totalElements개의 결과'),
-                  const Spacer(),
-                  FilledButton(
-                    onPressed: _isLoading ? null : _search,
-                    child: Text(_isLoading ? '검색 중...' : '검색'),
-                  ),
-                ],
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 8),
+            AppFilterChip<String>(
+              label: _sortOptions.firstWhere((o) => o.value == _sort).label,
+              value: _sort,
+              options: [
+                for (final option in _sortOptions)
+                  AppFilterOption(option.value, option.label),
+              ],
+              highlighted: _sort != _sortOptions.first.value,
+              onSelected: (next) {
+                if (next == _sort) {
+                  return;
+                }
+                setState(() => _sort = next);
+                _reload();
+              },
+            ),
+          ],
+        ),
       );
 
   Widget _buildRow(MasterProduct m) => AppCard.row(

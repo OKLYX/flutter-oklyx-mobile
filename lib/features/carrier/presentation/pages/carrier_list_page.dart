@@ -16,6 +16,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_search_field.dart';
 
 class CarrierListPage extends StatefulWidget {
   const CarrierListPage({super.key});
@@ -99,13 +100,9 @@ class _CarrierListPageState extends State<CarrierListPage> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: TextField(
+                      child: AppSearchField(
                         controller: _searchController,
-                        decoration: const InputDecoration(
-                          hintText: '택배사명 검색...',
-                          contentPadding:
-                              EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        ),
+                        hintText: '택배사명 검색...',
                         onChanged: (value) {
                           context
                               .read<CarrierListBloc>()
@@ -149,8 +146,7 @@ class _CarrierListPageState extends State<CarrierListPage> {
                 if (state is CarrierListLoaded) {
                   return SliverList.separated(
                     itemCount: state.carriers.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 8),
+                    separatorBuilder: (context, index) => const AppRowGap(),
                     itemBuilder: (context, index) {
                       final carrier = state.carriers[index];
                       return _CarrierCard(

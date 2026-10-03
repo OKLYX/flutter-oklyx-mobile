@@ -18,6 +18,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/zoomable_image_viewer.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_search_field.dart';
 
 class ProductSearchPage extends StatelessWidget {
   const ProductSearchPage({super.key});
@@ -84,20 +85,14 @@ class _ProductSearchViewState extends State<_ProductSearchView> {
     navBarIndex: 2,
     showDrawer: true,
     showAppBarDrawerButton: false,
-    backgroundColor: Theme.of(context).colorScheme.surface,
     body: AppPageBody.slivers(
       controller: _scrollController,
       slivers: [
         SliverToBoxAdapter(
           child: AppCard(
-            child: TextField(
+            child: AppSearchField(
               controller: _searchController,
-              decoration: const InputDecoration(
-                hintText: '상품명 검색...',
-                prefixIcon: Icon(Icons.search),
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              ),
+              hintText: '상품명 검색...',
               onChanged: _onSearchChanged,
             ),
           ),
@@ -129,8 +124,7 @@ class _ProductSearchViewState extends State<_ProductSearchView> {
 
               return SliverList.separated(
                 itemCount: products.length + (isLoadingMore ? 1 : 0),
-                separatorBuilder: (context, index) =>
-                    const SizedBox(height: 8),
+                separatorBuilder: (context, index) => const AppRowGap(),
                 itemBuilder: (context, index) {
                   if (index == products.length) {
                     return const Padding(

@@ -11,6 +11,7 @@ import '../widgets/reserved_shipment_row_tile.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 
 /// 출고관리 > 예약 발송 현황 페이지 (FEATURE_2609_75 / D15·D16·D17·D18·D30).
 ///
@@ -87,7 +88,7 @@ class _ReservedShipmentView extends StatelessWidget {
                 else
                   SliverList.separated(
                     itemCount: state.rows.length + 1,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    separatorBuilder: (_, __) => const AppRowGap(),
                     itemBuilder: (context, index) => index == 0
                         ? Text(
                             '${state.rows.length}건 중 $completed건 완료, 실패 $failed건',

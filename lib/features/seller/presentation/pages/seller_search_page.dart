@@ -10,6 +10,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_search_field.dart';
 
 class SellerSearchPage extends StatefulWidget {
   const SellerSearchPage({super.key});
@@ -51,13 +52,9 @@ class _SellerSearchPageState extends State<SellerSearchPage> {
               child: Row(
                 children: [
                   Expanded(
-                    child: TextField(
+                    child: AppSearchField(
                       controller: _searchController,
-                      decoration: const InputDecoration(
-                        hintText: '판매자명 검색...',
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
+                      hintText: '판매자명 검색...',
                       onChanged: (value) {
                         context
                             .read<SellerListBloc>()
@@ -105,8 +102,7 @@ class _SellerSearchPageState extends State<SellerSearchPage> {
               } else if (state is SellerListLoaded) {
                 return SliverList.separated(
                   itemCount: state.sellers.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 8),
+                  separatorBuilder: (context, index) => const AppRowGap(),
                   itemBuilder: (context, index) {
                     final seller = state.sellers[index];
                     return SellerListItem(
