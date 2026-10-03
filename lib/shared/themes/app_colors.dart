@@ -26,8 +26,10 @@ import 'package:flutter/material.dart';
 ///
 /// ⚠️ Yellow is a light color: text/icons placed on `brandMain` must use a
 /// dark foreground (`foregroundLight` / `brandSlate`), not white.
-/// ⚠️ Neutral surfaces/text/borders are NOT tokens here: read them from
-/// `Theme.of(context).colorScheme` (`surface`, `onSurface`,
+/// ⚠️ The neutral grays (gray50 … gray500, web Tailwind values) live here, but
+/// only the light theme reads them: app_theme.dart puts them into
+/// `colorScheme` (FEATURE_2610_03 · D137). Pages read neutral surfaces, text
+/// and borders from `Theme.of(context).colorScheme` (`surface`, `onSurface`,
 /// `onSurfaceVariant`, `outlineVariant`, `surfaceContainerHighest`) so they
 /// follow light/dark mode.
 class AppColors {
@@ -51,6 +53,13 @@ class AppColors {
   static const Color backgroundDark = Color(0xFF292929);
   static const Color foregroundDark = Color(0xFFE5E5E5);
   static const Color pageBackgroundDark = Color(0xFF303030);
+
+  // --- Neutral grays (light theme only — read through colorScheme) ---
+  static const Color gray50 = Color(0xFFF9FAFB);
+  static const Color gray100 = Color(0xFFF3F4F6);
+  static const Color gray200 = Color(0xFFE5E7EB);
+  static const Color gray300 = Color(0xFFD1D5DB);
+  static const Color gray500 = Color(0xFF6B7280);
 
   // --- Semantic status tints (badges / soft alert surfaces) ---
   // Fixed-meaning colors that no ColorScheme slot covers. Values mirror the

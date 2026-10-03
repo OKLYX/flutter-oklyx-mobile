@@ -6,7 +6,10 @@ import 'package:flutter/material.dart';
 /// **Purpose**: left 16 · top 16 · right 16 · bottom = bottom nav height +
 /// device bottom safe area + 24, computed here and nowhere else. The whole
 /// body is one scroll — search rows, filter rows, tabs and action rows scroll
-/// away together with the list.
+/// away together with the list. It also tells the widgets below it the page
+/// content width ([contentWidthOf] — screen width − 16 − 16): in the `flat`
+/// card shape a card of exactly that width grows to the screen edges
+/// (FEATURE_2610_03 · D127).
 /// **Rule**: the `body:` of every `ScaffoldWithNavBar` page is an
 /// `AppPageBody` (the dashboard keeps its own body).
 /// **File**: lib/shared/widgets/app_page_body.dart
@@ -27,7 +30,7 @@ import 'package:flutter/material.dart';
 ///     SliverList.separated(
 ///       itemCount: items.length,
 ///       itemBuilder: (context, i) => AppCard.row(child: Text(items[i].name)),
-///       separatorBuilder: (_, __) => const SizedBox(height: 8),
+///       separatorBuilder: (_, __) => const AppRowGap(),
 ///     ),
 ///   ],
 /// )
@@ -82,9 +85,24 @@ class AppPageBody extends StatelessWidget {
   static EdgeInsets insets(BuildContext context, {double extraBottom = 0}) =>
       EdgeInsets.fromLTRB(16, 16, 16, navBarInset(context) + 24 + extraBottom);
 
+  /// Page content width (body width − 16 − 16), or null outside a page body
+  /// (sheet, dialog). Read by `AppCard` / `AppRowGap` (D127).
+  static double? contentWidthOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<_AppPageBodyScope>()
+      ?.contentWidth;
+
   @override
   Widget build(BuildContext context) {
     final padding = insets(context, extraBottom: extraBottom);
+    return LayoutBuilder(
+      builder: (context, constraints) => _AppPageBodyScope(
+        contentWidth: constraints.maxWidth - padding.horizontal,
+        child: _scrollView(padding),
+      ),
+    );
+  }
+
+  Widget _scrollView(EdgeInsets padding) {
     final slivers = this.slivers;
     if (slivers != null) {
       return CustomScrollView(
@@ -114,4 +132,15 @@ class AppPageBody extends StatelessWidget {
       children: children ?? const [],
     );
   }
+}
+
+/// Carries the page content width down to `AppCard` / `AppRowGap`.
+class _AppPageBodyScope extends InheritedWidget {
+  final double contentWidth;
+
+  const _AppPageBodyScope({required this.contentWidth, required super.child});
+
+  @override
+  bool updateShouldNotify(_AppPageBodyScope oldWidget) =>
+      contentWidth != oldWidget.contentWidth;
 }
