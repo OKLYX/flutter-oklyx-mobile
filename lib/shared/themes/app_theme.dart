@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 
 /// Application ThemeData built from [AppColors].
 ///
@@ -31,13 +32,36 @@ class AppTheme {
       onTertiary: Colors.white,
       surface: AppColors.backgroundLight,
       onSurface: AppColors.foregroundLight,
+      // Neutral slots use the web grays instead of colors derived from the
+      // yellow seed (FEATURE_2610_03 · D137).
+      onSurfaceVariant: AppColors.gray500,
+      outline: AppColors.gray300,
+      outlineVariant: AppColors.gray200,
+      surfaceContainerLowest: AppColors.backgroundLight,
+      surfaceContainerLow: AppColors.gray50,
+      surfaceContainer: AppColors.gray100,
+      surfaceContainerHigh: AppColors.gray100,
+      surfaceContainerHighest: AppColors.gray100,
+      surfaceTint: Colors.transparent,
     );
 
     return _base(
       colorScheme,
-      scaffoldBackground: AppColors.pageBackgroundLight,
+      // Flat cards are white on a darker page so the areas stand apart
+      // (D129 ④).
+      scaffoldBackground: kAppCardStyle == AppCardStyle.flat
+          ? AppColors.gray100
+          : AppColors.pageBackgroundLight,
       surface: AppColors.backgroundLight,
       onSurface: AppColors.foregroundLight,
+    ).copyWith(
+      // Dialogs, center popups and popup menus are white like the web (D137).
+      dialogTheme: const DialogThemeData(
+        backgroundColor: AppColors.backgroundLight,
+      ),
+      popupMenuTheme: const PopupMenuThemeData(
+        color: AppColors.backgroundLight,
+      ),
     );
   }
 
@@ -81,8 +105,9 @@ class AppTheme {
         scrolledUnderElevation: 1,
       ),
       // Cards use the plain surface color (white in light mode) like the web
-      // cards. Without this the Material 3 default (`surfaceContainerLow`,
-      // derived from the yellow seed) gives every card a cream tint.
+      // cards. Without this the Material 3 default (`surfaceContainerLow`)
+      // tints every card: gray in light mode, derived from the yellow seed in
+      // dark mode.
       cardTheme: CardThemeData(
         color: surface,
         surfaceTintColor: Colors.transparent,

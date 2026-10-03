@@ -2,7 +2,7 @@
 #
 # Plain text search (scripts/check_ui_rules.sh): no Flutter setup, no packages.
 # This is not `flutter analyze` — it only stops hand-made dialogs, sheets,
-# snack bars, input borders and bottom-nav paddings from coming back.
+# snack bars, input borders, bottom-nav paddings and cards from coming back.
 
 name: PR check — UI rules
 

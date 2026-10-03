@@ -11,6 +11,7 @@
 #   5. input border          -> theme (app_theme.dart)
 #   6. old bottom snack bar  -> showSuccessToast / showErrorToast /
 #                               showInputNoticeToast / showNoticeToast
+#   7. card drawn by hand    -> AppCard (app_card.dart)
 #
 # Comment lines (// and ///) are ignored.
 # An exception is a file path written after the pattern of its rule, with the
@@ -85,6 +86,23 @@ check '옛 하단 알림 (SnackBar)' \
   '(^|[^A-Za-z_])SnackBar\(' \
   lib/shared/widgets/result_toast.dart \
   lib/features/order/presentation/pages/shipment_management_page.dart
+
+# 7. Allowed: the shared card itself + rows inside a section that draw their
+#    own card (D107). The card shape switch is read in AppCard only
+#    (FEATURE_2610_03 · D140).
+check '화면에서 직접 그린 카드 (Card()' \
+  'AppCard 를 쓴다 (lib/shared/widgets/app_card.dart)' \
+  '(^|[^A-Za-z_.])Card\(' \
+  lib/shared/widgets/app_card.dart \
+  lib/features/carrier/presentation/widgets/platform_code_section.dart \
+  lib/features/marketplace_account/presentation/widgets/seller_channel_section.dart \
+  lib/features/master_product/presentation/widgets/channel_option_table.dart \
+  lib/features/master_product/presentation/widgets/listing_detail_panel.dart \
+  lib/features/master_product/presentation/widgets/market_source_card.dart \
+  lib/features/master_product/presentation/widgets/master_composition_form.dart \
+  lib/features/master_product/presentation/widgets/master_create_form.dart \
+  lib/features/order/presentation/pages/order_detail_page.dart \
+  lib/features/shipping_label/presentation/widgets/stored_invoice_section.dart
 
 if [ "$fail" -eq 0 ]; then
   echo '✓ UI 규칙 위반 없음'
