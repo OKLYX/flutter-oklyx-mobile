@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/order/domain/entities/order_period.dart';
-import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/inquiry.dart';
 import '../bloc/inquiry_list_bloc.dart';
@@ -18,23 +17,31 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_filter_chip.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_search_field.dart';
 
-/// 주문관리 > 고객문의 페이지 (FEATURE_2609_36 — 조회 + 문의만 가져오기).
+/// 「주문관리 > 고객문의」 page (FEATURE_2609_36 — lookup + fetching inquiries
+/// only).
 ///
-/// **기능**:
-/// - 유형 탭(`InquiryTypeTabs`) — 후보·라벨은 서버 `/types` 가 준다(PLAN M2). **서버 재조회**
-/// - 판매자 / 채널 / 기간 / 검색어를 고르고 [조회] 로 재조회 (`GET /api/inquiries`)
-/// - 상태 칩: 클라이언트 필터(건수 배지) — 서버를 부르지 않는다
-/// - [동기화]: 선택 채널(없으면 전체)의 **문의만** 가져온다 (`POST /api/inquiries/sync`)
-/// - 카드 탭 → 문의 상세(`extra` 전달 + 상세 API 재조회, M1)
+/// **Features**:
+/// - Type tabs (`InquiryTypeTabs`) — the choices and labels come from the
+///   server `/types` (PLAN M2). **Reloads from the server**
+/// - Pick seller / channel / period / search text, then [조회] reloads
+///   (`GET /api/inquiries`)
+/// - Status chips: client filter (count badges) — no server call
+/// - [동기화]: fetches **inquiries only** for the picked channel (all when
+///   none) (`POST /api/inquiries/sync`)
+/// - Card tap → inquiry detail (`extra` + the detail API is called again, M1)
 ///
-/// ⚠️ **동기화 다이얼로그를 띄우지 않는다**(M4) — 진행은 버튼 자리의 한 줄 + 진행바다.
-/// `SyncProgressDialog` 는 `OrderListBloc` 을 직접 읽어 재사용할 수 없다.
-/// ⚠️ **채널 드롭다운 옵션은 동기화 대상뿐이다**(M12) — 주문내역의 합집합 규칙(2609_15 D7-a)은
-/// 그 화면 전용이다.
-/// ⚠️ 기간 드롭다운은 `buildPeriodOptions()` 를 **인자 없이** 부른다(M9) — 문의에는 월별
-/// 건수 API 가 없어 '(데이터 없음)' 을 판정할 근거가 없다.
-/// ❌ 답변 버튼·입력 자리를 만들지 말 것 — 답변은 별도 범위다.
+/// ⚠️ **No sync dialog** (M4) — progress is one line + a progress bar in place
+/// of the button. `SyncProgressDialog` reads `OrderListBloc` directly and
+/// cannot be reused.
+/// ⚠️ **The channel chip offers the sync targets only** (M12) — the union
+/// rule of the order history (2609_15 D7-a) belongs to that page only.
+/// ⚠️ The period chip calls `buildPeriodOptions()` **without arguments** (M9)
+/// — inquiries have no monthly count API, so there is no ground to mark a
+/// month '(데이터 없음)'.
+/// ❌ Do not add a reply button or input — replies are a separate scope.
 class InquiryListPage extends StatelessWidget {
   const InquiryListPage({super.key});
 
@@ -147,8 +154,9 @@ class _LoadedBody extends StatelessWidget {
         target.accountId:
             inquiryChannelLabel(target.accountId, target.accountAlias),
     };
-    // 고른 채널이 옵션에서 사라지면 드롭다운이 assert 로 죽는다 — 그때는 전체로 되돌린다
-    // (BLoC 도 판매자 변경 시 선택을 비우지만, 그 사이 프레임을 대비한다).
+    // When the picked channel is no longer an option, fall back to all
+    // channels (the BLoC also clears it when the seller changes, but a frame
+    // can come in between).
     final accountValue = accountOptions.containsKey(s.selectedAccountId)
         ? s.selectedAccountId
         : null;
@@ -174,33 +182,74 @@ class _LoadedBody extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: DropdownButtonFormField<int?>(
-                          value: s.selectedSellerId,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: '판매자',
-                            contentPadding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                          ),
-                          items: [
-                            const DropdownMenuItem<int?>(
-                              value: null,
-                              child: Text('전체'),
-                            ),
-                            ...s.sellers.map(
-                              (Seller seller) => DropdownMenuItem<int?>(
-                                value: seller.id,
-                                child: Text(
-                                  seller.sellerName,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              AppFilterChip<int?>(
+                                label: s.sellers
+                                        .where((seller) =>
+                                            seller.id == s.selectedSellerId)
+                                        .firstOrNull
+                                        ?.sellerName ??
+                                    '판매자',
+                                value: s.selectedSellerId,
+                                options: [
+                                  const AppFilterOption(null, '전체'),
+                                  for (final seller in s.sellers)
+                                    AppFilterOption(
+                                        seller.id, seller.sellerName),
+                                ],
+                                highlighted: s.selectedSellerId != null,
+                                onSelected: busy
+                                    ? null
+                                    : (value) =>
+                                        bloc.add(SelectSeller(sellerId: value)),
                               ),
-                            ),
-                          ],
-                          onChanged: busy
-                              ? null
-                              : (value) =>
-                                  bloc.add(SelectSeller(sellerId: value)),
+                              const SizedBox(width: 8),
+                              // 채널 필터 — 옵션은 동기화 대상뿐(M12). 판매자를 바꾸면 좁아진다.
+                              AppFilterChip<int?>(
+                                label: accountValue == null
+                                    ? '채널'
+                                    : accountOptions[accountValue]!,
+                                value: accountValue,
+                                options: [
+                                  const AppFilterOption(null, '전체'),
+                                  for (final entry in accountOptions.entries)
+                                    AppFilterOption(entry.key, entry.value),
+                                ],
+                                highlighted: accountValue != null,
+                                onSelected: busy
+                                    ? null
+                                    : (value) =>
+                                        bloc.add(SelectChannel(accountId: value)),
+                              ),
+                              const SizedBox(width: 8),
+                              // Period chip — the picked value reaches the list
+                              // only with [조회].
+                              // ⚠️ No monthsWithData (= null) — inquiries have
+                              // no monthly count API, and '(데이터 없음)' would
+                              // falsely mark every month (M9).
+                              AppFilterChip<String>(
+                                label: buildPeriodOptions()
+                                        .where(
+                                            (o) => o.value == s.selectedPeriod)
+                                        .firstOrNull
+                                        ?.label ??
+                                    s.selectedPeriod,
+                                value: s.selectedPeriod,
+                                options: [
+                                  for (final o in buildPeriodOptions())
+                                    AppFilterOption(o.value, o.label),
+                                ],
+                                highlighted: s.selectedPeriod != kRecentPeriod,
+                                onSelected: busy
+                                    ? null
+                                    : (value) =>
+                                        bloc.add(SelectPeriod(period: value)),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -212,81 +261,15 @@ class _LoadedBody extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  // 채널 필터 — 옵션은 동기화 대상뿐(M12). 판매자를 바꾸면 좁아진다.
-                  DropdownButtonFormField<int?>(
-                    value: accountValue,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: '채널',
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    items: [
-                      const DropdownMenuItem<int?>(
-                        value: null,
-                        child: Text('전체'),
-                      ),
-                      ...accountOptions.entries.map(
-                        (entry) => DropdownMenuItem<int?>(
-                          value: entry.key,
-                          child: Text(
-                            entry.value,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                    ],
-                    onChanged: busy
-                        ? null
-                        : (value) => bloc.add(SelectChannel(accountId: value)),
-                  ),
-                  const SizedBox(height: 8),
-                  // 기간 드롭다운 — 고른 값은 [조회] 를 눌러야 목록에 반영된다.
-                  // ⚠️ monthsWithData 를 넘기지 않는다(= null) — 문의엔 월별 건수 API 가
-                  // 없어 '(데이터 없음)' 을 붙이면 전 달이 거짓으로 표시된다(M9).
-                  DropdownButtonFormField<String>(
-                    value: s.selectedPeriod,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: '기간',
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    items: buildPeriodOptions()
-                        .map((o) => DropdownMenuItem<String>(
-                              value: o.value,
-                              child: Text(
-                                o.label,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ))
-                        .toList(),
-                    onChanged: busy
-                        ? null
-                        : (value) => bloc.add(SelectPeriod(period: value!)),
-                  ),
-                  const SizedBox(height: 8),
                   // 검색어는 **서버로** 보낸다 — [조회] 를 눌러야 반영된다.
-                  TextField(
+                  AppSearchField(
                     controller: searchController,
+                    hintText: '문의 내용·상품명·주문번호 검색',
                     enabled: !busy,
                     onChanged: (value) =>
                         bloc.add(ChangeSearchTerm(term: value)),
                     onSubmitted: (_) =>
                         busy ? null : bloc.add(SearchInquiries()),
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.search, size: 18),
-                      hintText: '문의 내용·상품명·주문번호 검색',
-                      suffixIcon: s.searchTerm.isEmpty
-                          ? null
-                          : IconButton(
-                              icon: const Icon(Icons.clear, size: 18),
-                              onPressed: () {
-                                searchController.clear();
-                                bloc.add(ChangeSearchTerm(term: ''));
-                              },
-                            ),
-                    ),
                   ),
                   const SizedBox(height: 8),
                   // 동기화 — 진행은 이 자리의 한 줄이다(다이얼로그 금지, M4).
@@ -362,7 +345,7 @@ class _LoadedBody extends StatelessWidget {
         else
           SliverList.separated(
             itemCount: inquiries.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (_, __) => const AppRowGap(),
             itemBuilder: (context, index) {
               final inquiry = inquiries[index];
               return InquiryCard(

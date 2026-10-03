@@ -13,6 +13,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_search_field.dart';
 
 class PackageSearchPage extends StatefulWidget {
   const PackageSearchPage({super.key});
@@ -71,13 +72,9 @@ class _PackageSearchPageState extends State<PackageSearchPage> {
               child: Row(
                 children: [
                   Expanded(
-                    child: TextField(
+                    child: AppSearchField(
                       controller: _searchController,
-                      decoration: const InputDecoration(
-                        hintText: '상자명 검색...',
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
+                      hintText: '상자명 검색...',
                       onChanged: (value) {
                         context
                             .read<PackageListBloc>()
@@ -125,8 +122,7 @@ class _PackageSearchPageState extends State<PackageSearchPage> {
               } else if (state is PackageListLoaded) {
                 return SliverList.separated(
                   itemCount: state.packages.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 8),
+                  separatorBuilder: (context, index) => const AppRowGap(),
                   itemBuilder: (context, index) {
                     final pkg = state.packages[index];
                     return PackageListItem(

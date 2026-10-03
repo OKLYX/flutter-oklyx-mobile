@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
 import 'package:flutter_oklyn_mobile/features/order/domain/entities/order_period.dart';
-import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../bloc/claim_list_bloc.dart';
 import '../bloc/claim_list_event.dart';
@@ -16,25 +15,36 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_filter_chip.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_search_field.dart';
 
-/// 주문관리 > 반품/교환 페이지 (FEATURE_2609_18 조회 + FEATURE_2609_70 동기화).
+/// 「주문관리 > 반품/교환」 page (FEATURE_2609_18 lookup + FEATURE_2609_70
+/// sync).
 ///
-/// **기능**:
-/// - 반품 / 교환 탭 전환 (`ClaimTypeTabs`) — **서버 재조회**를 부른다
-/// - 판매자 / 기간 / 검색어를 고르고 [조회] 로 서버 재조회 (`GET /api/claims`)
-/// - 상태 칩: 클라이언트 필터(건수 배지) — 서버를 부르지 않는다. 후보는 탭마다 다르다
-/// - [동기화]: 동기화 대상 채널(판매자 필터로 좁혀진다)의 **반품·교환만** 가져온다
-///   (`POST /api/claims/sync` — 2609_70 / D14). 끝나면 목록을 다시 조회한다
-/// - 「마지막 동기화」: 채널들의 `lastClaimSyncAt` 중 가장 최근 값(D16). 없으면 줄을 안 그린다
-/// - 카드 탭 → 클레임 상세(`extra` 전달, 상세 API 재조회 없음)
+/// **Features**:
+/// - Return / exchange tabs (`ClaimTypeTabs`) — **reload from the server**
+/// - Pick seller / period / search text, then [조회] reloads from the server
+///   (`GET /api/claims`)
+/// - Status chips: client filter (count badges) — no server call. The
+///   choices differ per tab
+/// - [동기화]: fetches **returns and exchanges only** for the sync target
+///   channels (narrowed by the seller filter) (`POST /api/claims/sync` —
+///   2609_70 / D14). Reloads the list when done
+/// - 「마지막 동기화」: the latest `lastClaimSyncAt` of the channels (D16). No
+///   line when there is none
+/// - Card tap → claim detail (`extra`, the detail API is not called again)
 ///
-/// ⚠️ **처리 버튼(승인·입고확인)을 이 화면에 만들지 말 것** — 목록은 조회다. 처리 액션은
-/// 상세의 `ClaimActionSheet` 가 서버 판정(`availableActions`)대로만 그린다(2609_21 D9).
-/// 🔴 이 화면에 있는 유일한 쓰기 성격 버튼은 [동기화]이며, 그것도 마켓에서 **읽어오는** 동작이다.
-/// ⚠️ **동기화 다이얼로그를 띄우지 않는다**(2609_70 / 04 Step 3) — 진행은 버튼 자리의 한 줄 +
-/// 진행바다. `SyncProgressDialog` 는 `OrderListBloc` 을 직접 읽어 재사용할 수 없다.
-/// ⚠️ 기간 드롭다운은 `buildPeriodOptions()` 를 **인자 없이** 부른다 —
-/// 클레임에는 월별 건수 API 가 없어 '(데이터 없음)' 을 판정할 근거가 없다.
+/// ⚠️ **Do not put action buttons (approve · confirm receipt) on this page** —
+/// the list is for lookup. Actions are drawn only by `ClaimActionSheet` of the
+/// detail, following the server decision (`availableActions`) (2609_21 D9).
+/// 🔴 The only write-like button on this page is [동기화], and it also only
+/// **reads** from the marketplace.
+/// ⚠️ **No sync dialog** (2609_70 / 04 Step 3) — progress is one line + a
+/// progress bar in place of the button. `SyncProgressDialog` reads
+/// `OrderListBloc` directly and cannot be reused.
+/// ⚠️ The period chip calls `buildPeriodOptions()` **without arguments** —
+/// claims have no monthly count API, so there is no ground to mark a month
+/// '(데이터 없음)'.
 class ClaimListPage extends StatelessWidget {
   const ClaimListPage({super.key});
 
@@ -162,33 +172,56 @@ class _LoadedBody extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: DropdownButtonFormField<int?>(
-                          value: s.selectedSellerId,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: '판매자',
-                            contentPadding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                          ),
-                          items: [
-                            const DropdownMenuItem<int?>(
-                              value: null,
-                              child: Text('전체'),
-                            ),
-                            ...s.sellers.map(
-                              (Seller seller) => DropdownMenuItem<int?>(
-                                value: seller.id,
-                                child: Text(
-                                  seller.sellerName,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              AppFilterChip<int?>(
+                                label: s.sellers
+                                        .where((seller) =>
+                                            seller.id == s.selectedSellerId)
+                                        .firstOrNull
+                                        ?.sellerName ??
+                                    '판매자',
+                                value: s.selectedSellerId,
+                                options: [
+                                  const AppFilterOption(null, '전체'),
+                                  for (final seller in s.sellers)
+                                    AppFilterOption(
+                                        seller.id, seller.sellerName),
+                                ],
+                                highlighted: s.selectedSellerId != null,
+                                onSelected: busy
+                                    ? null
+                                    : (value) =>
+                                        bloc.add(SelectSeller(sellerId: value)),
                               ),
-                            ),
-                          ],
-                          onChanged: busy
-                              ? null
-                              : (value) =>
-                                  bloc.add(SelectSeller(sellerId: value)),
+                              const SizedBox(width: 8),
+                              // Period chip — the picked value reaches the list
+                              // only with [조회].
+                              // ⚠️ No monthsWithData (= null) — claims have no
+                              // monthly count API, and '(데이터 없음)' would
+                              // falsely mark every month.
+                              AppFilterChip<String>(
+                                label: buildPeriodOptions()
+                                        .where(
+                                            (o) => o.value == s.selectedPeriod)
+                                        .firstOrNull
+                                        ?.label ??
+                                    s.selectedPeriod,
+                                value: s.selectedPeriod,
+                                options: [
+                                  for (final o in buildPeriodOptions())
+                                    AppFilterOption(o.value, o.label),
+                                ],
+                                highlighted: s.selectedPeriod != kRecentPeriod,
+                                onSelected: busy
+                                    ? null
+                                    : (value) =>
+                                        bloc.add(SelectPeriod(period: value)),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -200,51 +233,14 @@ class _LoadedBody extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  // 기간 드롭다운 — 고른 값은 [조회] 를 눌러야 목록에 반영된다.
-                  // ⚠️ monthsWithData 를 넘기지 않는다(= null) — 클레임엔 월별 건수 API 가 없어
-                  // '(데이터 없음)' 을 붙이면 전 달이 거짓으로 표시된다.
-                  DropdownButtonFormField<String>(
-                    value: s.selectedPeriod,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: '기간',
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    items: buildPeriodOptions()
-                        .map((o) => DropdownMenuItem<String>(
-                              value: o.value,
-                              child: Text(
-                                o.label,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ))
-                        .toList(),
-                    onChanged: busy
-                        ? null
-                        : (value) => bloc.add(SelectPeriod(period: value!)),
-                  ),
-                  const SizedBox(height: 8),
                   // 검색어는 **서버로** 보낸다 — [조회] 를 눌러야 반영된다.
-                  TextField(
+                  AppSearchField(
                     controller: searchController,
+                    hintText: '주문번호·접수번호·상품명 검색',
                     enabled: !busy,
                     onChanged: (value) =>
                         bloc.add(ChangeSearchTerm(term: value)),
                     onSubmitted: (_) => busy ? null : bloc.add(SearchClaims()),
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.search, size: 18),
-                      hintText: '주문번호·접수번호·상품명 검색',
-                      suffixIcon: s.searchTerm.isEmpty
-                          ? null
-                          : IconButton(
-                              icon: const Icon(Icons.clear, size: 18),
-                              onPressed: () {
-                                searchController.clear();
-                                bloc.add(ChangeSearchTerm(term: ''));
-                              },
-                            ),
-                    ),
                   ),
                   const SizedBox(height: 8),
                   // 동기화 — 진행은 이 자리의 한 줄이다(다이얼로그 금지).
@@ -337,7 +333,7 @@ class _LoadedBody extends StatelessWidget {
         else
           SliverList.separated(
             itemCount: claims.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (_, __) => const AppRowGap(),
             itemBuilder: (context, index) => ClaimCard(claim: claims[index]),
           ),
       ],

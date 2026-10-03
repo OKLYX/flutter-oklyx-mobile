@@ -15,6 +15,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_filter_chip.dart';
 
 /// 판매상품 조회 페이지 (목록 + 검색)
 ///
@@ -117,28 +118,19 @@ class _ProductListingSearchViewState extends State<_ProductListingSearchView> {
             SliverToBoxAdapter(
                 child: Row(
                 children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _selectedPlatform,
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: '플랫폼',
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      hint: const Text('선택하세요'),
-                      items: _platformLabels.entries
-                          .map((e) => DropdownMenuItem(
-                                value: e.key,
-                                child: Text(e.value),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        setState(() => _selectedPlatform = value);
-                      },
-                    ),
+                  AppFilterChip<String?>(
+                    label: _platformLabels[_selectedPlatform] ?? '플랫폼',
+                    value: _selectedPlatform,
+                    options: [
+                      for (final e in _platformLabels.entries)
+                        AppFilterOption(e.key, e.value),
+                    ],
+                    highlighted: _selectedPlatform != null,
+                    onSelected: (value) {
+                      setState(() => _selectedPlatform = value);
+                    },
                   ),
-                  const SizedBox(width: 8),
+                  const Spacer(),
                   // 프론트 ProductListingSearchCard와 동일: 로딩 중 비활성화 + '검색 중...'
                   BlocBuilder<ProductListingListBloc, ProductListingListState>(
                     builder: (context, state) {
@@ -213,8 +205,7 @@ class _ProductListingSearchViewState extends State<_ProductListingSearchView> {
                       return SliverList.separated(
                         itemCount:
                             state.listings.length + (state.isLoadingMore ? 1 : 0),
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(height: 8),
+                        separatorBuilder: (context, index) => const AppRowGap(),
                         itemBuilder: (context, index) {
                           if (index == state.listings.length) {
                             return const Padding(

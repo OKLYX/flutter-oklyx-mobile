@@ -19,7 +19,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 /// ```dart
 /// SliverList.separated(
 ///   itemCount: claims.length,
-///   separatorBuilder: (_, __) => const SizedBox(height: 8),
+///   separatorBuilder: (_, __) => const AppRowGap(),
 ///   itemBuilder: (context, index) => ClaimCard(claim: claims[index]),
 /// )
 /// ```

@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
-import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/order_item.dart';
 import '../../domain/entities/order_period.dart';
@@ -21,24 +20,32 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_filter_chip.dart';
 
-/// 주문관리 > 주문내역 페이지 (조회 + 동기화)
+/// 「주문관리 > 주문내역」 page (lookup + sync).
 ///
-/// **용도**: Coupang 등 외부 마켓플레이스에서 동기화된 주문 목록 조회 및 동기화.
-/// 프론트엔드 주문관리 > 주문내역(dashboard/orders)을 모바일로 이식.
+/// **Purpose**: lists and syncs the orders taken from external marketplaces
+/// such as Coupang. Port of the frontend 「주문관리 > 주문내역」
+/// (dashboard/orders).
 ///
-/// **기능(Frontend OrderContainer와 동일)**:
-/// - 판매자 필터 드롭다운 (기존 seller 기능 재사용)
-/// - 조회: GET /api/orders?sellerId=
-/// - 동기화: 대상 채널 조회 → 계정 단위 순차 호출. 진행 다이얼로그([SyncProgressDialog])로
-///   차단 표시하고, 끝나면 신규/수정/취소 건수 배너 + 채널 상태 배너를 표시
-/// - 상태 필터: 6개 상태 버튼(건수 배지) — 선택 상태만 표시, 재선택 시 전체
-/// - 채널(계정) 필터: 목록과 동기화 범위를 함께 좁힌다(PLAN 2609_15 D7)
-/// - 카드 항목(프론트 OrderTable과 동일): 주문번호 / 상품명 / 주문수량 / 취소 / 결제일
+/// **Features (same as the frontend OrderContainer)**:
+/// - Seller filter chip (reuses the seller feature)
+/// - Lookup: GET /api/orders?sellerId=
+/// - Sync: target channels → one call per account in turn, blocked behind
+///   the progress dialog ([SyncProgressDialog]); when done, a banner with the
+///   new / updated / cancelled counts + the channel status banner
+/// - Status filter: 6 status buttons (count badges) — only the picked status
+///   is shown, picking it again shows all
+/// - Channel (account) filter: narrows the list and the sync range together
+///   (PLAN 2609_15 D7)
+/// - Card items (same as the frontend OrderTable): order number / product
+///   name / quantity / cancel / paid date
 ///
-/// ⚠️ 이 화면은 **조회 전용**이다. 주문목록 다운로드·발송처리는 출고관리
-/// ([ShipmentManagementPage])로 옮겼다(PLAN 2609_15 D4) — 여기에 되돌려 놓지 말 것.
-/// 주문 상세의 단건 발송처리 섹션은 조회 맥락의 행동이라 그대로 남는다(D5).
+/// ⚠️ This page is **lookup only**. The order list download and the shipment
+/// confirm moved to 「출고관리」 ([ShipmentManagementPage]) (PLAN 2609_15 D4) —
+/// do not bring them back here.
+/// The single-order shipment section of the order detail stays, because it is
+/// an action in the lookup context (D5).
 class OrderHistoryPage extends StatelessWidget {
   const OrderHistoryPage({super.key});
 
@@ -213,7 +220,7 @@ class _LoadedBody extends StatelessWidget {
         target.accountId: target.accountAlias ?? '채널 #${target.accountId}',
       for (final id in extraIds) id: '채널 #$id',
     };
-    // 고른 계정이 옵션에서 사라지면 드롭다운이 assert 로 죽는다 — 그때는 전체로 되돌린다.
+    // When the picked account is no longer an option, fall back to all channels.
     final accountValue =
         accountOptions.containsKey(selectedAccountId) ? selectedAccountId : null;
     // 비활성 계정은 조회만 되고 동기화는 불가하다(서버 대상 목록에 없다).
@@ -235,6 +242,9 @@ class _LoadedBody extends StatelessWidget {
     final orders = s.selectedStatus == null
         ? chScoped
         : chScoped.where((o) => o.status == s.selectedStatus).toList();
+    // ⚠️ Build the period options here in build, not cached outside State —
+    // monthsWithData can arrive late and the labels would not update.
+    final periodOptions = buildPeriodOptions(monthsWithData: s.monthsWithData);
 
     return AppPageBody.slivers(
       slivers: [
@@ -249,33 +259,80 @@ class _LoadedBody extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: DropdownButtonFormField<int?>(
-                          value: s.selectedSellerId,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: '판매자',
-                            contentPadding: EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                          ),
-                          items: [
-                            const DropdownMenuItem<int?>(
-                              value: null,
-                              child: Text('전체'),
-                            ),
-                            ...s.sellers.map(
-                              (Seller seller) => DropdownMenuItem<int?>(
-                                value: seller.id,
-                                child: Text(
-                                  seller.sellerName,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              AppFilterChip<int?>(
+                                label: s.sellers
+                                        .where((seller) =>
+                                            seller.id == s.selectedSellerId)
+                                        .firstOrNull
+                                        ?.sellerName ??
+                                    '판매자',
+                                value: s.selectedSellerId,
+                                options: [
+                                  const AppFilterOption(null, '전체'),
+                                  for (final seller in s.sellers)
+                                    AppFilterOption(
+                                        seller.id, seller.sellerName),
+                                ],
+                                highlighted: s.selectedSellerId != null,
+                                onSelected: busy
+                                    ? null
+                                    : (value) =>
+                                        bloc.add(SelectSeller(sellerId: value)),
                               ),
-                            ),
-                          ],
-                          onChanged: busy
-                              ? null
-                              : (value) =>
-                                  bloc.add(SelectSeller(sellerId: value)),
+                              const SizedBox(width: 8),
+                              // Period chip — the picked value reaches the
+                              // list only with [조회] (PLAN D8).
+                              AppFilterChip<String>(
+                                label: periodOptions
+                                        .where(
+                                            (o) => o.value == s.selectedPeriod)
+                                        .firstOrNull
+                                        ?.label ??
+                                    s.selectedPeriod,
+                                value: s.selectedPeriod,
+                                options: [
+                                  for (final o in periodOptions)
+                                    AppFilterOption(o.value, o.label),
+                                ],
+                                highlighted: s.selectedPeriod != kRecentPeriod,
+                                onSelected: busy
+                                    ? null
+                                    : (value) =>
+                                        bloc.add(SelectPeriod(period: value)),
+                              ),
+                              const SizedBox(width: 8),
+                              // 채널(계정) 필터 — 목록·배지·건수·동기화 범위를 함께 좁힌다
+                              // (PLAN 2609_15 D7). 화면 로컬 state 라 BLoC 이벤트가 없다.
+                              AppFilterChip<int?>(
+                                label: accountValue == null
+                                    ? '채널'
+                                    : accountOptions[accountValue]!,
+                                value: accountValue,
+                                options: [
+                                  const AppFilterOption(null, '전체'),
+                                  for (final entry in accountOptions.entries)
+                                    AppFilterOption(entry.key, entry.value),
+                                ],
+                                highlighted: accountValue != null,
+                                onSelected: busy
+                                    ? null
+                                    : (value) {
+                                        onSelectAccount(value);
+                                        // 비활성 채널은 조회만 된다 — 동기화 버튼이 왜 꺼지는지 알린다.
+                                        if (value == null ||
+                                            syncableIds.contains(value)) {
+                                          return;
+                                        }
+                                        showNoticeToast(context,
+                                            '동기화할 수 없는 채널입니다(비활성).');
+                                      },
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -286,73 +343,10 @@ class _LoadedBody extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  // 기간 드롭다운 — 고른 값은 [조회] 를 눌러야 목록에 반영된다(PLAN D8).
-                  // ⚠️ items 는 State 밖에 캐시하지 말고 build 에서 만든다 —
-                  // monthsWithData 가 늦게 도착했을 때 라벨이 갱신되지 않는다.
-                  DropdownButtonFormField<String>(
-                    value: s.selectedPeriod,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: '기간',
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    items: buildPeriodOptions(monthsWithData: s.monthsWithData)
-                        .map((o) => DropdownMenuItem<String>(
-                              value: o.value,
-                              child: Text(
-                                o.label,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ))
-                        .toList(),
-                    onChanged: busy
-                        ? null
-                        : (value) => bloc.add(SelectPeriod(period: value!)),
-                  ),
-                  const SizedBox(height: 8),
-                  // 채널(계정) 필터 — 목록·배지·건수·동기화 범위를 함께 좁힌다
-                  // (PLAN 2609_15 D7). 화면 로컬 state 라 BLoC 이벤트가 없다.
-                  DropdownButtonFormField<int?>(
-                    value: accountValue,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: '채널',
-                      contentPadding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    items: [
-                      const DropdownMenuItem<int?>(
-                        value: null,
-                        child: Text('전체'),
-                      ),
-                      ...accountOptions.entries.map(
-                        (entry) => DropdownMenuItem<int?>(
-                          value: entry.key,
-                          child: Text(
-                            entry.value,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                    ],
-                    onChanged: busy
-                        ? null
-                        : (value) {
-                            onSelectAccount(value);
-                            // 비활성 채널은 조회만 된다 — 동기화 버튼이 왜 꺼지는지 알린다.
-                            if (value == null || syncableIds.contains(value)) {
-                              return;
-                            }
-                            showNoticeToast(context, '동기화할 수 없는 채널입니다(비활성).');
-                          },
-                  ),
-                  const SizedBox(height: 8),
                   // 검색 — 클라이언트 필터라 서버를 부르지 않는다(PLAN D9).
                   OrderSearchBar(
                     controller: searchController,
                     field: s.searchField,
-                    term: s.searchTerm,
                     onFieldChanged: (f) =>
                         bloc.add(ChangeSearchField(field: f)),
                     onTermChanged: (t) => bloc.add(ChangeSearchTerm(term: t)),
@@ -494,7 +488,7 @@ class _LoadedBody extends StatelessWidget {
         else
           SliverList.separated(
             itemCount: orders.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (_, __) => const AppRowGap(),
             itemBuilder: (context, index) => OrderCard(order: orders[index]),
           ),
       ],

@@ -15,6 +15,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_filter_chip.dart';
 
 /// 주문목록 확인(Shipping Label V2) 페이지.
 ///
@@ -171,28 +172,24 @@ class _LoadedBody extends StatelessWidget {
         children: [
           // 판매자 필터 — 변경 시 새 sellerId 로 재조회(LoadPreview 재dispatch).
           AppCard(
-              child: DropdownButtonFormField<int?>(
-                value: sellerId,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: '판매자',
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                AppFilterChip<int?>(
+                  label: sellers
+                          .where((s) => s.id == sellerId)
+                          .firstOrNull
+                          ?.sellerName ??
+                      '판매자',
+                  value: sellerId,
+                  options: [
+                    const AppFilterOption(null, '전체'),
+                    for (final s in sellers) AppFilterOption(s.id, s.sellerName),
+                  ],
+                  highlighted: sellerId != null,
+                  onSelected: (value) => bloc.add(LoadPreview(value, internal)),
                 ),
-                items: [
-                  const DropdownMenuItem<int?>(value: null, child: Text('전체')),
-                  ...sellers.map(
-                    (s) => DropdownMenuItem<int?>(
-                      value: s.id,
-                      child: Text(
-                        s.sellerName,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                ],
-                onChanged: (value) => bloc.add(LoadPreview(value, internal)),
-              ),
+              ],
+            ),
           ),
           const SizedBox(height: 8),
           if (internal && notAcceptedCount > 0) ...[
@@ -228,7 +225,7 @@ class _LoadedBody extends StatelessWidget {
               else
                 SliverList.separated(
                   itemCount: rows.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, __) => const AppRowGap(),
                   itemBuilder: (context, index) => _PreviewRowCard(
                     row: rows[index],
                     onChanged: (parcel) => bloc.add(
