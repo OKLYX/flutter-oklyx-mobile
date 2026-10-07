@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
 import 'package:flutter_oklyn_mobile/core/network/dio_client.dart';
+import 'package:flutter_oklyn_mobile/features/product/data/models/barcode_scan_result_model.dart';
 import 'package:flutter_oklyn_mobile/features/product/data/models/product_model.dart';
 import 'package:flutter_oklyn_mobile/features/product/data/models/product_page_model.dart';
 import 'package:flutter_oklyn_mobile/features/product/data/models/purchase_place_model.dart';
@@ -128,6 +129,49 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
       );
     } catch (e) {
       throw ServerException(e.toString());
+    }
+  }
+
+  @override
+  Future<BarcodeScanResultModel> scanBarcodeFromImage(File image) async {
+    try {
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(
+          image.path,
+          filename: image.path.split('/').last,
+        ),
+      });
+
+      final response = await dioClient.post(
+        '/api/admin/products/barcode-scan',
+        data: formData,
+        options: Options(contentType: 'multipart/form-data'),
+      );
+
+      final body = response.data;
+      if (response.statusCode != 200) {
+        // 4xx arrives here (validateStatus < 500). Keep only the server
+        // message so the page can fall back to its own text when empty.
+        final message = body is Map && body['message'] is String
+            ? body['message'] as String
+            : '';
+        throw ServerException(message, statusCode: response.statusCode);
+      }
+
+      final data = (body as Map<String, dynamic>)['data']
+          as Map<String, dynamic>;
+      return BarcodeScanResultModel.fromJson(data);
+    } on ServerException {
+      rethrow;
+    } on DioException catch (e) {
+      final body = e.response?.data;
+      final message = body is Map && body['message'] is String
+          ? body['message'] as String
+          : '';
+      throw ServerException(message, statusCode: e.response?.statusCode);
+    } on Object {
+      // Includes malformed payload (TypeError) so the page never hangs.
+      throw ServerException('');
     }
   }
 

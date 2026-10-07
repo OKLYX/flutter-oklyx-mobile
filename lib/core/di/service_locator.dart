@@ -20,6 +20,7 @@ import 'package:flutter_oklyn_mobile/features/product/data/datasources/product_r
 import 'package:flutter_oklyn_mobile/features/product/data/repositories/product_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/repositories/product_repository.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/check_barcode_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/usecases/scan_barcode_from_image_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/get_product_detail_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/get_products_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/register_product_usecase.dart';
@@ -300,6 +301,9 @@ void _registerProductServices() {
   getIt.registerSingleton<CheckBarcodeUseCase>(
     CheckBarcodeUseCase(getIt<ProductRepository>()),
   );
+  getIt.registerSingleton<ScanBarcodeFromImageUseCase>(
+    ScanBarcodeFromImageUseCase(getIt<ProductRepository>()),
+  );
   getIt.registerSingleton<UpdateProductUseCase>(
     UpdateProductUseCase(getIt<ProductRepository>()),
   );
@@ -344,6 +348,7 @@ void _registerProductServices() {
     () => ProductRegisterBloc(
       registerProductUseCase: getIt<RegisterProductUseCase>(),
       checkBarcodeUseCase: getIt<CheckBarcodeUseCase>(),
+      scanBarcodeFromImageUseCase: getIt<ScanBarcodeFromImageUseCase>(),
     ),
   );
 }

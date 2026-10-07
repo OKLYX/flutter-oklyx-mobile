@@ -1,9 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
@@ -46,6 +50,8 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
 
   bool _barcodeChecked = false;
   bool _barcodeAvailable = false;
+
+  final _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -92,6 +98,28 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
       return;
     }
     _bloc.add(CheckBarcodeRequested(barcode));
+  }
+
+  /// Picks a photo (camera or gallery) and sends it for barcode reading.
+  Future<void> _onScanBarcodeImage(ImageSource source) async {
+    try {
+      // Downscale large camera photos; barcodes stay readable at this size.
+      final xFile = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 90,
+      );
+      if (xFile == null || !mounted) {
+        return;
+      }
+      _bloc.add(ScanBarcodeFromImageRequested(File(xFile.path)));
+    } on Exception {
+      if (!mounted) {
+        return;
+      }
+      showErrorToast(context, '이미지를 불러오지 못했습니다.');
+    }
   }
 
   void _onReset() {
@@ -167,6 +195,9 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
                 current is BarcodeAvailable ||
                 current is BarcodeUnavailable ||
                 current is BarcodeCheckError ||
+                current is BarcodeScanSuccess ||
+                current is BarcodeScanNotFound ||
+                current is BarcodeScanError ||
                 current is ProductRegisterSuccess ||
                 current is ProductRegisterError,
             listener: (context, state) {
@@ -188,6 +219,21 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
                 });
                 showNoticeToast(context, state.message);
               } else if (state is BarcodeCheckError) {
+                showErrorToast(context, state.message);
+              } else if (state is BarcodeScanSuccess) {
+                // Replace the field and require a fresh duplicate check.
+                setState(() {
+                  _barcodeController.text = state.barcode;
+                  _barcodeChecked = false;
+                  _barcodeAvailable = false;
+                });
+                showSuccessToast(context, '바코드를 읽었습니다. 중복 확인을 해주세요.');
+              } else if (state is BarcodeScanNotFound) {
+                showNoticeToast(
+                  context,
+                  '바코드를 읽지 못했습니다. 바코드가 잘 보이는 사진으로 다시 시도해 주세요.',
+                );
+              } else if (state is BarcodeScanError) {
                 showErrorToast(context, state.message);
               }
             },
@@ -305,6 +351,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
 
   Widget _buildBarcodeField() {
     final isCheckingInProgress = _bloc.state is BarcodeCheckLoading;
+    final isScanning = _bloc.state is BarcodeScanLoading;
     final showResetButton = _barcodeChecked && _barcodeAvailable;
 
     return Row(
@@ -336,16 +383,60 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
           ),
         ),
         const SizedBox(width: 8),
+        _buildScanImageButton(
+          enabled: !showResetButton && !isCheckingInProgress && !isScanning,
+          isScanning: isScanning,
+        ),
+        const SizedBox(width: 8),
         SizedBox(
           height: 56,
           child: FilledButton(
-            onPressed: isCheckingInProgress ? null : (showResetButton ? _onReset : _onCheckBarcode),
+            onPressed: isCheckingInProgress || isScanning
+                ? null
+                : (showResetButton ? _onReset : _onCheckBarcode),
             child: Text(showResetButton ? '리셋' : '확인'),
           ),
         ),
       ],
     );
   }
+
+  /// "이미지로 스캔" — opens a camera / gallery menu, then uploads the photo.
+  /// Disabled while the barcode is locked by a passed duplicate check.
+  Widget _buildScanImageButton({
+    required bool enabled,
+    required bool isScanning,
+  }) =>
+      MenuAnchor(
+        menuChildren: [
+          MenuItemButton(
+            leadingIcon: const Icon(Icons.photo_camera_outlined),
+            onPressed: () => _onScanBarcodeImage(ImageSource.camera),
+            child: const Text('카메라로 촬영'),
+          ),
+          MenuItemButton(
+            leadingIcon: const Icon(Icons.photo_library_outlined),
+            onPressed: () => _onScanBarcodeImage(ImageSource.gallery),
+            child: const Text('앨범에서 선택'),
+          ),
+        ],
+        builder: (context, controller, _) => SizedBox(
+          height: 56,
+          child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+            ),
+            onPressed: enabled
+                ? () => controller.isOpen
+                    ? controller.close()
+                    : controller.open()
+                : null,
+            child: isScanning
+                ? const AppBusyLabel('이미지로 스캔')
+                : const Text('이미지로 스캔'),
+          ),
+        ),
+      );
 
   Widget _buildUnitDropdown() {
     return DropdownButtonFormField<Unit>(

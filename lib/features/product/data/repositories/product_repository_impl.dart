@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/entities/barcode_scan_result.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/product.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/product_page.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/purchase_place.dart';
@@ -70,6 +71,22 @@ class ProductRepositoryImpl implements ProductRepository {
     try {
       final isAvailable = await remoteDataSource.checkBarcodeAvailable(barcodeId);
       return Right(isAvailable);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message, statusCode: e.statusCode));
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(e.message));
+    } on Exception catch (e) {
+      return Left(UnknownFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, BarcodeScanResult>> scanBarcodeFromImage(
+    File image,
+  ) async {
+    try {
+      final result = await remoteDataSource.scanBarcodeFromImage(image);
+      return Right(result);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
     } on NetworkException catch (e) {
