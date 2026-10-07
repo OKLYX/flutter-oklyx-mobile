@@ -7,6 +7,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../bloc/reserved_shipment_bloc.dart';
 import '../bloc/reserved_shipment_event.dart';
 import '../bloc/reserved_shipment_state.dart';
+import '../widgets/reserved_filter_bar.dart';
 import '../widgets/reserved_shipment_row_tile.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
@@ -35,8 +36,17 @@ class ReservedShipmentPage extends StatelessWidget {
   }
 }
 
-class _ReservedShipmentView extends StatelessWidget {
+class _ReservedShipmentView extends StatefulWidget {
   const _ReservedShipmentView();
+
+  @override
+  State<_ReservedShipmentView> createState() => _ReservedShipmentViewState();
+}
+
+class _ReservedShipmentViewState extends State<_ReservedShipmentView> {
+  /// Chip choice (FEATURE_2610_07 / D1·D8). Page state only — a new visit
+  /// starts at [ReservedFilter.open]; reloads and row actions keep the chip.
+  ReservedFilter _filter = ReservedFilter.open;
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +87,11 @@ class _ReservedShipmentView extends StatelessWidget {
               .where((r) => r.result == 'SUCCEEDED' || r.result == 'EXTERNAL')
               .length;
           final failed = state.rows.where((r) => r.result == 'FAILED').length;
+          // The chip only narrows the cards; the summary line still counts
+          // every row (FEATURE_2610_07 / D3).
+          final shown = state.rows
+              .where((r) => matchesReservedFilter(r, _filter))
+              .toList();
           return RefreshIndicator(
             onRefresh: () async => context
                 .read<ReservedShipmentBloc>()
@@ -85,21 +100,45 @@ class _ReservedShipmentView extends StatelessWidget {
               slivers: [
                 if (state.rows.isEmpty)
                   const SliverToBoxAdapter(child: AppEmpty('예약 발송이 없습니다.'))
-                else
-                  SliverList.separated(
-                    itemCount: state.rows.length + 1,
-                    separatorBuilder: (_, __) => const AppRowGap(),
-                    itemBuilder: (context, index) => index == 0
-                        ? Text(
-                            '${state.rows.length}건 중 $completed건 완료, 실패 $failed건',
-                            style: const TextStyle(fontSize: 13),
-                          )
-                        : ReservedShipmentRowTile(
-                            row: state.rows[index - 1],
-                            state: state,
-                            showInvoiceEdit: true,
-                          ),
+                else ...[
+                  SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${state.rows.length}건 중 $completed건 완료, 실패 $failed건',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        const SizedBox(height: 8),
+                        ReservedFilterBar(
+                          rows: state.rows,
+                          selected: _filter,
+                          onSelect: (filter) =>
+                              setState(() => _filter = filter),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                    ),
                   ),
+                  if (shown.isEmpty)
+                    SliverToBoxAdapter(
+                      child: AppEmpty(
+                        _filter == ReservedFilter.open
+                            ? '처리할 예약 발송이 없습니다.'
+                            : '완료된 예약 발송이 없습니다.',
+                      ),
+                    )
+                  else
+                    SliverList.separated(
+                      itemCount: shown.length,
+                      separatorBuilder: (_, __) => const AppRowGap(),
+                      itemBuilder: (context, index) => ReservedShipmentRowTile(
+                        row: shown[index],
+                        state: state,
+                        showInvoiceEdit: true,
+                      ),
+                    ),
+                ],
               ],
             ),
           );

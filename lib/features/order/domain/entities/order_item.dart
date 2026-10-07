@@ -17,7 +17,11 @@ class OrderItem {
   final int holdCount;
   final int purchasableQty;
 
-  /// 플랫폼 중립 상태 — 화면·필터·전송 판정은 이 값만 본다(FEATURE_2609_26 D4).
+  /// Platform-neutral status (FEATURE_2609_26 D4). Screen, filter and send
+  /// decisions read this value, not [platformStatus] (see its note for the
+  /// one detail-page exception); internal-stage decisions — e.g. the shipment
+  /// page's 2nd-row chips under PAID — read [internalStage]
+  /// (FEATURE_2610_07 / D20).
   final OrderStatus status;
 
   /// 플랫폼 원문 상태(쿠팡 `ACCEPT` 등). 거울 행이 없으면 null.
@@ -28,8 +32,12 @@ class OrderItem {
   /// 앱에서 수량으로 다시 판정하지 말 것.
   final bool cancelled;
 
-  /// 내부 단계(FEATURE_2609_75 / D9) — 쿠팡 상태([status])와 별개다. null = 없음.
-  /// 칩·필터·발주처리 판정은 [status] 로만 한다.
+  /// Internal stage (FEATURE_2609_75 / D9) — separate from the Coupang
+  /// status ([status]). null = none.
+  /// The 1st-row status chips and the acknowledge-target decision read the
+  /// order status from [status] only; among on-screen chips and filters, only
+  /// the shipment page's 2nd-row chips under PAID read this value
+  /// (FEATURE_2610_07 / D20).
   final InternalStage? internalStage;
 
   final String? paidAt;
