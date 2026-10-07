@@ -5,13 +5,6 @@ import 'package:flutter_oklyn_mobile/features/category/data/models/category_mode
 abstract class CategoryRemoteDataSource {
   Future<List<CategoryModel>> getCategories();
 
-  Future<CategoryModel> createCategory({
-    required String name,
-    required String platform,
-    required String platformCategoryId,
-    int? parentId,
-  });
-
   Future<CategoryModel> getCategory(int id);
 
   Future<CategoryModel> updateCategory({
@@ -38,36 +31,6 @@ class CategoryRemoteDataSourceImpl implements CategoryRemoteDataSource {
       return data
           .map((item) => CategoryModel.fromJson(item as Map<String, dynamic>))
           .toList();
-    } on DioException catch (e) {
-      throw ServerException(e.message ?? 'Network error');
-    }
-  }
-
-  @override
-  Future<CategoryModel> createCategory({
-    required String name,
-    required String platform,
-    required String platformCategoryId,
-    int? parentId,
-  }) async {
-    try {
-      final response = await dio.post(
-        '/api/admin/category',
-        data: {
-          'name': name,
-          'platform': platform,
-          'platformCategoryId': platformCategoryId,
-          if (parentId != null) 'parentId': parentId,
-        },
-      );
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        final data = response.data['data'] as Map<String, dynamic>;
-        return CategoryModel.fromJson(data);
-      } else {
-        throw ServerException(
-          response.data['message'] ?? 'Failed to create category',
-        );
-      }
     } on DioException catch (e) {
       throw ServerException(e.message ?? 'Network error');
     }
