@@ -33,15 +33,6 @@ class _CategoryListPageState extends State<CategoryListPage> {
     super.dispose();
   }
 
-  void _onAddCategoryPressed() async {
-    final result = await context.pushNamed(Routes.categoryCreate);
-    if (result == true) {
-      if (mounted) {
-        context.read<CategoryListBloc>().add(FetchCategoriesRequested());
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return ScaffoldWithNavBar(
@@ -65,11 +56,6 @@ class _CategoryListPageState extends State<CategoryListPage> {
                             .add(SearchCategoriesRequested(query: value));
                       },
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton(
-                    onPressed: _onAddCategoryPressed,
-                    child: const Text('카테고리 추가'),
                   ),
                 ],
               ),

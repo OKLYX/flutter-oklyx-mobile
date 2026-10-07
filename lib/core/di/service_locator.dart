@@ -80,7 +80,6 @@ import 'package:flutter_oklyn_mobile/features/carrier/presentation/bloc/platform
 import 'package:flutter_oklyn_mobile/features/category/data/datasources/category_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/category/data/repositories/category_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/category/domain/repositories/category_repository.dart';
-import 'package:flutter_oklyn_mobile/features/category/domain/usecases/create_category_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/category/domain/usecases/delete_category_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/category/domain/usecases/get_categories_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/category/domain/usecases/get_category_usecase.dart';
@@ -88,7 +87,6 @@ import 'package:flutter_oklyn_mobile/features/category/domain/usecases/update_ca
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_event_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_bloc.dart';
-import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/create_category_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/commission_rate/data/datasources/commission_rate_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/commission_rate/data/datasources/impl/commission_rate_remote_datasource_impl.dart';
 import 'package:flutter_oklyn_mobile/features/commission_rate/data/repositories/commission_rate_repository_impl.dart';
@@ -725,10 +723,6 @@ void _registerCategoryServices() {
     DeleteCategoryUseCase(repository: getIt<CategoryRepository>()),
   );
 
-  getIt.registerSingleton<CreateCategoryUseCase>(
-    CreateCategoryUseCase(repository: getIt<CategoryRepository>()),
-  );
-
   getIt.registerSingleton<UpdateCategoryUseCase>(
     UpdateCategoryUseCase(repository: getIt<CategoryRepository>()),
   );
@@ -753,10 +747,6 @@ void _registerCategoryServices() {
       deleteCategoryUseCase: getIt<DeleteCategoryUseCase>(),
       categoryEventBloc: getIt<CategoryEventBloc>(),
     ),
-  );
-
-  getIt.registerFactory<CreateCategoryBloc>(
-    () => CreateCategoryBloc(createCategoryUseCase: getIt<CreateCategoryUseCase>()),
   );
 }
 
