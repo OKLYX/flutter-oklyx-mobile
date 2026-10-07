@@ -445,6 +445,13 @@ class _CellActionsState extends State<CellActions> {
       mode: mode,
       listingId: _listingId,
       channelLabel: widget.channelLabel,
+      // Upload mode only: prefill + reload after a display name save.
+      displayName: widget.cells
+              .where((c) => c.productListingId == _listingId)
+              .firstOrNull
+              ?.name ??
+          '',
+      onDisplayNameSaved: widget.onReload,
     );
     if (done) {
       widget.onReload();
