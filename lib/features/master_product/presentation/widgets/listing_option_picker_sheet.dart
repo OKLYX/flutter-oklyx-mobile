@@ -32,6 +32,11 @@ const String kUploadSuccessMessage =
 ///   saved when changed) → Coupang register. 🔴 This sheet IS the confirmation
 ///   for the market push (D29) — nothing is sent before [올리기].
 /// - [mode] `'select'`: [저장] → saves active options only (no Coupang call).
+/// - Upload mode only: a 노출상품명 field prefilled with [displayName] and its
+///   own [저장] — the same save as the listing detail panel
+///   (`updateDisplayName`, blank cannot be saved). It is separate from
+///   [올리기]; on success [onDisplayNameSaved] runs (the caller reloads, like
+///   the panel's `onSaved`).
 ///
 /// Returns `true` on success (web `onDone` — the caller reloads), `false` on
 /// cancel / dismiss (web `onClose`).
@@ -39,7 +44,8 @@ const String kUploadSuccessMessage =
 /// **Usage**:
 /// ```dart
 /// if (await showListingOptionPickerSheet(context,
-///     mode: 'upload', listingId: id, channelLabel: label)) {
+///     mode: 'upload', listingId: id, channelLabel: label,
+///     displayName: cell.name, onDisplayNameSaved: onReload)) {
 ///   onReload();
 /// }
 /// ```
@@ -47,11 +53,14 @@ const String kUploadSuccessMessage =
 /// ⚠️ Options on the market (`onMarket && active`) cannot be switched off.
 /// ⚠️ At least one option must be picked (the backend also answers 400).
 /// ❌ Prices are not edited here — [⋯ > 가격 설정] does that.
+/// ❌ Do not chain the name save into [올리기] — they are separate actions.
 Future<bool> showListingOptionPickerSheet(
   BuildContext context, {
   required String mode,
   required int listingId,
   required String channelLabel,
+  String displayName = '',
+  VoidCallback? onDisplayNameSaved,
 }) async {
   final result = await showAppSheet<bool>(
     context,
@@ -59,6 +68,8 @@ Future<bool> showListingOptionPickerSheet(
       mode: mode,
       listingId: listingId,
       channelLabel: channelLabel,
+      displayName: displayName,
+      onDisplayNameSaved: onDisplayNameSaved,
     ),
   );
   return result ?? false;
@@ -69,10 +80,18 @@ class _ListingOptionPickerSheet extends StatefulWidget {
   final int listingId;
   final String channelLabel;
 
+  /// Current display name (upload mode prefill).
+  final String displayName;
+
+  /// Runs after the display name is saved (upload mode).
+  final VoidCallback? onDisplayNameSaved;
+
   const _ListingOptionPickerSheet({
     required this.mode,
     required this.listingId,
     required this.channelLabel,
+    required this.displayName,
+    required this.onDisplayNameSaved,
   });
 
   @override
@@ -88,7 +107,13 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
   Set<int> _selected = {};
   bool _busy = false;
 
+  // Display name (upload mode)
+  final TextEditingController _nameController = TextEditingController();
+  bool _savingName = false;
+
   bool get _isUpload => widget.mode == 'upload';
+
+  String get _trimmedName => _nameController.text.trim();
 
   List<OptionPrice> get _prices => _gen?.optionPrices ?? const [];
 
@@ -109,12 +134,44 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
       _prices.any((p) => p.onMarket == true && p.active != false);
 
   bool get _canConfirm =>
-      _gen != null && !_busy && _selected.isNotEmpty && !_shippingBlocked;
+      _gen != null &&
+      !_busy &&
+      !_savingName &&
+      _selected.isNotEmpty &&
+      !_shippingBlocked;
 
   @override
   void initState() {
     super.initState();
+    _nameController.text = widget.displayName;
     unawaited(_load());
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  // Same save as the listing detail panel's display name (blank is not saved).
+  Future<void> _saveName() async {
+    if (_trimmedName.isEmpty) {
+      return;
+    }
+    setState(() => _savingName = true);
+    final res =
+        await _useCase.updateDisplayName(widget.listingId, _trimmedName);
+    if (!mounted) {
+      return;
+    }
+    setState(() => _savingName = false);
+    res.fold(
+      (_) => showErrorToast(context, '노출상품명 저장에 실패했습니다.'),
+      (_) {
+        showSuccessToast(context, '노출상품명을 저장했습니다.');
+        widget.onDisplayNameSaved?.call();
+      },
+    );
   }
 
   Future<void> _load() async {
@@ -209,7 +266,7 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
     final title =
         '${_isUpload ? '쿠팡에 올리기' : '올릴 옵션 고르기'} — ${widget.channelLabel}';
     return PopScope(
-      canPop: !_busy,
+      canPop: !_busy && !_savingName,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -232,6 +289,10 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
                   style: const TextStyle(fontSize: 14),
                 ),
                 const SizedBox(height: 12),
+                if (_isUpload) ...[
+                  _nameRow(context),
+                  const SizedBox(height: 12),
+                ],
                 ..._body(context),
                 if (_hasLocked) ...[
                   const SizedBox(height: 12),
@@ -267,8 +328,9 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 OutlinedButton(
-                  onPressed:
-                      _busy ? null : () => Navigator.of(context).pop(false),
+                  onPressed: _busy || _savingName
+                      ? null
+                      : () => Navigator.of(context).pop(false),
                   child: const Text('취소'),
                 ),
                 const SizedBox(width: 8),
@@ -283,6 +345,45 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
           ),
         ],
       ),
+    );
+  }
+
+  // Display name + its own [저장] (upload mode). Separate from [올리기].
+  Widget _nameRow(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '노출상품명',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: scheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _nameController,
+                enabled: !_savingName && !_busy,
+                onChanged: (_) => setState(() {}),
+              ),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton(
+              onPressed: _savingName || _busy || _trimmedName.isEmpty
+                  ? null
+                  : _saveName,
+              child: _savingName
+                  ? const AppBusyLabel('저장 중')
+                  : const Text('저장'),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
