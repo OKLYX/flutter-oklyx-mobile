@@ -5,13 +5,6 @@ import 'package:flutter_oklyn_mobile/features/category/domain/entities/category.
 abstract class CategoryRepository {
   Future<Either<Failure, List<Category>>> getCategories();
 
-  Future<Either<Failure, Category>> createCategory({
-    required String name,
-    required String platform,
-    required String platformCategoryId,
-    int? parentId,
-  });
-
   Future<Either<Failure, Category>> getCategory(int id);
 
   Future<Either<Failure, Category>> updateCategory({
