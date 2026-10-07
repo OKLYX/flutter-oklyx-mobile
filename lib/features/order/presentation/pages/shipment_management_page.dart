@@ -24,6 +24,7 @@ import '../bloc/order_refresh_state.dart';
 import '../widgets/order_card.dart';
 import '../widgets/order_search_bar.dart';
 import '../widgets/order_status_filter_bar.dart';
+import '../widgets/paid_stage_filter_bar.dart';
 import '../widgets/sync_progress_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
@@ -140,6 +141,10 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
   /// 채널(계정) 필터. null = 전체. BLoC 이 아니라 화면 로컬 state 다(D3).
   int? _selectedAccountId;
 
+  /// 2nd-row chip under PAID (FEATURE_2610_07 / D10·D18). Page state, not
+  /// [OrderListBloc] — the order history page uses the same bloc class.
+  PaidStage _paidStage = PaidStage.all;
+
   /// 발주처리로 선택한 order_item id. BLoC 이 아니라 화면 state 다(2609_15 D3 과 같은 판단).
   /// 목록이 바뀌면(필터·조회·동기화) 선택은 무효라 초기화한다.
   final Set<int> _selectedIds = {};
@@ -233,6 +238,13 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
                   onSelectAccount: (accountId) => setState(() {
                     _selectedAccountId = accountId;
                     // 채널이 바뀌면 목록이 바뀐다 — 화면 밖 건이 전송되지 않게 선택을 버린다.
+                    _selectedIds.clear();
+                  }),
+                  paidStage: _paidStage,
+                  onSelectPaidStage: (stage) => setState(() {
+                    _paidStage = stage;
+                    // The list changes — drop the selection so off-screen
+                    // orders are not sent (FEATURE_2610_07 / D15).
                     _selectedIds.clear();
                   }),
                   selectedIds: _selectedIds,
@@ -502,6 +514,11 @@ class _LoadedBody extends StatelessWidget {
   final int? selectedAccountId;
   final void Function(int? accountId) onSelectAccount;
 
+  /// 2nd-row chip value and its setter — both are parent state
+  /// (FEATURE_2610_07 / D18).
+  final PaidStage paidStage;
+  final void Function(PaidStage stage) onSelectPaidStage;
+
   /// 발주처리 선택 — 값·콜백 모두 부모 state 다(`_LoadedBody` 를 Stateful 로 승격하지 말 것:
   /// 선택을 초기화해야 하는 채널 필터 콜백이 부모에 있다).
   final Set<int> selectedIds;
@@ -535,6 +552,8 @@ class _LoadedBody extends StatelessWidget {
     required this.searchController,
     required this.selectedAccountId,
     required this.onSelectAccount,
+    required this.paidStage,
+    required this.onSelectPaidStage,
     required this.selectedIds,
     required this.onToggleSelect,
     required this.onClearSelection,
@@ -560,9 +579,11 @@ class _LoadedBody extends StatelessWidget {
         ? selectedAccountId
         : null;
 
-    // s.filteredOrders 는 전 상태 기준이다. 출고관리 범위를 먼저 좁히고, 배지도 이 목록으로 센다
-    // — s.statusCounts 를 쓰면 취소·배송 건까지 세어 목록과 배지가 어긋난다.
-    // 순서는 주문내역과 같다: 채널 → 검색 → 상태. 배지 건수도 검색 결과를 센다.
+    // s.filteredOrders is not shipment-scoped. Narrow to the shipment scope
+    // first and count the chips from this list — s.statusCounts would also
+    // count cancelled and shipped orders, and the chips would drift from it.
+    // Order: channel → search → status → paid stage (FEATURE_2610_07 / D16).
+    // Chip counts also count the search result.
     final scoped = s.orders
         .where((o) => kShipmentStatuses.contains(o.status))
         .where((o) => !o.cancelled) // 전량취소는 발송 대상 아님 (서버 판정, D26)
@@ -574,9 +595,18 @@ class _LoadedBody extends StatelessWidget {
       for (final status in kShipmentStatuses)
         status: scoped.where((o) => o.status == status).length,
     };
+    // 2nd-row chip counts: the same list as the 1st-row counts, narrowed to
+    // PAID (FEATURE_2610_07 / D13).
+    final paidScoped =
+        scoped.where((o) => o.status == OrderStatus.paid).toList();
     final visible = s.selectedStatus == null
         ? scoped
-        : scoped.where((o) => o.status == s.selectedStatus).toList();
+        : scoped
+            .where((o) => o.status == s.selectedStatus)
+            .where((o) =>
+                s.selectedStatus != OrderStatus.paid ||
+                matchesPaidStage(o, paidStage))
+            .toList();
     // 선택 중 실제로 발주처리되는 라인 id. 상태 탭은 선택을 비우지 않으므로 `visible` 이 아니라
     // 채널 필터까지만 적용한 `scoped` 에서 찾는다 — 탭에 가려진 선택도 세어야 한다.
     final ackTargetIds = scoped
@@ -866,10 +896,21 @@ class _LoadedBody extends StatelessWidget {
             counts: counts,
             onSelect: (status) {
               onClearSelection();
+              // Every 1st-row tap puts the 2nd row back to 'all'
+              // (FEATURE_2610_07 / D14).
+              onSelectPaidStage(PaidStage.all);
               bloc.add(SelectStatus(status: status));
             },
             statuses: kShipmentStatuses,
           ),
+          if (s.selectedStatus == OrderStatus.paid) ...[
+            const SizedBox(height: 8),
+            PaidStageFilterBar(
+              orders: paidScoped,
+              selected: paidStage,
+              onSelect: onSelectPaidStage,
+            ),
+          ],
           const SizedBox(height: 8),
 
           // ⚠️ BlocBuilder wraps only this group — wrapping the Column or
