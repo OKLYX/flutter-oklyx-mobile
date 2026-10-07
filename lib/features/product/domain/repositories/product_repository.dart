@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
+import '../entities/barcode_scan_result.dart';
 import '../entities/product.dart';
 import '../entities/product_page.dart';
 import '../entities/purchase_place.dart';
@@ -19,6 +20,9 @@ abstract class ProductRepository {
   Future<Either<Failure, Product>> registerProduct(dynamic params);
 
   Future<Either<Failure, bool>> checkBarcodeAvailable(String barcodeId);
+
+  /// Reads a barcode from [image]; the server never stores the image.
+  Future<Either<Failure, BarcodeScanResult>> scanBarcodeFromImage(File image);
 
   Future<Either<Failure, void>> uploadProductImage(int productId, File imageFile);
 
