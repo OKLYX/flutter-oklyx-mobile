@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:equatable/equatable.dart';
 
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/unit.dart';
@@ -62,4 +64,14 @@ class CheckBarcodeRequested extends ProductRegisterEvent {
 
   @override
   List<Object?> get props => [barcodeId];
+}
+
+/// Upload [image] so the server reads its barcode (image is not stored).
+class ScanBarcodeFromImageRequested extends ProductRegisterEvent {
+  final File image;
+
+  const ScanBarcodeFromImageRequested(this.image);
+
+  @override
+  List<Object?> get props => [image.path];
 }
