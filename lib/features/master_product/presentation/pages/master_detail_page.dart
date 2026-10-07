@@ -640,11 +640,17 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
       return;
     }
     setState(() => _rowBusyId = null);
+    final addedCell = (_matrix?.rows ?? const <MatrixRow>[])
+        .expand(_rowCellsOf)
+        .where((c) => c.productListingId == added.productListingId)
+        .firstOrNull;
     final done = await showListingOptionPickerSheet(
       context,
       mode: 'upload',
       listingId: added.productListingId,
       channelLabel: channelLabel,
+      displayName: addedCell?.name ?? '',
+      onDisplayNameSaved: () => unawaited(_load()),
     );
     if (!mounted) {
       return;
