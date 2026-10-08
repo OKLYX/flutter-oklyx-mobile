@@ -139,6 +139,11 @@ class ZoomableImageViewer extends StatelessWidget {
 /// )
 /// ```
 ///
+/// **Usage — small list thumbnail** (shrink the magnifier with [iconSize]):
+/// ```dart
+/// ImageWithZoomButton(image: MemoryImage(bytes), iconSize: 14, child: thumb)
+/// ```
+///
 /// ⚠️ [child] is the displayed thumbnail; [image] is the source opened in the
 /// full-screen viewer. They normally come from the same bytes/URL.
 /// ❌ Do not place this inside another `GestureDetector` whose `onTap` conflicts
@@ -154,11 +159,17 @@ class ImageWithZoomButton extends StatelessWidget {
   /// viewer. Defaults to true.
   final bool tapImageToZoom;
 
+  /// Magnifier icon size. Defaults to 20 (detail pages); use ~14 on small
+  /// list thumbnails so the button does not cover the image. Padding and
+  /// corner inset scale with it.
+  final double iconSize;
+
   const ImageWithZoomButton({
     super.key,
     required this.image,
     required this.child,
     this.tapImageToZoom = true,
+    this.iconSize = 20,
   });
 
   @override
@@ -172,8 +183,8 @@ class ImageWithZoomButton extends StatelessWidget {
         else
           child,
         Positioned(
-          bottom: 4,
-          right: 4,
+          bottom: iconSize * 0.2,
+          right: iconSize * 0.2,
           child: GestureDetector(
             onTap: open,
             child: Container(
@@ -181,11 +192,11 @@ class ImageWithZoomButton extends StatelessWidget {
                 color: AppColors.overlayScrim.withValues(alpha: 0.5),
                 shape: BoxShape.circle,
               ),
-              padding: const EdgeInsets.all(6),
-              child: const Icon(
+              padding: EdgeInsets.all(iconSize * 0.3),
+              child: Icon(
                 Icons.zoom_in,
                 color: AppColors.onOverlayScrim,
-                size: 20,
+                size: iconSize,
               ),
             ),
           ),
