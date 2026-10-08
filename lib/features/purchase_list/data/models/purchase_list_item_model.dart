@@ -9,9 +9,11 @@ class PurchaseListItemModel extends PurchaseListItem {
     required int purchasedQty,
     required int remainingQty,
     required List<PurchaseLineModel> lines,
+    String? brand,
   }) : super(
           productId: productId,
           productName: productName,
+          brand: brand,
           neededQty: neededQty,
           purchasedQty: purchasedQty,
           remainingQty: remainingQty,
@@ -23,6 +25,7 @@ class PurchaseListItemModel extends PurchaseListItem {
     return PurchaseListItemModel(
       productId: json['productId'] as int,
       productName: json['productName'] as String,
+      brand: json['brand'] as String?,
       neededQty: json['neededQty'] as int,
       purchasedQty: json['purchasedQty'] as int,
       remainingQty: json['remainingQty'] as int,
