@@ -13,10 +13,25 @@ import '../../domain/entities/purchase_line.dart';
 /// 수동          —             필요 2
 /// ```
 /// 채널 라벨은 `channelLabel(line)` 하나만 쓴다 — ❌ 라벨표 사본 금지.
+///
+/// 예외: 수동 줄(`isManual`, manualQty > 0)은 [onRemove] 가 있으면 끝에 [제거] 를 단다.
+/// 수동 수량을 0 으로 되돌릴 뿐 구매수량 입력이 아니다. 다시 수동 추가하면 되므로
+/// 확인창 없이 바로 실행한다(mobile D23 — 확인창은 마켓 반영·되돌릴 수 없는 지우기만).
 class PurchaseLineTile extends StatelessWidget {
   final PurchaseLine line;
 
-  const PurchaseLineTile({required this.line, super.key});
+  /// Removes this manual line (manualQty → 0). Null hides the button.
+  final VoidCallback? onRemove;
+
+  /// Disables [제거] while another action is running.
+  final bool busy;
+
+  const PurchaseLineTile({
+    required this.line,
+    this.onRemove,
+    this.busy = false,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -56,6 +71,20 @@ class PurchaseLineTile extends StatelessWidget {
             '필요 ${line.neededQty}',
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
           ),
+          if (onRemove != null && line.isManual && line.manualQty > 0) ...[
+            const SizedBox(width: 4),
+            TextButton(
+              onPressed: busy ? null : onRemove,
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+                minimumSize: const Size(0, 28),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
+              child: const Text('제거', style: TextStyle(fontSize: 12)),
+            ),
+          ],
         ],
       ),
     );
