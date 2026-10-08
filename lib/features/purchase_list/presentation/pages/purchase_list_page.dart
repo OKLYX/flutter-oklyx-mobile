@@ -290,6 +290,8 @@ class _ActiveTabBody extends StatelessWidget {
                         unitPrice: unitPrice,
                         reflectToBasePrice: reflectToBasePrice,
                       )),
+                      onRemoveManualLine: (itemId) =>
+                          bloc.add(AdjustManualQty(itemId: itemId, manualQty: 0)),
                     );
                   },
                 ),
@@ -383,6 +385,8 @@ class _CompletedTabBody extends StatelessWidget {
             unitPrice: unitPrice,
             reflectToBasePrice: reflectToBasePrice,
           )),
+          onRemoveManualLine: (itemId) =>
+              bloc.add(AdjustManualQty(itemId: itemId, manualQty: 0)),
         );
       },
     );
