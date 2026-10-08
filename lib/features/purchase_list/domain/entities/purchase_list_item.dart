@@ -4,6 +4,9 @@ import 'purchase_line.dart';
 class PurchaseListItem {
   final int productId;
   final String productName;
+
+  /// Product brand; null when the product has none (or an older server).
+  final String? brand;
   final int neededQty;
   final int purchasedQty;
   final int remainingQty;
@@ -16,5 +19,6 @@ class PurchaseListItem {
     required this.purchasedQty,
     required this.remainingQty,
     required this.lines,
+    this.brand,
   });
 }

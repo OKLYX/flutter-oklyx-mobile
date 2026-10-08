@@ -11,8 +11,9 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 
 /// 구매목록 상품(물품) 카드 (펼침 가능).
 ///
-/// 접힘: 썸네일 + 상품명 + 필요/구매/잔여. 🔴 세 숫자는 **전체 기준**이다 —
-/// 판매자로 쪼개지 않는다(PLAN 2609_29 D6).
+/// 접힘: 썸네일 + 상품명 + 브랜드 / 필요 수량 / 매입 완료 수량(한 줄에 하나)
+/// + 오른쪽 아래 강조된 매입 필요 수량.
+/// 🔴 세 숫자는 **전체 기준**이다 — 판매자로 쪼개지 않는다(PLAN 2609_29 D6).
 ///
 /// 펼침([expanded]) 내용물은 **구매목록 탭과 완료 탭이 동일하다**(D21):
 /// ① 입고 카드(`PurchaseIntakeCard`) ② 최근 구매이력(카드 안) ③ 채널 칩 + 주문 줄.
@@ -74,48 +75,75 @@ class _PurchaseProductCardState extends State<PurchaseProductCard> {
             onTap: widget.onToggle,
             child: Padding(
               padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  ProductThumbnail(productId: item.productId),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.productName,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
+              // IntrinsicHeight + stretch lets the right column span the row so
+              // the emphasised remaining quantity sits at the bottom-right.
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Align keeps the fixed-size thumbnail from being
+                    // stretched to the row height.
+                    Align(
+                      alignment: Alignment.topCenter,
+                      child: ProductThumbnail(
+                        productId: item.productId,
+                        size: 104,
+                        zoomable: true,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.productName,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Wrap(
-                          spacing: 12,
-                          children: [
-                            _metric(
-                              '필요',
-                              item.neededQty,
-                              Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                            _metric(
-                              '구매',
-                              item.purchasedQty,
-                              Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                            _metric(
-                                '잔여',
-                                item.remainingQty,
-                                item.remainingQty > 0
-                                    ? AppColors.warningForeground
-                                    : AppColors.successForeground),
-                          ],
-                        ),
+                          const SizedBox(height: 6),
+                          // One metric per line: full-word labels read
+                          // unambiguously on a narrow screen.
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _labelLine(
+                                '브랜드',
+                                (item.brand?.trim().isNotEmpty ?? false)
+                                    ? item.brand!.trim()
+                                    : '-',
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                              _metric(
+                                '필요 수량',
+                                item.neededQty,
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                              _metric(
+                                '매입 완료 수량',
+                                item.purchasedQty,
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Icon(widget.expanded
+                            ? Icons.expand_less
+                            : Icons.expand_more),
+                        _remaining(context, item.remainingQty),
                       ],
                     ),
-                  ),
-                  Icon(widget.expanded ? Icons.expand_less : Icons.expand_more),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -151,8 +179,7 @@ class _PurchaseProductCardState extends State<PurchaseProductCard> {
                   ..._visibleLines().map((line) => PurchaseLineTile(
                         line: line,
                         busy: widget.busy,
-                        onRemove: () =>
-                            widget.onRemoveManualLine(line.itemId),
+                        onRemove: () => widget.onRemoveManualLine(line.itemId),
                       )),
                 ],
               ),
@@ -212,9 +239,47 @@ class _PurchaseProductCardState extends State<PurchaseProductCard> {
     return filtered.isEmpty ? lines : filtered;
   }
 
-  Widget _metric(String label, int value, Color? color) => Text(
-        '$label $value',
-        style:
-            TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w500),
+  /// The number the user acts on — emphasised at the card's bottom-right.
+  /// Amber while something is left to buy, green once covered.
+  Widget _remaining(BuildContext context, int value) => Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '매입 필요 수량',
+            style: TextStyle(
+              fontSize: 11,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          Text(
+            '$value',
+            style: TextStyle(
+              fontSize: 24,
+              height: 1.1,
+              fontWeight: FontWeight.bold,
+              color: value > 0
+                  ? AppColors.warningForeground
+                  : AppColors.successForeground,
+            ),
+          ),
+        ],
+      );
+
+  Widget _metric(String label, int value, Color? color) =>
+      _labelLine(label, '$value', color);
+
+  Widget _labelLine(String label, String value, Color? color) => Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: Text(
+          '$label : $value',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 13,
+            color: color,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       );
 }
