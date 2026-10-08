@@ -39,6 +39,9 @@ class PurchaseProductCard extends StatefulWidget {
     required bool reflectToBasePrice,
   }) onRecordPurchase;
 
+  /// Removes a manual line of this product (manualQty → 0).
+  final void Function(int itemId) onRemoveManualLine;
+
   const PurchaseProductCard({
     required this.item,
     required this.expanded,
@@ -46,6 +49,7 @@ class PurchaseProductCard extends StatefulWidget {
     required this.sellers,
     required this.onToggle,
     required this.onRecordPurchase,
+    required this.onRemoveManualLine,
     super.key,
   });
 
@@ -144,7 +148,12 @@ class _PurchaseProductCardState extends State<PurchaseProductCard> {
                     ),
                   ),
                   _channelChips(),
-                  ..._visibleLines().map((line) => PurchaseLineTile(line: line)),
+                  ..._visibleLines().map((line) => PurchaseLineTile(
+                        line: line,
+                        busy: widget.busy,
+                        onRemove: () =>
+                            widget.onRemoveManualLine(line.itemId),
+                      )),
                 ],
               ),
             ),
