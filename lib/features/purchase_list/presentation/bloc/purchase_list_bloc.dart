@@ -50,8 +50,6 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
     on<LoadPurchaseList>(_onLoad);
     on<SyncOrders>(_onSync);
     on<SwitchTab>(_onSwitchTab);
-    on<ToggleExpand>(_onToggleExpand);
-    on<ToggleExpandCompleted>(_onToggleExpandCompleted);
     on<ApplyCompletedFilter>(_onApplyCompletedFilter);
     on<ResetCompletedFilter>(_onResetCompletedFilter);
     on<RecordPurchase>(_onRecordPurchase);
@@ -125,7 +123,6 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
             syncResult: sync,
             items: res.items,
             unmappedOrders: res.unmappedOrders,
-            clearExpanded: true,
             clearCompleted: true,
           )),
         );
@@ -186,13 +183,11 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
     PurchaseListLoaded base,
     String from,
     String to,
-    Emitter<PurchaseListState> emit, {
-    bool keepExpanded = false,
-  }) async {
+    Emitter<PurchaseListState> emit,
+  ) async {
     emit(base.copyWith(
       completedFrom: from,
       completedTo: to,
-      clearExpandedCompleted: !keepExpanded,
       isLoadingCompleted: true,
       clearActionError: true,
     ));
@@ -213,31 +208,6 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
         completedItems: items,
       )),
     );
-  }
-
-  void _onToggleExpand(ToggleExpand event, Emitter<PurchaseListState> emit) {
-    final current = state;
-    if (current is! PurchaseListLoaded) return;
-
-    final isOpen = current.expandedProductId == event.productId;
-    emit(current.copyWith(
-      expandedProductId: isOpen ? null : event.productId,
-      clearExpanded: isOpen,
-    ));
-  }
-
-  void _onToggleExpandCompleted(
-    ToggleExpandCompleted event,
-    Emitter<PurchaseListState> emit,
-  ) {
-    final current = state;
-    if (current is! PurchaseListLoaded) return;
-
-    final isOpen = current.expandedCompletedProductId == event.productId;
-    emit(current.copyWith(
-      expandedCompletedProductId: isOpen ? null : event.productId,
-      clearExpandedCompleted: isOpen,
-    ));
   }
 
   /// 입고 1회 → 성공하면 현재 탭의 목록을 재조회하고 stockRecorded 안내를 싣는다.
@@ -350,7 +320,6 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
         current.completedFrom,
         current.completedTo,
         emit,
-        keepExpanded: true,
       );
       return;
     }

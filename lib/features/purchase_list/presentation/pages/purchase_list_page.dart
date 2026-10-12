@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+
+import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
@@ -7,6 +10,7 @@ import '../bloc/purchase_list_bloc.dart';
 import '../bloc/purchase_list_event.dart';
 import '../bloc/purchase_list_state.dart';
 import '../widgets/add_manual_item_dialog.dart';
+import 'purchase_product_detail_page.dart';
 import '../widgets/completed_purchase_filter.dart';
 import '../widgets/purchase_product_card.dart';
 import '../widgets/unmapped_orders_section.dart';
@@ -24,7 +28,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 ///   🔴 판매자 드롭다운·[재적재] 는 없다(PLAN 2609_29 D11·D12)
 /// - 탭: 구매목록 / 구매완료내역(지연 로드, 기간 필터만)
 /// - 미매핑주문 섹션 (옵션 미등록 주문 안내)
-/// - 상품 카드 펼침 → 입고 카드 + 최근 구매이력 + 채널 칩 + 주문 줄 (두 탭 동일, D21)
+/// - 상품 카드 → 누르면 상세 페이지(입고 기록 + 최근 구매이력 + 채널 칩 + 주문 줄, 두 탭 동일, D21)
 /// - 수동항목 추가 (상품 검색·선택 + 수량)
 class PurchaseListPage extends StatelessWidget {
   const PurchaseListPage({super.key});
@@ -267,31 +271,7 @@ class _ActiveTabBody extends StatelessWidget {
                     return PurchaseProductCard(
                       key: ValueKey(item.productId),
                       item: item,
-                      sellers: state.sellers,
-                      expanded: item.productId == state.expandedProductId,
-                      busy: busy,
-                      onToggle: () =>
-                          bloc.add(ToggleExpand(productId: item.productId)),
-                      onRecordPurchase: ({
-                        required int productId,
-                        required int sellerId,
-                        required String purchasedOn,
-                        required int quantity,
-                        double? totalAmount,
-                        double? unitPrice,
-                        required bool reflectToBasePrice,
-                      }) =>
-                          bloc.add(RecordPurchase(
-                        productId: productId,
-                        sellerId: sellerId,
-                        purchasedOn: purchasedOn,
-                        quantity: quantity,
-                        totalAmount: totalAmount,
-                        unitPrice: unitPrice,
-                        reflectToBasePrice: reflectToBasePrice,
-                      )),
-                      onRemoveManualLine: (itemId) =>
-                          bloc.add(AdjustManualQty(itemId: itemId, manualQty: 0)),
+                      onTap: () => _openDetail(context, bloc, item.productId),
                     );
                   },
                 ),
@@ -362,33 +342,18 @@ class _CompletedTabBody extends StatelessWidget {
         return PurchaseProductCard(
           key: ValueKey(item.productId),
           item: item,
-          sellers: state.sellers,
-          expanded: item.productId == state.expandedCompletedProductId,
-          busy: busy,
-          onToggle: () =>
-              bloc.add(ToggleExpandCompleted(productId: item.productId)),
-          onRecordPurchase: ({
-            required int productId,
-            required int sellerId,
-            required String purchasedOn,
-            required int quantity,
-            double? totalAmount,
-            double? unitPrice,
-            required bool reflectToBasePrice,
-          }) =>
-              bloc.add(RecordPurchase(
-            productId: productId,
-            sellerId: sellerId,
-            purchasedOn: purchasedOn,
-            quantity: quantity,
-            totalAmount: totalAmount,
-            unitPrice: unitPrice,
-            reflectToBasePrice: reflectToBasePrice,
-          )),
-          onRemoveManualLine: (itemId) =>
-              bloc.add(AdjustManualQty(itemId: itemId, manualQty: 0)),
+          onTap: () => _openDetail(context, bloc, item.productId),
         );
       },
     );
   }
+}
+
+/// Opens the product detail on top of the list, sharing the list's bloc so
+/// intake/removal there refreshes the list underneath.
+void _openDetail(BuildContext context, PurchaseListBloc bloc, int productId) {
+  context.push(
+    Routes.purchaseProductDetailPath,
+    extra: PurchaseProductDetailArgs(bloc: bloc, productId: productId),
+  );
 }
