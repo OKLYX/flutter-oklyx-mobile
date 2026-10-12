@@ -15,6 +15,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/mas
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/category_meta_validation.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/master_image_fields.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/platform_category_block.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_route_args.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_tool_args.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
@@ -197,6 +198,11 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
   List<MasterBox> _packages = [];
   List<MasterOption> _options = [];
   MasterCategory? _category;
+  // FEATURE_2610_11: mapping rows of the standard category (account-row
+  // block, D19). null = no category / not loaded / failed → never blocks.
+  List<CategoryMapping>? _categoryMappings;
+  // Guards against stale mapping responses.
+  int _mappingRequest = 0;
   // Guards against stale category-meta responses.
   int _metaRequest = 0;
   Map<String, String> _masterAttrValues = {};
@@ -291,6 +297,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
       _isLoading = false;
     });
     _setCategory(category);
+    unawaited(_loadCategoryMappings());
     // Fire-and-forget: the list draws now, these fill in after.
     unawaited(_fetchGenerated(matrix));
     unawaited(_fetchPlaces(matrix));
@@ -447,6 +454,43 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
     }
   }
 
+  /// FEATURE_2610_11: mapping rows of the current standard category.
+  Future<void> _loadCategoryMappings() async {
+    final request = ++_mappingRequest;
+    final category = _category;
+    if (category == null) {
+      setState(() => _categoryMappings = null);
+      return;
+    }
+    final result = await _useCase.getCategoryMappings(category.categoryId);
+    if (!mounted || request != _mappingRequest) {
+      return;
+    }
+    setState(() => _categoryMappings = result.fold((_) => null, (m) => m));
+  }
+
+  /// FEATURE_2610_11: re-read the channel rows only (cell `categoryCode` =
+  /// the unsent-row block, D19). 🔴 Not [_load] — no whole-detail reload.
+  Future<void> _reloadMatrixRows() async {
+    final result = await _useCase.getMatrix(_id);
+    if (!mounted) {
+      return;
+    }
+    final matrix = result.fold((_) => null, (m) => m);
+    if (matrix == null) {
+      return;
+    }
+    setState(() => _matrix = matrix);
+  }
+
+  /// The category panel assigned or cleared the category → the mappings and
+  /// the channel rows follow (both feed the category block).
+  void _handleCategoryChanged(MasterCategory? category) {
+    _setCategory(category);
+    unawaited(_loadCategoryMappings());
+    unawaited(_reloadMatrixRows());
+  }
+
   // A panel saved its own fields: take the response and patch the header
   // name in place. ⚠️ Never reload the matrix here.
   void _handlePanelSaved(MasterProduct patched) {
@@ -481,14 +525,37 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
 
   bool _isShippingBlocked(int accountId) => _placesUnset[accountId] == true;
 
+  // FEATURE_2610_11 / D19 · D25: no mapping row for that platform → its
+  // upload buttons are hidden. Coupang · 11st only, and only with a standard
+  // category (D18 (f)); unknown mappings never block.
+  bool _isCategoryBlocked(String platform) {
+    final mappings = _categoryMappings;
+    return kCategoryBlockPlatforms.contains(platform) &&
+        _category != null &&
+        mappings != null &&
+        !mappings.any((m) => m.platform == platform);
+  }
+
+  bool _isRowBlocked(int accountId) {
+    if (_isShippingBlocked(accountId)) {
+      return true;
+    }
+    for (final r in _unregisteredRows) {
+      if (r.accountId == accountId) {
+        return _isCategoryBlocked(r.platform);
+      }
+    }
+    return false;
+  }
+
   List<MatrixRow> get _unregisteredRows =>
       _matrix?.rows.where((r) => !r.registered).toList() ?? const [];
 
   List<MatrixRow> get _selectableRows =>
-      _unregisteredRows.where((r) => !_isShippingBlocked(r.accountId)).toList();
+      _unregisteredRows.where((r) => !_isRowBlocked(r.accountId)).toList();
 
   List<int> get _effectiveSelected =>
-      _selected.where((id) => !_isShippingBlocked(id)).toList();
+      _selected.where((id) => !_isRowBlocked(id)).toList();
 
   bool get _allSelected =>
       _selectableRows.isNotEmpty &&
@@ -534,7 +601,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
   Future<void> _handleBatchAdd() async {
     final targets = _unregisteredRows
         .where((r) =>
-            _selected.contains(r.accountId) && !_isShippingBlocked(r.accountId))
+            _selected.contains(r.accountId) && !_isRowBlocked(r.accountId))
         .map((r) => ChannelTarget(sellerId: r.sellerId, platform: r.platform))
         .toList();
     if (targets.isEmpty) {
@@ -1390,6 +1457,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
     final actionCount =
         rowCells.fold<int>(0, (sum, c) => sum + cellActionCount(c));
     final blocked = _isShippingBlocked(row.accountId);
+    final categoryBlocked = _isCategoryBlocked(row.platform);
     final isCoupang = row.platform == 'COUPANG';
     final rowBusy = _rowBusyId == row.accountId;
     final smallButton = OutlinedButton.styleFrom(
@@ -1415,7 +1483,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
                   runSpacing: 4,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    if (canRegister)
+                    if (canRegister && !categoryBlocked)
                       // Batch registration is per **account**.
                       Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1502,7 +1570,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
                           ),
                         ],
                       ),
-                    if (canRegister && isCoupang)
+                    if (canRegister && isCoupang && !categoryBlocked)
                       // 2609_77/D43: create the line, then the option picker.
                       _withBlockedHint(
                         blocked,
@@ -1521,7 +1589,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
                               : const Text('쿠팡에 올리기'),
                         ),
                       ),
-                    if (canRegister && !isCoupang)
+                    if (canRegister && !isCoupang && !categoryBlocked)
                       _withBlockedHint(
                         blocked,
                         OutlinedButton(
@@ -1557,6 +1625,18 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
                       ),
                   ],
                 ),
+                // FEATURE_2610_11 / D25 · D26: the hidden buttons' place —
+                // category notice above the shipping notice, no button.
+                if (canRegister && categoryBlocked) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    categoryBlockText(row.platform),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.warningForeground,
+                    ),
+                  ),
+                ],
                 if (canRegister && blocked) ...[
                   const SizedBox(height: 4),
                   Wrap(
@@ -1626,6 +1706,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
               masterCategoryName: matrix.masterCategoryName,
               onCellRemoved: (message) =>
                   unawaited(_handleCellRemoved(message)),
+              hasMasterCategory: _category != null,
             ),
         ],
       ),
@@ -1771,7 +1852,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
           title: '표준 카테고리',
           child: MasterCategoryPanel(
             masterId: _id,
-            onCategoryChanged: _setCategory,
+            onCategoryChanged: _handleCategoryChanged,
           ),
         ),
         const Divider(height: 1),
