@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/listing_registration.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_product.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/master_format.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/platform_category_block.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/cell_actions.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/copy_id_button.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/listing_detail_panel.dart';
@@ -144,6 +145,9 @@ class ListingRow extends StatefulWidget {
   final String? masterCategoryName;
   final ValueChanged<String> onCellRemoved;
 
+  /// The master has a standard category (D18 (f) — none = nothing blocks).
+  final bool hasMasterCategory;
+
   const ListingRow({
     required this.masterId,
     required this.cell,
@@ -162,6 +166,7 @@ class ListingRow extends StatefulWidget {
     required this.onShippingSaved,
     required this.masterCategoryName,
     required this.onCellRemoved,
+    required this.hasMasterCategory,
     super.key,
   });
 
@@ -191,6 +196,13 @@ class _ListingRowState extends State<ListingRow> {
     final stockTotal = activeViews.fold<int>(0, (sum, v) => sum + v.stock);
     final needsSync = cell.needsMarketSync == true;
     final categoryMismatch = cell.usesOwnCategory == true;
+    // FEATURE_2610_11 / D19: an unsent row whose category the server could
+    // not resolve (empty `categoryCode`) hides its upload button.
+    final categoryCode = cell.categoryCode;
+    final categoryBlocked = kCategoryBlockPlatforms.contains(widget.platform) &&
+        widget.hasMasterCategory &&
+        status == ListingStatusCode.draft &&
+        (categoryCode == null || categoryCode.isEmpty);
     final categoryLabel = cell.categoryName ?? cell.categoryCode;
     final thumbUrl = gen?.thumbnailUrl;
     final hasThumb = thumbUrl != null && thumbUrl.isNotEmpty;
@@ -439,6 +451,7 @@ class _ListingRowState extends State<ListingRow> {
                       cells: [cell],
                       onCellRemoved: widget.onCellRemoved,
                       needsMarketSync: needsSync,
+                      categoryBlocked: categoryBlocked,
                     ),
                   ],
                 ),
