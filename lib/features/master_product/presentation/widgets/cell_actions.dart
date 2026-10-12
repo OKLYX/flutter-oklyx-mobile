@@ -8,6 +8,7 @@ import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/listing_registration.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_product.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/platform_category_block.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_tool_args.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/listing_option_picker_sheet.dart';
@@ -62,12 +63,14 @@ class _MenuGroup {
 ///
 /// - Primary: draft = Coupang [쿠팡에 올리기] (option picker sheet, D43) /
 ///   other platforms [마켓 등록] · unsynced changes (`needsMarketSync`) =
-///   [수정 요청] · otherwise none.
-/// - ⋯ menu: 편집 (field values · detail · price · stock · option names ·
-///   shipping · options to upload) / 동기화 (update request · approval refresh ·
-///   regenerate · apply master option names) / 연결 (쿠팡에서 보기 ·
-///   master category) / red items under a divider ([마스터 연결 해제] ·
-///   [채널 삭제]).
+///   [수정 요청] · otherwise none. A draft whose category the server could not
+///   resolve ([categoryBlocked]) shows none — the category notice takes its
+///   place (FEATURE_2610_11 / D25).
+/// - ⋯ menu: 「편집」 (field values · detail · price · stock · option names ·
+///   shipping · options to upload) / 「동기화」 (update request · approval
+///   refresh · regenerate · apply master option names) / 「연결」
+///   ([쿠팡에서 보기] · master category) / red items under a divider
+///   ([마스터 연결 해제] · [채널 삭제]).
 /// - Result lines (success · failure · approval result) show under the buttons.
 ///
 /// ⚠️ [쿠팡에서 보기] opens the phone's browser (D82 · R20) — this file is the
@@ -104,6 +107,10 @@ class CellActions extends StatefulWidget {
   /// Local changes not on the market yet → [수정 요청] is the primary.
   final bool needsMarketSync;
 
+  /// Unsent row without a resolvable category (FEATURE_2610_11 / D19) →
+  /// primary button hidden + notice (D25).
+  final bool categoryBlocked;
+
   const CellActions({
     required this.masterId,
     required this.listingId,
@@ -122,6 +129,7 @@ class CellActions extends StatefulWidget {
     required this.cells,
     required this.onCellRemoved,
     required this.needsMarketSync,
+    required this.categoryBlocked,
     super.key,
   });
 
@@ -705,7 +713,7 @@ class _CellActionsState extends State<CellActions> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final statusResult = _statusResult;
-    final hasFeedback =
+    final hasFeedback = widget.categoryBlocked ||
         (_status == ListingStatusCode.draft && _shippingBlocked) ||
             _pushedBanner.isNotEmpty ||
             statusResult != null ||
@@ -719,12 +727,23 @@ class _CellActionsState extends State<CellActions> {
           spacing: 6,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            if (_primary != null) _primaryButton(context),
+            if (_primary != null && !widget.categoryBlocked)
+              _primaryButton(context),
             _menuButton(context),
           ],
         ),
         if (hasFeedback) ...[
           const SizedBox(height: 4),
+          // FEATURE_2610_11 / D25 · D26: the hidden button's place — above
+          // the shipping line.
+          if (widget.categoryBlocked)
+            Text(
+              categoryBlockText(widget.platform),
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.warningForeground,
+              ),
+            ),
           // A disabled button's reason is also shown as a visible line.
           if (_status == ListingStatusCode.draft && _shippingBlocked)
             Text(kShippingBlockedReason, style: small),
