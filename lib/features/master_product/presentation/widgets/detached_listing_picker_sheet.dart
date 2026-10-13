@@ -8,6 +8,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/mas
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 // Status enum → screen text.
 const Map<String, String> _statusLabel = {
@@ -154,7 +155,8 @@ class _DetachedListingPickerSheetState
               ),
               const SizedBox(height: 4),
               Text(
-                '${widget.sellerName} · ${widget.platform}',
+                '${widget.sellerName} · '
+                '${platformDisplayName(widget.platform)}',
                 style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
               ),
             ],

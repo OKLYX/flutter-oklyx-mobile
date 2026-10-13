@@ -10,6 +10,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_search_field.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 class CategoryListPage extends StatefulWidget {
   const CategoryListPage({super.key});
@@ -98,7 +99,7 @@ class _CategoryListPageState extends State<CategoryListPage> {
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                         subtitle: Text(
-                          '${category.platform} | ${category.createdDate.toString().split('.')[0]}',
+                          '${platformDisplayName(category.platform)} | ${category.createdDate.toString().split('.')[0]}',
                           style: const TextStyle(fontSize: 12),
                         ),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16),

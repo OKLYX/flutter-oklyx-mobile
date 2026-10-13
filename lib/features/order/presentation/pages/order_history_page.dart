@@ -21,6 +21,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_filter_chip.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 /// 「주문관리 > 주문내역」 page (lookup + sync).
 ///
@@ -532,7 +533,7 @@ class _ChannelStatusBanner extends StatelessWidget {
             (target) => Padding(
               padding: const EdgeInsets.only(bottom: 2),
               child: Text(
-                '· ${target.sellerName}·${target.platform} — ${_reason(target)}',
+                '· ${target.sellerName}·${platformDisplayName(target.platform)} — ${_reason(target)}',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(

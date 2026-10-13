@@ -9,6 +9,7 @@ import '../../domain/entities/inquiry_type_option.dart';
 import '../../domain/usecases/inquiry_usecase.dart';
 import 'inquiry_list_event.dart';
 import 'inquiry_list_state.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 /// 고객문의 목록 BLoC (FEATURE_2609_36).
 ///
@@ -325,5 +326,5 @@ class InquiryListBloc extends Bloc<InquiryListEvent, InquiryListState> {
 
   /// 진행 한 줄에 쓰는 채널 표시명 — '판매자 · 플랫폼'.
   String _channelLabel(SyncTarget target) =>
-      '${target.sellerName} · ${target.platform}';
+      '${target.sellerName} · ${platformDisplayName(target.platform)}';
 }

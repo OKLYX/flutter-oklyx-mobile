@@ -13,6 +13,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/category_tree_list.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 /// Standard category assignment panel on the master detail screen —
 /// FEATURE_2609_80 / 07. A master points at one standard category; per-mall
@@ -202,7 +203,7 @@ class _MasterCategoryPanelState extends State<MasterCategoryPanel> {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        '${m.platform} ✓',
+                        '${platformDisplayName(m.platform)} ✓',
                         style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.infoForeground,
@@ -229,7 +230,7 @@ class _MasterCategoryPanelState extends State<MasterCategoryPanel> {
                   ),
                 ],
               ),
-            // FEATURE_2610_12 / D48 · D50: own lines in 「쿠팡」 → 「11번가」 order.
+            // FEATURE_2610_12 / D48 · D50: own lines in 「쿠팡」 → 「11st」 order.
             for (final platform in kCategoryBlockPlatforms)
               for (final own in _owns.where((o) => o.platform == platform))
                 Padding(
