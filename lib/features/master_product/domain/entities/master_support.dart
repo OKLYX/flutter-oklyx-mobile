@@ -98,7 +98,8 @@ class DetailImageGroup {
   });
 }
 
-/// Web `CategoryMapping`.
+/// Web `CategoryMapping` — also web `MasterPlatformCategory` (the master's own
+/// platform category, 「개별 지정」, FEATURE_2610_12 / D48): same fields.
 class CategoryMapping {
   final String platform;
   final String platformCategoryId;

@@ -203,6 +203,12 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
   List<CategoryMapping>? _categoryMappings;
   // Guards against stale mapping responses.
   int _mappingRequest = 0;
+  // FEATURE_2610_12 / D41 · D48: the master's own platform categories (an own
+  // row counts as a category for the account-row block). null = not loaded /
+  // failed → never blocks.
+  List<CategoryMapping>? _platformCategories;
+  // Guards against stale own-row responses.
+  int _platformCategoryRequest = 0;
   // Guards against stale category-meta responses.
   int _metaRequest = 0;
   Map<String, String> _masterAttrValues = {};
@@ -298,6 +304,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
     });
     _setCategory(category);
     unawaited(_loadCategoryMappings());
+    unawaited(_loadPlatformCategories());
     // Fire-and-forget: the list draws now, these fill in after.
     unawaited(_fetchGenerated(matrix));
     unawaited(_fetchPlaces(matrix));
@@ -469,6 +476,16 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
     setState(() => _categoryMappings = result.fold((_) => null, (m) => m));
   }
 
+  /// FEATURE_2610_12 / D41: the master's own platform categories.
+  Future<void> _loadPlatformCategories() async {
+    final request = ++_platformCategoryRequest;
+    final result = await _useCase.getMasterPlatformCategories(_id);
+    if (!mounted || request != _platformCategoryRequest) {
+      return;
+    }
+    setState(() => _platformCategories = result.fold((_) => null, (o) => o));
+  }
+
   /// FEATURE_2610_11: re-read the channel rows only (cell `categoryCode` =
   /// the unsent-row block, D19). 🔴 Not [_load] — no whole-detail reload.
   Future<void> _reloadMatrixRows() async {
@@ -483,11 +500,13 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
     setState(() => _matrix = matrix);
   }
 
-  /// The category panel assigned or cleared the category → the mappings and
-  /// the channel rows follow (both feed the category block).
+  /// The category panel assigned the category → the mappings, the own rows
+  /// (a different category drops them on the server, FEATURE_2610_12 / D42)
+  /// and the channel rows follow (all feed the category block).
   void _handleCategoryChanged(MasterCategory? category) {
     _setCategory(category);
     unawaited(_loadCategoryMappings());
+    unawaited(_loadPlatformCategories());
     unawaited(_reloadMatrixRows());
   }
 
@@ -525,15 +544,19 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
 
   bool _isShippingBlocked(int accountId) => _placesUnset[accountId] == true;
 
-  // FEATURE_2610_11 / D19 · D25: no mapping row for that platform → its
-  // upload buttons are hidden. Coupang · 11st only, and only with a standard
-  // category (D18 (f)); unknown mappings never block.
+  // FEATURE_2610_11 / D19 · D25 · 2610_12 / D41: no mapping row and no own
+  // row for that platform → its upload buttons are hidden. Coupang · 11st
+  // only, and only with a standard category (D18 (f)); unknown mappings or own
+  // rows never block.
   bool _isCategoryBlocked(String platform) {
     final mappings = _categoryMappings;
+    final owns = _platformCategories;
     return kCategoryBlockPlatforms.contains(platform) &&
         _category != null &&
         mappings != null &&
-        !mappings.any((m) => m.platform == platform);
+        owns != null &&
+        !mappings.any((m) => m.platform == platform) &&
+        !owns.any((o) => o.platform == platform);
   }
 
   bool _isRowBlocked(int accountId) {
@@ -1917,6 +1940,10 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
                   packageId: master.defaultPackageId,
                 ),
                 categoryId: category?.categoryId,
+                platformCategoryCode: _platformCategories
+                    ?.where((o) => o.platform == 'COUPANG')
+                    .firstOrNull
+                    ?.platformCategoryId,
                 masterAttrValues: _masterAttrValues,
                 masterNoticeValues: _masterNoticeValues,
                 masterNoticeGroup: _masterNoticeGroup,

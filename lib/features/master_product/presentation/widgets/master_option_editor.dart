@@ -310,6 +310,9 @@ class MasterOptionEditor extends StatefulWidget {
   final MasterDefaults masterDefaults;
   final int? categoryId;
   final String platform;
+  // FEATURE_2610_12 / D45: the master's 「개별 지정」 code for [platform] — when
+  // set the schema is read by it.
+  final String? platformCategoryCode;
   final Map<String, String> masterAttrValues;
   final Map<String, String> masterNoticeValues;
   final String? masterNoticeGroup;
@@ -330,6 +333,7 @@ class MasterOptionEditor extends StatefulWidget {
     this.masterDefaults = const MasterDefaults(),
     this.categoryId,
     this.platform = 'COUPANG',
+    this.platformCategoryCode,
     this.masterAttrValues = const {},
     this.masterNoticeValues = const {},
     this.masterNoticeGroup,
@@ -416,7 +420,8 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
   void didUpdateWidget(covariant MasterOptionEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.categoryId != widget.categoryId ||
-        oldWidget.platform != widget.platform) {
+        oldWidget.platform != widget.platform ||
+        oldWidget.platformCategoryCode != widget.platformCategoryCode) {
       unawaited(_loadSchema());
     }
     final nonce = widget.focusOption?.nonce;
@@ -467,8 +472,8 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
     if (categoryId == null) {
       return;
     }
-    final result =
-        await _useCase.getCategorySchema(categoryId, widget.platform);
+    final result = await _useCase.getCategorySchema(categoryId, widget.platform,
+        platformCategoryCode: widget.platformCategoryCode);
     if (!mounted || seq != _schemaSeq) {
       return;
     }

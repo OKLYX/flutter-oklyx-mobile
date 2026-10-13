@@ -87,19 +87,21 @@ class MasterProductUseCase {
           int id, int categoryId) =>
       repository.setMasterCategory(id, categoryId);
 
-  /// M16
-  Future<Either<Failure, Unit>> clearMasterCategory(int id) =>
-      repository.clearMasterCategory(id);
+  /// FEATURE_2610_12 / D48: the master's own platform categories (「개별 지정」).
+  Future<Either<Failure, List<CategoryMapping>>> getMasterPlatformCategories(
+          int id) =>
+      repository.getMasterPlatformCategories(id);
 
   /// M17
   Future<Either<Failure, CategoryMeta>> getCategoryMeta(
           int id, String platform) =>
       repository.getCategoryMeta(id, platform);
 
-  /// M18
+  /// M18 — FEATURE_2610_12 / D45: [platformCategoryCode] = a 「개별 지정」 code.
   Future<Either<Failure, CategoryMetaSchema>> getCategorySchema(
-          int categoryId, String platform) =>
-      repository.getCategorySchema(categoryId, platform);
+          int categoryId, String platform, {String? platformCategoryCode}) =>
+      repository.getCategorySchema(categoryId, platform,
+          platformCategoryCode: platformCategoryCode);
 
   /// M19
   Future<Either<Failure, Unit>> setCategoryAttributes(
