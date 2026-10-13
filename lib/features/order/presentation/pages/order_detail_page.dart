@@ -49,7 +49,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 // unknown codes fall back to the raw value.
 const Map<String, String> _platformLabels = {
   'COUPANG': '쿠팡',
-  'ELEVENST': '11st',
+  'ELEVENST': '11번가',
 };
 
 /// 주문 상세 페이지
