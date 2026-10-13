@@ -68,16 +68,18 @@ abstract class MasterProductRepository {
   Future<Either<Failure, MasterCategory?>> setMasterCategory(
       int id, int categoryId);
 
-  /// M16
-  Future<Either<Failure, Unit>> clearMasterCategory(int id);
+  /// FEATURE_2610_12 / D48: the master's own platform categories (「개별 지정」).
+  Future<Either<Failure, List<CategoryMapping>>> getMasterPlatformCategories(
+      int id);
 
   /// M17
   Future<Either<Failure, CategoryMeta>> getCategoryMeta(
       int id, String platform);
 
-  /// M18
+  /// M18 — FEATURE_2610_12 / D45: [platformCategoryCode] = a 「개별 지정」 code.
   Future<Either<Failure, CategoryMetaSchema>> getCategorySchema(
-      int categoryId, String platform);
+      int categoryId, String platform,
+      {String? platformCategoryCode});
 
   /// M19
   Future<Either<Failure, Unit>> setCategoryAttributes(

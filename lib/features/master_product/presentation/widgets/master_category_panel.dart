@@ -8,27 +8,31 @@ import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_product.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_support.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/platform_category_block.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/category_tree_list.dart';
-import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
 /// Standard category assignment panel on the master detail screen —
 /// FEATURE_2609_80 / 07. A master points at one standard category; per-mall
-/// codes are resolved by the category mappings.
+/// codes are resolved by the master's own platform categories (「개별 지정」)
+/// first, then the category mappings (FEATURE_2610_12 / D41).
 ///
 /// **File**: lib/features/master_product/presentation/widgets/master_category_panel.dart
 /// **Web original**: `master-products/[id]/components/MasterCategoryPanel.tsx` @09208a0
 ///
 /// Assign = one-level-at-a-time tree drill-down ([CategoryTreeList], R-h);
-/// picking a leaf assigns it immediately. Mapping badges are read-only — the
-/// `카테고리 관리` links open the existing category screen.
+/// picking a leaf assigns it immediately. Mapping badges and the own platform
+/// category lines (「{플랫폼}: {경로} (개별 지정)」, D48) are read-only — picking,
+/// [변경] and [기준으로 되돌리기] are web-only; the `카테고리 관리` links open the
+/// existing category screen. There is no [해제] — an assigned standard
+/// category can be replaced, not removed (D49).
 ///
 /// ⚠️ The category feeds sibling sections (category meta, option inheritance)
-///    → every assign/clear is reported through [onCategoryChanged]
-///    (assign = the server response, clear = `null`). The parent swaps only
-///    that value and does not refetch the whole detail.
+///    → every assign is reported through [onCategoryChanged] (the server
+///    response). The parent swaps only that value and does not refetch the
+///    whole detail.
 /// ❌ Draws no card shell or title — the detail page wraps it (09).
 class MasterCategoryPanel extends StatefulWidget {
   final int masterId;
@@ -49,15 +53,16 @@ class _MasterCategoryPanelState extends State<MasterCategoryPanel> {
 
   MasterCategory? _current;
   List<CategoryMapping> _mappings = [];
+  // FEATURE_2610_12 / D48: the master's own platform categories (「개별 지정」).
+  List<CategoryMapping> _owns = [];
   bool _isLoading = true;
   String _error = '';
 
   // Whether the tree drill-down is open for (re)assigning the category.
   bool _isTreeOpen = false;
   bool _isSaving = false;
-  bool _isClearing = false;
 
-  bool get _busy => _isSaving || _isClearing;
+  bool get _busy => _isSaving;
 
   @override
   void initState() {
@@ -103,16 +108,20 @@ class _MasterCategoryPanelState extends State<MasterCategoryPanel> {
     }
     final cat = result.getOrElse((_) => null);
     var mappings = <CategoryMapping>[];
+    var owns = <CategoryMapping>[];
     if (cat != null) {
       final m = await _useCase.getCategoryMappings(cat.categoryId);
+      final o = await _useCase.getMasterPlatformCategories(widget.masterId);
       if (!mounted) {
         return;
       }
       mappings = m.getOrElse((_) => <CategoryMapping>[]);
+      owns = o.getOrElse((_) => <CategoryMapping>[]);
     }
     setState(() {
       _current = cat;
       _mappings = mappings;
+      _owns = owns;
       _isLoading = false;
     });
   }
@@ -143,40 +152,6 @@ class _MasterCategoryPanelState extends State<MasterCategoryPanel> {
     }
     widget.onCategoryChanged?.call(result.getOrElse((_) => null));
     setState(() => _isSaving = false);
-  }
-
-  Future<void> _handleClear() async {
-    final ok = await showAppConfirmDialog(
-      context,
-      message: '표준 카테고리 지정을 해제하시겠습니까?',
-      confirmText: '해제',
-      isDangerous: true,
-    );
-    if (!ok || !mounted) {
-      return;
-    }
-    setState(() {
-      _isClearing = true;
-      _error = '';
-    });
-    final result = await _useCase.clearMasterCategory(widget.masterId);
-    if (!mounted) {
-      return;
-    }
-    final failure = result.fold((f) => f, (_) => null);
-    if (failure != null) {
-      setState(() {
-        _error = failureText(failure, '해제에 실패했습니다.');
-        _isClearing = false;
-      });
-      return;
-    }
-    await _load();
-    if (!mounted) {
-      return;
-    }
-    widget.onCategoryChanged?.call(null);
-    setState(() => _isClearing = false);
   }
 
   @override
@@ -254,6 +229,16 @@ class _MasterCategoryPanelState extends State<MasterCategoryPanel> {
                   ),
                 ],
               ),
+            // FEATURE_2610_12 / D48 · D50: own lines in 「쿠팡」 → 「11번가」 order.
+            for (final platform in kCategoryBlockPlatforms)
+              for (final own in _owns.where((o) => o.platform == platform))
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    ownPlatformCategoryText(own),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
             const SizedBox(height: 12),
           ] else ...[
             Text(
@@ -284,16 +269,6 @@ class _MasterCategoryPanelState extends State<MasterCategoryPanel> {
                             : '카테고리 지정',
                   ),
                 ),
-                if (current != null)
-                  OutlinedButton(
-                    onPressed: _busy ? null : _handleClear,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: scheme.error,
-                    ),
-                    child: _isClearing
-                        ? const AppBusyLabel('해제 중...')
-                        : const Text('해제'),
-                  ),
                 if (_isSaving) const AppBusyLabel('저장 중...'),
               ],
             ),

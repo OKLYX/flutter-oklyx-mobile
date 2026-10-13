@@ -109,10 +109,9 @@ class MasterProductRepositoryImpl implements MasterProductRepository {
       _guard(() => masterDataSource.setMasterCategory(id, categoryId));
 
   @override
-  Future<Either<Failure, Unit>> clearMasterCategory(int id) => _guard(() async {
-        await masterDataSource.clearMasterCategory(id);
-        return unit;
-      });
+  Future<Either<Failure, List<CategoryMapping>>> getMasterPlatformCategories(
+          int id) =>
+      _guard(() => masterDataSource.getMasterPlatformCategories(id));
 
   @override
   Future<Either<Failure, CategoryMeta>> getCategoryMeta(
@@ -121,8 +120,9 @@ class MasterProductRepositoryImpl implements MasterProductRepository {
 
   @override
   Future<Either<Failure, CategoryMetaSchema>> getCategorySchema(
-          int categoryId, String platform) =>
-      _guard(() => masterDataSource.getCategorySchema(categoryId, platform));
+          int categoryId, String platform, {String? platformCategoryCode}) =>
+      _guard(() => masterDataSource.getCategorySchema(categoryId, platform,
+          platformCategoryCode: platformCategoryCode));
 
   @override
   Future<Either<Failure, Unit>> setCategoryAttributes(

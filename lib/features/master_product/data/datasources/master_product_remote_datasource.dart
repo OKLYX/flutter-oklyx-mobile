@@ -2,6 +2,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/data/datasources/ma
 import 'package:flutter_oklyn_mobile/features/master_product/data/models/master_json.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/listing_registration.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_product.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_support.dart';
 
 /// Remote calls for the master screens — port of web `MasterProductRepositoryImpl.ts` (FEATURE_2609_80 R3).
 /// **File**: lib/features/master_product/data/datasources/master_product_remote_datasource.dart
@@ -132,9 +133,14 @@ class MasterProductRemoteDataSource {
     return masterCategoryFromJson(data);
   }
 
-  /// M16
-  Future<void> clearMasterCategory(int id) async {
-    await api.delete('/api/admin/master-products/$id/category');
+  /// FEATURE_2610_12 / D48: the master's own platform categories (「개별 지정」)
+  /// — same fields as a category mapping row.
+  Future<List<CategoryMapping>> getMasterPlatformCategories(int id) async {
+    final data =
+        await api.get('/api/admin/master-products/$id/platform-categories');
+    return (data as List? ?? const [])
+        .map((e) => categoryMappingFromJson(e as Json))
+        .toList();
   }
 
   /// M17
@@ -144,11 +150,16 @@ class MasterProductRemoteDataSource {
     return categoryMetaFromJson(data as Json);
   }
 
-  /// M18
-  Future<CategoryMetaSchema> getCategorySchema(
-      int categoryId, String platform) async {
-    final data = await api.get('/api/admin/category-lookup/$platform/meta',
-        query: {'categoryId': categoryId});
+  /// M18 — FEATURE_2610_12 / D45: [platformCategoryCode] (a 「개별 지정」
+  /// code) wins on the server; the category id stays for the no-pick case.
+  Future<CategoryMetaSchema> getCategorySchema(int categoryId, String platform,
+      {String? platformCategoryCode}) async {
+    final data =
+        await api.get('/api/admin/category-lookup/$platform/meta', query: {
+      'categoryId': categoryId,
+      if (platformCategoryCode != null)
+        'platformCategoryCode': platformCategoryCode,
+    });
     return categoryMetaSchemaFromJson(data as Json);
   }
 
