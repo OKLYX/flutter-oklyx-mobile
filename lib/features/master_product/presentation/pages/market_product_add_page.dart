@@ -17,6 +17,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 // Status enum → screen text. ⚠️ Never show the raw enum.
 const Map<String, String> _statusLabel = {
@@ -369,7 +370,7 @@ class _MarketProductAddPageState extends State<MarketProductAddPage> {
         body: AppPageBody(
           children: [
             Text(
-              '${_args.sellerName} · ${_args.platform}',
+              '${_args.sellerName} · ${platformDisplayName(_args.platform)}',
               style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: 12),

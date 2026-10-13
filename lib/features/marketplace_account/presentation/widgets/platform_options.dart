@@ -11,7 +11,7 @@ class PlatformOption {
 const List<PlatformOption> kPlatformOptions = [
   PlatformOption('COUPANG', '쿠팡'),
   PlatformOption('NAVER', '네이버 스마트스토어'),
-  PlatformOption('ELEVENST', '11번가'),
+  PlatformOption('ELEVENST', '11st'),
   PlatformOption('GMARKET', 'G마켓'),
 ];
 

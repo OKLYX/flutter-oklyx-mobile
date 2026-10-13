@@ -6,6 +6,7 @@ import '../bloc/order_list_bloc.dart';
 import '../bloc/order_list_event.dart';
 import '../bloc/order_list_state.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 /// 주문 동기화 진행 다이얼로그 (채널별 진행률 + 완료 리포트)
 ///
@@ -213,5 +214,6 @@ class _ChannelRow extends StatelessWidget {
 String _channelLabel(SyncTarget target) {
   final alias = target.accountAlias;
   final suffix = (alias == null || alias.isEmpty) ? '' : ' · $alias';
-  return '${target.sellerName} · ${target.platform}$suffix';
+  return '${target.sellerName} · '
+      '${platformDisplayName(target.platform)}$suffix';
 }

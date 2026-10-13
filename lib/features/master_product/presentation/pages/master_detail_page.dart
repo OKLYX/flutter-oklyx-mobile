@@ -46,6 +46,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 /// Why a channel cannot be created for a seller without outbound/return
 /// places (user decision 2026-08-28).
@@ -595,7 +596,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
           return ForceApplyChannel(
             listingId: c.productListingId,
             label:
-                '${r.sellerName} · ${r.platform}${cells.length > 1 ? ' · ${_cellTag(c)}' : ''}',
+                '${r.sellerName} · ${platformDisplayName(r.platform)}${cells.length > 1 ? ' · ${_cellTag(c)}' : ''}',
             override: gen?.shippingOverride,
             overrideLoaded: gen != null,
           );
@@ -1351,7 +1352,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
                   if (_channelDiffText(c).isNotEmpty) ...[
                     TextSpan(
                       text:
-                          '${c.sellerName} · ${c.platform} — ${_channelDiffText(c)}',
+                          '${c.sellerName} · ${platformDisplayName(c.platform)} — ${_channelDiffText(c)}',
                     ),
                     if (c.onMarket)
                       TextSpan(text: ' (반영 후 재등록 필요)', style: muted),
@@ -1359,7 +1360,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
                   if (c.marketChannelOnlyOptions.isNotEmpty)
                     TextSpan(
                       text:
-                          '${_channelDiffText(c).isNotEmpty ? ' ' : '${c.sellerName} · ${c.platform} — '}'
+                          '${_channelDiffText(c).isNotEmpty ? ' ' : '${c.sellerName} · ${platformDisplayName(c.platform)} — '}'
                           '마스터에 없는데 판매 중: ${c.marketChannelOnlyOptions.join(', ')} (WING에서 직접 중지)',
                       style: muted,
                     ),
@@ -1389,7 +1390,8 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
               .where((c) => c.marketChannelOnlyOptions.isNotEmpty)
               .take(5))
             Text(
-              '• ${c.sellerName} · ${c.platform} — 마스터에 없는데 판매 중: '
+              '• ${c.sellerName} · ${platformDisplayName(c.platform)} — '
+              '마스터에 없는데 판매 중: '
               '${c.marketChannelOnlyOptions.join(', ')} (WING에서 직접 중지)',
               style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
             ),
@@ -1475,7 +1477,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
     final rowCells = _sortedCells(_rowCellsOf(row));
     final multiCell = rowCells.length > 1;
     String cellLabel(MatrixCell c) =>
-        '${row.sellerName} · ${row.platform}${multiCell ? ' · ${_cellTag(c)}' : ''}';
+        '${row.sellerName} · ${platformDisplayName(row.platform)}${multiCell ? ' · ${_cellTag(c)}' : ''}';
     final canRegister = !row.registered || rowCells.isEmpty;
     final actionCount =
         rowCells.fold<int>(0, (sum, c) => sum + cellActionCount(c));
@@ -1527,7 +1529,8 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
                         ],
                       ),
                     Text(
-                      '${row.platform} · ${row.accountLabel}',
+                      '${platformDisplayName(row.platform)} · '
+                      '${row.accountLabel}',
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -1605,7 +1608,8 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
                                     row.accountId,
                                     row.sellerId,
                                     row.platform,
-                                    '${row.sellerName} · ${row.platform}',
+                                    '${row.sellerName} · '
+                                    '${platformDisplayName(row.platform)}',
                                   ),
                           child: rowBusy
                               ? const AppBusyLabel('만드는 중')

@@ -17,6 +17,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_form_field.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 class CommissionRateDetailPage extends StatefulWidget {
   final int commissionRateId;
@@ -39,7 +40,7 @@ class _CommissionRateDetailPageState extends State<CommissionRateDetailPage> {
     final ok = await showAppConfirmDialog(
       context,
       title: '수수료 삭제',
-      message: '${rate.platform} 수수료를 삭제하시겠습니까?',
+      message: '${platformDisplayName(rate.platform)} 수수료를 삭제하시겠습니까?',
       confirmText: '삭제',
       isDangerous: true,
     );
