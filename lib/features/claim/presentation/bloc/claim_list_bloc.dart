@@ -8,6 +8,7 @@ import '../../domain/entities/claim.dart';
 import '../../domain/usecases/claim_usecase.dart';
 import 'claim_list_event.dart';
 import 'claim_list_state.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 /// 반품/교환 목록 BLoC (FEATURE_2609_18).
 ///
@@ -273,7 +274,7 @@ class ClaimListBloc extends Bloc<ClaimListEvent, ClaimListState> {
 
   /// 진행 한 줄에 쓰는 채널 표시명 — '판매자 · 플랫폼'(고객문의 화면과 같은 문자열).
   String _channelLabel(SyncTarget target) =>
-      '${target.sellerName} · ${target.platform}';
+      '${target.sellerName} · ${platformDisplayName(target.platform)}';
 
   /// 공용 조회 — [SearchClaims] 와 [SelectClaimType] 이 **같은 파라미터 조립**을 쓰게 한다
   /// (두 벌이 되면 탭 전환만 검색어가 빠지는 버그가 난다).

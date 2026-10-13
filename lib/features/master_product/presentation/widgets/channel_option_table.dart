@@ -7,6 +7,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/widget
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/info_bubble_icon.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 // Same notation as the matrix price column (`12,900원`).
 String _formatWon(num v) => '${koNumber(v)}원';
@@ -127,7 +128,7 @@ class ChannelOptionTable extends StatelessWidget {
           _column(
             productListingId: matrixCell.productListingId,
             label:
-                '${row.sellerName} · ${row.platform} · ${row.accountLabel}$suffix',
+                '${row.sellerName} · ${platformDisplayName(row.platform)} · ${row.accountLabel}$suffix',
             platformProductId:
                 cell?.platformProductId ?? matrixCell.platformProductId,
             cell: cell,

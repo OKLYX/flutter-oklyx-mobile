@@ -12,9 +12,9 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/mas
 /// FEATURE_2610_12 / D41).
 const List<String> kCategoryBlockPlatforms = ['COUPANG', 'ELEVENST'];
 
-/// Screen label of a blocked platform (「쿠팡」 · 「11번가」).
+/// Screen label of a blocked platform (「쿠팡」 · 「11st」).
 String categoryPlatformLabel(String platform) =>
-    platform == 'COUPANG' ? '쿠팡' : '11번가';
+    platform == 'COUPANG' ? '쿠팡' : '11st';
 
 /// Notice shown where the upload buttons are hidden (D18 (h) + D25).
 String categoryBlockText(String platform) {
