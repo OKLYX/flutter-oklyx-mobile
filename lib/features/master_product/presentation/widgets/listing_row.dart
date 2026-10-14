@@ -465,6 +465,7 @@ class _ListingRowState extends State<ListingRow> {
               registrationName: cell.registrationName,
               tags: gen?.tags ?? const [],
               onMarket: pid != null,
+              platform: widget.platform,
               options: views,
               optionsLoading: pending || widget.channelOptionsLoading,
               onEditMasterOption: widget.onEditMasterOption,

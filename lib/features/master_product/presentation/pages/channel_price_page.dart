@@ -249,7 +249,7 @@ class _ChannelPricePageState extends State<ChannelPricePage> {
               if (saveResult.skipped.isNotEmpty) ...[
                 _Banner(
                   text: '아직 마켓에 없는 옵션은 저장만 했습니다: '
-                      '${saveResult.skipped.join(', ')}. [쿠팡에 올리기] 시 '
+                      '${saveResult.skipped.join(', ')}. [마켓에 올리기] 시 '
                       '이 가격으로 올라갑니다.',
                   background: scheme.surfaceContainerLow,
                   foreground: scheme.onSurfaceVariant,

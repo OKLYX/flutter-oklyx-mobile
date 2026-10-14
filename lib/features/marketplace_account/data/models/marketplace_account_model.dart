@@ -6,11 +6,12 @@ class MarketplaceAccountModel extends MarketplaceAccount {
     required int sellerId,
     required String platform,
     required String? accountAlias,
-    required String vendorId,
-    required String accessKey,
+    required String? vendorId,
+    required String? accessKey,
     required bool isActive,
     required String createdAt,
     required String updatedAt,
+    bool? elevenstKeyRenewalNeeded,
   }) : super(
           id: id,
           sellerId: sellerId,
@@ -21,6 +22,7 @@ class MarketplaceAccountModel extends MarketplaceAccount {
           isActive: isActive,
           createdAt: createdAt,
           updatedAt: updatedAt,
+          elevenstKeyRenewalNeeded: elevenstKeyRenewalNeeded,
         );
 
   factory MarketplaceAccountModel.fromJson(Map<String, dynamic> json) => MarketplaceAccountModel(
@@ -28,10 +30,11 @@ class MarketplaceAccountModel extends MarketplaceAccount {
         sellerId: json['sellerId'] as int,
         platform: json['platform'] as String,
         accountAlias: json['accountAlias'] as String?,
-        vendorId: json['vendorId'] as String,
-        accessKey: json['accessKey'] as String,
+        vendorId: json['vendorId'] as String?,
+        accessKey: json['accessKey'] as String?,
         isActive: json['isActive'] as bool? ?? true,
         createdAt: json['createdAt'] as String? ?? 'N/A',
         updatedAt: json['updatedAt'] as String? ?? 'N/A',
+        elevenstKeyRenewalNeeded: json['elevenstKeyRenewalNeeded'] as bool?,
       );
 }

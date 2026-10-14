@@ -12,7 +12,15 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/mas
 /// FEATURE_2610_12 / D41).
 const List<String> kCategoryBlockPlatforms = ['COUPANG', 'ELEVENST'];
 
-/// Screen label of a blocked platform (「쿠팡」 · 「11번가」).
+/// Web `activeLookupPlatformsOf` — the [kCategoryBlockPlatforms] that have a switched-on sales channel
+/// (FEATURE_2610_13 / D98: the platforms the master shipping and notice tabs show).
+List<String> activeLookupPlatformsOf(List<AccountPlatform> accounts) => [
+      for (final p in kCategoryBlockPlatforms)
+        if (accounts.any((a) => a.isActive && a.platform == p)) p,
+    ];
+
+/// Screen label of a [kCategoryBlockPlatforms] platform (「쿠팡」 · 「11번가」) — the category
+/// block notices and the master shipping tabs (FEATURE_2610_13 / D98).
 String categoryPlatformLabel(String platform) =>
     platform == 'COUPANG' ? '쿠팡' : '11번가';
 

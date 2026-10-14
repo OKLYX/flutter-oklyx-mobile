@@ -412,4 +412,23 @@ class MasterProductUseCase {
   Future<Either<Failure, ShippingSettings>> upsertShippingConfig(
           int accountId, ShippingSettings settings) =>
       repository.upsertShippingConfig(accountId, settings);
+
+  /// L38 — FEATURE_2610_13 / D104.
+  Future<Either<Failure, Map<String, String>>> getInheritedElevenstShipping(
+          int listingId) =>
+      repository.getInheritedElevenstShipping(listingId);
+
+  /// S20 — FEATURE_2610_13 / D84.
+  Future<Either<Failure, Map<String, String>>> getElevenstShippingConfig(
+          int accountId) =>
+      repository.getElevenstShippingConfig(accountId);
+
+  /// S21 — Right = the D120 failed count.
+  Future<Either<Failure, int>> upsertElevenstShippingConfig(
+          int accountId, Map<String, String> settings) =>
+      repository.upsertElevenstShippingConfig(accountId, settings);
+
+  /// S22 — FEATURE_2610_13 / D98.
+  Future<Either<Failure, List<AccountPlatform>>> listAccountPlatforms() =>
+      repository.listAccountPlatforms();
 }

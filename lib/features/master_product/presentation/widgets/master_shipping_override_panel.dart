@@ -6,10 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_support.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/elevenst_shipping.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/shipping_override.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/shipping_override_fields.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_shipping_tabs.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/info_bubble_icon.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
@@ -54,6 +55,8 @@ class ForceApplyChannel {
 ///    saved first. An empty master override makes force-apply **erase** the
 ///    channels' own settings; the sheet and banner say so.
 /// ⚠️ Outbound/return places are per-account centers — hidden at master level.
+/// FEATURE_2610_13 / D104: with a switched-on 11st channel the fields come in 「통합」 · per-platform tabs
+/// ([MasterShippingTabs]) and the 11st keys are saved in the same map; force-apply sits on the 「통합」 tab.
 /// ❌ Draws no card shell — the detail page places it (09).
 class MasterShippingOverridePanel extends StatefulWidget {
   final int masterId;
@@ -64,10 +67,14 @@ class MasterShippingOverridePanel extends StatefulWidget {
   /// Matrix reload so cells pick up the new override resolution.
   final VoidCallback onSaved;
 
+  /// Platforms with a switched-on sales channel (FEATURE_2610_13 / D98) — decide the D104 tabs.
+  final List<String> activePlatforms;
+
   const MasterShippingOverridePanel({
     required this.masterId,
     required this.channels,
     required this.onSaved,
+    required this.activePlatforms,
     super.key,
   });
 
@@ -81,10 +88,16 @@ class _MasterShippingOverridePanelState
   final MasterProductUseCase _useCase = getIt<MasterProductUseCase>();
 
   ShippingSettings _override = kEmptyShippingOverride;
+  // FEATURE_2610_13 / D104: the 11st keys of the same master map, edited in their own fields.
+  Map<String, String> _elevenst = {};
+  Map<String, String> _savedElevenst = {};
+  String _tab = kAllShippingTab;
   bool _isLoading = true;
   bool _isSaving = false;
   String _error = '';
   bool _saved = false;
+  // D120: 11st listings the last master save could not re-price.
+  int _recalcFailed = 0;
   Timer? _savedTimer;
   // What the server currently holds — force-apply reads the SAVED master.
   ShippingSettings _savedOverride = kEmptyShippingOverride;
@@ -97,13 +110,15 @@ class _MasterShippingOverridePanelState
 
   bool get _busy => _isSaving || _isApplying;
 
+  List<String> get _platforms => shippingPlatformsOf(widget.activePlatforms);
+
   // Serialized override maps — "is the form still what the server holds?"
   bool get _isDirty =>
-      jsonEncode(overrideToMap(_override)) !=
-      jsonEncode(overrideToMap(_savedOverride));
+      jsonEncode(masterShippingMapOf(_override, _elevenst)) !=
+      jsonEncode(masterShippingMapOf(_savedOverride, _savedElevenst));
 
   // Empty master override = force-apply ERASES the channels' own settings.
-  bool get _masterIsEmpty => overrideToMap(_override).isEmpty;
+  bool get _masterIsEmpty => masterShippingMapOf(_override, _elevenst).isEmpty;
 
   @override
   void initState() {
@@ -141,23 +156,33 @@ class _MasterShippingOverridePanelState
           final loaded = mapToOverride(master.shippingOverride);
           _override = loaded;
           _savedOverride = loaded;
+          final loadedElevenst = pickElevenst(master.shippingOverride);
+          _elevenst = loadedElevenst;
+          _savedElevenst = loadedElevenst;
         },
       );
       _isLoading = false;
     });
   }
 
-  // Returns the failure message, or null on success.
+  // Returns the failure message, or null on success. Both platforms' keys go out together (D104).
   Future<String?> _persist(String fallback) async {
+    final tierMessage = tierError(_elevenst);
+    if (tierMessage != null) {
+      return tierMessage;
+    }
     final snapshot = _override;
+    final elevenstSnapshot = _elevenst;
     final result = await _useCase.updateMasterShippingOverride(
       widget.masterId,
-      overrideToMap(snapshot),
+      masterShippingMapOf(snapshot, elevenstSnapshot),
     );
     return result.fold(
       (failure) => failureText(failure, fallback),
-      (_) {
+      (master) {
         _savedOverride = snapshot;
+        _savedElevenst = elevenstSnapshot;
+        _recalcFailed = master.priceRecalcFailedCount;
         return null;
       },
     );
@@ -182,7 +207,7 @@ class _MasterShippingOverridePanelState
     }
     // A channel that owns these keys keeps its own values — the save does
     // not reach it. Surface that here.
-    final savedMap = overrideToMap(_override);
+    final savedMap = masterShippingMapOf(_override, _elevenst);
     setState(() {
       _saved = true;
       _staleIds = widget.channels
@@ -272,16 +297,22 @@ class _MasterShippingOverridePanelState
       return;
     }
     final affected = result.fold((_) => 0, (res) => res.affectedChannels);
+    // D120: the apply's own re-price failures follow the banner text.
+    final recalcFailed =
+        result.fold((_) => 0, (res) => res.priceRecalcFailedCount);
     // 0 = idempotent no-op (normal). Empty master = the apply ERASED the
     // channels' own settings — say that instead of "덮어썼습니다".
     setState(() {
-      _applyBanner = masterIsEmpty
-          ? affected > 0
-              ? '$affected개 채널의 개별 배송 설정을 지웠습니다 — 마스터에 배송 설정이 없어 계정 기본값을 따릅니다'
-              : '변경된 채널이 없습니다 — 마스터에 배송 설정이 없습니다'
-          : affected > 0
-              ? '$affected개 채널의 배송 설정을 이 마스터 설정으로 덮어썼습니다'
-              : '선택한 채널은 이미 이 마스터 설정과 같습니다 — 변경된 채널이 없습니다';
+      _applyBanner = withRecalcNote(
+        masterIsEmpty
+            ? affected > 0
+                ? '$affected개 채널의 개별 배송 설정을 지웠습니다 — 마스터에 배송 설정이 없어 계정 기본값을 따릅니다'
+                : '변경된 채널이 없습니다 — 마스터에 배송 설정이 없습니다'
+            : affected > 0
+                ? '$affected개 채널의 배송 설정을 이 마스터 설정으로 덮어썼습니다'
+                : '선택한 채널은 이미 이 마스터 설정과 같습니다 — 변경된 채널이 없습니다',
+        recalcFailed,
+      );
       _staleIds = [];
       _isApplying = false;
     });
@@ -340,19 +371,28 @@ class _MasterShippingOverridePanelState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ShippingOverrideFields(
-          level: ShippingOverrideLevel.master,
-          value: _override,
-          onChanged: (next) => setState(() {
+        MasterShippingTabs(
+          platforms: _platforms,
+          tab: _tab,
+          onTabChanged: (t) => setState(() => _tab = t),
+          coupang: _override,
+          onCoupangChanged: (next) => setState(() {
             _override = next;
             _saved = false;
           }),
-          platform: 'COUPANG',
+          elevenst: _elevenst,
+          onElevenstChanged: (next) => setState(() {
+            _elevenst = next;
+            _saved = false;
+          }),
           disabled: _busy,
         ),
         if (_saved && _error.isEmpty) ...[
           const SizedBox(height: 16),
-          const Text('배송 설정을 저장했습니다.', style: green),
+          Text(
+            withRecalcNote('배송 설정을 저장했습니다.', _recalcFailed),
+            style: green,
+          ),
         ],
         if (_applyBanner.isNotEmpty && _error.isEmpty) ...[
           const SizedBox(height: 16),
@@ -409,21 +449,23 @@ class _MasterShippingOverridePanelState
               onPressed: _busy ? null : _handleSave,
               child: _isSaving ? const AppBusyLabel('저장 중...') : const Text('저장'),
             ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                OutlinedButton(
-                  onPressed: _busy || widget.channels.isEmpty
-                      ? null
-                      : () => _openPicker(),
-                  child: _isApplying
-                      ? const AppBusyLabel('적용 중...')
-                      : const Text('채널에 강제 적용'),
-                ),
-                if (widget.channels.isEmpty)
-                  const InfoBubbleIcon(message: '연결된 채널이 없습니다.'),
-              ],
-            ),
+            // D104: one force-apply button — on the 「통합」 tab when there are tabs.
+            if (_platforms.length < 2 || _tab == kAllShippingTab)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  OutlinedButton(
+                    onPressed: _busy || widget.channels.isEmpty
+                        ? null
+                        : () => _openPicker(),
+                    child: _isApplying
+                        ? const AppBusyLabel('적용 중...')
+                        : const Text('채널에 강제 적용'),
+                  ),
+                  if (widget.channels.isEmpty)
+                    const InfoBubbleIcon(message: '연결된 채널이 없습니다.'),
+                ],
+              ),
           ],
         ),
         const SizedBox(height: 16),

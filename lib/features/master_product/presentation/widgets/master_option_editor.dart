@@ -25,8 +25,8 @@ String _formatWon(num v) => '${koNumber(v)}원';
 
 // Option lock hints (85). The lock is decided by the backend flag
 // (marketRegistered) only.
-const String _lockedRowTitle = '쿠팡에 등록돼 판매 중 — 삭제할 수 없습니다 (이름·구성 수량은 수정 가능)';
-const String _lockedDeleteReason = '쿠팡에 등록돼 판매 중 — 삭제할 수 없습니다.';
+const String _lockedRowTitle = '마켓에 등록돼 판매 중 — 삭제할 수 없습니다 (이름·구성 수량은 수정 가능)';
+const String _lockedDeleteReason = '마켓에 등록돼 판매 중 — 삭제할 수 없습니다.';
 // 2609_79 / UX D71: market mode — options mirror the market product, only
 // component quantities are entered.
 const String _marketDeleteReason = '마켓 상품의 옵션이라 삭제할 수 없습니다.';
@@ -1257,7 +1257,7 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
     final scheme = Theme.of(context).colorScheme;
     final master = widget.master;
     final editingKey = _editingKey;
-    // Editing an option on sale at Coupang (hint only — inputs are not
+    // Editing an option on sale at a market (hint only — inputs are not
     // locked, 2609_74/D4).
     final lockedEditing = master != null &&
         editingKey != null &&
@@ -1292,7 +1292,7 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: const Text(
-                    '🔒 쿠팡 판매 중',
+                    '🔒 마켓 판매 중',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
@@ -1367,9 +1367,9 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
           if (lockedEditing) ...[
             const SizedBox(height: 8),
             _amberText(
-              '쿠팡에 등록된 옵션입니다. 이름과 구성 수량은 고칠 수 있고, 삭제는 할 수 없습니다. 이름을 '
+              '마켓에 등록된 옵션입니다. 이름과 구성 수량은 고칠 수 있고, 삭제는 할 수 없습니다. 이름을 '
               '바꾸면 이 이름을 따라 쓰는 채널 옵션명도 함께 바뀝니다(채널에서 직접 정한 이름은 그대로). '
-              '구성 수량을 고치면 쿠팡에 표시된 수량·고시 문구와 달라집니다. 어느 쪽이든 쿠팡에는 '
+              '구성 수량을 고치면 마켓에 표시된 수량·고시 문구와 달라집니다. 어느 쪽이든 마켓에는 '
               '[수정 요청]을 눌러야 전송됩니다.',
             ),
           ],

@@ -72,13 +72,9 @@ enum ShippingOverrideLevel { account, master, listing }
 ///   platform: 'COUPANG', outbound: _outbound, returns: _returns,
 ///   inherited: _baseline, placesLoading: _placesLoading,
 /// )
-/// ShippingOverrideFields(value: _v, onChanged: _set,
-///   level: ShippingOverrideLevel.master, scope: 'common')
 /// ```
 ///
 /// ⚠️ [level] master hides outbound/return places (per-account centers).
-/// ⚠️ [scope] `'common'` = create form only: hides places, return fees and
-///    the extra-info message.
 /// ❌ Do not keep a separate carrier constant list on a screen — the catalog
 ///    loaded here is the only source.
 class ShippingOverrideFields extends StatefulWidget {
@@ -94,9 +90,6 @@ class ShippingOverrideFields extends StatefulWidget {
   final ShippingSettings? inherited;
   final bool placesLoading;
 
-  /// `'full'` (default) or `'common'`.
-  final String scope;
-
   const ShippingOverrideFields({
     required this.value,
     required this.onChanged,
@@ -108,7 +101,6 @@ class ShippingOverrideFields extends StatefulWidget {
     this.returns,
     this.inherited,
     this.placesLoading = false,
-    this.scope = 'full',
   });
 
   @override
@@ -293,14 +285,12 @@ class _ShippingOverrideFieldsState extends State<ShippingOverrideFields> {
 
   @override
   Widget build(BuildContext context) {
-    final isCommon = widget.scope == 'common';
-    final showPlaces =
-        widget.level != ShippingOverrideLevel.master && !isCommon;
+    final showPlaces = widget.level != ShippingOverrideLevel.master;
     final sections = <Widget>[
       if (showPlaces) _buildOutboundSection(context),
-      _buildDeliverySection(context, isCommon),
+      _buildDeliverySection(context),
       if (showPlaces) _buildReturnSection(context),
-      if (!isCommon) _buildReturnFeeSection(context),
+      _buildReturnFeeSection(context),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -415,7 +405,7 @@ class _ShippingOverrideFieldsState extends State<ShippingOverrideFields> {
   }
 
   // ── Delivery settings ──────────────────────────────────────────────────
-  Widget _buildDeliverySection(BuildContext context, bool isCommon) {
+  Widget _buildDeliverySection(BuildContext context) {
     final value = widget.value;
     final inherited = widget.inherited;
     final disabled = widget.disabled;
@@ -492,7 +482,7 @@ class _ShippingOverrideFieldsState extends State<ShippingOverrideFields> {
               ? null
               : (v) => _setField('deliveryMethod', v.isEmpty ? null : v),
       ),
-      if (showExtraInfo && !isCommon)
+      if (showExtraInfo)
         _labeled(
           '추가 안내문구',
           Column(

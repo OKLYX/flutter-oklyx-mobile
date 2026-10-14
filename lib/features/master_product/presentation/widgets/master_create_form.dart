@@ -16,6 +16,8 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/master_format.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/master_image_commit.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/master_image_fields.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/elevenst_shipping.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/platform_category_block.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/shipping_override.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_route_args.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
@@ -27,7 +29,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/widget
 import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/meta_platform_tabs.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/product_relation_panel.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/shipping_override_fields.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_shipping_tabs.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/tag_chips_input.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/product.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/get_product_detail_usecase.dart';
@@ -208,6 +210,11 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
 
   List<String> _tags = [];
   ShippingSettings _shippingOverride = kEmptyShippingOverride;
+  // FEATURE_2610_13 / D104: the 11st part of the same master map, and the 「통합」 / per-platform tab.
+  Map<String, String> _elevenstShipping = {};
+  String _shippingTab = kAllShippingTab;
+  // D98: platforms with a switched-on sales channel (tenant-wide) — Coupang alone until it loads.
+  List<String> _activePlatforms = const [];
 
   // ---- Components ----
   List<Product> _products = [];
@@ -258,6 +265,7 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
     _catSearchController.addListener(_onTextChanged);
     _productSearchController.addListener(_onTextChanged);
     unawaited(_loadCandidates());
+    unawaited(_loadActivePlatforms());
     unawaited(_loadImageFields());
   }
 
@@ -283,6 +291,17 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
   void _onTextChanged() => setState(() {});
 
   // ---------------------------------------------------------------- loading
+
+  Future<void> _loadActivePlatforms() async {
+    final result = await _useCase.listAccountPlatforms();
+    if (!mounted) {
+      return;
+    }
+    result.fold(
+      (_) {},
+      (accounts) => setState(() => _activePlatforms = activeLookupPlatformsOf(accounts)),
+    );
+  }
 
   Future<void> _loadCandidates() async {
     final productsFuture = getIt<GetProductsUseCase>()(
@@ -879,6 +898,12 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
       setState(() => _error = reason);
       return;
     }
+    // FEATURE_2610_13 / D106: unchained 11st quantity tiers stop the save before the master is created.
+    final tierMessage = tierError(_elevenstShipping);
+    if (tierMessage != null) {
+      setState(() => _error = tierMessage);
+      return;
+    }
     setState(() => _isSubmitting = true);
     // Blank values are omitted so the backend falls back to defaults.
     final cleaned = <String, String>{};
@@ -962,7 +987,7 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
     }
 
     // Shipping for all channels — same PATCH as the detail panel.
-    final shippingMap = overrideToMap(_shippingOverride);
+    final shippingMap = masterShippingMapOf(_shippingOverride, _elevenstShipping);
     if (shippingMap.isNotEmpty) {
       final shippingResult =
           await _useCase.updateMasterShippingOverride(createdId, shippingMap);
@@ -1591,12 +1616,14 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
                 style: muted,
               ),
               const SizedBox(height: 8),
-              ShippingOverrideFields(
-                level: ShippingOverrideLevel.master,
-                scope: 'common',
-                value: _shippingOverride,
-                onChanged: (next) => setState(() => _shippingOverride = next),
-                platform: 'COUPANG',
+              MasterShippingTabs(
+                platforms: shippingPlatformsOf(_activePlatforms),
+                tab: _shippingTab,
+                onTabChanged: (t) => setState(() => _shippingTab = t),
+                coupang: _shippingOverride,
+                onCoupangChanged: (next) => setState(() => _shippingOverride = next),
+                elevenst: _elevenstShipping,
+                onElevenstChanged: (next) => setState(() => _elevenstShipping = next),
                 disabled: _isSubmitting,
               ),
             ],

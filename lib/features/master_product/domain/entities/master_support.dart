@@ -206,3 +206,11 @@ class ShippingSettings {
     this.extraInfoMessage,
   });
 }
+
+/// One sales channel's platform and on/off state — the input of the D98 platform set (FEATURE_2610_13).
+class AccountPlatform {
+  final String platform;
+  final bool isActive;
+
+  const AccountPlatform({required this.platform, required this.isActive});
+}
