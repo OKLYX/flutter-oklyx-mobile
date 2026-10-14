@@ -14,7 +14,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/info_bubble_icon.dart';
 
 // Option lock notice (85 -> 2609_74). The lock only blocks deletion; decided by
 // the backend flag (marketRegistered) alone.
-const String _lockedDeleteReason = '쿠팡에 등록돼 판매 중 — 삭제할 수 없습니다.';
+const String _lockedDeleteReason = '마켓에 등록돼 판매 중 — 삭제할 수 없습니다.';
 
 const int _productSearchLimit = 50;
 
@@ -329,7 +329,7 @@ class _MasterCompositionFormState extends State<MasterCompositionForm> {
       message: '구성상품이 $originalText → $nextText 로 바뀝니다.\n\n'
           '옵션 ${_drafts.length}개의 구성 수량이 함께 저장됩니다.$deletedText\n\n'
           '이 마스터에 연결된 판매상품의 구성·원가·판매가가 다시 계산됩니다. '
-          '쿠팡에는 자동으로 전송되지 않습니다 — 필요하면 상세에서 [수정 요청]을 누르세요.',
+          '마켓에는 자동으로 전송되지 않습니다 — 필요하면 상세에서 [수정 요청]을 누르세요.',
     );
     if (!ok || !mounted) {
       return;
@@ -580,7 +580,7 @@ class _MasterCompositionFormState extends State<MasterCompositionForm> {
         ),
         const SizedBox(height: 4),
         Text(
-          '쿠팡에 등록돼 판매 중인 옵션은 이름 수정·삭제가 막혀 있고, 구성 수량은 수정할 수 있습니다.',
+          '마켓에 등록돼 판매 중인 옵션은 이름 수정·삭제가 막혀 있고, 구성 수량은 수정할 수 있습니다.',
           style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
         ),
         const SizedBox(height: 8),

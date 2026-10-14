@@ -15,7 +15,7 @@ String _formatWon(num v) => '${koNumber(v)}원';
 const String _noAccountLabel = '계정 없음';
 const String _channelOnlyReason = '마스터 옵션이 없는 채널 전용 옵션입니다';
 const String _optionIdPendingHint = '승인 후 부여';
-const String _lockedHint = '쿠팡에 등록돼 판매 중 — 삭제할 수 없습니다 (이름·구성 수량은 수정 가능)';
+const String _lockedHint = '마켓에 등록돼 판매 중 — 삭제할 수 없습니다 (이름·구성 수량은 수정 가능)';
 
 /// One column of the web table = one channel cell.
 class _OptionColumn {

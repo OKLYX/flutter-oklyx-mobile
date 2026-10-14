@@ -7,6 +7,7 @@ import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/listing_registration.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_support.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/elevenst_shipping.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/shipping_override.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_tool_args.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
@@ -129,6 +130,24 @@ class _ChannelShippingPageState extends State<ChannelShippingPage> {
     context.pop(_result);
   }
 
+  // D124: when the server could not re-price some 11st listings, a one-button
+  // notice comes first; the page closes after it, however it is dismissed.
+  Future<void> _closeAfterRecalcNotice(String title, int failed) async {
+    final note = recalcFailureNote(failed);
+    if (note != null) {
+      await showAppConfirmDialog(
+        context,
+        title: title,
+        message: note,
+        showCancel: false,
+      );
+      if (!mounted) {
+        return;
+      }
+    }
+    _close();
+  }
+
   Future<void> _handleSave() async {
     setState(() {
       _isSaving = true;
@@ -142,17 +161,23 @@ class _ChannelShippingPageState extends State<ChannelShippingPage> {
     if (!mounted) {
       return;
     }
-    res.fold(
-      (failure) => setState(() {
-        _error = failureText(failure, '배송 설정 저장에 실패했습니다.');
-        _isSaving = false;
-      }),
+    final failed = res.fold<int?>(
+      (failure) {
+        setState(() {
+          _error = failureText(failure, '배송 설정 저장에 실패했습니다.');
+          _isSaving = false;
+        });
+        return null;
+      },
       (updated) {
         _result = updated;
         _isSaving = false;
-        _close();
+        return updated.priceRecalcFailedCount;
       },
     );
+    if (failed != null) {
+      await _closeAfterRecalcNotice('배송 설정 저장', failed);
+    }
   }
 
   Future<void> _openResetConfirm() async {
@@ -163,7 +188,7 @@ class _ChannelShippingPageState extends State<ChannelShippingPage> {
     if (_placesMissingAfterReset) {
       message.write(
         '\n계정에 출고지/반품지가 지정돼 있지 않습니다. 초기화하면 이 채널의 출고지·반품지가 비어 '
-        '배송 설정 미완료가 되고 [쿠팡에 올리기]가 비활성화됩니다.',
+        '배송 설정 미완료가 되고 [마켓에 올리기]가 비활성화됩니다.',
       );
     }
     final ok = await showAppConfirmDialog(
@@ -196,17 +221,23 @@ class _ChannelShippingPageState extends State<ChannelShippingPage> {
     if (!mounted) {
       return;
     }
-    res.fold(
-      (failure) => setState(() {
-        _error = failureText(failure, '배송 설정 초기화에 실패했습니다.');
-        _isResetting = false;
-      }),
+    final failed = res.fold<int?>(
+      (failure) {
+        setState(() {
+          _error = failureText(failure, '배송 설정 초기화에 실패했습니다.');
+          _isResetting = false;
+        });
+        return null;
+      },
       (updated) {
         _result = updated;
         _isResetting = false;
-        _close();
+        return updated.priceRecalcFailedCount;
       },
     );
+    if (failed != null) {
+      await _closeAfterRecalcNotice('채널 배송 설정 초기화', failed);
+    }
   }
 
   @override

@@ -15,6 +15,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/mas
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/category_meta_validation.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/master_image_fields.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/elevenst_shipping.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/platform_category_block.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_route_args.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_tool_args.dart';
@@ -227,6 +228,9 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
 
   // Accounts whose outbound/return places are unset. Missing key = unknown.
   Map<int, bool> _placesUnset = {};
+
+  // FEATURE_2610_13 / D98: platforms with a switched-on sales channel (tenant-wide). Failure = Coupang alone.
+  List<String> _activePlatforms = const [];
   int? _shippingLoadingId;
 
   // Unregistered channels selected for batch registration, by accountId.
@@ -267,6 +271,18 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
     unawaited(_loadCostCandidates());
     unawaited(_loadImageFields());
     unawaited(_loadMetaBase());
+    unawaited(_loadActivePlatforms());
+  }
+
+  Future<void> _loadActivePlatforms() async {
+    final result = await _useCase.listAccountPlatforms();
+    if (!mounted) {
+      return;
+    }
+    result.fold(
+      (_) {},
+      (accounts) => setState(() => _activePlatforms = activeLookupPlatformsOf(accounts)),
+    );
   }
 
   // ---------------------------------------------------------------- loading
@@ -333,12 +349,23 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
   }
 
   Future<void> _fetchPlaces(ListingMatrix m) async {
-    final accountIds = m.rows
-        .where((r) => !r.registered || _rowCellsOf(r).isEmpty)
-        .map((r) => r.accountId)
-        .toList();
+    final targets =
+        m.rows.where((r) => !r.registered || _rowCellsOf(r).isEmpty).toList();
     final entries = await Future.wait(
-      accountIds.map((accountId) async {
+      targets.map((row) async {
+        final accountId = row.accountId;
+        // FEATURE_2610_13 / D84: an 11st account keeps its address numbers in its own settings map.
+        if (row.platform == 'ELEVENST') {
+          final result = await _useCase.getElevenstShippingConfig(accountId);
+          return result.fold<MapEntry<int, bool>?>(
+            (_) => null,
+            (settings) => MapEntry(
+              accountId,
+              (settings[ElevenstKeys.outboundSeq]?.trim() ?? '').isEmpty ||
+                  (settings[ElevenstKeys.returnSeq]?.trim() ?? '').isEmpty,
+            ),
+          );
+        }
         final result = await _useCase.getShippingConfig(accountId);
         return result.fold<MapEntry<int, bool>?>(
           (_) => null,
@@ -703,8 +730,8 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
     }
   }
 
-  // 2609_77/D43: [쿠팡에 올리기] = create the listing line → option picker.
-  // 🔴 Nothing is sent to Coupang here — the sheet's [올리기] sends.
+  // 2609_77/D43 · FEATURE_2610_13 / D9 ③: [마켓에 올리기] = create the listing line → option picker.
+  // 🔴 Nothing is sent to the market here — the sheet's [올리기] sends.
   Future<void> _handleRowUpload(
     int accountId,
     int sellerId,
@@ -750,7 +777,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
       unawaited(_load());
     } else {
       // D43: the created line stays as 「미전송」 — say it did not vanish.
-      showSuccessToast(context, '판매상품 줄을 만들었습니다. 아직 쿠팡에 올리지 않았습니다.');
+      showSuccessToast(context, '판매상품 줄을 만들었습니다. 아직 마켓에 올리지 않았습니다.');
     }
   }
 
@@ -1484,6 +1511,8 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
     final blocked = _isShippingBlocked(row.accountId);
     final categoryBlocked = _isCategoryBlocked(row.platform);
     final isCoupang = row.platform == 'COUPANG';
+    // 2609_77/D43 · FEATURE_2610_13 / D9 ③: Coupang and 11st upload through the option picker.
+    final canUpload = isCoupang || row.platform == 'ELEVENST';
     final rowBusy = _rowBusyId == row.accountId;
     final smallButton = OutlinedButton.styleFrom(
       visualDensity: VisualDensity.compact,
@@ -1596,7 +1625,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
                           ),
                         ],
                       ),
-                    if (canRegister && isCoupang && !categoryBlocked)
+                    if (canRegister && canUpload && !categoryBlocked)
                       // 2609_77/D43: create the line, then the option picker.
                       _withBlockedHint(
                         blocked,
@@ -1613,10 +1642,10 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
                                   ),
                           child: rowBusy
                               ? const AppBusyLabel('만드는 중')
-                              : const Text('쿠팡에 올리기'),
+                              : const Text('마켓에 올리기'),
                         ),
                       ),
-                    if (canRegister && !isCoupang && !categoryBlocked)
+                    if (canRegister && !canUpload && !categoryBlocked)
                       _withBlockedHint(
                         blocked,
                         OutlinedButton(
@@ -1827,6 +1856,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
               masterId: _id,
               channels: _forceApplyChannels,
               onSaved: () => unawaited(_load()),
+              activePlatforms: _activePlatforms,
             ),
           ],
         );

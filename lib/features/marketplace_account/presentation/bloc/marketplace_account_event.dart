@@ -26,6 +26,7 @@ class CreateChannelRequested extends MarketplaceAccountEvent {
         params.vendorId,
         params.accessKey,
         params.secretKey,
+        params.apiKey,
       ];
 }
 
@@ -43,6 +44,7 @@ class UpdateChannelRequested extends MarketplaceAccountEvent {
         params.vendorId,
         params.accessKey,
         params.secretKey,
+        params.apiKey,
       ];
 }
 

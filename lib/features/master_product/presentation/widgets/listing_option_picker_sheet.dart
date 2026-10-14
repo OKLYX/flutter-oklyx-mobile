@@ -14,13 +14,13 @@ import 'package:flutter_oklyn_mobile/shared/widgets/info_bubble_icon.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
-/// Why the listing cannot go to Coupang yet (77). [쿠팡에 올리기] and this
+/// Why the listing cannot go to the market yet (77). [마켓에 올리기] and this
 /// sheet share the text.
 const String kShippingBlockedReason =
     '배송 설정 미완료 — 마스터/채널/계정 중 한 곳에서 배송 설정 필요';
 
 const String kUploadSuccessMessage =
-    '쿠팡에 올렸습니다. 승인 결과는 ⋯ 메뉴의 [승인 새로고침]으로 확인하세요.';
+    '마켓에 올렸습니다. 승인 결과는 ⋯ 메뉴의 [승인 새로고침]으로 확인하세요.';
 
 /// Opens the "options to upload" sheet — **the same sheet before and after
 /// the first upload** (FEATURE_2609_77, UX D43 · D57) — FEATURE_2609_80 / 08.
@@ -29,10 +29,11 @@ const String kUploadSuccessMessage =
 /// **Web original**: `master-products/[id]/components/ListingOptionPickerDialog.tsx` @09208a0
 ///
 /// - [mode] `'upload'`: pick options, check prices, [올리기] → (active options
-///   saved when changed) → Coupang register. 🔴 This sheet IS the confirmation
-///   for the market push (D29) — nothing is sent before [올리기].
-/// - [mode] `'select'`: [저장] → saves active options only (no Coupang call).
-/// - Upload mode only: a 노출상품명 field prefilled with [displayName] and its
+///   saved when changed) → market register (Coupang · 11st, FEATURE_2610_13 /
+///   D9 ③). 🔴 This sheet IS the confirmation for the market push (D29) —
+///   nothing is sent before [올리기].
+/// - [mode] `'select'`: [저장] → saves active options only (no market call).
+/// - Upload mode only: a 「노출상품명」 field prefilled with [displayName] and its
 ///   own [저장] — the same save as the listing detail panel
 ///   (`updateDisplayName`, blank cannot be saved). It is separate from
 ///   [올리기]; on success [onDisplayNameSaved] runs (the caller reloads, like
@@ -241,7 +242,7 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
       showSuccessToast(
         context,
         needsResync
-            ? '올릴 옵션을 저장했습니다. 쿠팡에 반영하려면 [수정 요청]을 누르세요.'
+            ? '올릴 옵션을 저장했습니다. 마켓에 반영하려면 [수정 요청]을 누르세요.'
             : '올릴 옵션을 저장했습니다.',
       );
     }
@@ -255,7 +256,7 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
       context,
       failureText(
         failure,
-        _isUpload ? '쿠팡에 올리지 못했습니다.' : '올릴 옵션을 저장하지 못했습니다.',
+        _isUpload ? '마켓에 올리지 못했습니다.' : '올릴 옵션을 저장하지 못했습니다.',
       ),
     );
   }
@@ -264,7 +265,7 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final title =
-        '${_isUpload ? '쿠팡에 올리기' : '올릴 옵션 고르기'} — ${widget.channelLabel}';
+        '${_isUpload ? '마켓에 올리기' : '올릴 옵션 고르기'} — ${widget.channelLabel}';
     return PopScope(
       canPop: !_busy && !_savingName,
       child: Column(
@@ -284,8 +285,8 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
               children: [
                 Text(
                   _isUpload
-                      ? '고른 옵션으로 쿠팡에 상품을 올립니다. 올린 뒤 승인 결과는 ⋯ 메뉴의 [승인 새로고침]으로 확인합니다.'
-                      : '쿠팡에 올릴 옵션을 고릅니다. 이미 쿠팡에 올린 판매상품은 저장한 뒤 [수정 요청]을 눌러야 쿠팡에 반영됩니다.',
+                      ? '고른 옵션으로 마켓에 상품을 올립니다. 올린 뒤 승인 결과는 ⋯ 메뉴의 [승인 새로고침]으로 확인합니다.'
+                      : '마켓에 올릴 옵션을 고릅니다. 이미 마켓에 올린 판매상품은 저장한 뒤 [수정 요청]을 눌러야 마켓에 반영됩니다.',
                   style: const TextStyle(fontSize: 14),
                 ),
                 const SizedBox(height: 12),

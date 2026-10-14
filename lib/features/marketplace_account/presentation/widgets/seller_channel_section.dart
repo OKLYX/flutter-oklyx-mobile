@@ -226,7 +226,13 @@ class _ChannelTile extends StatelessWidget {
           children: [
             const SizedBox(height: 4),
             Text('별칭: ${channel.accountAlias?.isNotEmpty == true ? channel.accountAlias : '-'}'),
-            Text('벤더 ID: ${channel.vendorId}'),
+            Text('벤더 ID: ${channel.vendorId ?? '-'}'),
+            // FEATURE_2610_13 / D88: the server says the 11st key went unused for over 150 days.
+            if (channel.elevenstKeyRenewalNeeded == true)
+              const Text(
+                '11번가 키가 곧 멈춥니다 — 셀러오피스 API 관리에서 갱신하세요',
+                style: TextStyle(fontSize: 12, color: AppColors.warningForeground),
+              ),
           ],
         ),
         trailing: const Icon(Icons.chevron_right),

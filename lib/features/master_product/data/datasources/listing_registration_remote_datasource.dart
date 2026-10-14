@@ -341,4 +341,13 @@ class ListingRegistrationRemoteDataSource {
     });
     return masterFromChannelPreviewFromJson(data as Json);
   }
+
+  /// L38 — FEATURE_2610_13 / D104: an 11st listing's inherited baseline (master ?? 11st channel default).
+  Future<Map<String, String>> getInheritedElevenstShipping(int listingId) async {
+    final data = await api.get(
+        '/api/admin/product-listings/$listingId/elevenst-shipping-inherited');
+    return data is Map
+        ? data.map((k, v) => MapEntry(k as String, v.toString()))
+        : <String, String>{};
+  }
 }

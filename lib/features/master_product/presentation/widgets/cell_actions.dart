@@ -61,8 +61,8 @@ class _MenuGroup {
 /// **File**: lib/features/master_product/presentation/widgets/cell_actions.dart
 /// **Web original**: `master-products/[id]/components/CellActions.tsx` @09208a0
 ///
-/// - Primary: draft = Coupang [쿠팡에 올리기] (option picker sheet, D43) /
-///   other platforms [마켓 등록] · unsynced changes (`needsMarketSync`) =
+/// - Primary: draft = Coupang · 11st [마켓에 올리기] (option picker sheet, D43 ·
+///   FEATURE_2610_13 / D9 ③) / other platforms [마켓 등록] · unsynced changes (`needsMarketSync`) =
 ///   [수정 요청] · otherwise none. A draft whose category the server could not
 ///   resolve ([categoryBlocked]) shows none — the category notice takes its
 ///   place (FEATURE_2610_11 / D25).
@@ -161,7 +161,9 @@ class _CellActionsState extends State<CellActions> {
 
   String? get _primary {
     if (_status == ListingStatusCode.draft) {
-      return widget.platform == 'COUPANG' ? _primaryUpload : _primaryRegister;
+      return widget.platform == 'COUPANG' || widget.platform == 'ELEVENST'
+          ? _primaryUpload
+          : _primaryRegister;
     }
     return widget.needsMarketSync ? _primaryUpdate : null;
   }
@@ -233,7 +235,7 @@ class _CellActionsState extends State<CellActions> {
       (f) => _fail(f, '마스터 카테고리로 변경하지 못했습니다.'),
       (_) {
         setState(() => _pushedBanner =
-            '마스터 카테고리로 변경했습니다. 다음 수정 요청 때 쿠팡에 반영됩니다.');
+            '마스터 카테고리로 변경했습니다. 다음 수정 요청 때 마켓에 반영됩니다.');
         widget.onReload();
       },
     );
@@ -342,7 +344,7 @@ class _CellActionsState extends State<CellActions> {
       message: '이 채널의 카테고리를 마스터 카테고리로 바꿉니다.\n'
           '${widget.channelCategoryLabel ?? '채널 카테고리'} → '
           '${widget.masterCategoryName ?? '마스터 카테고리'}\n'
-          '지금 쿠팡에 반영되지는 않습니다. 다음 [수정 요청] 때 함께 전송되며, 그때 쿠팡에서 '
+          '지금 마켓에 반영되지는 않습니다. 다음 [수정 요청] 때 함께 전송되며, 그때 마켓에서 '
           '카테고리가 변경되고 재심사에 들어갑니다. 이 카테고리에 맞춰 넣어둔 필수 속성·고시 값은 '
           '지워집니다.',
       confirmText: '변경',
@@ -357,10 +359,10 @@ class _CellActionsState extends State<CellActions> {
       context,
       title: '마스터 옵션명 반영',
       message: '${widget.channelLabel} 채널의 옵션명을 마스터 옵션 이름으로 바꿉니다.\n'
-          '• 이 채널에서 직접 정했거나 쿠팡에서 가져온 옵션명이 마스터 이름으로 바뀝니다.\n'
-          '• 쿠팡에 올렸지만 옵션 ID 를 아직 받지 못한 옵션은 건너뜁니다(판매상품이 승인반려 상태면 '
+          '• 이 채널에서 직접 정했거나 마켓에서 가져온 옵션명이 마스터 이름으로 바뀝니다.\n'
+          '• 마켓에 올렸지만 옵션 ID 를 아직 받지 못한 옵션은 건너뜁니다(판매상품이 승인반려 상태면 '
           '바꿉니다 — 마지막 [승인 새로고침] 결과 기준).\n'
-          '• 지금 쿠팡에 반영되지는 않습니다. 쿠팡에 올라간 옵션의 이름이 바뀌면 「변경 미반영」이 '
+          '• 지금 마켓에 반영되지는 않습니다. 마켓에 올라간 옵션의 이름이 바뀌면 「변경 미반영」이 '
           '표시되고, [수정 요청]을 눌러야 전송됩니다.',
       confirmText: '반영',
     );
@@ -377,7 +379,7 @@ class _CellActionsState extends State<CellActions> {
       message: '${widget.channelLabel} 채널'
           '${pid != null && pid.isNotEmpty ? ' (상품 ID $pid)' : ''}을 '
           '이 마스터에서 떼어냅니다.\n'
-          '• 쿠팡에는 아무것도 전송하지 않습니다 — 상품은 그대로 팔립니다.\n'
+          '• 마켓에는 아무것도 전송하지 않습니다 — 상품은 그대로 팔립니다.\n'
           '• 주문·고객문의·정산 기록은 이 판매상품에 그대로 남습니다.\n'
           '• 해제하면 판매상품 목록의 「마스터 미연결만」에서 볼 수 있습니다.\n'
           '• 올바른 마스터에서 [마켓 상품 추가하기] 에 같은 상품 ID 를 넣으면 이 판매상품이 그대로 '
@@ -394,9 +396,9 @@ class _CellActionsState extends State<CellActions> {
     final ok = await showAppConfirmDialog(
       context,
       title: '채널 삭제',
-      message: '${widget.channelLabel} 채널 1줄을 지웁니다. 아직 쿠팡에 보낸 적이 없는 채널입니다.\n'
+      message: '${widget.channelLabel} 채널 1줄을 지웁니다. 아직 마켓에 보낸 적이 없는 채널입니다.\n'
           '• 이 채널의 옵션·구성·자동 생성된 썸네일·상세가 함께 지워집니다.\n'
-          '• 쿠팡에는 아무것도 전송하지 않습니다.\n'
+          '• 마켓에는 아무것도 전송하지 않습니다.\n'
           '• 되돌릴 수 없습니다 — 다시 만들려면 [채널 추가] 를 쓰세요.',
       confirmText: '삭제',
       isDangerous: true,
@@ -516,7 +518,7 @@ class _CellActionsState extends State<CellActions> {
             label: '채널 배송 설정${_hasShippingOverride ? ' ✓' : ''}',
             onTap: _openShipping,
           ),
-          // After upload; a draft picks options in [쿠팡에 올리기].
+          // After upload; a draft picks options in [마켓에 올리기].
           if (!isDraft)
             _MenuItem(
               key: 'option-picker',
@@ -676,7 +678,7 @@ class _CellActionsState extends State<CellActions> {
                   ? null
                   : () => _openOptionPicker('upload'),
               style: style(AppColors.infoForeground),
-              child: const Text('쿠팡에 올리기'),
+              child: const Text('마켓에 올리기'),
             ),
             if (blockedIcon != null) blockedIcon,
           ],
