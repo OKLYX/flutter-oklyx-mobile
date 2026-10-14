@@ -16,6 +16,8 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/master_format.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/master_image_commit.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/master_image_fields.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/elevenst_notice.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/elevenst_notice_text.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/elevenst_shipping.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/platform_category_block.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/shipping_override.dart';
@@ -261,6 +263,10 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
       };
     }
     _panelMounted = widget.overviewOpen;
+    // FEATURE_2610_13 / D74: the two 11st notice texts are always there, whatever the template lists.
+    for (final key in kNoticeTextKeys) {
+      _fieldControllers[key] = TextEditingController();
+    }
     _nameController.addListener(_onTextChanged);
     _catSearchController.addListener(_onTextChanged);
     _productSearchController.addListener(_onTextChanged);
@@ -363,10 +369,14 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
     if (!mounted) {
       return;
     }
-    final fields = templates.fold((_) => <TemplateField>[], (list) {
-      final defaults = list.where((t) => t.isDefault);
-      return defaults.isEmpty ? <TemplateField>[] : defaults.first.fields;
-    });
+    final fields = templates
+        .fold((_) => <TemplateField>[], (list) {
+          final defaults = list.where((t) => t.isDefault);
+          return defaults.isEmpty ? <TemplateField>[] : defaults.first.fields;
+        })
+        // FEATURE_2610_13 / D74: the notice texts are listed on their own — never twice.
+        .where((f) => !kNoticeTextKeys.contains(f.key))
+        .toList();
     setState(() {
       _fields = fields;
       for (final f in fields) {
@@ -904,6 +914,13 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
       setState(() => _error = tierMessage);
       return;
     }
+    // D78: a notice text over the 11st limit stops the save the same way.
+    if (noticeTextTooLong({
+      for (final key in kNoticeTextKeys) key: _fieldControllers[key]!.text,
+    })) {
+      setState(() => _error = kNoticeTextTooLongMessage);
+      return;
+    }
     setState(() => _isSubmitting = true);
     // Blank values are omitted so the backend falls back to defaults.
     final cleaned = <String, String>{};
@@ -954,7 +971,8 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
       return;
     }
 
-    // Category required attributes / notices (COUPANG values only).
+    // Category required attributes / notices: the COUPANG meta map, which also
+    // carries the 11st-only ELEVENST:{code} values (FEATURE_2610_13 / D101).
     final coupangMeta = _metaByPlatform['COUPANG'];
     if (coupangMeta != null) {
       // Same rule as the detail panel: one effective group for values + group.
@@ -967,11 +985,15 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
         createdId,
         CategoryAttributesRequest(
           attributes: coupangMeta.attrValues,
-          notices: noticesToSubmit(
-            coupangMeta.notices,
-            coupangMeta.noticeValues,
-            group,
-          ),
+          // FEATURE_2610_13 / D101: the 11st-only values ride along under their ELEVENST:{code} keys.
+          notices: {
+            ...noticesToSubmit(
+              coupangMeta.notices,
+              coupangMeta.noticeValues,
+              group,
+            ),
+            ...elevenstOwnNotices(coupangMeta.noticeValues),
+          },
           noticeGroup: group,
         ),
       );
@@ -1504,19 +1526,33 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
         const SizedBox(height: 16),
         const _FieldLabel('필수속성 / 상품정보제공고시'),
         const SizedBox(height: 8),
-        MetaPlatformTabs(
-          builder: (platform) => CategoryMetaCreateFields(
-            key: ValueKey(platform),
+        // FEATURE_2610_13 / D109 (a): with a switched-on 11st channel the fields bring their own
+        // 「통합」 · 「쿠팡」 · 「11번가」 tabs, so the single-platform chips are left out.
+        if (_activePlatforms.contains('ELEVENST'))
+          CategoryMetaCreateFields(
             categoryId: _selectedCategoryId,
-            platform: platform,
-            value: _metaByPlatform[platform]?.value ?? kEmptyMetaValue,
-            onChanged: (next) => _handleMetaChange(platform, next),
+            value: _metaByPlatform['COUPANG']?.value ?? kEmptyMetaValue,
+            onChanged: (next) => _handleMetaChange('COUPANG', next),
             onSchemaLoad: (attrs, notices) =>
-                _handleMetaSchemaLoad(platform, attrs, notices),
+                _handleMetaSchemaLoad('COUPANG', attrs, notices),
             hideCategoryAttrs: _hideCategoryAttrs,
+            elevenstActive: true,
+          )
+        else
+          MetaPlatformTabs(
+            builder: (platform) => CategoryMetaCreateFields(
+              key: ValueKey(platform),
+              categoryId: _selectedCategoryId,
+              platform: platform,
+              value: _metaByPlatform[platform]?.value ?? kEmptyMetaValue,
+              onChanged: (next) => _handleMetaChange(platform, next),
+              onSchemaLoad: (attrs, notices) =>
+                  _handleMetaSchemaLoad(platform, attrs, notices),
+              hideCategoryAttrs: _hideCategoryAttrs,
+            ),
           ),
-        ),
-        if (_fields.isNotEmpty) ...[
+        // D74: shown even without template fields — the notice texts are always there.
+        ...[
           const SizedBox(height: 16),
           const _FieldLabel('템플릿 필드값 (선택)'),
           const SizedBox(height: 8),
@@ -1528,6 +1564,18 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
                 hintText: kBuiltinFieldKeys.contains(f.key)
                     ? '등록상품값 사용'
                     : '템플릿 기본값 사용',
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          for (final (key, label) in kNoticeTextFields) ...[
+            TextField(
+              controller: _fieldControllers[key],
+              minLines: 3,
+              maxLines: 6,
+              decoration: InputDecoration(
+                labelText: label,
+                hintText: '템플릿 기본값 사용',
               ),
             ),
             const SizedBox(height: 12),

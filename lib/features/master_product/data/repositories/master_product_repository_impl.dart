@@ -511,4 +511,9 @@ class MasterProductRepositoryImpl implements MasterProductRepository {
   @override
   Future<Either<Failure, List<AccountPlatform>>> listAccountPlatforms() =>
       _guard(() => supportDataSource.listAccountPlatforms());
+
+  @override
+  Future<Either<Failure, ElevenstNotification>> previewElevenstNotice(
+          String group, Map<String, String> notices) =>
+      _guard(() => masterDataSource.previewElevenstNotice(group, notices));
 }

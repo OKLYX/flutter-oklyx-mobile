@@ -1920,6 +1920,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
             categoryCode: category != null ? '${category.categoryId}' : null,
             isBundle: isBundle,
             onSaved: () => unawaited(_loadMetaBase()),
+            elevenstActive: _activePlatforms.contains('ELEVENST'),
           ),
         ),
         const Divider(height: 1),
