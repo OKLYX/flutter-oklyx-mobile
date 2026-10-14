@@ -6,6 +6,7 @@ import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_product.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/category_meta_validation.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/elevenst_notice.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/measure_attributes.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/notice_templates.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/option_meta_fields.dart';
@@ -47,12 +48,16 @@ class CategoryMetaPanel extends StatefulWidget {
   /// Assigned standard category id (`null` = unset); a change refetches.
   final String? categoryCode;
 
-  /// Default 'COUPANG' (only registration mall for now).
+  /// Default 'COUPANG' (the only platform with a category attribute
+  /// schema — FEATURE_2610_13 / D93).
   final String platform;
 
   /// Component kinds ≥ 2 — computed by the parent.
   final bool isBundle;
   final VoidCallback? onSaved;
+
+  /// FEATURE_2610_13 / D98 · D109: a switched-on 11st channel exists → 「통합」 · 「쿠팡」 · 「11번가」 tabs.
+  final bool elevenstActive;
 
   const CategoryMetaPanel({
     required this.masterId,
@@ -61,6 +66,7 @@ class CategoryMetaPanel extends StatefulWidget {
     this.platform = 'COUPANG',
     this.isBundle = false,
     this.onSaved,
+    this.elevenstActive = false,
   });
 
   @override
@@ -82,6 +88,9 @@ class _CategoryMetaPanelState extends State<CategoryMetaPanel> {
   bool _onlyRequired = true;
   // Selected notice group; null = the effective group.
   String? _noticeGroup;
+  // FEATURE_2610_13 / D97: the 11st view of the chosen group's values.
+  late final ElevenstNoticePreviewer _previewer =
+      ElevenstNoticePreviewer(onChanged: () => setState(() {}));
 
   // COUPANG owns the persisted per-master values; other platforms are
   // schema-only (read-only).
@@ -96,6 +105,12 @@ class _CategoryMetaPanelState extends State<CategoryMetaPanel> {
     if (widget.categoryCode != null) {
       unawaited(_load());
     }
+  }
+
+  @override
+  void dispose() {
+    _previewer.dispose();
+    super.dispose();
   }
 
   @override
@@ -209,7 +224,11 @@ class _CategoryMetaPanelState extends State<CategoryMetaPanel> {
       widget.masterId,
       CategoryAttributesRequest(
         attributes: _attrValues,
-        notices: noticesToSubmit(_notices, _noticeValues, group),
+        // FEATURE_2610_13 / D101: the 11st-only values ride along under their ELEVENST:{code} keys.
+        notices: {
+          ...noticesToSubmit(_notices, _noticeValues, group),
+          ...elevenstOwnNotices(_noticeValues),
+        },
         noticeGroup: group,
       ),
     );
@@ -247,6 +266,18 @@ class _CategoryMetaPanelState extends State<CategoryMetaPanel> {
       );
     }
     final scheme = Theme.of(context).colorScheme;
+    final tabbed = widget.elevenstActive && !_readOnly;
+    if (tabbed) {
+      final group = submitNoticeGroup(_notices, _noticeValues, _noticeGroup);
+      _previewer.update(
+        _useCase,
+        group,
+        _notices
+            .where((n) => !isOptionNotice(n) && noticeGroupName(n) == group)
+            .toList(),
+        _noticeValues,
+      );
+    }
     final missingRequired = computeMissingRequired(
       _attributes,
       _attrValues,
@@ -294,6 +325,7 @@ class _CategoryMetaPanelState extends State<CategoryMetaPanel> {
             hideCategoryAttrs: _hideCategoryAttrs,
             noticeGroup: _noticeGroup,
             onNoticeGroupChange: _handleNoticeGroupChange,
+            elevenstPreview: tabbed ? _previewer.preview : null,
           ),
           if (_readOnly)
             _Banner(

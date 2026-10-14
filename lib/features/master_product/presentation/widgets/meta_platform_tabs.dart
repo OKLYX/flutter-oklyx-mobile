@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
-/// Real platforms today = COUPANG only (web `META_PLATFORMS`). Add here when
-/// a second mall's adapter lands.
+/// Platforms with a category attribute schema = COUPANG only (web
+/// `META_PLATFORMS`). 11st has an adapter but no attribute schema
+/// (FEATURE_2610_13 / D93) — its notices show as tabs inside
+/// `CategoryMetaFields` (D109), not here. Add a mall with its own attribute
+/// schema here.
 const List<String> kMetaPlatforms = ['COUPANG'];
 
 /// Category meta (required attributes / notices) platform tabs — shared by

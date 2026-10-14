@@ -431,4 +431,9 @@ class MasterProductUseCase {
   /// S22 — FEATURE_2610_13 / D98.
   Future<Either<Failure, List<AccountPlatform>>> listAccountPlatforms() =>
       repository.listAccountPlatforms();
+
+  /// M24 — FEATURE_2610_13 / D97.
+  Future<Either<Failure, ElevenstNotification>> previewElevenstNotice(
+          String group, Map<String, String> notices) =>
+      repository.previewElevenstNotice(group, notices);
 }

@@ -201,4 +201,27 @@ class MasterProductRemoteDataSource {
         body: {'listingIds': listingIds});
     return shippingForceApplyFromJson(data as Json);
   }
+
+  /// M24 — FEATURE_2610_13 / D97: the 11st view of the notice values on screen (pure conversion, nothing saved).
+  Future<ElevenstNotification> previewElevenstNotice(
+      String group, Map<String, String> notices) async {
+    final data = await api.post('/api/admin/elevenst/notice-preview',
+        body: {'group': group, 'notices': notices});
+    final j = data as Json;
+    return ElevenstNotification(
+      typeCode: j['typeCode'] as String,
+      typeName: j['typeName'] as String,
+      lines: (j['lines'] as List? ?? const [])
+          .map((e) => ElevenstNoticeLine(
+                code: (e as Json)['code'] as String,
+                name: e['name'] as String,
+                value: e['value'] as String,
+                ownKey: e['ownKey'] as String?,
+              ))
+          .toList(),
+      usedCoupangItems: (j['usedCoupangItems'] as List? ?? const [])
+          .map((e) => e as String)
+          .toList(),
+    );
+  }
 }
