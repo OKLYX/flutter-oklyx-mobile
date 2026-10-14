@@ -168,4 +168,34 @@ class MasterSupportRemoteDataSource {
         body: shippingConfigRequestToJson(settings));
     return shippingSettingsFromJson(data as Json);
   }
+
+  /// S20 — FEATURE_2610_13 / D84: the 11st channel default (`elevenst.*` keys; nothing stored = empty map).
+  Future<Map<String, String>> getElevenstShippingConfig(int accountId) async {
+    final data = await api.get(
+        '/api/admin/marketplace-account/$accountId/elevenst-shipping-config');
+    final settings = data is Json ? data['settings'] : null;
+    return settings is Map
+        ? settings.map((k, v) => MapEntry(k as String, v.toString()))
+        : <String, String>{};
+  }
+
+  /// S21 — replaces the whole 11st settings map; returns the D120 failed count.
+  Future<int> upsertElevenstShippingConfig(
+      int accountId, Map<String, String> settings) async {
+    final data = await api.put(
+        '/api/admin/marketplace-account/$accountId/elevenst-shipping-config',
+        body: {'settings': settings});
+    return recalcFailedCountFromJson(data as Json);
+  }
+
+  /// S22 — FEATURE_2610_13 / D98: every sales channel of the tenant (platform + on/off only).
+  Future<List<AccountPlatform>> listAccountPlatforms() async {
+    final data = await api.get('/api/admin/marketplace-account');
+    return (data as List? ?? const [])
+        .map((e) => AccountPlatform(
+              platform: (e as Json)['platform'] as String,
+              isActive: e['isActive'] as bool? ?? true,
+            ))
+        .toList();
+  }
 }

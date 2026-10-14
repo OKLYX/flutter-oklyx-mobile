@@ -206,3 +206,44 @@ class ShippingSettings {
     this.extraInfoMessage,
   });
 }
+
+/// One sales channel's platform and on/off state — the input of the D98 platform set (FEATURE_2610_13).
+class AccountPlatform {
+  final String platform;
+  final bool isActive;
+
+  const AccountPlatform({required this.platform, required this.isActive});
+}
+
+/// One 11st notice item of the preview (FEATURE_2610_13 / D97). [ownKey] is set only for an 11st-only item — the
+/// notice-map key its value is stored under (`ELEVENST:{code}`, D101).
+class ElevenstNoticeLine {
+  final String code;
+  final String name;
+  final String value;
+  final String? ownKey;
+
+  const ElevenstNoticeLine({
+    required this.code,
+    required this.name,
+    required this.value,
+    this.ownKey,
+  });
+}
+
+/// The 11st view of the master notice values (`POST /api/admin/elevenst/notice-preview`).
+class ElevenstNotification {
+  final String typeCode;
+  final String typeName;
+  final List<ElevenstNoticeLine> lines;
+
+  /// The request's Coupang item keys that some 11st item reads (= the items both platforms share).
+  final List<String> usedCoupangItems;
+
+  const ElevenstNotification({
+    required this.typeCode,
+    required this.typeName,
+    required this.lines,
+    required this.usedCoupangItems,
+  });
+}

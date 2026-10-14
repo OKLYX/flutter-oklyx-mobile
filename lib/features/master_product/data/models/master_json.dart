@@ -72,6 +72,7 @@ MasterProduct masterProductFromJson(Json j) => MasterProduct(
       optionCheckSuffixEnabled: _boolN(j['optionCheckSuffixEnabled']),
       optionCheckSuffix: _strN(j['optionCheckSuffix']),
       shippingOverride: _strMapN(j['shippingOverride']),
+      priceRecalcFailedCount: _intN(j['priceRecalcFailedCount']) ?? 0,
     );
 
 MasterProductPage masterProductPageFromJson(Json j) => MasterProductPage(
@@ -177,7 +178,15 @@ ListingMatrix listingMatrixFromJson(Json j) => ListingMatrix(
     );
 
 ShippingForceApplyResult shippingForceApplyFromJson(Json j) =>
-    ShippingForceApplyResult(affectedChannels: _int(j['affectedChannels']));
+    ShippingForceApplyResult(
+      affectedChannels: _int(j['affectedChannels']),
+      priceRecalcFailedCount: _intN(j['priceRecalcFailedCount']) ?? 0,
+    );
+
+/// S21 response (FEATURE_2610_13 / D120) — 11st listings whose re-price
+/// failed after the channel default save; 0 when absent.
+int recalcFailedCountFromJson(Json j) =>
+    _intN(j['priceRecalcFailedCount']) ?? 0;
 
 Json masterOptionRequestItemToJson(MasterOptionRequestItem i) =>
     {'productId': i.productId, 'quantity': i.quantity};
@@ -258,6 +267,7 @@ GeneratedProduct generatedProductFromJson(Json j) => GeneratedProduct(
       shippingOverride: _strMapN(j['shippingOverride']),
       shippingReady: _boolN(j['shippingReady']),
       detailTemplateId: _intN(j['detailTemplateId']),
+      priceRecalcFailedCount: _intN(j['priceRecalcFailedCount']) ?? 0,
     );
 
 ChannelAddResult channelAddResultFromJson(Json j) => ChannelAddResult(

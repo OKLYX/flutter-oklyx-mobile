@@ -1,11 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_product.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_support.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/basic_unit.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/elevenst_notice.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/measure_attributes.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/notice_templates.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/option_meta_fields.dart';
 
 const String _groupEtc = '기타';
+
+/// FEATURE_2610_13 / D97 · D109: the tabs shown when a switched-on 11st channel exists.
+const List<(String, String)> _metaTabs = [
+  ('ALL', '통합'),
+  ('COUPANG', '쿠팡'),
+  ('ELEVENST', '11번가'),
+];
+
+/// D99: the gray line under a read-only shared field.
+const String _sharedNote = '공통 항목은 「통합」 에서 고칩니다';
 
 // Group notices by groupName, first-seen order; null → 기타 (always last).
 List<MapEntry<String, List<CategoryNotice>>> _groupNotices(
@@ -73,6 +85,10 @@ class CategoryMetaFields extends StatefulWidget {
   final String? noticeGroup;
   final ValueChanged<String>? onNoticeGroupChange;
 
+  /// FEATURE_2610_13 / D97 · D109: given only when a switched-on 11st channel exists → 「통합」 · 「쿠팡」 · 「11번가」 tabs.
+  /// null = the single-platform screen as before.
+  final ElevenstNoticePreview? elevenstPreview;
+
   const CategoryMetaFields({
     required this.attributes,
     required this.notices,
@@ -89,6 +105,7 @@ class CategoryMetaFields extends StatefulWidget {
     this.hideCategoryAttrs = false,
     this.noticeGroup,
     this.onNoticeGroupChange,
+    this.elevenstPreview,
   });
 
   @override
@@ -98,6 +115,7 @@ class CategoryMetaFields extends StatefulWidget {
 class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
   // Display-only unit pick per pair; the value lives in the parent.
   final Map<String, String> _measureUnit = {};
+  String _tab = 'ALL';
 
   // Explicit choice wins, else inferred from existing values.
   String _unitOf(MeasurePair p) =>
@@ -146,6 +164,19 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
 
     final grayBoxText = TextStyle(fontSize: 14, color: scheme.onSurfaceVariant);
 
+    final preview = widget.elevenstPreview;
+    final tabbed = preview != null;
+    final notification = preview?.notification;
+    // Coupang items 11st also reads (shared). null = not known yet / failed → no tags, nothing read-only.
+    final shared = notification?.usedCoupangItems.toSet();
+    final ownLines = [
+      for (final l in notification?.lines ?? const <ElevenstNoticeLine>[])
+        if (l.ownKey != null) l,
+    ];
+    // D109 (b) · (c): 「통합」 shows notices only and owns the group select; the Coupang tab shows the attributes too.
+    final showAttributes = !tabbed || _tab == 'COUPANG';
+    final coupangView = tabbed && _tab == 'COUPANG';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -173,8 +204,23 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
           dense: true,
           contentPadding: EdgeInsets.zero,
         ),
+        if (tabbed) ...[
+          Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              for (final t in _metaTabs)
+                ChoiceChip(
+                  label: Text(t.$2),
+                  selected: _tab == t.$1,
+                  onSelected: (_) => setState(() => _tab = t.$1),
+                ),
+            ],
+          ),
+        ],
         const SizedBox(height: 12),
-        if (widget.hideCategoryAttrs)
+        if (showAttributes && widget.hideCategoryAttrs)
           _grayBox(
             context,
             Text(
@@ -182,7 +228,8 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
               style: grayBoxText,
             ),
           )
-        else if (visibleSingles.isNotEmpty || visiblePairs.isNotEmpty)
+        else if (showAttributes &&
+            (visibleSingles.isNotEmpty || visiblePairs.isNotEmpty))
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -196,79 +243,157 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
               ],
             ],
           ),
-        const SizedBox(height: 4),
-        Divider(height: 1, color: scheme.outlineVariant),
-        const SizedBox(height: 12),
-        const Text(
-          '상품정보제공고시',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-        ),
-        if (noticeGroupNames.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          _select(
-            context,
-            fieldKey: 'notice-group-$activeNoticeGroup',
-            value: activeNoticeGroup,
-            items: [for (final g in noticeGroupNames) (g, g)],
-            onChanged: disabled || widget.onNoticeGroupChange == null
-                ? null
-                : (v) => widget.onNoticeGroupChange!(v),
+        if (tabbed && _tab == 'ELEVENST')
+          _buildElevenstView(context, preview)
+        else ...[
+          const SizedBox(height: 4),
+          Divider(height: 1, color: scheme.outlineVariant),
+          const SizedBox(height: 12),
+          const Text(
+            '상품정보제공고시',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
-        ],
-        if (activeGroupNotices.isNotEmpty)
-          CheckboxListTile(
-            value: refAll,
-            onChanged: disabled
-                ? null
-                : (v) => widget.onNoticeValuesChange(applyNoticeRefAll(
-                    activeGroupNotices, noticeValues, v ?? false)),
-            title: const Text('전체 상품 상세페이지 참조', style: TextStyle(fontSize: 12)),
-            controlAffinity: ListTileControlAffinity.leading,
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-          ),
-        const SizedBox(height: 12),
-        if (masterNotices.isEmpty)
-          _grayBox(
-            context,
-            Text('이 카테고리에는 입력할 상품정보제공고시 항목이 없습니다.', style: grayBoxText),
-          )
-        else if (noticeGroups.isEmpty)
-          _grayBox(
-            context,
-            Text(
-              '이 품목군에는 필수 항목이 없습니다. 「필수 항목만 보기」를 끄면 선택 항목을 입력할 수 있습니다.',
-              style: grayBoxText,
+          if (noticeGroupNames.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _select(
+              context,
+              fieldKey: 'notice-group-$activeNoticeGroup',
+              value: activeNoticeGroup,
+              items: [for (final g in noticeGroupNames) (g, g)],
+              onChanged: disabled || widget.onNoticeGroupChange == null || coupangView
+                  ? null
+                  : (v) => widget.onNoticeGroupChange!(v),
             ),
-          )
-        else
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (final group in noticeGroups) ...[
-                Text(
-                  group.key,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: scheme.onSurfaceVariant,
+          ],
+          if (activeGroupNotices.isNotEmpty && !coupangView)
+            CheckboxListTile(
+              value: refAll,
+              onChanged: disabled
+                  ? null
+                  : (v) => widget.onNoticeValuesChange(applyNoticeRefAll(
+                      activeGroupNotices, noticeValues, v ?? false)),
+              title: const Text('전체 상품 상세페이지 참조', style: TextStyle(fontSize: 12)),
+              controlAffinity: ListTileControlAffinity.leading,
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
+          const SizedBox(height: 12),
+          if (masterNotices.isEmpty)
+            _grayBox(
+              context,
+              Text('이 카테고리에는 입력할 상품정보제공고시 항목이 없습니다.', style: grayBoxText),
+            )
+          else if (noticeGroups.isEmpty)
+            _grayBox(
+              context,
+              Text(
+                '이 품목군에는 필수 항목이 없습니다. 「필수 항목만 보기」를 끄면 선택 항목을 입력할 수 있습니다.',
+                style: grayBoxText,
+              ),
+            )
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final group in noticeGroups) ...[
+                  Text(
+                    group.key,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                for (final n in group.value) ...[
-                  _MetaTextField(
-                    key: ValueKey('notice-${n.key}'),
-                    label: _fieldLabel(context, n.label, required: n.required),
-                    value: noticeValues[n.key] ?? '',
-                    enabled: !disabled && !refAll,
-                    onChanged: (v) => widget.onNoticeChange(n.key, v),
-                  ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
+                  for (final n in group.value) ...[
+                    _MetaTextField(
+                      key: ValueKey('notice-${n.key}'),
+                      label: _fieldLabel(
+                        context,
+                        n.label,
+                        required: n.required,
+                        tag: tabbed && _tab == 'ALL' && shared != null && !shared.contains(n.key)
+                            ? '쿠팡'
+                            : null,
+                      ),
+                      value: noticeValues[n.key] ?? '',
+                      // D99: on the Coupang tab a shared item is edited in 「통합」 only.
+                      enabled: !disabled && !refAll && !(coupangView && (shared?.contains(n.key) ?? false)),
+                      onChanged: (v) => widget.onNoticeChange(n.key, v),
+                    ),
+                    if (coupangView && (shared?.contains(n.key) ?? false))
+                      _note(context, _sharedNote),
+                    const SizedBox(height: 12),
+                  ],
+                  const SizedBox(height: 4),
                 ],
-                const SizedBox(height: 4),
               ],
+            ),
+          // D97 · D100: the 11st-only items of the 11st type, stored under ELEVENST:{code} (D101).
+          if (tabbed && _tab == 'ALL')
+            for (final line in ownLines) ...[
+              _MetaTextField(
+                key: ValueKey('notice-${line.ownKey}'),
+                label: _fieldLabel(context, line.name, required: false, tag: '11번가'),
+                value: noticeValues[line.ownKey] ?? '',
+                enabled: !disabled,
+                hintText: '비우면 「상품 상세페이지 참조」',
+                onChanged: (v) => widget.onNoticeChange(line.ownKey!, v),
+              ),
+              const SizedBox(height: 12),
             ],
-          ),
+        ],
+      ],
+    );
+  }
+
+  // D99: on the 11st tab every item shows the value 11st receives; only 11st-only items are editable.
+  Widget _buildElevenstView(BuildContext context, ElevenstNoticePreview preview) {
+    final scheme = Theme.of(context).colorScheme;
+    final notification = preview.notification;
+    if (preview.failed && notification == null) {
+      return _grayBox(
+        context,
+        Text('11번가 고시 미리보기를 불러오지 못했습니다.',
+            style: TextStyle(fontSize: 14, color: scheme.error)),
+      );
+    }
+    if (notification == null) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '11번가 고시 유형: ${notification.typeName} (쿠팡 품목군으로 정해집니다)',
+          style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 12),
+        for (final line in notification.lines) ...[
+          if (line.ownKey != null)
+            _MetaTextField(
+              key: ValueKey('elevenst-${line.code}'),
+              label: _fieldLabel(context, line.name, required: false),
+              value: widget.noticeValues[line.ownKey] ?? '',
+              enabled: !widget.disabled,
+              hintText: '비우면 「상품 상세페이지 참조」',
+              onChanged: (v) => widget.onNoticeChange(line.ownKey!, v),
+            )
+          else ...[
+            _MetaTextField(
+              key: ValueKey('elevenst-${line.code}-${line.value}'),
+              label: _fieldLabel(context, line.name, required: false),
+              value: line.value,
+              enabled: false,
+              onChanged: (_) {},
+            ),
+            _note(context, _sharedNote),
+          ],
+          const SizedBox(height: 12),
+        ],
       ],
     );
   }
@@ -386,7 +511,7 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
 }
 
 Widget _fieldLabel(BuildContext context, String text,
-    {required bool required}) {
+    {required bool required, String? tag}) {
   final scheme = Theme.of(context).colorScheme;
   return Text.rich(
     TextSpan(
@@ -394,10 +519,25 @@ Widget _fieldLabel(BuildContext context, String text,
       children: [
         if (required)
           TextSpan(text: ' *', style: TextStyle(color: scheme.error)),
+        // FEATURE_2610_13 / D97: the platform an item belongs to alone, on the 「통합」 tab.
+        if (tag != null)
+          TextSpan(
+            text: ' · $tag',
+            style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
+          ),
       ],
     ),
   );
 }
+
+Widget _note(BuildContext context, String text) => Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(
+        text,
+        style: TextStyle(
+            fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+    );
 
 Widget _grayBox(BuildContext context, Widget child) => Container(
       width: double.infinity,

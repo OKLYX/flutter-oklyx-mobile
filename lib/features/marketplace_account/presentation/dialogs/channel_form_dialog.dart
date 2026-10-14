@@ -52,8 +52,12 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
   final TextEditingController _vendorIdController = TextEditingController();
   final TextEditingController _accessKeyController = TextEditingController();
   final TextEditingController _secretKeyController = TextEditingController();
+  final TextEditingController _apiKeyController = TextEditingController();
 
   final Map<String, String?> _errors = {};
+
+  // FEATURE_2610_13 / D5: an 11st account takes 「API 키」 alone instead of the Coupang fields.
+  bool get _isElevenst => _platform == 'ELEVENST';
 
   @override
   void initState() {
@@ -62,8 +66,8 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
     if (channel != null) {
       _platform = channel.platform;
       _accountAliasController.text = channel.accountAlias ?? '';
-      _vendorIdController.text = channel.vendorId;
-      _accessKeyController.text = channel.accessKey;
+      _vendorIdController.text = channel.vendorId ?? '';
+      _accessKeyController.text = channel.accessKey ?? '';
     }
   }
 
@@ -73,6 +77,7 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
     _vendorIdController.dispose();
     _accessKeyController.dispose();
     _secretKeyController.dispose();
+    _apiKeyController.dispose();
     super.dispose();
   }
 
@@ -81,14 +86,20 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
     if (_platform.isEmpty) {
       errors['platform'] = '플랫폼을 선택하세요';
     }
-    if (_vendorIdController.text.trim().isEmpty) {
-      errors['vendorId'] = '판매자(벤더) ID를 입력하세요';
-    }
-    if (_accessKeyController.text.trim().isEmpty) {
-      errors['accessKey'] = 'Access Key를 입력하세요';
-    }
-    if (!widget.isEdit && _secretKeyController.text.isEmpty) {
-      errors['secretKey'] = 'Secret Key를 입력하세요';
+    if (_isElevenst) {
+      if (!widget.isEdit && _apiKeyController.text.trim().isEmpty) {
+        errors['apiKey'] = '11번가 API 키를 입력하세요.';
+      }
+    } else {
+      if (_vendorIdController.text.trim().isEmpty) {
+        errors['vendorId'] = '판매자(벤더) ID를 입력하세요';
+      }
+      if (_accessKeyController.text.trim().isEmpty) {
+        errors['accessKey'] = 'Access Key를 입력하세요';
+      }
+      if (!widget.isEdit && _secretKeyController.text.isEmpty) {
+        errors['secretKey'] = 'Secret Key를 입력하세요';
+      }
     }
     setState(() {
       _errors
@@ -103,6 +114,7 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
 
     final alias = _accountAliasController.text.trim();
     final bloc = context.read<MarketplaceAccountBloc>();
+    String? textOrNull(TextEditingController c) => c.text.trim().isEmpty ? null : c.text.trim();
 
     if (widget.isEdit) {
       bloc.add(UpdateChannelRequested(
@@ -111,9 +123,10 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
           sellerId: widget.sellerId,
           platform: _platform,
           accountAlias: alias.isEmpty ? null : alias,
-          vendorId: _vendorIdController.text.trim(),
-          accessKey: _accessKeyController.text.trim(),
-          secretKey: _secretKeyController.text.isEmpty ? null : _secretKeyController.text,
+          vendorId: _isElevenst ? null : textOrNull(_vendorIdController),
+          accessKey: _isElevenst ? null : textOrNull(_accessKeyController),
+          secretKey: _isElevenst || _secretKeyController.text.isEmpty ? null : _secretKeyController.text,
+          apiKey: _isElevenst ? textOrNull(_apiKeyController) : null,
         ),
       ));
     } else {
@@ -122,9 +135,10 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
           sellerId: widget.sellerId,
           platform: _platform,
           accountAlias: alias.isEmpty ? null : alias,
-          vendorId: _vendorIdController.text.trim(),
-          accessKey: _accessKeyController.text.trim(),
-          secretKey: _secretKeyController.text,
+          vendorId: _isElevenst ? null : textOrNull(_vendorIdController),
+          accessKey: _isElevenst ? null : textOrNull(_accessKeyController),
+          secretKey: _isElevenst ? null : _secretKeyController.text,
+          apiKey: _isElevenst ? textOrNull(_apiKeyController) : null,
         ),
       ));
     }
@@ -210,39 +224,57 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
                     hintText: '예: 쿠팡 본점',
                   ),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _vendorIdController,
-                  enabled: !isSubmitting,
-                  decoration: InputDecoration(
-                    labelText: '판매자(벤더) ID *',
-                    hintText: '예: A00012345',
-                    errorText: _errors['vendorId'],
+                // FEATURE_2610_13 / D5: the Coupang credential fields — an 11st account takes 「API 키」 alone.
+                if (_isElevenst) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _apiKeyController,
+                    enabled: !isSubmitting,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: widget.isEdit ? 'API 키' : 'API 키 *',
+                      hintText: widget.isEdit
+                          ? '변경 시에만 입력 (비워두면 기존 값 유지)'
+                          : '11번가 오픈API 키를 입력하세요',
+                      errorText: _errors['apiKey'],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _accessKeyController,
-                  enabled: !isSubmitting,
-                  decoration: InputDecoration(
-                    labelText: 'Access Key *',
-                    hintText: 'Access Key를 입력하세요',
-                    errorText: _errors['accessKey'],
+                ],
+                if (!_isElevenst) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _vendorIdController,
+                    enabled: !isSubmitting,
+                    decoration: InputDecoration(
+                      labelText: '판매자(벤더) ID *',
+                      hintText: '예: A00012345',
+                      errorText: _errors['vendorId'],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _secretKeyController,
-                  enabled: !isSubmitting,
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: widget.isEdit ? 'Secret Key' : 'Secret Key *',
-                    hintText: widget.isEdit
-                        ? '변경 시에만 입력 (비워두면 기존 값 유지)'
-                        : 'Secret Key를 입력하세요',
-                    errorText: _errors['secretKey'],
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _accessKeyController,
+                    enabled: !isSubmitting,
+                    decoration: InputDecoration(
+                      labelText: 'Access Key *',
+                      hintText: 'Access Key를 입력하세요',
+                      errorText: _errors['accessKey'],
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _secretKeyController,
+                    enabled: !isSubmitting,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: widget.isEdit ? 'Secret Key' : 'Secret Key *',
+                      hintText: widget.isEdit
+                          ? '변경 시에만 입력 (비워두면 기존 값 유지)'
+                          : 'Secret Key를 입력하세요',
+                      errorText: _errors['secretKey'],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

@@ -489,4 +489,31 @@ class MasterProductRepositoryImpl implements MasterProductRepository {
   ServerFailure _failure(String message, int? statusCode) => statusCode == 403
       ? const ServerFailure(kMasterForbiddenMessage, statusCode: 403)
       : ServerFailure(message, statusCode: statusCode);
+
+  @override
+  Future<Either<Failure, Map<String, String>>> getInheritedElevenstShipping(
+          int listingId) =>
+      _guard(() => listingDataSource.getInheritedElevenstShipping(listingId));
+
+  @override
+  Future<Either<Failure, Map<String, String>>> getElevenstShippingConfig(
+          int accountId) =>
+      _guard(() => supportDataSource.getElevenstShippingConfig(accountId));
+
+  @override
+  Future<Either<Failure, int>> upsertElevenstShippingConfig(
+          int accountId, Map<String, String> settings) =>
+      _guard(() async {
+        final failed = await supportDataSource.upsertElevenstShippingConfig(accountId, settings);
+        return failed;
+      });
+
+  @override
+  Future<Either<Failure, List<AccountPlatform>>> listAccountPlatforms() =>
+      _guard(() => supportDataSource.listAccountPlatforms());
+
+  @override
+  Future<Either<Failure, ElevenstNotification>> previewElevenstNotice(
+          String group, Map<String, String> notices) =>
+      _guard(() => masterDataSource.previewElevenstNotice(group, notices));
 }

@@ -58,6 +58,9 @@ class GeneratedProduct {
   final Map<String, String>? shippingOverride;
   final bool? shippingReady;
   final int? detailTemplateId;
+  // FEATURE_2610_13 / D120: 1 when this 11st listing's re-price failed after
+  // a shipping save, else 0.
+  final int priceRecalcFailedCount;
 
   const GeneratedProduct({
     required this.productListingId,
@@ -71,6 +74,7 @@ class GeneratedProduct {
     this.shippingOverride,
     this.shippingReady,
     this.detailTemplateId,
+    this.priceRecalcFailedCount = 0,
   });
 }
 

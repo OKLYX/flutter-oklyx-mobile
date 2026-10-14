@@ -6,6 +6,7 @@ import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_product.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_support.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/elevenst_notice_text.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
@@ -20,10 +21,13 @@ String _placeholderFor(String key) =>
 /// **Web original**: `master-products/[id]/components/MasterFieldValuesPanel.tsx` @09208a0
 ///
 /// Field **list** = the default thumbnail template's `fields` (S13, loaded
-/// once on mount); field **values** = the parent [master]'s `fieldValues`.
+/// once on mount) + the two 11st notice texts 「A/S 안내」 · 「반품/교환 안내」,
+/// always shown as multi-line fields (FEATURE_2610_13 / D74); field
+/// **values** = the parent [master]'s `fieldValues`.
 /// Blank values are omitted on save (built-in keys fall back to the listing
-/// value, custom keys to the template default). Save PATCHes only
-/// `{fieldValues}` and notifies [onSaved].
+/// value, custom keys and the notice texts to the template default). Save
+/// PATCHes only `{fieldValues}` and notifies [onSaved]. A notice text over
+/// 4000 EUC-KR bytes stops the save (D78).
 ///
 /// ⚠️ The backend replaces the whole non-null map — cleared fields are applied.
 /// ❌ Draws no card shell or title — the detail page wraps it (09).
@@ -82,11 +86,16 @@ class _MasterFieldValuesPanelState extends State<MasterFieldValuesPanel> {
       result.fold(
         (_) {
           _fields = [];
-          _loadError = '템플릿 필드를 불러오지 못했습니다. 필드값을 편집할 수 없습니다.';
+          _loadError = '템플릿 필드를 불러오지 못했습니다. A/S 안내 · 반품/교환 안내만 편집할 수 있습니다.';
         },
         (templates) {
           final defaults = templates.where((t) => t.isDefault);
-          _fields = defaults.isEmpty ? [] : defaults.first.fields;
+          // FEATURE_2610_13 / D74: the notice texts are listed on their own — never twice.
+          _fields = defaults.isEmpty
+              ? []
+              : defaults.first.fields
+                  .where((f) => !kNoticeTextKeys.contains(f.key))
+                  .toList();
         },
       );
       _isLoading = false;
@@ -99,8 +108,8 @@ class _MasterFieldValuesPanelState extends State<MasterFieldValuesPanel> {
   void _startEdit() {
     setState(() {
       _values = Map.of(widget.master.fieldValues);
-      for (final f in _fields) {
-        _controllerFor(f.key).text = _values[f.key] ?? '';
+      for (final key in [..._fields.map((f) => f.key), ...kNoticeTextKeys]) {
+        _controllerFor(key).text = _values[key] ?? '';
       }
       _error = '';
       _saved = false;
@@ -109,6 +118,11 @@ class _MasterFieldValuesPanelState extends State<MasterFieldValuesPanel> {
   }
 
   Future<void> _handleSave() async {
+    // FEATURE_2610_13 / D78: a notice text over the 11st limit is not saved.
+    if (noticeTextTooLong(_values)) {
+      setState(() => _error = kNoticeTextTooLongMessage);
+      return;
+    }
     // Omit blank values so the backend falls back to product/template defaults.
     final cleaned = <String, String>{
       for (final e in _values.entries)
@@ -178,13 +192,16 @@ class _MasterFieldValuesPanelState extends State<MasterFieldValuesPanel> {
               height: 64,
               child: Center(child: AppBusyLabel('불러오는 중...', size: 20)),
             )
-          else if (_fields.isEmpty)
-            Text(
-              '기본 템플릿에 정의된 필드가 없습니다.',
-              style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
-            )
-          else
+          else ...[
+            if (_fields.isEmpty) ...[
+              Text(
+                '기본 템플릿에 정의된 필드가 없습니다.',
+                style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 12),
+            ],
             _buildFields(context),
+          ],
         ],
       ),
     );
@@ -228,6 +245,42 @@ class _MasterFieldValuesPanelState extends State<MasterFieldValuesPanel> {
                   ? Text(stored[f.key]!, style: const TextStyle(fontSize: 14))
                   : Text(
                       _placeholderFor(f.key),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+            ),
+          const SizedBox(height: 12),
+        ],
+        // FEATURE_2610_13 / D74: the two 11st notice texts, always shown, multi-line.
+        for (final (key, label) in kNoticeTextFields) ...[
+          Text(label, style: labelStyle),
+          const SizedBox(height: 4),
+          if (_isEditing)
+            TextField(
+              controller: _controllerFor(key),
+              enabled: !_isSaving,
+              minLines: 3,
+              maxLines: 6,
+              decoration: const InputDecoration(hintText: '템플릿 기본값 사용'),
+              onChanged: (next) => setState(() {
+                _values = {..._values, key: next};
+                _saved = false;
+              }),
+            )
+          else
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: (stored[key] ?? '').trim().isNotEmpty
+                  ? Text(stored[key]!, style: const TextStyle(fontSize: 14))
+                  : Text(
+                      '템플릿 기본값 사용',
                       style: TextStyle(
                         fontSize: 14,
                         color: scheme.onSurfaceVariant,

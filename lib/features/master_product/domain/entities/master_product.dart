@@ -70,6 +70,9 @@ class MasterProduct {
   final bool? optionCheckSuffixEnabled;
   final String? optionCheckSuffix;
   final Map<String, String>? shippingOverride;
+  // FEATURE_2610_13 / D120: 11st listings whose re-price failed after the
+  // master shipping save (0 on every other response).
+  final int priceRecalcFailedCount;
 
   const MasterProduct({
     required this.id,
@@ -85,6 +88,7 @@ class MasterProduct {
     this.optionCheckSuffixEnabled,
     this.optionCheckSuffix,
     this.shippingOverride,
+    this.priceRecalcFailedCount = 0,
   });
 }
 
@@ -281,8 +285,13 @@ class ListingMatrix {
 /// Web `ShippingForceApplyResponse`.
 class ShippingForceApplyResult {
   final int affectedChannels;
+  // FEATURE_2610_13 / D120: changed 11st listings whose re-price failed.
+  final int priceRecalcFailedCount;
 
-  const ShippingForceApplyResult({required this.affectedChannels});
+  const ShippingForceApplyResult({
+    required this.affectedChannels,
+    this.priceRecalcFailedCount = 0,
+  });
 }
 
 // ── Requests ─────────────────────────────────────────────────────────────

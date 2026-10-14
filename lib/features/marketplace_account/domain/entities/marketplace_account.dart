@@ -9,11 +9,18 @@ class MarketplaceAccount extends Equatable {
   final int sellerId;
   final String platform;
   final String? accountAlias;
-  final String vendorId;
-  final String accessKey;
+
+  /// Coupang only — null on an 11st account (FEATURE_2610_13 / D5).
+  final String? vendorId;
+
+  /// Coupang only — null on an 11st account (FEATURE_2610_13 / D5).
+  final String? accessKey;
   final bool isActive;
   final String createdAt;
   final String updatedAt;
+
+  /// FEATURE_2610_13 / D88: the server says the 11st key went unused for over 150 days (null = not 11st).
+  final bool? elevenstKeyRenewalNeeded;
 
   const MarketplaceAccount({
     required this.id,
@@ -25,9 +32,20 @@ class MarketplaceAccount extends Equatable {
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
+    this.elevenstKeyRenewalNeeded,
   });
 
   @override
-  List<Object?> get props =>
-      [id, sellerId, platform, accountAlias, vendorId, accessKey, isActive, createdAt, updatedAt];
+  List<Object?> get props => [
+        id,
+        sellerId,
+        platform,
+        accountAlias,
+        vendorId,
+        accessKey,
+        isActive,
+        createdAt,
+        updatedAt,
+        elevenstKeyRenewalNeeded,
+      ];
 }

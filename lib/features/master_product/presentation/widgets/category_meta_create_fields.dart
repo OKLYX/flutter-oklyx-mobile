@@ -4,7 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_product.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/category_meta_validation.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/elevenst_notice.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/measure_attributes.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/notice_templates.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/option_meta_fields.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/category_meta_fields.dart';
 
@@ -64,6 +68,9 @@ class CategoryMetaCreateFields extends StatefulWidget {
   final String platform;
   final bool hideCategoryAttrs;
 
+  /// FEATURE_2610_13 / D98 · D109: a switched-on 11st channel exists → 「통합」 · 「쿠팡」 · 「11번가」 tabs (COUPANG only).
+  final bool elevenstActive;
+
   const CategoryMetaCreateFields({
     required this.categoryId,
     required this.value,
@@ -72,6 +79,7 @@ class CategoryMetaCreateFields extends StatefulWidget {
     super.key,
     this.platform = 'COUPANG',
     this.hideCategoryAttrs = false,
+    this.elevenstActive = false,
   });
 
   @override
@@ -88,6 +96,15 @@ class _CategoryMetaCreateFieldsState extends State<CategoryMetaCreateFields> {
   bool _onlyRequired = true;
   // Guards against results of a superseded load (web `alive`).
   int _loadSeq = 0;
+  // FEATURE_2610_13 / D97: the 11st view of the chosen group's values.
+  late final ElevenstNoticePreviewer _previewer =
+      ElevenstNoticePreviewer(onChanged: () => setState(() {}));
+
+  @override
+  void dispose() {
+    _previewer.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -212,6 +229,19 @@ class _CategoryMetaCreateFieldsState extends State<CategoryMetaCreateFields> {
     }
 
     final value = widget.value;
+    final tabbed = widget.elevenstActive && widget.platform == 'COUPANG';
+    if (tabbed) {
+      final group =
+          submitNoticeGroup(_notices, value.noticeValues, value.noticeGroup);
+      _previewer.update(
+        getIt<MasterProductUseCase>(),
+        group,
+        _notices
+            .where((n) => !isOptionNotice(n) && noticeGroupName(n) == group)
+            .toList(),
+        value.noticeValues,
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -243,6 +273,7 @@ class _CategoryMetaCreateFieldsState extends State<CategoryMetaCreateFields> {
           noticeGroup: value.noticeGroup,
           onNoticeGroupChange: (group) =>
               widget.onChanged(_with(noticeGroup: group)),
+          elevenstPreview: tabbed ? _previewer.preview : null,
         ),
         if (widget.platform != 'COUPANG')
           _box(

@@ -32,8 +32,8 @@ class ChannelDetailsDialog extends StatelessWidget {
           children: [
             _DetailRow(label: '플랫폼', value: platformLabel(channel.platform)),
             _DetailRow(label: '계정 별칭', value: channel.accountAlias ?? '-'),
-            _DetailRow(label: '판매자(벤더) ID', value: channel.vendorId),
-            _DetailRow(label: 'Access Key', value: channel.accessKey),
+            _DetailRow(label: '판매자(벤더) ID', value: channel.vendorId ?? '-'),
+            _DetailRow(label: 'Access Key', value: channel.accessKey ?? '-'),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(

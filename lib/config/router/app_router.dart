@@ -78,6 +78,8 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/channel_option_name_page.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/channel_price_page.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/channel_shipping_page.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/elevenst_channel_shipping_page.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/elevenst_shipping_config_page.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/channel_stock_page.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/market_product_add_page.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/master_shipping_config_page.dart';
@@ -601,9 +603,15 @@ class AppRouter {
     GoRoute(
       name: Routes.masterChannelShipping,
       path: Routes.masterChannelShippingPath,
-      pageBuilder: (context, state) => NoTransitionPage(
-        child: ChannelShippingPage(args: state.extra! as ChannelShippingArgs),
-      ),
+      pageBuilder: (context, state) {
+        final args = state.extra! as ChannelShippingArgs;
+        // FEATURE_2610_13 / D104: an 11st listing edits only the 11st keys.
+        return NoTransitionPage(
+          child: args.platform == 'ELEVENST'
+              ? ElevenstChannelShippingPage(args: args)
+              : ChannelShippingPage(args: args),
+        );
+      },
     ),
     GoRoute(
       name: Routes.masterMarketProductAdd,
@@ -615,11 +623,15 @@ class AppRouter {
     GoRoute(
       name: Routes.masterShippingConfig,
       path: Routes.masterShippingConfigPath,
-      pageBuilder: (context, state) => NoTransitionPage(
-        child: MasterShippingConfigPage(
-          args: state.extra! as ShippingConfigArgs,
-        ),
-      ),
+      pageBuilder: (context, state) {
+        final args = state.extra! as ShippingConfigArgs;
+        // FEATURE_2610_13 / D84: an 11st account keeps its own settings map.
+        return NoTransitionPage(
+          child: args.account.platform == 'ELEVENST'
+              ? ElevenstShippingConfigPage(args: args)
+              : MasterShippingConfigPage(args: args),
+        );
+      },
     ),
     GoRoute(
       name: Routes.masterProductDetail,
