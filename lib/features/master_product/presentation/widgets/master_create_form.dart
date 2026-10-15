@@ -1575,7 +1575,7 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
               maxLines: 6,
               decoration: InputDecoration(
                 labelText: label,
-                hintText: '템플릿 기본값 사용',
+                hintText: '판매채널 기본값 사용',
               ),
             ),
             const SizedBox(height: 12),

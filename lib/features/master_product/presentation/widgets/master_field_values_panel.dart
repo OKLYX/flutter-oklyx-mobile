@@ -25,9 +25,10 @@ String _placeholderFor(String key) =>
 /// always shown as multi-line fields (FEATURE_2610_13 / D74); field
 /// **values** = the parent [master]'s `fieldValues`.
 /// Blank values are omitted on save (built-in keys fall back to the listing
-/// value, custom keys and the notice texts to the template default). Save
-/// PATCHes only `{fieldValues}` and notifies [onSaved]. A notice text over
-/// 4000 EUC-KR bytes stops the save (D78).
+/// value, custom keys to the template default, the notice texts to the 11st
+/// sales channel default — FEATURE_2610_16 / D5 · D9). Save PATCHes only
+/// `{fieldValues}` and notifies [onSaved]. A notice text over 4000 EUC-KR
+/// bytes stops the save (D78).
 ///
 /// ⚠️ The backend replaces the whole non-null map — cleared fields are applied.
 /// ❌ Draws no card shell or title — the detail page wraps it (09).
@@ -123,7 +124,9 @@ class _MasterFieldValuesPanelState extends State<MasterFieldValuesPanel> {
       setState(() => _error = kNoticeTextTooLongMessage);
       return;
     }
-    // Omit blank values so the backend falls back to product/template defaults.
+    // Omit blank values so the backend falls back to defaults: product /
+    // template values for the template fields, the 11st sales channel default
+    // for the two notice texts (FEATURE_2610_16 / D5).
     final cleaned = <String, String>{
       for (final e in _values.entries)
         if (e.value.trim().isNotEmpty) e.key: e.value,
@@ -263,7 +266,7 @@ class _MasterFieldValuesPanelState extends State<MasterFieldValuesPanel> {
               enabled: !_isSaving,
               minLines: 3,
               maxLines: 6,
-              decoration: const InputDecoration(hintText: '템플릿 기본값 사용'),
+              decoration: const InputDecoration(hintText: '판매채널 기본값 사용'),
               onChanged: (next) => setState(() {
                 _values = {..._values, key: next};
                 _saved = false;
@@ -280,7 +283,7 @@ class _MasterFieldValuesPanelState extends State<MasterFieldValuesPanel> {
               child: (stored[key] ?? '').trim().isNotEmpty
                   ? Text(stored[key]!, style: const TextStyle(fontSize: 14))
                   : Text(
-                      '템플릿 기본값 사용',
+                      '판매채널 기본값 사용',
                       style: TextStyle(
                         fontSize: 14,
                         color: scheme.onSurfaceVariant,
