@@ -22,6 +22,7 @@ import 'package:flutter/material.dart';
 /// - successSurface/successForeground  green-100 / green-700
 /// - warningSurface/warningForeground  amber-50 / amber-800
 /// - *Border variants                   blue-200 / green-200 / amber-200
+/// - coupangTagSurface/Foreground       red-100 / red-700 (「쿠팡」 tag)
 /// - overlayScrim/onOverlayScrim        full-screen image viewer chrome
 ///
 /// ⚠️ Yellow is a light color: text/icons placed on `brandMain` must use a
@@ -76,6 +77,9 @@ class AppColors {
   static const Color warningSurface = Color(0xFFFFFBEB); // amber-50
   static const Color warningBorder = Color(0xFFFDE68A); // amber-200
   static const Color warningForeground = Color(0xFF92400E); // amber-800
+  // 「쿠팡」 tag next to a Coupang-only setting (FEATURE_2610_16 / D25).
+  static const Color coupangTagSurface = Color(0xFFFEE2E2); // red-100
+  static const Color coupangTagForeground = Color(0xFFB91C1C); // red-700
 
   // --- Media overlay (full-screen image viewer) ---
   // Photo chrome stays dark in both themes, like the web lightbox.

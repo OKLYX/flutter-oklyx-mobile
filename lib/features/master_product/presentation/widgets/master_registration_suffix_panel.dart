@@ -131,9 +131,29 @@ class _MasterRegistrationSuffixPanelState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '등록상품명 추가 문구',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          Row(
+            children: [
+              const Text(
+                '등록상품명 추가 문구',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: const BoxDecoration(
+                  color: AppColors.coupangTagSurface,
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                ),
+                child: const Text(
+                  '쿠팡',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.coupangTagForeground,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           if (_error.isNotEmpty) ...[
