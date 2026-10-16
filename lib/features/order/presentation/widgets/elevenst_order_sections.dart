@@ -23,8 +23,8 @@ String _kstToday() {
 }
 
 /// The 11st-only blocks of the order detail (FEATURE_2610_17 / D19 · D35 ·
-/// D36 · D37 · D38 · D39 ⑤ · D40 · D41): 「취소 요청」 with [취소 승인] ·
-/// [취소 거부], and [판매자가 대신 반품 신청].
+/// D36 · D37 · D38 · D39 ⑤ · D40 · D41 · D62): 「취소 요청」 with [취소 승인] ·
+/// [취소 거부] · [책임사유 오류로 거부], and [판매자가 대신 반품 신청].
 ///
 /// **Purpose**: one entry point so the order detail page adds a single line
 /// for 11st orders, and so the failures of all three writes toast in one place.
@@ -74,6 +74,8 @@ class ElevenstOrderSections extends StatelessWidget {
 
 /// 「취소 요청」 — the open requests of the line; draws nothing when there is
 /// none (most orders). The reason is the server's 「사유 이름 — 사유 글」 (D41).
+/// [책임사유 오류로 거부] shows where the server says `faultRejectable` (D62)
+/// and shares the carrier · invoice · date inputs with [취소 거부].
 class _CancelRequestsSection extends StatefulWidget {
   final OrderItem order;
 
@@ -85,15 +87,44 @@ class _CancelRequestsSection extends StatefulWidget {
 
 class _CancelRequestsSectionState extends State<_CancelRequestsSection> {
   final TextEditingController _invoiceController = TextEditingController();
+  final TextEditingController _refuseTextController = TextEditingController();
   int? _rejectTargetId;
+  int? _faultTargetId;
   bool _rejectSent = false;
   String? _carrierCode;
+  String? _refuseCode;
   String _sendDate = _kstToday();
 
   @override
   void dispose() {
     _invoiceController.dispose();
+    _refuseTextController.dispose();
     super.dispose();
+  }
+
+  Future<void> _confirmRejectFault(
+      BuildContext context, ElevenstCancelRequest request) async {
+    final bloc = context.read<ElevenstOrderActionBloc>();
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '책임사유 오류로 거부',
+      message: '이 취소 요청을 거부합니다. 구매자에게 사유가 전달되며 되돌릴 수 없습니다.',
+      confirmText: '책임사유 오류로 거부',
+      isDangerous: true,
+    );
+    if (!ok || bloc.isClosed) return;
+    _rejectSent = true;
+    bloc.add(ElevenstCancelFaultRejectRequested(
+      requestId: request.id,
+      orderItemId: widget.order.id,
+      body: {
+        'refuseCode': _refuseCode,
+        'reasonText': _refuseTextController.text.trim(),
+        'deliveryCompanyCode': _carrierCode,
+        'invoiceNumber': _invoiceController.text.trim(),
+        'sendDate': _sendDate,
+      },
+    ));
   }
 
   Future<void> _confirmApprove(
@@ -135,10 +166,13 @@ class _CancelRequestsSectionState extends State<_CancelRequestsSection> {
           _rejectSent && p.sending && !c.sending && c.errorMessage == null,
       listener: (context, state) {
         _invoiceController.clear();
+        _refuseTextController.clear();
         setState(() {
           _rejectSent = false;
           _rejectTargetId = null;
+          _faultTargetId = null;
           _carrierCode = null;
+          _refuseCode = null;
         });
       },
       builder: (context, state) {
@@ -189,9 +223,16 @@ class _CancelRequestsSectionState extends State<_CancelRequestsSection> {
     bool canWrite,
   ) {
     final rejecting = _rejectTargetId == request.id;
+    final faultRejecting = _faultTargetId == request.id;
     final canSendReject = !state.sending &&
         _carrierCode != null &&
         _invoiceController.text.trim().isNotEmpty;
+    final refuseText = _refuseTextController.text.trim();
+    final canSendFault = canSendReject &&
+        _refuseCode != null &&
+        refuseText.isNotEmpty &&
+        refuseText.length <= 200;
+    final faultReasons = state.choices.faultRejectReasons;
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Column(
@@ -227,14 +268,55 @@ class _CancelRequestsSectionState extends State<_CancelRequestsSection> {
                 OutlinedButton(
                   onPressed: state.sending
                       ? null
-                      : () => setState(() =>
-                          _rejectTargetId = rejecting ? null : request.id),
+                      : () => setState(() {
+                            _faultTargetId = null;
+                            _rejectTargetId = rejecting ? null : request.id;
+                          }),
                   child: const Text('취소 거부'),
                 ),
+                if (request.faultRejectable)
+                  OutlinedButton(
+                    onPressed: state.sending
+                        ? null
+                        : () => setState(() {
+                              _rejectTargetId = null;
+                              _faultTargetId =
+                                  faultRejecting ? null : request.id;
+                            }),
+                    child: const Text('책임사유 오류로 거부'),
+                  ),
               ],
             ),
           ],
-          if (canWrite && rejecting) ...[
+          if (canWrite && faultRejecting) ...[
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: faultReasons.any((r) => r.code == _refuseCode)
+                  ? _refuseCode
+                  : null,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: '거부 사유'),
+              items: faultReasons
+                  .map((r) => DropdownMenuItem<String>(
+                        value: r.code,
+                        child: Text(r.label, overflow: TextOverflow.ellipsis),
+                      ))
+                  .toList(),
+              onChanged: state.sending
+                  ? null
+                  : (value) => setState(() => _refuseCode = value),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _refuseTextController,
+              maxLength: 200,
+              maxLines: 3,
+              enabled: !state.sending,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(labelText: '사유 글 (1~200자)'),
+            ),
+          ],
+          if (canWrite && (rejecting || faultRejecting)) ...[
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               value: manual.options
@@ -272,23 +354,27 @@ class _CancelRequestsSectionState extends State<_CancelRequestsSection> {
                 backgroundColor: Theme.of(context).colorScheme.error,
                 foregroundColor: Theme.of(context).colorScheme.onError,
               ),
-              onPressed: canSendReject
-                  ? () {
-                      _rejectSent = true;
-                      context
-                          .read<ElevenstOrderActionBloc>()
-                          .add(ElevenstCancelRejectRequested(
-                            requestId: request.id,
-                            orderItemId: widget.order.id,
-                            deliveryCompanyCode: _carrierCode!,
-                            invoiceNumber: _invoiceController.text.trim(),
-                            sendDate: _sendDate,
-                          ));
-                    }
-                  : null,
+              onPressed: faultRejecting
+                  ? (canSendFault
+                      ? () => _confirmRejectFault(context, request)
+                      : null)
+                  : (canSendReject
+                      ? () {
+                          _rejectSent = true;
+                          context
+                              .read<ElevenstOrderActionBloc>()
+                              .add(ElevenstCancelRejectRequested(
+                                requestId: request.id,
+                                orderItemId: widget.order.id,
+                                deliveryCompanyCode: _carrierCode!,
+                                invoiceNumber: _invoiceController.text.trim(),
+                                sendDate: _sendDate,
+                              ));
+                        }
+                      : null),
               child: state.sending
-                  ? const AppBusyLabel('취소 거부')
-                  : const Text('취소 거부'),
+                  ? AppBusyLabel(faultRejecting ? '책임사유 오류로 거부' : '취소 거부')
+                  : Text(faultRejecting ? '책임사유 오류로 거부' : '취소 거부'),
             ),
           ],
         ],

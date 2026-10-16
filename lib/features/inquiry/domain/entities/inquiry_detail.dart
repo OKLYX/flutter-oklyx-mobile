@@ -139,6 +139,18 @@ class ReplyCapability {
   /// 고객센터 전용. 서버가 고른 값이며 전송 시 서버가 자기 값을 다시 고른다.
   final String? parentReplyId;
 
+  /// Which input to draw (FEATURE_2610_17 / D68): [formText] = the reply
+  /// text, [formNonDelivery] = 11st non-delivery handling (reason + detail,
+  /// plus carrier · invoice for the re-shipping reason). Decided by the server.
+  final String form;
+
+  /// [formNonDelivery] only — the handling reasons (11st's own names); empty
+  /// otherwise.
+  final List<InquiryReasonOption> reasons;
+
+  static const String formText = 'TEXT';
+  static const String formNonDelivery = 'NON_DELIVERY';
+
   const ReplyCapability({
     required this.canReply,
     required this.minLength,
@@ -146,5 +158,16 @@ class ReplyCapability {
     required this.once,
     this.reason,
     this.parentReplyId,
+    this.form = formText,
+    this.reasons = const [],
   });
+}
+
+/// One handling reason of the non-delivery form (FEATURE_2610_17 / D68) —
+/// code + server-authored name.
+class InquiryReasonOption {
+  final String code;
+  final String label;
+
+  const InquiryReasonOption({required this.code, required this.label});
 }

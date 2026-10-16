@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
 import '../../domain/entities/order_item.dart';
+import 'elevenst_reserved_badge.dart';
 import 'internal_stage_badge.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 
@@ -47,7 +48,9 @@ class OrderCard extends StatelessWidget {
   /// (렌더 트리까지 주문내역과 동일해야 한다).
   final ValueChanged<int>? onToggleSelect;
 
-  /// false 면 비활성 체크박스(회색) — 결제완료가 아니거나 비-쿠팡인 행(D2·D10).
+  /// false = a disabled (grey) checkbox — a row the screen does not let you
+  /// pick (shipment management: neither Coupang nor 11st, FEATURE_2610_17 /
+  /// D28).
   final bool selectable;
 
   /// 내부 단계 주문의 [송장 수정](FEATURE_2609_75 / D18). null 이면 버튼을 그리지 않는다 — 출고관리만 넘긴다.
@@ -87,6 +90,9 @@ class OrderCard extends StatelessWidget {
                     ),
                     // 내부 단계 배지(FEATURE_2609_75 / D9) — null 이면 아무것도 그리지 않는다.
                     InternalStageBadge(stage: order.internalStage),
+                    // 11st reserved sale (FEATURE_2610_17 / D67) — the server's flag.
+                    if (order.reservedSale)
+                      const ElevenstReservedBadge(),
                     // [송장 수정](D18) — 버튼 탭은 카드 탭(주문 상세)으로 새지 않는다(버튼이 먼저 받는다).
                     if (onEditInvoice != null && order.internalStage != null)
                       TextButton(

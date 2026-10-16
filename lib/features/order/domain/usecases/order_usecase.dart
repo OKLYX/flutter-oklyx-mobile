@@ -2,6 +2,8 @@ import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import '../../data/models/cancel_reason_option.dart';
 import '../../data/models/elevenst_cancel_request.dart';
+import '../../data/models/elevenst_choices.dart';
+import '../../data/models/elevenst_delivery_line.dart';
 import '../../data/models/internal_stage_result.dart';
 import '../../data/models/order_acknowledge_result.dart';
 import '../../data/models/order_cancel_result.dart';
@@ -152,4 +154,39 @@ class OrderUseCase {
   ) {
     return repository.requestElevenstReturn(orderItemId, body);
   }
+
+  /// The reason lists of [주문 취소] · [책임사유 오류로 거부] · [발송지연 안내]
+  /// (FEATURE_2610_17 / D61 · D62 · D63).
+  Future<Either<Failure, ElevenstChoices>> getElevenstChoices() =>
+      repository.getElevenstChoices();
+
+  /// 11st sale refusal of the whole line (D61) — cannot be undone.
+  Future<Either<Failure, OrderCancelResult>> cancelElevenstLine(int orderItemId,
+          int quantity, String reasonCode, String reasonText) =>
+      repository.cancelElevenstLine(
+          orderItemId, quantity, reasonCode, reasonText);
+
+  /// [책임사유 오류로 거부] (D62) — cannot be undone.
+  Future<Either<Failure, Unit>> rejectElevenstCancelFault(
+          int requestId, Map<String, dynamic> body) =>
+      repository.rejectElevenstCancelFault(requestId, body);
+
+  /// Lines of the same 11st delivery (D64).
+  Future<Either<Failure, List<ElevenstDeliveryLine>>> getElevenstDeliveryLines(
+          int orderItemId) =>
+      repository.getElevenstDeliveryLines(orderItemId);
+
+  /// [발송지연 안내] (D63).
+  Future<Either<Failure, Unit>> sendElevenstDeliveryDelay(
+          int orderItemId, Map<String, dynamic> body) =>
+      repository.sendElevenstDeliveryDelay(orderItemId, body);
+
+  /// [방문수령 완료] (D66) — cannot be undone.
+  Future<Either<Failure, Unit>> completeElevenstVisitPickup(
+          int orderItemId, String certCode) =>
+      repository.completeElevenstVisitPickup(orderItemId, certCode);
+
+  /// [입고완료 처리] (D67) — cannot be undone.
+  Future<Either<Failure, Unit>> confirmElevenstStock(int orderItemId) =>
+      repository.confirmElevenstStock(orderItemId);
 }

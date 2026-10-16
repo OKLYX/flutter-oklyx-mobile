@@ -2,6 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter_oklyn_mobile/core/constants/app_constants.dart';
 import '../models/cancel_reason_option.dart';
 import '../models/elevenst_cancel_request.dart';
+import '../models/elevenst_choices.dart';
+import '../models/elevenst_delivery_line.dart';
 import '../models/internal_stage_result.dart';
 import '../models/order_acknowledge_result.dart';
 import '../models/order_cancel_result.dart';
@@ -102,6 +104,31 @@ abstract class OrderRemoteDataSource {
   /// POST /api/admin/orders/{orderItemId}/elevenst-return-request (D35 · D36 · D39 ⑤).
   Future<void> requestElevenstReturn(
       int orderItemId, Map<String, dynamic> body);
+
+  /// GET /api/orders/elevenst-choices — the reason lists of D61 · D62 · D63.
+  Future<ElevenstChoices> getElevenstChoices();
+
+  /// POST /api/admin/orders/cancel with `reasonCode` · `reasonText` — 11st sale
+  /// refusal of the whole line (D61); [quantity] only passes the request check.
+  Future<OrderCancelResult> cancelElevenstLine(
+      int orderItemId, int quantity, String reasonCode, String reasonText);
+
+  /// POST /api/admin/elevenst-cancel-requests/{id}/reject-fault (D62).
+  Future<void> rejectElevenstCancelFault(
+      int requestId, Map<String, dynamic> body);
+
+  /// GET /api/orders/{orderItemId}/elevenst-delivery-lines (D64).
+  Future<List<ElevenstDeliveryLine>> getElevenstDeliveryLines(int orderItemId);
+
+  /// POST /api/admin/orders/{orderItemId}/elevenst-delivery-delay (D63).
+  Future<void> sendElevenstDeliveryDelay(
+      int orderItemId, Map<String, dynamic> body);
+
+  /// POST /api/admin/orders/{orderItemId}/elevenst-visit-pickup (D66).
+  Future<void> completeElevenstVisitPickup(int orderItemId, String certCode);
+
+  /// POST /api/admin/orders/{orderItemId}/elevenst-stock-confirm (D67).
+  Future<void> confirmElevenstStock(int orderItemId);
 }
 
 class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
@@ -421,6 +448,99 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
     await dio.post(
       '/api/admin/orders/$orderItemId/elevenst-return-request',
       data: body,
+      options: Options(
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+  }
+
+  // FEATURE_2610_17 / D61 ~ D67 — the reads are our own DB; the writes call
+  // 11st live, so they get the longer receive timeout like the writes above.
+  @override
+  Future<ElevenstChoices> getElevenstChoices() async {
+    final response = await dio.get('/api/orders/elevenst-choices');
+    final data = response.data['data'];
+    if (data is! Map<String, dynamic>) return ElevenstChoices.empty;
+    return ElevenstChoices.fromJson(data);
+  }
+
+  @override
+  Future<OrderCancelResult> cancelElevenstLine(int orderItemId, int quantity,
+      String reasonCode, String reasonText) async {
+    final response = await dio.post(
+      '/api/admin/orders/cancel',
+      data: {
+        'lines': [
+          {'orderItemId': orderItemId, 'quantity': quantity},
+        ],
+        'reasonCode': reasonCode,
+        'reasonText': reasonText,
+      },
+      options: Options(
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+    return OrderCancelResult.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<void> rejectElevenstCancelFault(
+      int requestId, Map<String, dynamic> body) async {
+    await dio.post(
+      '/api/admin/elevenst-cancel-requests/$requestId/reject-fault',
+      data: body,
+      options: Options(
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+  }
+
+  @override
+  Future<List<ElevenstDeliveryLine>> getElevenstDeliveryLines(
+      int orderItemId) async {
+    final response =
+        await dio.get('/api/orders/$orderItemId/elevenst-delivery-lines');
+    final data = response.data['data'];
+    if (data is! List) return [];
+    return data
+        .map((e) => ElevenstDeliveryLine.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<void> sendElevenstDeliveryDelay(
+      int orderItemId, Map<String, dynamic> body) async {
+    await dio.post(
+      '/api/admin/orders/$orderItemId/elevenst-delivery-delay',
+      data: body,
+      options: Options(
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+  }
+
+  @override
+  Future<void> completeElevenstVisitPickup(
+      int orderItemId, String certCode) async {
+    await dio.post(
+      '/api/admin/orders/$orderItemId/elevenst-visit-pickup',
+      data: {'certCode': certCode},
+      options: Options(
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+  }
+
+  @override
+  Future<void> confirmElevenstStock(int orderItemId) async {
+    await dio.post(
+      '/api/admin/orders/$orderItemId/elevenst-stock-confirm',
       options: Options(
         receiveTimeout:
             const Duration(seconds: AppConstants.coupangReceiveTimeout),

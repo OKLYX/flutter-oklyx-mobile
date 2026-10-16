@@ -100,14 +100,16 @@ class ShipmentManagementPage extends StatelessWidget {
 /// Order-confirmation target (PLAN 2609_17 D2·D10 · FEATURE_2610_17 / D20).
 ///
 /// Paid ([OrderStatus.paid]) · Coupang or 11st · has a box id (11st: the
-/// delivery number) — all three. It is a **whitelist**, the opposite of the
-/// shipment blacklist (2609_07 D1), because confirmation cannot be undone:
-/// "unknown status → do not send" is right (for shipment, not sending means a
-/// missed shipment, hence the opposite).
+/// delivery number) · not an 11st reserved sale still waiting for
+/// [입고완료 처리] (FEATURE_2610_17 / D67) — all four. It is a **whitelist**,
+/// the opposite of the shipment blacklist (2609_07 D1), because confirmation
+/// cannot be undone: "unknown status → do not send" is right (for shipment,
+/// not sending means a missed shipment, hence the opposite).
 bool _isAcknowledgeTarget(OrderItem order) =>
     order.status == OrderStatus.paid &&
     (order.platform == 'COUPANG' || order.platform == 'ELEVENST') &&
-    (order.externalBoxId?.isNotEmpty ?? false);
+    (order.externalBoxId?.isNotEmpty ?? false) &&
+    !order.reservedSale;
 
 /// Whether to draw the checkbox = **a Coupang or 11st order, whatever its
 /// status** (FEATURE_2610_17 / D28 — same rule as web `ShipmentContainer`).
@@ -1105,7 +1107,7 @@ class _LoadedBody extends StatelessWidget {
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
                         '선택한 ${selectedIds.length}건 중 '
-                        '$notAcknowledgeable건은 결제완료가 아니어서 '
+                        '$notAcknowledgeable건은 결제완료가 아니거나 입고완료 전 11번가 예약판매라서 '
                         '발주처리 대상이 아닙니다. '
                         '주문 상태 갱신은 그대로 됩니다.',
                         style: hintStyle,

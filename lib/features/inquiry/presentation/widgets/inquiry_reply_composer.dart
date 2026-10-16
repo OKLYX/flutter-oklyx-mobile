@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/data/models/carrier_option.dart';
+import 'package:flutter_oklyn_mobile/features/shipping_label/domain/usecases/shipping_label_usecase.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
@@ -20,6 +23,7 @@ import '../bloc/inquiry_detail_event.dart';
 /// ```dart
 /// InquiryReplyComposer(
 ///   capability: state.detail.replyCapability,
+///   platform: state.detail.inquiry.platform,
 ///   submitting: state.submitting,
 ///   replyForbidden: state.replyForbidden,
 ///   replyUnknown: state.replyUnknown,
@@ -53,6 +57,14 @@ import '../bloc/inquiry_detail_event.dart';
 /// what gets sent (the server has `@NotBlank` + length validation).
 /// ⚠️ No hard cut with `TextField.maxLength` — a disabled button is better
 /// than silently truncating what the user wrote.
+///
+/// The non-delivery form (FEATURE_2610_17 / D68): when the server says
+/// `form == NON_DELIVERY` the composer draws a reason dropdown
+/// (`capability.reasons`), the detail text and — for the re-shipping reason
+/// 102 — a carrier (the same `ShippingLabelUseCase.getCarrierOptions` source
+/// as shipment, loaded on first pick) and an invoice number, and confirms with
+/// 「11번가에 미도착 처리를 보냅니다. 되돌릴 수 없습니다.」. [platform] is only
+/// handed to the carrier lookup.
 class InquiryReplyComposer extends StatefulWidget {
   /// 서버 판정(PLAN M3). null 이면 아직 단건 조회 전이다.
   final ReplyCapability? capability;
@@ -67,9 +79,14 @@ class InquiryReplyComposer extends StatefulWidget {
   /// 502 — 전송 결과 미상. 입력을 잠근 채 경고만 띄운다(재전송 유도 금지).
   final bool replyUnknown;
 
+  /// The inquiry's marketplace — used only for the carrier list of the
+  /// non-delivery form.
+  final String platform;
+
   const InquiryReplyComposer({
     super.key,
     required this.capability,
+    required this.platform,
     required this.submitting,
     required this.replyForbidden,
     required this.replyUnknown,
@@ -90,10 +107,41 @@ class _InquiryReplyComposerState extends State<InquiryReplyComposer> {
   static const String _unknownNotice =
       '전송 결과를 확인하지 못했습니다. 위 [새로고침] 으로 답변이 등록됐는지 확인하세요.';
 
+  /// D68: the re-shipping reason sends a carrier and an invoice number.
+  static const String _resendReason = '102';
+
+  // Non-delivery form inputs (D68) — local like the body.
+  final TextEditingController _invoiceController = TextEditingController();
+  String? _reasonCode;
+  String? _carrierCode;
+  List<CarrierOption> _carriers = const [];
+  bool _carriersRequested = false;
+  String? _carriersError;
+
   @override
   void dispose() {
     _controller.dispose(); // 누락 시 leak — 상세는 문의마다 새로 만들어진다.
+    _invoiceController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCarriers() async {
+    _carriersRequested = true;
+    final result = await getIt<ShippingLabelUseCase>()
+        .getCarrierOptions(platform: widget.platform);
+    if (!mounted) return;
+    result.fold(
+      (_) => setState(() => _carriersError = '택배사 목록을 불러오지 못했습니다.'),
+      (options) => setState(() {
+        _carriersError = null;
+        _carriers = options;
+      }),
+    );
+  }
+
+  void _pickReason(String? code) {
+    setState(() => _reasonCode = code);
+    if (code == _resendReason && !_carriersRequested) _loadCarriers();
   }
 
   @override
@@ -129,7 +177,14 @@ class _InquiryReplyComposerState extends State<InquiryReplyComposer> {
         trimmed.length > capability.maxLength;
     // 502 뒤에는 이미 전송됐을 수 있어 잠근 채로 둔다(중복 전송은 400 이다).
     final locked = widget.submitting || widget.replyUnknown;
-    final canSubmit = !invalidLength && !locked;
+    final nonDelivery = capability.form == ReplyCapability.formNonDelivery;
+    final resend = nonDelivery && _reasonCode == _resendReason;
+    final nonDeliveryReady = !nonDelivery ||
+        (_reasonCode != null &&
+            (!resend ||
+                (_carrierCode != null &&
+                    _invoiceController.text.trim().isNotEmpty)));
+    final canSubmit = !invalidLength && nonDeliveryReady && !locked;
 
     return _wrap(
       Column(
@@ -158,6 +213,55 @@ class _InquiryReplyComposerState extends State<InquiryReplyComposer> {
             ),
             const SizedBox(height: 12),
           ],
+          if (nonDelivery) ...[
+            DropdownButtonFormField<String>(
+              value: capability.reasons.any((r) => r.code == _reasonCode)
+                  ? _reasonCode
+                  : null,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: '처리 사유'),
+              items: capability.reasons
+                  .map((r) => DropdownMenuItem<String>(
+                        value: r.code,
+                        child: Text(r.label, overflow: TextOverflow.ellipsis),
+                      ))
+                  .toList(),
+              onChanged: locked ? null : _pickReason,
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (resend) ...[
+            DropdownButtonFormField<String>(
+              value: _carriers.any((c) => c.deliveryCompanyCode == _carrierCode)
+                  ? _carrierCode
+                  : null,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: '택배사'),
+              items: _carriers
+                  .map((c) => DropdownMenuItem<String>(
+                        value: c.deliveryCompanyCode,
+                        child: Text(c.carrierName,
+                            overflow: TextOverflow.ellipsis),
+                      ))
+                  .toList(),
+              onChanged: locked
+                  ? null
+                  : (value) => setState(() => _carrierCode = value),
+            ),
+            if (_carriersError != null)
+              Text(
+                _carriersError!,
+                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+              ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _invoiceController,
+              maxLength: 50,
+              enabled: !locked,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(labelText: '송장번호'),
+            ),
+          ],
           TextField(
             controller: _controller,
             enabled: !locked,
@@ -165,8 +269,8 @@ class _InquiryReplyComposerState extends State<InquiryReplyComposer> {
             maxLines: 5,
             // 글자마다 emit 하지 않는다 — 버튼 활성만 갱신한다.
             onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              hintText: '고객에게 보낼 답변을 입력하세요.',
+            decoration: InputDecoration(
+              hintText: nonDelivery ? '상세 내용 (1~200자)' : '고객에게 보낼 답변을 입력하세요.',
             ),
           ),
           const SizedBox(height: 8),
@@ -221,12 +325,16 @@ class _InquiryReplyComposerState extends State<InquiryReplyComposer> {
     final trimmed = _controller.text.trim();
     if (trimmed.isEmpty) return;
 
+    final nonDelivery = capability.form == ReplyCapability.formNonDelivery;
     if (capability.once) {
       final ok = await showAppConfirmDialog(
         context,
         title: '답변 전송',
-        // Shows what is being confirmed, the reply text as written.
-        message: '전송한 답변은 수정하거나 삭제할 수 없습니다.\n\n$trimmed',
+        // Shows what is being confirmed, the reply text as written; the
+        // non-delivery form shows its own D68 sentence.
+        message: nonDelivery
+            ? '11번가에 미도착 처리를 보냅니다. 되돌릴 수 없습니다.'
+            : '전송한 답변은 수정하거나 삭제할 수 없습니다.\n\n$trimmed',
         confirmText: '보내기',
       );
       // 다이얼로그가 열려 있는 사이 페이지를 벗어날 수 있다.
@@ -234,7 +342,18 @@ class _InquiryReplyComposerState extends State<InquiryReplyComposer> {
     }
 
     if (bloc.isClosed) return;
-    bloc.add(SubmitReply(trimmed));
+    bloc.add(SubmitReply(
+      trimmed,
+      nonDelivery: nonDelivery
+          ? {
+              'reasonCode': _reasonCode,
+              if (_reasonCode == _resendReason) ...{
+                'carrierCode': _carrierCode,
+                'invoiceNumber': _invoiceController.text.trim(),
+              },
+            }
+          : null,
+    ));
   }
 }
 

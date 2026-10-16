@@ -90,7 +90,8 @@ class InquiryDetailBloc extends Bloc<InquiryDetailEvent, InquiryDetailState> {
 
     emit(current.copyWith(submitting: true, clearReplyError: true));
 
-    final result = await inquiryUseCase.replyToInquiry(id, event.content);
+    final result = await inquiryUseCase.replyToInquiry(id, event.content,
+        nonDelivery: event.nonDelivery);
     if (emit.isDone) return; // 전송 중 화면을 벗어난 경우
     final latest = state;
     if (latest is! InquiryDetailLoaded) return;

@@ -2,6 +2,8 @@ import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import '../../data/models/cancel_reason_option.dart';
 import '../../data/models/elevenst_cancel_request.dart';
+import '../../data/models/elevenst_choices.dart';
+import '../../data/models/elevenst_delivery_line.dart';
 import '../../data/models/internal_stage_result.dart';
 import '../../data/models/order_acknowledge_result.dart';
 import '../../data/models/order_cancel_result.dart';
@@ -119,4 +121,30 @@ abstract class OrderRepository {
     int orderItemId,
     Map<String, dynamic> body,
   );
+
+  /// The reason lists of D61 · D62 · D63.
+  Future<Either<Failure, ElevenstChoices>> getElevenstChoices();
+
+  /// 11st sale refusal of the whole line (D61).
+  Future<Either<Failure, OrderCancelResult>> cancelElevenstLine(
+      int orderItemId, int quantity, String reasonCode, String reasonText);
+
+  /// [책임사유 오류로 거부] (D62).
+  Future<Either<Failure, Unit>> rejectElevenstCancelFault(
+      int requestId, Map<String, dynamic> body);
+
+  /// Lines of the same 11st delivery (D64).
+  Future<Either<Failure, List<ElevenstDeliveryLine>>> getElevenstDeliveryLines(
+      int orderItemId);
+
+  /// [발송지연 안내] (D63).
+  Future<Either<Failure, Unit>> sendElevenstDeliveryDelay(
+      int orderItemId, Map<String, dynamic> body);
+
+  /// [방문수령 완료] (D66).
+  Future<Either<Failure, Unit>> completeElevenstVisitPickup(
+      int orderItemId, String certCode);
+
+  /// [입고완료 처리] (D67).
+  Future<Either<Failure, Unit>> confirmElevenstStock(int orderItemId);
 }

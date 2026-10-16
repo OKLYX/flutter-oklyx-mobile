@@ -16,11 +16,16 @@ class ElevenstCancelRequest extends Equatable {
   final String reason;
   final String? requestedAt;
 
+  /// [책임사유 오류로 거부] is shown — the server decides it (a buyer request on
+  /// a paid line, FEATURE_2610_17 / D62).
+  final bool faultRejectable;
+
   const ElevenstCancelRequest({
     required this.id,
     required this.quantity,
     required this.reason,
     this.requestedAt,
+    this.faultRejectable = false,
   });
 
   factory ElevenstCancelRequest.fromJson(Map<String, dynamic> json) =>
@@ -29,8 +34,10 @@ class ElevenstCancelRequest extends Equatable {
         quantity: (json['quantity'] as num?)?.toInt() ?? 0,
         reason: json['reason']?.toString() ?? '',
         requestedAt: json['requestedAt']?.toString(),
+        faultRejectable: json['faultRejectable'] as bool? ?? false,
       );
 
   @override
-  List<Object?> get props => [id, quantity, reason, requestedAt];
+  List<Object?> get props =>
+      [id, quantity, reason, requestedAt, faultRejectable];
 }

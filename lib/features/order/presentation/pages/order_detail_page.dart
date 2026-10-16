@@ -23,6 +23,7 @@ import '../../data/models/cancel_reason_option.dart';
 import '../../data/models/order_cancel_result.dart';
 import '../bloc/elevenst_order_action_bloc.dart';
 import '../bloc/elevenst_order_action_event.dart';
+import '../bloc/elevenst_order_action_state.dart';
 import '../bloc/order_acknowledge_bloc.dart';
 import '../bloc/order_acknowledge_event.dart';
 import '../bloc/order_acknowledge_state.dart';
@@ -33,6 +34,7 @@ import '../bloc/order_internal_stage_bloc.dart';
 import '../bloc/order_internal_stage_event.dart';
 import '../bloc/order_internal_stage_state.dart';
 import '../widgets/elevenst_order_sections.dart';
+import '../widgets/elevenst_seller_action_sections.dart';
 import '../widgets/internal_stage_badge.dart';
 import '../bloc/order_refresh_bloc.dart';
 import '../bloc/order_refresh_event.dart';
@@ -111,8 +113,9 @@ class OrderDetailPage extends StatelessWidget {
   Widget _buildContent(BuildContext context, OrderItem o) {
     final isCoupang = o.platform == 'COUPANG';
     // FEATURE_2610_17 / D28: order confirmation, single invoice and the sheet
-    // are open to 11st as well; refresh · internal stage · seller cancel ·
-    // reservation stay Coupang only (D12).
+    // are open to 11st as well, and the seller cancel opens as 11st sale
+    // refusal (D61); refresh · internal stage · reservation stay Coupang only
+    // (D12).
     final isElevenst = o.platform == 'ELEVENST';
     final isMarketOrder = isCoupang || isElevenst;
     return MultiBlocProvider(
@@ -133,12 +136,14 @@ class OrderDetailPage extends StatelessWidget {
           BlocProvider<OrderAcknowledgeBloc>(
             create: (_) => getIt<OrderAcknowledgeBloc>(),
           ),
-        // 11st cancel requests + seller return (FEATURE_2610_17 / D19 · D35) —
-        // reads the open requests once on entry; every write is a button.
+        // 11st cancel requests + seller return + the seller actions
+        // (FEATURE_2610_17 / D19 · D35 · D61 ~ D67) — reads the open requests
+        // and the reason lists once on entry; every write is a button.
         if (isElevenst)
           BlocProvider<ElevenstOrderActionBloc>(
             create: (_) => getIt<ElevenstOrderActionBloc>()
-              ..add(ElevenstCancelRequestsRequested(o.id)),
+              ..add(ElevenstCancelRequestsRequested(o.id))
+              ..add(const ElevenstChoicesRequested()),
           ),
         // 내부 발주처리도 쿠팡 전용(FEATURE_2609_75 / D1) — 같은 가드. 진입 시 자동 전송 없음.
         if (isCoupang)
@@ -152,8 +157,11 @@ class OrderDetailPage extends StatelessWidget {
           BlocProvider<OrderRefreshBloc>(
             create: (_) => getIt<OrderRefreshBloc>(),
           ),
-        // 주문 취소도 쿠팡 전용 — 같은 가드 안에 둔다. 사유 목록만 생성 시 1회 조회하고
-        // (ADMIN 전용이라 여기서 403 이 먼저 온다), 전송은 버튼 핸들러에서만 발행한다(D12).
+        // The Coupang order cancel is in the same guard too (the 11st cancel tab
+        // is the sale refusal on `ElevenstOrderActionBloc`, FEATURE_2610_17 /
+        // D61). Only the reason list is read once on creation (ADMIN only, so a
+        // 403 comes here first); the send is dispatched only from the button
+        // handler (D12).
         if (isCoupang)
           BlocProvider<OrderCancelBloc>(
             create: (_) =>
@@ -235,7 +243,8 @@ class OrderDetailPage extends StatelessWidget {
             // ⚠️ Orders other than Coupang · 11st get no shipment / cancel BLoC at
             // all (provider guard above), so they skip the tabs and keep only
             // the sheet section — a tab reading a missing BLoC crashes. 11st
-            // has no cancel BLoC either (D12), so its tabs drop the cancel tab.
+            // has no Coupang cancel BLoC (D12); its cancel tab is the 11st sale
+            // refusal on `ElevenstOrderActionBloc` (FEATURE_2610_17 / D61).
             if (isMarketOrder)
               _ActionTabs(order: o, withCancel: isCoupang)
             else
@@ -243,9 +252,13 @@ class OrderDetailPage extends StatelessWidget {
             // 발주(결제완료→상품준비중)는 발송·취소의 앞 단계라 탭에 섞지 않고 화면 하단에 따로 둔다.
             if (isMarketOrder) ...[
               const SizedBox(height: 12),
-              // The full-cancel gate reads the Coupang-only cancel BLoC.
+              // The full-cancel gate reads the Coupang-only cancel BLoC. An 11st
+              // reserved sale takes [입고완료 처리] instead (FEATURE_2610_17 /
+              // D67).
               if (isCoupang)
                 _HideWhenFullyCancelled(child: _AcknowledgeSection(order: o))
+              else if (o.reservedSale && !o.cancelled)
+                ElevenstStockConfirmSection(order: o)
               else
                 _AcknowledgeSection(order: o),
             ],
@@ -349,15 +362,20 @@ bool _isFullyCancelledByResult(OrderCancelResult? result) =>
     result != null &&
     result.cancelled.any((l) => l.resultStatus == OrderStatus.cancelled);
 
-/// 상태 행 문구. `NONE_TRACKING`(업체 직접배송)은 백엔드가 `SHIPPED` 로 접어서(D5) 상태만으로는
-/// 추적 불가를 알 수 없다 — **상세의 이 행에서만** 원문을 보고 괄호로 덧붙인다.
+/// Status row text. The backend folds `NONE_TRACKING` (seller's own delivery)
+/// into `SHIPPED` (D5), so the status alone cannot tell it is untracked —
+/// **only this detail row** reads the raw value and adds it in brackets. An
+/// 11st reserved sale adds 「11번가 예약판매」 from the server flag
+/// `reservedSale` (FEATURE_2610_17 / D67).
 ///
-/// ❌ 목록 카드·상태 칩에 되살리지 말 것(칩은 6개 중립 상태뿐이다).
+/// ❌ Do not bring the untracked mark back to the list card or the status chips
+/// (the chips are the six neutral statuses only).
 String _statusText(OrderItem o, OrderStatus status) {
   final label = getOrderStatusLabel(status);
   final untracked =
       status == OrderStatus.shipped && o.platformStatus == 'NONE_TRACKING';
-  return untracked ? '$label (추적불가)' : label;
+  final shown = untracked ? '$label (추적불가)' : label;
+  return o.reservedSale ? '$shown · $kElevenstReservedLabel' : shown;
 }
 
 /// 금액 행 문구. null 은 **'—'** 다 — 0 으로 표시하면 "할인 없음"과 "모름"이 같아 보인다(D9).
@@ -460,8 +478,8 @@ class _InfoRow extends StatelessWidget {
 /// From the left: sheet · shipment · cancel, and **shipment is selected by
 /// default** — most orders end in a shipment, and a cancel cannot be undone,
 /// so it is safer to need one more tap.
-/// An 11st order ([withCancel] false) has the sheet and shipment tabs only —
-/// seller cancel stays Coupang only (FEATURE_2610_17 / D12).
+/// An 11st order ([withCancel] false) gets its cancel tab from the 11st sale
+/// refusal (FEATURE_2610_17 / D61) instead of the Coupang cancel section.
 /// ⚠️ The sheet lookup is a live marketplace call, so opening the tab does not
 /// run it (only the button inside the section does).
 ///
@@ -475,7 +493,8 @@ class _InfoRow extends StatelessWidget {
 class _ActionTabs extends StatefulWidget {
   final OrderItem order;
 
-  /// false = 11st — no cancel BLoC and no cancel tab (FEATURE_2610_17 / D12).
+  /// false = 11st — no Coupang cancel BLoC (FEATURE_2610_17 / D12); the cancel
+  /// tab is the 11st sale refusal on `ElevenstOrderActionBloc` (D61).
   final bool withCancel;
 
   const _ActionTabs({required this.order, required this.withCancel});
@@ -491,25 +510,41 @@ class _ActionTabsState extends State<_ActionTabs> {
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.withCancel) return _buildTabs(context, null);
+    if (!widget.withCancel) {
+      return BlocBuilder<ElevenstOrderActionBloc, ElevenstOrderActionState>(
+        buildWhen: (p, c) => p.forbidden != c.forbidden,
+        builder: (context, elevenst) =>
+            _buildTabs(context, null, elevenst.forbidden),
+      );
+    }
     return BlocBuilder<OrderCancelBloc, OrderCancelState>(
-      builder: (context, cancel) => _buildTabs(context, cancel),
+      builder: (context, cancel) => _buildTabs(context, cancel, false),
     );
   }
 
   /// [cancel] = null for an 11st order — there is no cancel BLoC to read.
-  Widget _buildTabs(BuildContext context, OrderCancelState? cancel) {
+  /// [elevenstForbidden] = an 11st write came back 403 (D61 cancel tab gate).
+  Widget _buildTabs(
+      BuildContext context, OrderCancelState? cancel, bool elevenstForbidden) {
     final order = widget.order;
+    // FEATURE_2610_17 / D61: 11st sale refusal — paid / preparing, not fully
+    // cancelled, and no 403 from an 11st write.
+    final elevenstCancel = cancel == null &&
+        !elevenstForbidden &&
+        !order.cancelled &&
+        (order.status == OrderStatus.paid ||
+            order.status == OrderStatus.preparing);
     return BlocBuilder<ManualShipmentBloc, ManualShipmentState>(
         builder: (context, manual) {
           // 섹션 위젯 안 게이트와 같은 판정을 밖에서 한 번 더 쓴다(사본이 아니라 같은 근거).
           final fullyCancelled =
               cancel != null && _isFullyCancelledByResult(cancel.result);
           final canShip = !manual.optionsForbidden && !fullyCancelled;
-          final canCancel = cancel != null &&
-              !cancel.forbidden &&
-              (order.status == OrderStatus.paid ||
-                  order.status == OrderStatus.preparing);
+          final canCancel = cancel == null
+              ? elevenstCancel
+              : !cancel.forbidden &&
+                  (order.status == OrderStatus.paid ||
+                      order.status == OrderStatus.preparing);
           // 시트 탭은 늘 열려 있다 — 권한(403)·플랫폼 안내는 섹션이 자기 안에서 처리한다.
           // 여기서 막으면 비-ADMIN 에게 아무 탭도 안 보인다.
           final available = {
@@ -540,12 +575,11 @@ class _ActionTabsState extends State<_ActionTabs> {
                       label: const Text('발송처리'),
                       enabled: canShip,
                     ),
-                    if (cancel != null)
-                      ButtonSegment<_ActionTab>(
-                        value: _ActionTab.cancel,
-                        label: const Text('주문 취소'),
-                        enabled: canCancel,
-                      ),
+                    ButtonSegment<_ActionTab>(
+                      value: _ActionTab.cancel,
+                      label: const Text('주문 취소'),
+                      enabled: canCancel,
+                    ),
                   ],
                   selected: {selected},
                   showSelectedIcon: false,
@@ -589,11 +623,12 @@ class _ActionTabsState extends State<_ActionTabs> {
                   ),
                 ),
               ),
-              if (cancel != null)
-                Offstage(
-                  offstage: selected != _ActionTab.cancel,
-                  child: _CancelSection(order: order),
-                ),
+              Offstage(
+                offstage: selected != _ActionTab.cancel,
+                child: cancel == null
+                    ? ElevenstSaleRefusalSection(order: order)
+                    : _CancelSection(order: order),
+              ),
             ],
           );
         },
@@ -605,6 +640,9 @@ class _ActionTabsState extends State<_ActionTabs> {
 /// needs [발주처리] first, and 11st has no invoice-update API — both show a
 /// notice instead of the form. A confirmation made on this screen opens the
 /// form without a refetch (same `succeeded > 0` rule as the info card).
+/// A visit-pickup order shows [방문수령 완료] instead, from paid on (D66); the
+/// form picks one of three ways to send (D64); a paid / preparing order also
+/// gets [발송지연 안내] below (D63).
 class _ElevenstShipmentGate extends StatelessWidget {
   final OrderItem order;
 
@@ -612,6 +650,8 @@ class _ElevenstShipmentGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final openStatus = order.status == OrderStatus.paid ||
+        order.status == OrderStatus.preparing;
     return BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
       builder: (context, ack) {
         final acknowledged = ack.result != null && ack.result!.succeeded > 0;
@@ -620,15 +660,83 @@ class _ElevenstShipmentGate extends StatelessWidget {
             : isAlreadyShipped(order.status)
                 ? '11번가는 송장 수정을 지원하지 않습니다. 11번가 셀러오피스에서 고쳐 주세요.'
                 : null;
-        if (notice == null) return _ManualShipmentSection(order: order);
-        return AppCard(
-          child: Text(
-            notice,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.warningForeground,
-            ),
-          ),
+        final Widget body = order.visitPickup && openStatus
+            ? ElevenstVisitPickupSection(order: order)
+            : notice == null
+                ? _ElevenstShipmentModes(order: order)
+                : AppCard(
+                    child: Text(
+                      notice,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.warningForeground,
+                      ),
+                    ),
+                  );
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            body,
+            if (openStatus) ElevenstDeliveryDelaySection(order: order),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// The three ways an 11st invoice of a preparing order is sent
+/// (FEATURE_2610_17 / D64): 「한 번에 모두」 (the one-invoice form, default) ·
+/// 「일부 줄만 보내기」 · 「한 줄을 송장 여러 장으로」. The choice locks with the
+/// inputs once a result came back; the result and error stay in the shared
+/// shipment card.
+class _ElevenstShipmentModes extends StatefulWidget {
+  final OrderItem order;
+
+  const _ElevenstShipmentModes({required this.order});
+
+  @override
+  State<_ElevenstShipmentModes> createState() => _ElevenstShipmentModesState();
+}
+
+enum _ElevenstMode { all, partial, split }
+
+class _ElevenstShipmentModesState extends State<_ElevenstShipmentModes> {
+  _ElevenstMode _mode = _ElevenstMode.all;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ManualShipmentBloc, ManualShipmentState>(
+      buildWhen: (p, c) =>
+          p.submitting != c.submitting || p.result != c.result,
+      builder: (context, manual) {
+        final locked = manual.submitting || manual.result != null;
+        final picker = Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final (mode, label) in const [
+              (_ElevenstMode.all, '한 번에 모두'),
+              (_ElevenstMode.partial, '일부 줄만 보내기'),
+              (_ElevenstMode.split, '한 줄을 송장 여러 장으로'),
+            ])
+              ChoiceChip(
+                label: Text(label),
+                selected: _mode == mode,
+                onSelected:
+                    locked ? null : (_) => setState(() => _mode = mode),
+              ),
+          ],
+        );
+        return _ManualShipmentSection(
+          order: widget.order,
+          modePicker: picker,
+          altForm: _mode == _ElevenstMode.all
+              ? null
+              : ElevenstSplitShipmentSection(
+                  order: widget.order,
+                  split: _mode == _ElevenstMode.split,
+                ),
         );
       },
     );
@@ -1222,7 +1330,9 @@ class _CancelSectionState extends State<_CancelSection> {
 ///
 /// ⚠️ The send unit is **the whole box this line belongs to**, not the line
 /// on screen (PLAN 2609_11 D1) — Coupang accepts only the same invoice on
-/// every option of the box, and 11st ships the whole delivery number.
+/// every option of the box, and 11st ships the whole delivery number. The
+/// 11st partial / split ways ([altForm], FEATURE_2610_17 / D64) send only the
+/// chosen lines.
 /// ⚠️ New upload / invoice update **mode is decided by the server from the
 /// order status** (D3). Here only the button label changes.
 /// ⚠️ Once the marketplace answered (success and partial failure alike) the
@@ -1237,7 +1347,15 @@ class _CancelSectionState extends State<_CancelSection> {
 class _ManualShipmentSection extends StatefulWidget {
   final OrderItem order;
 
-  const _ManualShipmentSection({required this.order});
+  /// 11st only (FEATURE_2610_17 / D64): the way-to-send chips under the title.
+  final Widget? modePicker;
+
+  /// 11st only (D64): replaces the carrier · invoice form for a partial /
+  /// split send; the title, error and result stay this card's.
+  final Widget? altForm;
+
+  const _ManualShipmentSection(
+      {required this.order, this.modePicker, this.altForm});
 
   @override
   State<_ManualShipmentSection> createState() => _ManualShipmentSectionState();
@@ -1289,13 +1407,18 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  '박스 ${widget.order.externalBoxId ?? '-'} 의 모든 옵션에 같은 운송장번호가 적용됩니다.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                if (widget.modePicker != null) ...[
+                  widget.modePicker!,
+                  const SizedBox(height: 8),
+                ],
+                if (widget.altForm == null)
+                  Text(
+                    '박스 ${widget.order.externalBoxId ?? '-'} 의 모든 옵션에 같은 운송장번호가 적용됩니다.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
-                ),
                 if (shipped) ...[
                   const SizedBox(height: 8),
                   Text(
@@ -1316,7 +1439,8 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
                     child: const Text('송장 수정하기'),
                   ),
                 ],
-                if (formOpen) ...[
+                if (widget.altForm != null) widget.altForm!,
+                if (formOpen && widget.altForm == null) ...[
                   const SizedBox(height: 12),
                   if (state.loadingOptions)
                     const Padding(

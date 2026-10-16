@@ -9,6 +9,8 @@ import '../../domain/repositories/order_repository.dart';
 import '../datasources/order_remote_datasource.dart';
 import '../models/cancel_reason_option.dart';
 import '../models/elevenst_cancel_request.dart';
+import '../models/elevenst_choices.dart';
+import '../models/elevenst_delivery_line.dart';
 import '../models/internal_stage_result.dart';
 import '../models/order_acknowledge_result.dart';
 import '../models/order_cancel_result.dart';
@@ -343,6 +345,70 @@ class OrderRepositoryImpl implements OrderRepository {
       return const Right(unit);
     } on DioException catch (e) {
       return Left(_serverFailure(e, 'Failed to request the return'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, ElevenstChoices>> getElevenstChoices() =>
+      _call(remoteDataSource.getElevenstChoices, 'Failed to fetch 11st reasons');
+
+  @override
+  Future<Either<Failure, OrderCancelResult>> cancelElevenstLine(
+          int orderItemId, int quantity, String reasonCode, String reasonText) =>
+      _call(
+          () => remoteDataSource.cancelElevenstLine(
+              orderItemId, quantity, reasonCode, reasonText),
+          'Failed to cancel the order');
+
+  @override
+  Future<Either<Failure, Unit>> rejectElevenstCancelFault(
+          int requestId, Map<String, dynamic> body) =>
+      _call(() async {
+        await remoteDataSource.rejectElevenstCancelFault(requestId, body);
+        return unit;
+      }, 'Failed to reject the cancel request');
+
+  @override
+  Future<Either<Failure, List<ElevenstDeliveryLine>>> getElevenstDeliveryLines(
+          int orderItemId) =>
+      _call(() => remoteDataSource.getElevenstDeliveryLines(orderItemId),
+          'Failed to fetch the delivery lines');
+
+  @override
+  Future<Either<Failure, Unit>> sendElevenstDeliveryDelay(
+          int orderItemId, Map<String, dynamic> body) =>
+      _call(() async {
+        await remoteDataSource.sendElevenstDeliveryDelay(orderItemId, body);
+        return unit;
+      }, 'Failed to send the delay notice');
+
+  @override
+  Future<Either<Failure, Unit>> completeElevenstVisitPickup(
+          int orderItemId, String certCode) =>
+      _call(() async {
+        await remoteDataSource.completeElevenstVisitPickup(
+            orderItemId, certCode);
+        return unit;
+      }, 'Failed to complete the visit pickup');
+
+  @override
+  Future<Either<Failure, Unit>> confirmElevenstStock(int orderItemId) =>
+      _call(() async {
+        await remoteDataSource.confirmElevenstStock(orderItemId);
+        return unit;
+      }, 'Failed to confirm the stock');
+
+  /// One call of the 11st order-detail actions (FEATURE_2610_17 / D61 ~ D67):
+  /// a [DioException] keeps the server message and status code like the
+  /// methods above.
+  Future<Either<Failure, T>> _call<T>(
+      Future<T> Function() call, String fallback) async {
+    try {
+      return Right(await call());
+    } on DioException catch (e) {
+      return Left(_serverFailure(e, fallback));
     } on Exception catch (e) {
       return Left(ServerFailure(e.toString()));
     }
