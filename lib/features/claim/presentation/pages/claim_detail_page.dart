@@ -12,7 +12,10 @@ import '../widgets/claim_action_sheet.dart';
 
 // Platform display labels — same shape as order_detail_page;
 // unknown codes fall back to the raw value.
-const Map<String, String> _platformLabels = {'COUPANG': '쿠팡'};
+const Map<String, String> _platformLabels = {
+  'COUPANG': '쿠팡',
+  'ELEVENST': '11번가',
+};
 
 /// 클레임 상세 페이지 (FEATURE_2609_18).
 ///

@@ -157,6 +157,7 @@ class _InquiryDetailView extends StatelessWidget {
                   // 스레드 바로 아래 = 답변을 쓰는 동안 대화가 보인다(M10).
                   InquiryReplyComposer(
                     capability: detail.replyCapability,
+                    platform: detail.inquiry.platform,
                     submitting: loaded!.submitting,
                     replyForbidden: loaded.replyForbidden,
                     replyUnknown: loaded.replyUnknown,

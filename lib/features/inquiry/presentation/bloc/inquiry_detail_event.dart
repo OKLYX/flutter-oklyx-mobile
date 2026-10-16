@@ -21,7 +21,11 @@ class ReloadInquiry extends InquiryDetailEvent {}
 class SubmitReply extends InquiryDetailEvent {
   final String content;
 
-  SubmitReply(this.content);
+  /// 11st non-delivery form only (FEATURE_2610_17 / D68): `reasonCode`, and
+  /// for the re-shipping reason `carrierCode` · `invoiceNumber`.
+  final Map<String, dynamic>? nonDelivery;
+
+  SubmitReply(this.content, {this.nonDelivery});
 }
 
 /// 전송 실패 문구를 SnackBar 로 소비한 뒤 비운다(목록의 `ActionErrorCleared` 관례).

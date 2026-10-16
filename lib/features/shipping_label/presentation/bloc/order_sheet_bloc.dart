@@ -30,7 +30,7 @@ class OrderSheetBloc extends Bloc<OrderSheetEvent, OrderSheetState> {
         await useCase.previewRowsByOrder(orderItemId: event.orderItemId);
     result.fold(
       (failure) => emit(OrderSheetError(
-        _errorMessage(failure, '쿠팡 주문 조회에 실패했습니다.'),
+        _errorMessage(failure, '마켓 주문 조회에 실패했습니다.'),
       )),
       (rows) => emit(OrderSheetLoaded(rows)),
     );
@@ -90,7 +90,7 @@ class OrderSheetBloc extends Bloc<OrderSheetEvent, OrderSheetState> {
     final code = failure is ServerFailure ? failure.statusCode : null;
     if (code == 403) return '권한이 없습니다. 관리자 계정으로 로그인해주세요.';
     if (code == 404) return '주문을 찾을 수 없습니다.';
-    if (code == 400) return '쿠팡 주문만 지원합니다.';
+    if (code == 400) return '쿠팡 · 11번가 주문만 지원합니다.';
     return fallback;
   }
 }

@@ -38,11 +38,14 @@ abstract class ShippingLabelRepository {
     required String platform,
   });
 
-  /// 한 박스 단건 발송처리(또는 송장수정) — 모드 판정은 서버가 한다(PLAN 2609_11 D3).
+  /// Single-box shipment (or invoice edit) — the server decides the mode (PLAN
+  /// 2609_11 D3); [elevenst] = 11st partial / split lines (FEATURE_2610_17 /
+  /// D64).
   Future<Either<Failure, ManualShipmentResult>> confirmManualShipment({
     required int orderItemId,
     required String deliveryCompanyCode,
     required String invoiceNumber,
+    Map<String, dynamic>? elevenst,
   });
 
   /// 「내부 상품준비중」 접수시트 미리보기(FEATURE_2609_75 / D26).

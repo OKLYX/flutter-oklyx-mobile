@@ -126,18 +126,22 @@ class ShippingLabelRepositoryImpl implements ShippingLabelRepository {
     required int orderItemId,
     required String deliveryCompanyCode,
     required String invoiceNumber,
+    Map<String, dynamic>? elevenst,
   }) async {
     try {
       final result = await remoteDataSource.confirmManualShipment(
         orderItemId: orderItemId,
         deliveryCompanyCode: deliveryCompanyCode,
         invoiceNumber: invoiceNumber,
+        elevenst: elevenst,
       );
       return Right(result);
     } on DioException catch (e) {
-      // ⚠️ 이 경로만 다른 메서드와 다르다 — 400 사유가 여러 개라(비-쿠팡 주문 / 박스 ID 없음 /
-      // 택배사 코드 미등록) 서버 본문 message 를 그대로 살려 화면에 노출한다(PLAN 2609_11).
-      // 실패 봉투 {status:'FAILURE', message, data:null}.
+      // ⚠️ Only this path differs from the other methods — a 400 has several
+      // reasons (not a Coupang · 11st order / no box ID / carrier code not
+      // registered / 11st send-mode rules, FEATURE_2610_17 / D64), so the
+      // server body message is shown as is (PLAN 2609_11).
+      // Failure envelope {status:'FAILURE', message, data:null}.
       final body = e.response?.data;
       final serverMessage =
           body is Map<String, dynamic> ? body['message'] as String? : null;

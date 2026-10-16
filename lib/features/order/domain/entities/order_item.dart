@@ -49,6 +49,16 @@ class OrderItem {
   final int? discountAmount;
   final int? platformDiscountAmount;
 
+  /// 11st only, false for every other line (FEATURE_2610_17 / D66 · D67) —
+  /// the server's flags, never re-derived from the raw status:
+  /// [visitPickup] = visit-pickup order ([방문수령 완료] instead of the
+  /// invoice form), [reservedSale] = reserved-sale paid order
+  /// ([입고완료 처리] instead of [발주처리]), [stockConfirmSent] =
+  /// [입고완료 처리] already sent (shown as 「입고완료 보냄」).
+  final bool visitPickup;
+  final bool reservedSale;
+  final bool stockConfirmSent;
+
   const OrderItem({
     required this.id,
     required this.marketplaceAccountId,
@@ -72,8 +82,15 @@ class OrderItem {
     this.lineAmount,
     this.discountAmount,
     this.platformDiscountAmount,
+    this.visitPickup = false,
+    this.reservedSale = false,
+    this.stockConfirmSent = false,
   });
 }
+
+/// The reserved-sale label beside the status (FEATURE_2610_17 / D67) — one
+/// source for the order card and the order detail.
+const String kElevenstReservedLabel = '11번가 예약판매';
 
 /// 플랫폼 중립 주문 상태 (백엔드 `OrderStatus` 와 1:1, FEATURE_2609_26 D5).
 ///

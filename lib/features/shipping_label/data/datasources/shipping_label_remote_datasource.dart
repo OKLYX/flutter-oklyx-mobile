@@ -37,12 +37,14 @@ abstract class ShippingLabelRemoteDataSource {
   /// 그 플랫폼에 코드가 등록된 활성 택배사(JSON 봉투) → data 언래핑. DB lookup 이라 타임아웃 연장 없음.
   Future<List<CarrierOption>> getCarrierOptions({required String platform});
 
-  /// POST /api/admin/shipping-labels/confirm/manual (body {orderItemId, deliveryCompanyCode, invoiceNumber})
-  /// 한 박스 단건 발송처리(또는 송장수정) 결과(JSON 봉투) → data 언래핑.
+  /// POST /api/admin/shipping-labels/confirm/manual (body {orderItemId, deliveryCompanyCode, invoiceNumber}
+  /// + for an 11st partial / split send the [elevenst] keys `mode` · `orderItemIds` · `splits`,
+  /// FEATURE_2610_17 / D64). Single-box shipment (or invoice edit) result (JSON envelope) → data unwrapped.
   Future<ManualShipmentResult> confirmManualShipment({
     required int orderItemId,
     required String deliveryCompanyCode,
     required String invoiceNumber,
+    Map<String, dynamic>? elevenst,
   });
 
   /// GET /api/admin/shipping-labels/v2/preview/internal?sellerId={sellerId}
@@ -192,6 +194,7 @@ class ShippingLabelRemoteDataSourceImpl implements ShippingLabelRemoteDataSource
     required int orderItemId,
     required String deliveryCompanyCode,
     required String invoiceNumber,
+    Map<String, dynamic>? elevenst,
   }) async {
     final response = await dio.post(
       '/api/admin/shipping-labels/confirm/manual',
@@ -199,9 +202,11 @@ class ShippingLabelRemoteDataSourceImpl implements ShippingLabelRemoteDataSource
         'orderItemId': orderItemId,
         'deliveryCompanyCode': deliveryCompanyCode,
         'invoiceNumber': invoiceNumber,
+        ...?elevenst,
       },
       options: Options(
-        // 서버가 쿠팡 송장업로드 API를 실호출 → confirmShipment 와 동일하게 개별 연장.
+        // The server calls the marketplace invoice API live (Coupang upload ·
+        // 11st 1888 / 1636 / 6791) → extended like confirmShipment.
         receiveTimeout:
             const Duration(seconds: AppConstants.coupangReceiveTimeout),
       ),

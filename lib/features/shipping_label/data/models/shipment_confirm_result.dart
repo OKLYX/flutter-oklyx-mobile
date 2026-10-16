@@ -32,15 +32,20 @@ class SkippedOrder extends Equatable {
   final String orderId;
   final OrderStatus status;
 
-  const SkippedOrder({required this.orderId, required this.status});
+  /// Why the row was left out — server text, shown as is (FEATURE_2610_17 /
+  /// D47). null on the acknowledge result and from an older server.
+  final String? reason;
+
+  const SkippedOrder({required this.orderId, required this.status, this.reason});
 
   factory SkippedOrder.fromJson(Map<String, dynamic> json) => SkippedOrder(
         orderId: json['orderId']?.toString() ?? '',
         status: orderStatusFrom(json['status']?.toString()),
+        reason: json['reason']?.toString(),
       );
 
   @override
-  List<Object?> get props => [orderId, status];
+  List<Object?> get props => [orderId, status, reason];
 }
 
 /// 발송처리(운송장 업로드) 결과 (백엔드 ShipmentConfirmResult 대응).

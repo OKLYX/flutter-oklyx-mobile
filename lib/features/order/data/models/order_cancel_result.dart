@@ -2,14 +2,16 @@ import 'package:equatable/equatable.dart';
 
 import '../../domain/entities/order_item.dart';
 
-/// 발송 전 주문 취소 결과 (POST /api/admin/orders/cancel).
+/// Seller cancel result before shipping (POST /api/admin/orders/cancel).
 ///
-/// 백엔드 `OrderCancelResult` record 와 1:1. 실패 사유는 쿠팡 원문 그대로 담는다
-/// (PLAN 2609_25 D16) — 취소 불가 상태로 거절되면 200 + [failed] 로 온다.
+/// 1:1 with the backend `OrderCancelResult` record. Failure reasons hold the
+/// marketplace's original wording (Coupang PLAN 2609_25 D16 · 11st sale
+/// refusal FEATURE_2610_17 / D61) — a refusal comes back as 200 + [failed].
 ///
-/// ⚠️ 목록 4종이 **전부 라인 단위**다(D20) — 발주처리와 달리 `shipping_label` 의
-/// `SkippedOrder` 를 재사용하지 않는다. 요청이 `lines` 배열이라 결과가 주문번호 단위면
-/// 어느 라인이 걸러졌는지 화면이 맞출 수 없다.
+/// ⚠️ All four lists are **per line** (D20) — unlike order confirmation, the
+/// `shipping_label` `SkippedOrder` is not reused. The request is a `lines`
+/// array, so per-order results would not tell the screen which line was left
+/// out.
 class OrderCancelResult extends Equatable {
   /// 조회에 성공한 라인 수 (없는 id 는 세지 않는다).
   final int requestedLines;
@@ -23,13 +25,14 @@ class OrderCancelResult extends Equatable {
   /// 성공 라인 상세 — 화면 즉시 갱신용(D14).
   final List<CancelledLine> cancelled;
 
-  /// 실패 라인 상세 — 쿠팡 원문(D16).
+  /// Failed line details — the marketplace's original wording (D16 · D61).
   final List<FailedLine> failed;
 
   /// 상태·전량취소로 전송하지 않은 라인(D2).
   final List<SkippedLine> skipped;
 
-  /// 비-COUPANG 이거나 박스번호가 없어 전송 불가한 라인(D10). [skipped] 와 같은 타입이다.
+  /// Lines that cannot be sent — neither Coupang nor 11st, or no box number
+  /// (D10 · FEATURE_2610_17 / D61). Same type as [skipped].
   final List<SkippedLine> unsupported;
 
   const OrderCancelResult({
@@ -97,7 +100,8 @@ class CancelledLine extends Equatable {
   /// 쿠팡 접수번호.
   final String? receiptId;
 
-  /// `CANCEL`(즉시취소) / `STOP_SHIPMENT`(출고중지).
+  /// Coupang `CANCEL` (instant cancel) / `STOP_SHIPMENT` (shipment stop) ·
+  /// 11st `ELEVENST_SALE_REFUSAL` (FEATURE_2610_17 / D61).
   final String? receiptType;
 
   const CancelledLine({
@@ -135,7 +139,8 @@ class CancelledLine extends Equatable {
       ];
 }
 
-/// 취소에 실패한 라인 1건 — 쿠팡 원문 그대로(번역·요약 금지, D16).
+/// One failed line — the marketplace's original wording as given (never
+/// translate or summarize, D16 · D61).
 class FailedLine extends Equatable {
   final int orderItemId;
   final String? externalItemId;
@@ -160,8 +165,9 @@ class FailedLine extends Equatable {
   List<Object?> get props => [orderItemId, externalItemId, code, message];
 }
 
-/// 전송하지 않은 라인 1건 — `skipped`(상태·전량취소)와 `unsupported`(비-쿠팡·박스 없음)가
-/// **같은 타입**이다. [reason] 은 서버가 준 한글 1줄이며 화면은 그 원문을 그대로 쓴다.
+/// One line not sent — `skipped` (status · fully cancelled) and `unsupported`
+/// (neither Coupang nor 11st · no box) are **the same type**. [reason] is the
+/// server's one Korean line and the screen shows it as given.
 class SkippedLine extends Equatable {
   final int orderItemId;
   final String? externalOrderId;

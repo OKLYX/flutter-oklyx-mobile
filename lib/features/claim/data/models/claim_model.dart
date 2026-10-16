@@ -91,6 +91,7 @@ class ClaimModel extends Claim {
             requires: e['requires'] as String? ?? '',
             choices: _parseChoices(e['choices']),
             irreversible: e['irreversible'] == true,
+            hint: e['hint'] as String?,
           ),
         )
         // 코드가 비면 서버에 되돌려 보낼 식별자가 없다 — 그릴 수 없는 버튼이다.
@@ -123,10 +124,11 @@ class ClaimModel extends Claim {
   }
 }
 
-/// `POST /api/admin/claims/{id}/actions` 응답 → [ClaimActionResult].
+/// `POST /api/admin/claims/{id}/actions` response → [ClaimActionResult].
 ///
-/// ⚠️ 502(쿠팡 거절) 응답도 **같은 모양**으로 `data` 에 실려 온다 — 성공/실패에서 서로 다른
-/// 스키마를 파싱하지 않는다. 실패 경로의 파싱은 Repository 가 한다(상태 코드가 필요하므로).
+/// ⚠️ A 502 (marketplace rejection, Coupang · 11st) comes in `data` with **the
+/// same shape** — no separate schema is parsed for success and failure. The
+/// failure path is parsed by the Repository (it needs the status code).
 class ClaimActionResultModel extends ClaimActionResult {
   const ClaimActionResultModel({
     required super.claimId,

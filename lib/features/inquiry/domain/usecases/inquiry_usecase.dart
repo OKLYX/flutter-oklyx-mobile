@@ -49,7 +49,8 @@ class InquiryUseCase {
   /// 답변 전송(ADMIN 전용). 🔴 되돌릴 수 없다(D17) — 자동 재시도를 넣지 말 것.
   Future<Either<Failure, InquiryDetail>> replyToInquiry(
     int id,
-    String content,
-  ) =>
-      repository.replyToInquiry(id, content);
+    String content, {
+    Map<String, dynamic>? nonDelivery,
+  }) =>
+      repository.replyToInquiry(id, content, nonDelivery: nonDelivery);
 }

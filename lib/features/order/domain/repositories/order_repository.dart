@@ -1,6 +1,9 @@
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import '../../data/models/cancel_reason_option.dart';
+import '../../data/models/elevenst_cancel_request.dart';
+import '../../data/models/elevenst_choices.dart';
+import '../../data/models/elevenst_delivery_line.dart';
 import '../../data/models/internal_stage_result.dart';
 import '../../data/models/order_acknowledge_result.dart';
 import '../../data/models/order_cancel_result.dart';
@@ -94,4 +97,54 @@ abstract class OrderRepository {
   Future<Either<Failure, InternalStageResult>> cancelReservedItems(
     List<int> orderItemIds,
   );
+
+  /// 11st cancel requests of one order line (FEATURE_2610_17 / D19).
+  Future<Either<Failure, List<ElevenstCancelRequest>>>
+      getElevenstCancelRequests(int orderItemId);
+
+  /// [취소 승인] (D37). Unit on success.
+  Future<Either<Failure, Unit>> approveElevenstCancel(int requestId);
+
+  /// [취소 거부] (D38) — carrier · invoice · 'yyyy-MM-dd'.
+  Future<Either<Failure, Unit>> rejectElevenstCancel(
+    int requestId, {
+    required String deliveryCompanyCode,
+    required String invoiceNumber,
+    required String sendDate,
+  });
+
+  /// The 13 seller-return reasons (D39 ⑤).
+  Future<Either<Failure, List<CancelReasonOption>>> getElevenstReturnReasons();
+
+  /// [판매자가 대신 반품 신청] (D35 · D36 · D39 ⑤).
+  Future<Either<Failure, Unit>> requestElevenstReturn(
+    int orderItemId,
+    Map<String, dynamic> body,
+  );
+
+  /// The reason lists of D61 · D62 · D63.
+  Future<Either<Failure, ElevenstChoices>> getElevenstChoices();
+
+  /// 11st sale refusal of the whole line (D61).
+  Future<Either<Failure, OrderCancelResult>> cancelElevenstLine(
+      int orderItemId, int quantity, String reasonCode, String reasonText);
+
+  /// [책임사유 오류로 거부] (D62).
+  Future<Either<Failure, Unit>> rejectElevenstCancelFault(
+      int requestId, Map<String, dynamic> body);
+
+  /// Lines of the same 11st delivery (D64).
+  Future<Either<Failure, List<ElevenstDeliveryLine>>> getElevenstDeliveryLines(
+      int orderItemId);
+
+  /// [발송지연 안내] (D63).
+  Future<Either<Failure, Unit>> sendElevenstDeliveryDelay(
+      int orderItemId, Map<String, dynamic> body);
+
+  /// [방문수령 완료] (D66).
+  Future<Either<Failure, Unit>> completeElevenstVisitPickup(
+      int orderItemId, String certCode);
+
+  /// [입고완료 처리] (D67).
+  Future<Either<Failure, Unit>> confirmElevenstStock(int orderItemId);
 }
