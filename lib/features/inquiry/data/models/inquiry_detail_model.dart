@@ -94,6 +94,15 @@ class InquiryDetailModel extends InquiryDetail {
       once: raw['once'] == true,
       reason: raw['reason'] as String?,
       parentReplyId: raw['parentReplyId'] as String?,
+      // FEATURE_2610_17 / D68 — missing on an older server = the text form.
+      form: raw['form'] as String? ?? ReplyCapability.formText,
+      reasons: (raw['reasons'] as List? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .map((r) => InquiryReasonOption(
+                code: r['code']?.toString() ?? '',
+                label: r['label']?.toString() ?? '',
+              ))
+          .toList(),
     );
   }
 }

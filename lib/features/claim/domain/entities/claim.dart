@@ -151,8 +151,9 @@ class ClaimAction {
   /// 서버가 준 표시명(D18). 앱이 코드→라벨 상수를 만들지 말 것.
   final String label;
 
-  /// 추가 입력 종류: `NONE` | `INVOICE` | `REJECT_CODE`.
-  /// **모르는 값이면 버튼을 그리지 않는다** — 폼을 만들 수 없기 때문(PLAN §8).
+  /// Extra input kind: `NONE` | `INVOICE` | `REJECT_CODE` | `REASON`
+  /// (FEATURE_2610_17 / D34). **An unknown value draws no button** — no form
+  /// can be built for it (PLAN §8).
   final String requires;
 
   /// 값 선택이 필요한 액션의 선택지(D19). 반품 3액션은 항상 빈 목록이다.
@@ -161,12 +162,17 @@ class ClaimAction {
   /// 되돌릴 수 없는 액션 — 2단 확인의 근거(D10).
   final bool irreversible;
 
+  /// One gray line under the input, server-authored (FEATURE_2610_17 / D34 ·
+  /// D39 ④). null = none.
+  final String? hint;
+
   const ClaimAction({
     required this.action,
     required this.label,
     required this.requires,
     this.choices = const [],
     this.irreversible = false,
+    this.hint,
   });
 }
 
@@ -178,17 +184,20 @@ class ActionChoice {
   const ActionChoice({required this.code, required this.label});
 }
 
-/// [ClaimAction.requires] 의 알려진 값.
+/// Known values of [ClaimAction.requires].
 ///
-/// ⚠️ [supported] = **이 앱이 입력 폼을 만들 수 있는** 값이다. 여기 없는 값(서버가 나중에 늘리는
-/// 것)은 버튼을 그리지 않는다 — 폼을 만들 수 없기 때문이다(PLAN §8).
-/// `REJECT_CODE` 는 07 에서 거부 사유 시트가 생기며 들어왔다.
+/// ⚠️ [supported] = the values **this app can build an input form for**. A
+/// value not listed (one the server adds later) draws no button — no form can
+/// be built for it (PLAN §8).
+/// `REJECT_CODE` came in with the reject reason sheet of 07; `REASON` with the
+/// 11st reason sheet (FEATURE_2610_17 / D34).
 abstract final class ClaimActionRequires {
   static const none = 'NONE';
   static const invoice = 'INVOICE';
   static const rejectCode = 'REJECT_CODE';
+  static const reason = 'REASON';
 
-  static const supported = <String>{none, invoice, rejectCode};
+  static const supported = <String>{none, invoice, rejectCode, reason};
 }
 
 /// 회수송장 출처(서버 `collectInvoiceSource` 원문, FEATURE_2609_70 / D12).
@@ -196,10 +205,11 @@ abstract final class ClaimActionRequires {
 /// ⚠️ 화면은 이 값으로 **버튼을 켜고 끄지 않는다** — 무엇을 누를 수 있는지는 서버가
 /// `availableActions` 로 판정한다(D1). 여기서는 「우리 기록」 표시에만 쓴다.
 abstract final class CollectInvoiceSource {
-  /// 동기화가 쿠팡에서 읽어온 값.
+  /// Read from the marketplace (Coupang · 11st) by the sync.
   static const platform = 'PLATFORM';
 
-  /// 쿠팡이 거절해 우리 장부에만 남긴 값(D6) — 재전송 대상이다(D7).
+  /// The marketplace rejected it and only our ledger kept it (D6) — the
+  /// resend target (D7 · FEATURE_2610_17 / D22).
   static const local = 'LOCAL';
 }
 
@@ -217,12 +227,16 @@ class ClaimActionRequest {
   final String? regNumber;
   final String? rejectCode;
 
+  /// `REASON` actions only — 1~200 characters (FEATURE_2610_17 / D39 ①).
+  final String? reasonText;
+
   const ClaimActionRequest({
     required this.action,
     this.deliveryCompanyCode,
     this.invoiceNumber,
     this.regNumber,
     this.rejectCode,
+    this.reasonText,
   });
 
   Map<String, dynamic> toJson() => <String, dynamic>{
@@ -231,12 +245,14 @@ class ClaimActionRequest {
         'invoiceNumber': invoiceNumber,
         'regNumber': regNumber,
         'rejectCode': rejectCode,
+        'reasonText': reasonText,
       }..removeWhere((_, v) => v == null);
 }
 
-/// 액션 실행 결과. 성공 판정은 HTTP 가 아니라 [succeeded] 다.
+/// Action run result. Success is [succeeded], not the HTTP status.
 ///
-/// [resultCode]·[resultMessage] 는 **쿠팡 원문**(D15) — 번역·요약하지 말 것.
+/// [resultCode] · [resultMessage] are **the marketplace's original text**
+/// (D15 · FEATURE_2610_17 / D15) — do not translate or summarize them.
 class ClaimActionResult {
   final int claimId;
   final String action;
@@ -244,11 +260,15 @@ class ClaimActionResult {
   final String? resultCode;
   final String? resultMessage;
 
-  /// 쿠팡이 거절해 **우리 장부에만** 회수송장을 기록한 회차인가 (FEATURE_2609_70 / D6).
+  /// Whether this round recorded the pickup invoice **only in our ledger**
+  /// because the marketplace rejected it (FEATURE_2609_70 / D6 ·
+  /// FEATURE_2610_17 / D22).
   ///
-  /// 🔴 이 값이 true 면 HTTP 는 200 이고 [succeeded] 는 false 다 — 전송은 실패했지만 기록은
-  /// 남았다는 뜻이라 화면은 **실패(빨강)가 아니라 주황**으로 알린다.
-  /// ⚠️ 액션 코드로 이 상황을 판정하지 말 것 — 서버가 내려준 이 한 값으로만 분기한다.
+  /// 🔴 When true, HTTP is 200 and [succeeded] is false — the send failed but
+  /// the record stayed, so the screen tells it as a notice, **not as a failure
+  /// (red)**.
+  /// ⚠️ Do not decide this from the action code — branch only on this one
+  /// server value.
   final bool localRecordOnly;
 
   const ClaimActionResult({

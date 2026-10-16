@@ -30,17 +30,25 @@ class CarrierSelected extends ManualShipmentEvent {
 
 /// 단건 발송처리(또는 송장수정) 전송 — 모드 판정은 서버가 한다(PLAN 2609_11 D3).
 class SubmitManualShipment extends ManualShipmentEvent {
-  /// order_item PK (쿠팡 orderId 아님). 전송 대상은 이 라인이 속한 박스 전체다(D1).
+  /// order_item PK (not the Coupang orderId). The send covers the whole box this
+  /// line belongs to (D1) — unless [elevenst] picks 11st partial / split lines
+  /// (FEATURE_2610_17 / D64).
   final int orderItemId;
   final String invoiceNumber;
+
+  /// 11st partial / split send only (FEATURE_2610_17 / D64): `mode` ·
+  /// `orderItemIds` · `splits` added to the request body; null = the whole
+  /// box with one invoice.
+  final Map<String, dynamic>? elevenst;
 
   const SubmitManualShipment({
     required this.orderItemId,
     required this.invoiceNumber,
+    this.elevenst,
   });
 
   @override
-  List<Object?> get props => [orderItemId, invoiceNumber];
+  List<Object?> get props => [orderItemId, invoiceNumber, elevenst];
 }
 
 /// 송장번호를 고칠 때 직전 전송 실패 문구를 지운다(웹의 onChange 클리어와 같은 규칙).

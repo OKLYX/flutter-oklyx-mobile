@@ -53,5 +53,6 @@ abstract class InquiryRepository {
   ///
   /// ⚠️ 실패는 [ServerFailure] 이고 **`statusCode` 가 반드시 실려 온다** — 403(ADMIN 아님) ·
   /// 502(전송 결과 미상) · 그 외(검증 실패 등)의 화면 동작이 전부 다르다.
-  Future<Either<Failure, InquiryDetail>> replyToInquiry(int id, String content);
+  Future<Either<Failure, InquiryDetail>> replyToInquiry(int id, String content,
+      {Map<String, dynamic>? nonDelivery});
 }

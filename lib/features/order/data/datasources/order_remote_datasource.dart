@@ -1,6 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_oklyn_mobile/core/constants/app_constants.dart';
 import '../models/cancel_reason_option.dart';
+import '../models/elevenst_cancel_request.dart';
+import '../models/elevenst_choices.dart';
+import '../models/elevenst_delivery_line.dart';
 import '../models/internal_stage_result.dart';
 import '../models/order_acknowledge_result.dart';
 import '../models/order_cancel_result.dart';
@@ -34,7 +37,8 @@ abstract class OrderRemoteDataSource {
   });
 
   /// GET /api/orders/sync/targets?sellerId={sellerId}
-  /// 동기화 대상 채널(활성 + COUPANG) 목록. 자격증명은 응답에 포함되지 않는다.
+  /// Sync target channels (active + COUPANG or ELEVENST, FEATURE_2610_17 / D9).
+  /// No credentials are in the response.
   Future<List<SyncTargetModel>> getSyncTargets({int? sellerId});
 
   /// GET /api/orders/months → [{ym, count}] 최신순.
@@ -82,6 +86,49 @@ abstract class OrderRemoteDataSource {
   /// POST /api/admin/reserved-shipments/items/cancel  body: {"orderItemIds":[...]}
   /// [예약 취소] — 발송대기중 → 내부 상품준비중(FEATURE_2609_75 / D18 행2). 쿠팡 호출 없음.
   Future<InternalStageResult> cancelReservedItems(List<int> orderItemIds);
+
+  /// GET /api/orders/{orderItemId}/elevenst-cancel-requests (FEATURE_2610_17 / D19).
+  Future<List<ElevenstCancelRequest>> getElevenstCancelRequests(
+      int orderItemId);
+
+  /// POST /api/admin/elevenst-cancel-requests/{id}/approve (D37 — cannot be undone).
+  Future<void> approveElevenstCancel(int requestId);
+
+  /// POST /api/admin/elevenst-cancel-requests/{id}/reject
+  /// body: {"deliveryCompanyCode","invoiceNumber","sendDate":"yyyy-MM-dd"} (D38).
+  Future<void> rejectElevenstCancel(int requestId, Map<String, dynamic> body);
+
+  /// GET /api/orders/elevenst-return-reasons — the 13 reason codes (D39 ⑤).
+  Future<List<CancelReasonOption>> getElevenstReturnReasons();
+
+  /// POST /api/admin/orders/{orderItemId}/elevenst-return-request (D35 · D36 · D39 ⑤).
+  Future<void> requestElevenstReturn(
+      int orderItemId, Map<String, dynamic> body);
+
+  /// GET /api/orders/elevenst-choices — the reason lists of D61 · D62 · D63.
+  Future<ElevenstChoices> getElevenstChoices();
+
+  /// POST /api/admin/orders/cancel with `reasonCode` · `reasonText` — 11st sale
+  /// refusal of the whole line (D61); [quantity] only passes the request check.
+  Future<OrderCancelResult> cancelElevenstLine(
+      int orderItemId, int quantity, String reasonCode, String reasonText);
+
+  /// POST /api/admin/elevenst-cancel-requests/{id}/reject-fault (D62).
+  Future<void> rejectElevenstCancelFault(
+      int requestId, Map<String, dynamic> body);
+
+  /// GET /api/orders/{orderItemId}/elevenst-delivery-lines (D64).
+  Future<List<ElevenstDeliveryLine>> getElevenstDeliveryLines(int orderItemId);
+
+  /// POST /api/admin/orders/{orderItemId}/elevenst-delivery-delay (D63).
+  Future<void> sendElevenstDeliveryDelay(
+      int orderItemId, Map<String, dynamic> body);
+
+  /// POST /api/admin/orders/{orderItemId}/elevenst-visit-pickup (D66).
+  Future<void> completeElevenstVisitPickup(int orderItemId, String certCode);
+
+  /// POST /api/admin/orders/{orderItemId}/elevenst-stock-confirm (D67).
+  Future<void> confirmElevenstStock(int orderItemId);
 }
 
 class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
@@ -125,10 +172,12 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
     int? accountId,
   }) async {
     try {
-      // body 없이 query param 으로 전송한다. 계정 단위 호출이면 accountId 만,
-      // 아니면 sellerId 만 (서버 우선순위 accountId > sellerId).
-      // 서버가 쿠팡 API를 실시간 조회 → 기본 30초를 초과할 수 있어 개별 연장.
-      // 계정 1건 기준의 타임아웃이므로 전체 동기화보다 오히려 여유가 있다.
+      // Sent as query params without a body: accountId only for an
+      // account-level call, otherwise sellerId only (server priority
+      // accountId > sellerId).
+      // The server calls the marketplace (Coupang · 11st) live → may exceed the
+      // default 30 s, so this call gets its own longer timeout. It is sized for
+      // one account, so it is roomier than the full sync.
       final response = await dio.post(
         '/api/orders/sync',
         // 범위 파라미터를 보내지 않는다 — 서버 기본값(QUICK)이 화면이 원하는 범위와 같다.
@@ -236,7 +285,8 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
       '/api/admin/orders/acknowledge',
       data: {'orderItemIds': orderItemIds},
       options: Options(
-        // 서버가 쿠팡 발주처리 API 를 실호출 → 기본 30초를 초과할 수 있어 개별 연장.
+        // The server calls the marketplace confirmation API live (Coupang ·
+        // 11st) → may exceed the default 30 s, so it gets its own timeout.
         receiveTimeout:
             const Duration(seconds: AppConstants.coupangReceiveTimeout),
       ),
@@ -341,5 +391,160 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
     );
     return InternalStageResult.fromJson(
         response.data['data'] as Map<String, dynamic>);
+  }
+
+  // FEATURE_2610_17 — same rule as acknowledgeOrders: no try/catch, the
+  // DioException goes up so the repository keeps the 403 · 400 · 502 status.
+  // The 11st writes call 11st live, so they get the longer receive timeout.
+  @override
+  Future<List<ElevenstCancelRequest>> getElevenstCancelRequests(
+      int orderItemId) async {
+    final response =
+        await dio.get('/api/orders/$orderItemId/elevenst-cancel-requests');
+    final data = response.data['data'];
+    if (data is! List) return [];
+    return data
+        .map((e) => ElevenstCancelRequest.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<void> approveElevenstCancel(int requestId) async {
+    await dio.post(
+      '/api/admin/elevenst-cancel-requests/$requestId/approve',
+      options: Options(
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+  }
+
+  @override
+  Future<void> rejectElevenstCancel(
+      int requestId, Map<String, dynamic> body) async {
+    await dio.post(
+      '/api/admin/elevenst-cancel-requests/$requestId/reject',
+      data: body,
+      options: Options(
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+  }
+
+  @override
+  Future<List<CancelReasonOption>> getElevenstReturnReasons() async {
+    final response = await dio.get('/api/orders/elevenst-return-reasons');
+    final data = response.data['data'];
+    if (data is! List) return [];
+    return data
+        .map((e) => CancelReasonOption.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<void> requestElevenstReturn(
+      int orderItemId, Map<String, dynamic> body) async {
+    await dio.post(
+      '/api/admin/orders/$orderItemId/elevenst-return-request',
+      data: body,
+      options: Options(
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+  }
+
+  // FEATURE_2610_17 / D61 ~ D67 — the reads are our own DB; the writes call
+  // 11st live, so they get the longer receive timeout like the writes above.
+  @override
+  Future<ElevenstChoices> getElevenstChoices() async {
+    final response = await dio.get('/api/orders/elevenst-choices');
+    final data = response.data['data'];
+    if (data is! Map<String, dynamic>) return ElevenstChoices.empty;
+    return ElevenstChoices.fromJson(data);
+  }
+
+  @override
+  Future<OrderCancelResult> cancelElevenstLine(int orderItemId, int quantity,
+      String reasonCode, String reasonText) async {
+    final response = await dio.post(
+      '/api/admin/orders/cancel',
+      data: {
+        'lines': [
+          {'orderItemId': orderItemId, 'quantity': quantity},
+        ],
+        'reasonCode': reasonCode,
+        'reasonText': reasonText,
+      },
+      options: Options(
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+    return OrderCancelResult.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<void> rejectElevenstCancelFault(
+      int requestId, Map<String, dynamic> body) async {
+    await dio.post(
+      '/api/admin/elevenst-cancel-requests/$requestId/reject-fault',
+      data: body,
+      options: Options(
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+  }
+
+  @override
+  Future<List<ElevenstDeliveryLine>> getElevenstDeliveryLines(
+      int orderItemId) async {
+    final response =
+        await dio.get('/api/orders/$orderItemId/elevenst-delivery-lines');
+    final data = response.data['data'];
+    if (data is! List) return [];
+    return data
+        .map((e) => ElevenstDeliveryLine.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<void> sendElevenstDeliveryDelay(
+      int orderItemId, Map<String, dynamic> body) async {
+    await dio.post(
+      '/api/admin/orders/$orderItemId/elevenst-delivery-delay',
+      data: body,
+      options: Options(
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+  }
+
+  @override
+  Future<void> completeElevenstVisitPickup(
+      int orderItemId, String certCode) async {
+    await dio.post(
+      '/api/admin/orders/$orderItemId/elevenst-visit-pickup',
+      data: {'certCode': certCode},
+      options: Options(
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+  }
+
+  @override
+  Future<void> confirmElevenstStock(int orderItemId) async {
+    await dio.post(
+      '/api/admin/orders/$orderItemId/elevenst-stock-confirm',
+      options: Options(
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
   }
 }

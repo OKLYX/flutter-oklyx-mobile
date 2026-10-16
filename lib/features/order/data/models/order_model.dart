@@ -26,6 +26,9 @@ class OrderModel extends OrderItem {
     super.lineAmount,
     super.discountAmount,
     super.platformDiscountAmount,
+    super.visitPickup,
+    super.reservedSale,
+    super.stockConfirmSent,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
@@ -56,6 +59,10 @@ class OrderModel extends OrderItem {
       discountAmount: (json['discountAmount'] as num?)?.toInt(),
       platformDiscountAmount:
           (json['platformDiscountAmount'] as num?)?.toInt(),
+      // FEATURE_2610_17 / D66 · D67 — missing on an older server = false.
+      visitPickup: json['visitPickup'] as bool? ?? false,
+      reservedSale: json['reservedSale'] as bool? ?? false,
+      stockConfirmSent: json['stockConfirmSent'] as bool? ?? false,
     );
   }
 }

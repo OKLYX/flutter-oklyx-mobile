@@ -40,13 +40,17 @@ abstract class InquiryRemoteDataSource {
 
   /// POST /api/admin/inquiries/{id}/replies  body {"content": ...}
   ///
-  /// 🔴 되돌릴 수 없다(2609_23 D17) — 쿠팡에 답변 수정·삭제 API 가 없다.
-  /// 응답은 **갱신된 문의 1건**(스레드·재판정된 `replyCapability` 포함)이라 전송 후 재조회가 필요 없다.
+  /// 🔴 Cannot be undone (2609_23 D17) — Coupang has no API to edit or delete a reply.
+  /// The response is **the updated inquiry** (thread · re-judged `replyCapability` included), so
+  /// no re-read is needed after sending.
   ///
-  /// ⚠️ ADMIN 전용이라 일반 사용자는 403 이다 — 오류가 아니라 **권한 신호**다(PLAN M5).
-  /// ⚠️ 바디는 `content` **하나뿐**이다. `parentReplyId` 를 보내지 말 것 — 서버가 전송 직전에
-  /// 자기 값을 다시 고른다(`InquiryReplyRequest` javadoc).
-  Future<InquiryDetailModel> replyToInquiry(int id, String content);
+  /// ⚠️ ADMIN only, so a normal user gets 403 — not an error but a **permission signal** (PLAN M5).
+  /// ⚠️ The body is `content`, plus the [nonDelivery] keys `reasonCode` · `carrierCode` ·
+  /// `invoiceNumber` for the 11st non-delivery form only (FEATURE_2610_17 / D68). Never send
+  /// `parentReplyId` — the server picks its own value right before sending (`InquiryReplyRequest`
+  /// javadoc).
+  Future<InquiryDetailModel> replyToInquiry(int id, String content,
+      {Map<String, dynamic>? nonDelivery});
 }
 
 class InquiryRemoteDataSourceImpl implements InquiryRemoteDataSource {
@@ -118,10 +122,11 @@ class InquiryRemoteDataSourceImpl implements InquiryRemoteDataSource {
   }
 
   @override
-  Future<InquiryDetailModel> replyToInquiry(int id, String content) async {
+  Future<InquiryDetailModel> replyToInquiry(int id, String content,
+      {Map<String, dynamic>? nonDelivery}) async {
     final response = await dio.post(
       '/api/admin/inquiries/$id/replies',
-      data: <String, dynamic>{'content': content},
+      data: <String, dynamic>{'content': content, ...?nonDelivery},
     );
     final data = response.data['data'];
     if (data is! Map<String, dynamic>) {

@@ -5,13 +5,17 @@ import '../../domain/usecases/shipping_label_usecase.dart';
 import 'manual_shipment_event.dart';
 import 'manual_shipment_state.dart';
 
-/// 주문 상세 단건 발송처리 BLoC (택배사 선택 + 송장번호 직접 입력).
+/// Order-detail single shipment BLoC (carrier pick + invoice number typed in).
 ///
-/// 전송 단위는 화면의 그 라인이 아니라 **그 라인이 속한 박스 전체**이고, 신규 업로드/송장수정
-/// 모드 판정도 서버가 한다(PLAN 2609_11 D1·D3) — 여기서는 라벨과 화면 상태만 다룬다.
+/// The send unit is **the whole box this line belongs to**, not the line on
+/// screen, and the server also decides upload vs invoice edit (PLAN 2609_11
+/// D1·D3) — this BLoC only handles labels and screen state. An 11st partial /
+/// split send passes its chosen lines in `SubmitManualShipment.elevenst`
+/// (FEATURE_2610_17 / D64).
 ///
-/// **권한**: 클라이언트 role 게이트 없음(모바일에 role 판정이 없다). 대신 택배사 조회가 403 이면
-/// `optionsForbidden` 으로 섹션을 숨긴다 — 서버가 내린 판정을 반영하는 것이라 이중 판정이 아니다.
+/// **Permission**: no client role gate (mobile has no role check). A 403 on the
+/// carrier lookup hides the section through `optionsForbidden` instead — that
+/// reflects the server's decision, not a second one.
 class ManualShipmentBloc extends Bloc<ManualShipmentEvent, ManualShipmentState> {
   final ShippingLabelUseCase useCase;
 
@@ -72,6 +76,7 @@ class ManualShipmentBloc extends Bloc<ManualShipmentEvent, ManualShipmentState> 
       orderItemId: event.orderItemId,
       deliveryCompanyCode: carrierCode,
       invoiceNumber: event.invoiceNumber,
+      elevenst: event.elevenst,
     );
     result.fold(
       // 요청 자체가 실패 → result 를 채우지 않는다(입력을 다시 열어 재시도할 수 있어야 한다, D14).
@@ -95,9 +100,12 @@ class ManualShipmentBloc extends Bloc<ManualShipmentEvent, ManualShipmentState> 
     emit(state.copyWith(clearError: true));
   }
 
-  // 송장시트 BLoC 의 헬퍼를 복사해 왔다(공용 유틸 추출 ❌ — 검증이 끝난 송장시트 경로를 건드리지 않는다).
-  // ⚠️ 400 만 다르다: 이 경로는 사유가 여럿(비-쿠팡 주문 / 박스 ID 없음 / 택배사 코드 미등록)이라
-  // 서버 본문 message 를 그대로 쓴다. 고정 문구로 덮으면 사용자가 조치할 정보를 잃는다.
+  // Helper copied from the shipping-sheet BLoC (no shared util ❌ — the
+  // verified sheet path stays untouched).
+  // ⚠️ Only 400 differs: this path has several reasons (not a Coupang · 11st
+  // order / no box ID / carrier code not registered / 11st send-mode rules,
+  // FEATURE_2610_17 / D64), so the server body message is used as is. A fixed
+  // text would hide what the user can act on.
   String _errorMessage(Failure failure, String fallback) {
     final code = failure is ServerFailure ? failure.statusCode : null;
     if (code == 403) return '권한이 없습니다. 관리자 계정으로 로그인해주세요.';
