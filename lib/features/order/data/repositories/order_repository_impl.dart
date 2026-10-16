@@ -8,6 +8,7 @@ import '../../domain/entities/sync_target.dart';
 import '../../domain/repositories/order_repository.dart';
 import '../datasources/order_remote_datasource.dart';
 import '../models/cancel_reason_option.dart';
+import '../models/elevenst_cancel_request.dart';
 import '../models/internal_stage_result.dart';
 import '../models/order_acknowledge_result.dart';
 import '../models/order_cancel_result.dart';
@@ -268,6 +269,80 @@ class OrderRepositoryImpl implements OrderRepository {
       return Right(await remoteDataSource.cancelReservedItems(orderItemIds));
     } on DioException catch (e) {
       return Left(_serverFailure(e, 'Failed to cancel reservation'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  // FEATURE_2610_17 — every failure keeps the server message and the status code
+  // (403 hides the 11st buttons, 400 · 502 carry the server / 11st wording).
+  @override
+  Future<Either<Failure, List<ElevenstCancelRequest>>>
+      getElevenstCancelRequests(int orderItemId) async {
+    try {
+      return Right(await remoteDataSource.getElevenstCancelRequests(orderItemId));
+    } on DioException catch (e) {
+      return Left(_serverFailure(e, 'Failed to fetch cancel requests'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Unit>> approveElevenstCancel(int requestId) async {
+    try {
+      await remoteDataSource.approveElevenstCancel(requestId);
+      return const Right(unit);
+    } on DioException catch (e) {
+      return Left(_serverFailure(e, 'Failed to approve the cancel request'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Unit>> rejectElevenstCancel(
+    int requestId, {
+    required String deliveryCompanyCode,
+    required String invoiceNumber,
+    required String sendDate,
+  }) async {
+    try {
+      await remoteDataSource.rejectElevenstCancel(requestId, {
+        'deliveryCompanyCode': deliveryCompanyCode,
+        'invoiceNumber': invoiceNumber,
+        'sendDate': sendDate,
+      });
+      return const Right(unit);
+    } on DioException catch (e) {
+      return Left(_serverFailure(e, 'Failed to reject the cancel request'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<CancelReasonOption>>>
+      getElevenstReturnReasons() async {
+    try {
+      return Right(await remoteDataSource.getElevenstReturnReasons());
+    } on DioException catch (e) {
+      return Left(_serverFailure(e, 'Failed to fetch return reasons'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, Unit>> requestElevenstReturn(
+    int orderItemId,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      await remoteDataSource.requestElevenstReturn(orderItemId, body);
+      return const Right(unit);
+    } on DioException catch (e) {
+      return Left(_serverFailure(e, 'Failed to request the return'));
     } on Exception catch (e) {
       return Left(ServerFailure(e.toString()));
     }

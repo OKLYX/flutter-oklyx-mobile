@@ -21,6 +21,8 @@ import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/order_item.dart';
 import '../../data/models/cancel_reason_option.dart';
 import '../../data/models/order_cancel_result.dart';
+import '../bloc/elevenst_order_action_bloc.dart';
+import '../bloc/elevenst_order_action_event.dart';
 import '../bloc/order_acknowledge_bloc.dart';
 import '../bloc/order_acknowledge_event.dart';
 import '../bloc/order_acknowledge_state.dart';
@@ -30,6 +32,7 @@ import '../bloc/order_cancel_state.dart';
 import '../bloc/order_internal_stage_bloc.dart';
 import '../bloc/order_internal_stage_event.dart';
 import '../bloc/order_internal_stage_state.dart';
+import '../widgets/elevenst_order_sections.dart';
 import '../widgets/internal_stage_badge.dart';
 import '../bloc/order_refresh_bloc.dart';
 import '../bloc/order_refresh_event.dart';
@@ -107,21 +110,35 @@ class OrderDetailPage extends StatelessWidget {
   // order == null 분기는 조회할 order.id 가 없어 BlocProvider 자체를 만들지 않는다.
   Widget _buildContent(BuildContext context, OrderItem o) {
     final isCoupang = o.platform == 'COUPANG';
+    // FEATURE_2610_17 / D28: order confirmation, single invoice and the sheet
+    // are open to 11st as well; refresh · internal stage · seller cancel ·
+    // reservation stay Coupang only (D12).
+    final isElevenst = o.platform == 'ELEVENST';
+    final isMarketOrder = isCoupang || isElevenst;
     return MultiBlocProvider(
       providers: [
         BlocProvider<OrderSheetBloc>(create: (_) => getIt<OrderSheetBloc>()),
-        // ⚠️ 쿠팡 주문일 때만 만든다 — 게이트를 렌더에만 걸면 비-쿠팡 주문을 열 때마다
-        // ADMIN 전용 택배사 API 가 헛호출된다.
-        if (isCoupang)
+        // ⚠️ Made only for Coupang · 11st orders — gating only the render would
+        // call the ADMIN-only carrier API for nothing on every other order.
+        if (isMarketOrder)
           BlocProvider<ManualShipmentBloc>(
             create: (_) => getIt<ManualShipmentBloc>()
               ..add(LoadCarrierOptions(o.platform)),
           ),
-        // 발주처리도 쿠팡 전용 — 같은 가드 안에 둔다(비-쿠팡 주문에 헛 인스턴스를 만들지 않는다).
-        // ⚠️ 진입 시 자동 전송하지 않는다(D4) — 이벤트는 버튼 핸들러에서만 발행한다.
-        if (isCoupang)
+        // Order confirmation sits in the same guard (Coupang · 11st, D20) — no
+        // idle instance for other orders.
+        // ⚠️ No automatic send on entry (D4) — the event is dispatched only
+        // from the button handler.
+        if (isMarketOrder)
           BlocProvider<OrderAcknowledgeBloc>(
             create: (_) => getIt<OrderAcknowledgeBloc>(),
+          ),
+        // 11st cancel requests + seller return (FEATURE_2610_17 / D19 · D35) —
+        // reads the open requests once on entry; every write is a button.
+        if (isElevenst)
+          BlocProvider<ElevenstOrderActionBloc>(
+            create: (_) => getIt<ElevenstOrderActionBloc>()
+              ..add(ElevenstCancelRequestsRequested(o.id)),
           ),
         // 내부 발주처리도 쿠팡 전용(FEATURE_2609_75 / D1) — 같은 가드. 진입 시 자동 전송 없음.
         if (isCoupang)
@@ -161,7 +178,8 @@ class OrderDetailPage extends StatelessWidget {
             // ⚠️ BlocBuilder wraps only this one card — wrapping the Column or
             // AppPageBody.scroll would rebuild even the shipping-label sheet
             // section on every send and the edited parcel count would jump.
-            _buildInfoCard(o, isCoupang: isCoupang),
+            _buildInfoCard(o,
+                isCoupang: isCoupang, isMarketOrder: isMarketOrder),
             const SizedBox(height: 12),
             _InfoCard(
               title: '수량 정보',
@@ -181,6 +199,8 @@ class OrderDetailPage extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
+            // 11st only — cancel requests and the seller return (D19 · D35).
+            if (isElevenst) ElevenstOrderSections(order: o),
             // 송장(D18 🔁) — 내부 단계(결제완료) 배송건이 없으면(대부분의 주문) 아무것도 그리지 않는다.
             // 이 화면에서 [내부 발주처리]·[발주처리]가 성공하면 그 주문의 송장·기록을 다시 읽는다 —
             // 다시 들어오지 않아도 「송장」이 바로 나타나고/사라진다(웹 05 의 `shownStage` 재렌더와 같은 동작, D9).
@@ -206,19 +226,28 @@ class OrderDetailPage extends StatelessWidget {
               ),
             // 예약 발송 기록(D30) — 기록이 없으면(대부분의 주문) 아무것도 그리지 않는다.
             if (isCoupang) const ReservedShipmentHistorySection(),
-            // 송장시트·발송처리·주문취소는 한 번에 하나만 쓰는 배타적 선택이라 좌우 탭으로 묶는다.
-            // ⚠️ 전량취소해도 로컬 status 는 그대로라(D7) 섹션이 계속 열려 있다 —
-            // 위젯 **안을 고치지 않고** 바깥에서(탭 게이트·래퍼) 숨긴다. 부분취소는 감추지 않는다(D19).
-            // ⚠️ 비-쿠팡 주문은 발송·취소 BLoC 을 아예 만들지 않으므로(위 provider 가드) 탭을 쓰지
-            // 않고 시트 섹션만 그대로 둔다 — 탭 위젯이 없는 BLoC 을 읽으면 죽는다.
-            if (isCoupang)
-              _ActionTabs(order: o)
+            // Sheet · shipment · cancel are used one at a time, so they share
+            // side-by-side tabs.
+            // ⚠️ A full cancel keeps the local status (D7), so the section
+            // stays open — it is hidden from outside (tab gate · wrapper)
+            // **without editing the widget**. A partial cancel is not hidden
+            // (D19).
+            // ⚠️ Orders other than Coupang · 11st get no shipment / cancel BLoC at
+            // all (provider guard above), so they skip the tabs and keep only
+            // the sheet section — a tab reading a missing BLoC crashes. 11st
+            // has no cancel BLoC either (D12), so its tabs drop the cancel tab.
+            if (isMarketOrder)
+              _ActionTabs(order: o, withCancel: isCoupang)
             else
               _OrderSheetSection(order: o),
             // 발주(결제완료→상품준비중)는 발송·취소의 앞 단계라 탭에 섞지 않고 화면 하단에 따로 둔다.
-            if (isCoupang) ...[
+            if (isMarketOrder) ...[
               const SizedBox(height: 12),
-              _HideWhenFullyCancelled(child: _AcknowledgeSection(order: o)),
+              // The full-cancel gate reads the Coupang-only cancel BLoC.
+              if (isCoupang)
+                _HideWhenFullyCancelled(child: _AcknowledgeSection(order: o))
+              else
+                _AcknowledgeSection(order: o),
             ],
           ],
         ),
@@ -227,10 +256,15 @@ class OrderDetailPage extends StatelessWidget {
   }
 }
 
-//// 기본 정보 카드. 쿠팡 주문이면 `상태` 행만 이 화면에서 한 전송 결과를 따라간다 —
-/// 발송처리는 서버가 `resultStatus: SHIPPED` 를 주고(2609_11 D4), 발주처리는 성공 시
-/// [OrderStatus.preparing] 으로 해석한다. 둘 다 재조회 없이 반영한다.
-Widget _buildInfoCard(OrderItem o, {required bool isCoupang}) {
+/// Basic info card. For a Coupang · 11st order only the `상태` row follows the
+/// sends made on this screen — shipment gets `resultStatus: SHIPPED` from the
+/// server (2609_11 D4), and a successful order confirmation reads as
+/// [OrderStatus.preparing]. Both show without a refetch.
+Widget _buildInfoCard(
+  OrderItem o, {
+  required bool isCoupang,
+  required bool isMarketOrder,
+}) {
   // [stage] = 주문번호 옆 내부 단계 배지(FEATURE_2609_75 / D9 — 웹 상세 머리 띠의 주문번호 옆과 같은 자리).
   // null 이면 배지 없음. 글자만 있는 별도 행은 두지 않는다(D9).
   List<_InfoRow> rows(OrderStatus status, InternalStage? stage) => [
@@ -254,8 +288,24 @@ Widget _buildInfoCard(OrderItem o, {required bool isCoupang}) {
         _InfoRow('플랫폼 부담 할인', _amountText(o.platformDiscountAmount)),
       ];
 
-  if (!isCoupang) {
+  if (!isMarketOrder) {
     return _InfoCard(title: '기본 정보', rows: rows(o.status, o.internalStage));
+  }
+  if (!isCoupang) {
+    // 11st has no cancel / internal-stage BLoC (FEATURE_2610_17 / D12) — only
+    // the shipment and confirmation results move the status row.
+    return BlocBuilder<ManualShipmentBloc, ManualShipmentState>(
+      builder: (context, manual) =>
+          BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
+        builder: (context, ack) {
+          final acknowledged = ack.result != null && ack.result!.succeeded > 0;
+          final status = manual.result?.resultStatus ??
+              (acknowledged ? OrderStatus.preparing : o.status);
+          return _InfoCard(
+              title: '기본 정보', rows: rows(status, o.internalStage));
+        },
+      ),
+    );
   }
   // 발송(SHIPPED)이 발주(PREPARING)보다 뒤 단계 — 나중 단계가 이긴다.
   // 취소는 그보다 더 뒤 단계라 가장 바깥에서 이긴다(2609_25 D14).
@@ -403,23 +453,32 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-/// 송장시트 / 발송처리 / 주문 취소 전환 탭 — 목록 화면의 `ClaimTypeTabs` 와 같은
-/// 관용구(`SegmentedButton`).
+/// Label sheet / shipment / order cancel switch tabs — the same idiom
+/// (`SegmentedButton`) as the list screen's `ClaimTypeTabs`.
 ///
-/// **용도**: 한 주문에 대해 한 번에 하나만 쓰는 세 액션을 좌우 탭으로 가른다.
-/// 왼쪽부터 송장시트 · 발송처리 · 주문취소 순이고 **기본 선택은 발송처리**다 —
-/// 주문 대부분이 발송으로 끝나고, 취소는 되돌릴 수 없어 한 번 더 누르게 두는 편이 안전하다.
-/// ⚠️ 시트 조회는 쿠팡 실시간 호출이라 탭을 열어도 자동으로 부르지 않는다(섹션 안 버튼에서만).
+/// **Purpose**: splits the actions used one at a time on an order into tabs.
+/// From the left: sheet · shipment · cancel, and **shipment is selected by
+/// default** — most orders end in a shipment, and a cancel cannot be undone,
+/// so it is safer to need one more tap.
+/// An 11st order ([withCancel] false) has the sheet and shipment tabs only —
+/// seller cancel stays Coupang only (FEATURE_2610_17 / D12).
+/// ⚠️ The sheet lookup is a live marketplace call, so opening the tab does not
+/// run it (only the button inside the section does).
 ///
-/// ⚠️ 두 패널은 [Offstage] 로 **계속 살려 둔다** — 탭을 오갈 때 입력하던 송장번호·취소 수량이
-/// 날아가지 않게(두 섹션 모두 state 를 위젯 안에 든다). [IndexedStack] 은 숨긴 쪽 높이만큼
-/// 빈 칸을 남겨 쓰지 않는다.
-/// ⚠️ 쓸 수 없는 탭은 지우지 않고 **비활성**으로 남긴다 — 지우면 사용자가 사라진 이유를 알 수 없다.
-/// 권한(403)·상태 게이트는 두 섹션 위젯이 이미 각자 들고 있고, 여기서는 탭 활성 판정에만 쓴다.
+/// ⚠️ The panels stay alive with [Offstage] — switching tabs keeps the typed
+/// invoice number and cancel quantity (each section holds its state inside
+/// the widget). [IndexedStack] is not used: it leaves the hidden side's height
+/// as empty space.
+/// ⚠️ A tab that cannot be used is kept **disabled**, not removed — removing it
+/// hides why it is gone. The permission (403) and status gates already live in
+/// each section; here they only decide whether a tab is enabled.
 class _ActionTabs extends StatefulWidget {
   final OrderItem order;
 
-  const _ActionTabs({required this.order});
+  /// false = 11st — no cancel BLoC and no cancel tab (FEATURE_2610_17 / D12).
+  final bool withCancel;
+
+  const _ActionTabs({required this.order, required this.withCancel});
 
   @override
   State<_ActionTabs> createState() => _ActionTabsState();
@@ -432,15 +491,23 @@ class _ActionTabsState extends State<_ActionTabs> {
 
   @override
   Widget build(BuildContext context) {
-    final order = widget.order;
+    if (!widget.withCancel) return _buildTabs(context, null);
     return BlocBuilder<OrderCancelBloc, OrderCancelState>(
-      builder: (context, cancel) =>
-          BlocBuilder<ManualShipmentBloc, ManualShipmentState>(
+      builder: (context, cancel) => _buildTabs(context, cancel),
+    );
+  }
+
+  /// [cancel] = null for an 11st order — there is no cancel BLoC to read.
+  Widget _buildTabs(BuildContext context, OrderCancelState? cancel) {
+    final order = widget.order;
+    return BlocBuilder<ManualShipmentBloc, ManualShipmentState>(
         builder: (context, manual) {
           // 섹션 위젯 안 게이트와 같은 판정을 밖에서 한 번 더 쓴다(사본이 아니라 같은 근거).
-          final fullyCancelled = _isFullyCancelledByResult(cancel.result);
+          final fullyCancelled =
+              cancel != null && _isFullyCancelledByResult(cancel.result);
           final canShip = !manual.optionsForbidden && !fullyCancelled;
-          final canCancel = !cancel.forbidden &&
+          final canCancel = cancel != null &&
+              !cancel.forbidden &&
               (order.status == OrderStatus.paid ||
                   order.status == OrderStatus.preparing);
           // 시트 탭은 늘 열려 있다 — 권한(403)·플랫폼 안내는 섹션이 자기 안에서 처리한다.
@@ -473,11 +540,12 @@ class _ActionTabsState extends State<_ActionTabs> {
                       label: const Text('발송처리'),
                       enabled: canShip,
                     ),
-                    ButtonSegment<_ActionTab>(
-                      value: _ActionTab.cancel,
-                      label: const Text('주문 취소'),
-                      enabled: canCancel,
-                    ),
+                    if (cancel != null)
+                      ButtonSegment<_ActionTab>(
+                        value: _ActionTab.cancel,
+                        label: const Text('주문 취소'),
+                        enabled: canCancel,
+                      ),
                   ],
                   selected: {selected},
                   showSelectedIcon: false,
@@ -494,7 +562,9 @@ class _ActionTabsState extends State<_ActionTabs> {
                 offstage: selected != _ActionTab.shipment,
                 // 내부 단계 주문(FEATURE_2609_75 / D27)은 입력 대신 안내 — 「송장」 + [저장된 송장으로 발송].
                 // 판정 = 주문번호 옆 배지와 같은 식(`_buildInfoCard` 의 shownStage). 서버도 같은 문구로 거절한다(400).
-                child: BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
+                child: cancel == null
+                    ? _ElevenstShipmentGate(order: order)
+                    : BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
                   builder: (context, ack) => BlocBuilder<OrderInternalStageBloc,
                       OrderInternalStageState>(
                     builder: (context, internal) {
@@ -519,39 +589,82 @@ class _ActionTabsState extends State<_ActionTabs> {
                   ),
                 ),
               ),
-              Offstage(
-                offstage: selected != _ActionTab.cancel,
-                child: _CancelSection(order: order),
-              ),
+              if (cancel != null)
+                Offstage(
+                  offstage: selected != _ActionTab.cancel,
+                  child: _CancelSection(order: order),
+                ),
             ],
           );
         },
-      ),
     );
   }
 }
 
-/// 주문 상세 안 발주처리 섹션 (인라인 확장 — 별도 화면/다이얼로그 없음).
+/// Shipment tab of an 11st order (FEATURE_2610_17 / D20 · D21): a paid order
+/// needs [발주처리] first, and 11st has no invoice-update API — both show a
+/// notice instead of the form. A confirmation made on this screen opens the
+/// form without a refetch (same `succeeded > 0` rule as the info card).
+class _ElevenstShipmentGate extends StatelessWidget {
+  final OrderItem order;
+
+  const _ElevenstShipmentGate({required this.order});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
+      builder: (context, ack) {
+        final acknowledged = ack.result != null && ack.result!.succeeded > 0;
+        final String? notice = order.status == OrderStatus.paid && !acknowledged
+            ? '11번가 주문은 [발주처리] 뒤에 송장을 등록할 수 있습니다.'
+            : isAlreadyShipped(order.status)
+                ? '11번가는 송장 수정을 지원하지 않습니다. 11번가 셀러오피스에서 고쳐 주세요.'
+                : null;
+        if (notice == null) return _ManualShipmentSection(order: order);
+        return AppCard(
+          child: Text(
+            notice,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.warningForeground,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Order-confirmation section inside the order detail (inline — no separate
+/// screen / dialog).
 ///
-/// **용도**: 이 주문이 속한 **박스 전체**를 결제완료 → 상품준비중으로 전환한다.
-/// 물건을 확인하고 바로 발주할 때 쓴다(PLAN 2609_17 D14).
+/// **Purpose**: paid → preparing for the **whole box** this line belongs to
+/// (Coupang), or for this line's (delivery number, product number) group
+/// (11st, FEATURE_2610_17 / D48). Used to confirm right after checking the
+/// goods (PLAN 2609_17 D14).
 ///
-/// ⚠️ 전송 단위는 화면의 이 라인이 아니라 **이 라인이 속한 박스 전체**다(D1) —
-/// 라인 id 만 보내고 박스 dedupe·상태 필터는 서버가 한다.
-/// ⚠️ 되돌릴 수 없다 — 확인 다이얼로그를 반드시 거치고, 자동 재시도를 넣지 말 것(D15).
-/// ⚠️ 성공 판정은 `succeeded > 0` 이다. 쿠팡이 거절해도 200 + `failed` 라
-/// `result != null` 만으로 성공을 판정하면 실패를 완료로 보여준다(D15).
-/// ⚠️ 권한 게이트는 클라이언트에 두지 않는다. 다만 403 을 받으면 섹션을 숨긴다 —
-/// 서버가 내린 판정을 반영하는 것이라 이중 판정이 아니다(단건 발송처리와 같은 규칙).
-/// 주문 상태 갱신 버튼 줄 (FEATURE_2609_50).
+/// ⚠️ Only the line id is sent — box / group dedupe and the status filter are
+/// the server's (D1).
+/// ⚠️ Cannot be undone — always through the confirm dialog, and no automatic
+/// retry (D15).
+/// ⚠️ Success = `succeeded > 0`. A marketplace rejection is also 200 +
+/// `failed`, so judging by `result != null` alone shows a failure as done
+/// (D15).
+/// ⚠️ No permission gate in the client. A 403 hides the section — that
+/// reflects the server's decision, not a second one (same rule as the single
+/// shipment).
+/// Order-status refresh row (FEATURE_2609_50).
 ///
-/// 쿠팡에서 이 주문을 지금 다시 읽어 로컬 상태를 맞춘다 — 정기·야간 동기화의 조회 창을
-/// 벗어나 고착된 주문을 손으로 푸는 수단이다.
+/// Reads this order from Coupang again now to align the local status — the
+/// manual way out for an order stuck outside the regular / nightly sync
+/// windows.
 ///
-/// 🔴 쿠팡 주문에서만 그린다(D24). 비-쿠팡은 호출부(`_buildContent`)가 줄 자체를 만들지 않는다.
-/// 🔴 갱신이 있으면 **목록으로 돌아간다**(D22) — 이 페이지는 라우트 `extra` 로 받은
-/// [OrderItem] 을 쓰는 StatelessWidget 이라 그 자리에서 상태 배지를 갱신할 방법이 없다.
-/// `OrderDetailBloc` 을 새로 만들어 해결하지 말 것(없는 게 정상이다).
+/// 🔴 Drawn for Coupang orders only (D24 · FEATURE_2610_17 / D12). For other
+/// orders the caller (`_buildContent`) does not build the row at all.
+/// 🔴 When something changed it **goes back to the list** (D22) — this page is
+/// a StatelessWidget using the [OrderItem] from the route `extra`, so it has no
+/// way to refresh the status badge in place. Do not solve it with a new
+/// `OrderDetailBloc` (having none is intended).
 class _RefreshRow extends StatelessWidget {
   final OrderItem order;
 
@@ -640,12 +753,20 @@ class _AcknowledgeSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // An 11st order has no internal-stage BLoC (FEATURE_2610_17 / D12).
+    if (order.platform != 'COUPANG') return _buildBody(context, null);
     return BlocBuilder<OrderInternalStageBloc, OrderInternalStageState>(
-      builder: (context, internal) =>
-          BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
+      builder: (context, internal) => _buildBody(context, internal),
+    );
+  }
+
+  /// [internal] = null for an 11st order — no [내부 발주처리] there.
+  Widget _buildBody(BuildContext context, OrderInternalStageState? internal) {
+    return BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
         builder: (context, state) {
-          // 결제완료 쿠팡 주문에만 노출한다(D2·D10·D14). 403 이면 진입점을 숨긴다.
-          if (order.platform != 'COUPANG' ||
+          // Shown only for paid Coupang · 11st orders (D2·D10·D14 ·
+          // FEATURE_2610_17 / D20). A 403 hides the entry point.
+          if ((order.platform != 'COUPANG' && order.platform != 'ELEVENST') ||
               order.status != OrderStatus.paid ||
               state.forbidden) {
             return const SizedBox.shrink();
@@ -653,16 +774,18 @@ class _AcknowledgeSection extends StatelessWidget {
 
           final result = state.result;
           final acknowledged = result != null && result.succeeded > 0;
-          // 쿠팡이 거절한 경우(200 + failed) — 원문을 그대로 보여주고 버튼은 다시 열어 둔다.
+          // The marketplace rejected it (200 + failed) — show the original
+          // text as is and open the button again.
           final rejected = result != null && result.succeeded == 0;
           final failureText = rejected && result.failed.isNotEmpty
               ? '${result.failed.first.resultCode}: ${result.failed.first.message}'
               : state.errorMessage;
-          final internalMarked = _internalMarked(internal);
+          final internalMarked = internal != null && _internalMarked(internal);
           // [내부 발주처리] = 아직 내부 단계가 없는 주문만(D1·D13). 403 이면 숨긴다.
-          final canMarkInternal =
-              order.internalStage == null && !internal.forbidden;
-          final busy = state.submitting || internal.submitting != null;
+          final canMarkInternal = internal != null &&
+              order.internalStage == null &&
+              !internal.forbidden;
+          final busy = state.submitting || internal?.submitting != null;
 
           return AppCard(
               child: Column(
@@ -682,9 +805,13 @@ class _AcknowledgeSection extends StatelessWidget {
                       ),
                     )
                   else ...[
+                    // FEATURE_2610_17 / D52: 11st confirms this product only —
+                    // its notice has no box number.
                     Text(
-                      '이 주문의 배송건(박스 ${order.externalBoxId ?? '-'}) 전체가 '
-                      '상품준비중으로 전환됩니다. 되돌릴 수 없습니다.',
+                      order.platform == 'ELEVENST'
+                          ? '이 상품(주문 줄)이 발주확인 처리되어 배송준비중으로 바뀝니다. 되돌릴 수 없습니다.'
+                          : '이 주문의 배송건(박스 ${order.externalBoxId ?? '-'}) 전체가 '
+                              '상품준비중으로 전환됩니다. 되돌릴 수 없습니다.',
                       style: TextStyle(
                         fontSize: 12,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -746,10 +873,10 @@ class _AcknowledgeSection extends StatelessWidget {
                       ),
                     ),
                   ],
-                  if (internal.errorMessage != null) ...[
+                  if (internal?.errorMessage != null) ...[
                     const SizedBox(height: 8),
                     Text(
-                      internal.errorMessage!,
+                      internal!.errorMessage!,
                       style: TextStyle(
                         fontSize: 12,
                         color: Theme.of(context).colorScheme.error,
@@ -760,7 +887,6 @@ class _AcknowledgeSection extends StatelessWidget {
               ),
           );
         },
-      ),
     );
   }
 
@@ -769,7 +895,8 @@ class _AcknowledgeSection extends StatelessWidget {
   Future<void> _confirmAndSubmit(BuildContext context) async {
     final bloc = context.read<OrderAcknowledgeBloc>();
     final reserved = order.internalStage != null ||
-        _internalMarked(context.read<OrderInternalStageBloc>().state);
+        (order.platform == 'COUPANG' &&
+            _internalMarked(context.read<OrderInternalStageBloc>().state));
     final ok = await showAppConfirmDialog(
       context,
       title: reserved ? '예약된 주문 포함' : '발주처리',
@@ -1085,21 +1212,28 @@ class _CancelSectionState extends State<_CancelSection> {
   }
 }
 
-/// 주문 상세 안 단건 발송처리 섹션 (인라인 확장 — 별도 화면/다이얼로그 없음).
+/// Single shipment section inside the order detail (inline — no separate
+/// screen / dialog).
 ///
-/// **용도**: 택배사를 고르고 송장번호를 직접 입력해 이 주문의 박스 1개를 발송처리한다.
-/// 결과 파일(xlsx)이 없는 건, 다른 택배사로 보낸 건, 잘못 올린 운송장 정정에 쓴다.
+/// **Purpose**: pick a carrier, type the invoice number and ship this order's
+/// one box (Coupang) or delivery number (11st, FEATURE_2610_17 / D2). Used for
+/// orders without a result file (xlsx), orders shipped with another carrier,
+/// and fixing a wrong invoice (Coupang only — 11st has no update, D21).
 ///
-/// ⚠️ 전송 단위는 화면에 보이는 이 라인이 아니라 **이 라인이 속한 박스 전체**다(PLAN 2609_11 D1) —
-/// 쿠팡은 박스의 모든 옵션에 같은 운송장번호를 보내야 받아준다.
-/// ⚠️ 신규 업로드 / 송장수정 **모드는 서버가 주문 상태로 결정**한다(D3). 여기서는 버튼 라벨만 바꾼다.
-/// ⚠️ 쿠팡이 응답을 준 뒤에는(성공·부분실패 모두) 입력을 잠근다(D14) — 재전송은
-/// DUPLICATE_INVOICE_NUMBER 를 부른다. 요청 자체가 실패했을 때는 잠그지 않는다(아무것도 안 갔다).
-/// ⚠️ 권한 게이트는 클라이언트에 두지 않는다. 다만 택배사 조회가 403 이면 섹션을 숨긴다 —
-/// 안 그러면 비-ADMIN 사용자에게 영원히 실패하는 `다시 시도` 버튼만 남는다.
+/// ⚠️ The send unit is **the whole box this line belongs to**, not the line
+/// on screen (PLAN 2609_11 D1) — Coupang accepts only the same invoice on
+/// every option of the box, and 11st ships the whole delivery number.
+/// ⚠️ New upload / invoice update **mode is decided by the server from the
+/// order status** (D3). Here only the button label changes.
+/// ⚠️ Once the marketplace answered (success and partial failure alike) the
+/// input locks (D14) — a resend would hit DUPLICATE_INVOICE_NUMBER. It does
+/// not lock when the request itself failed (nothing was sent).
+/// ⚠️ No permission gate in the client. A 403 on the carrier lookup hides the
+/// section — otherwise a non-ADMIN user is left with a `다시 시도` button that
+/// always fails.
 ///
-/// 송장번호는 BLoC 상태로 올리지 않는다(글자마다 emit 하면 리빌드가 낭비다) →
-/// [TextEditingController] 를 들기 위해 StatefulWidget.
+/// The invoice number is not lifted into BLoC state (an emit per character
+/// wastes rebuilds) → StatefulWidget to hold the [TextEditingController].
 class _ManualShipmentSection extends StatefulWidget {
   final OrderItem order;
 
@@ -1314,7 +1448,7 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
             const TextStyle(fontSize: 13, color: AppColors.successForeground),
       ));
     }
-    // 실패는 쿠팡 원문(resultCode/message)을 가공 없이 노출한다(D6).
+    // Failures show the marketplace's original resultCode / message as is (D6).
     for (final failed in result.failed) {
       widgets.add(Container(
         margin: const EdgeInsets.only(top: 8),
@@ -1352,7 +1486,9 @@ class _OrderSheetSection extends StatelessWidget {
 
   const _OrderSheetSection({required this.order});
 
-  bool get _isCoupang => order.platform == 'COUPANG';
+  /// Coupang · 11st — the platforms the sheet serves (FEATURE_2610_17 / D2).
+  bool get _isMarketOrder =>
+      order.platform == 'COUPANG' || order.platform == 'ELEVENST';
 
   @override
   Widget build(BuildContext context) {
@@ -1417,7 +1553,7 @@ class _OrderSheetSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             FilledButton.icon(
-              onPressed: _isCoupang
+              onPressed: _isMarketOrder
                   ? () => context
                       .read<OrderSheetBloc>()
                       .add(LoadOrderSheet(order.id))
@@ -1425,10 +1561,10 @@ class _OrderSheetSection extends StatelessWidget {
               icon: const Icon(Icons.download, size: 18),
               label: const Text('엑셀 다운로드'),
             ),
-            if (!_isCoupang) ...[
+            if (!_isMarketOrder) ...[
               const SizedBox(height: 8),
               Text(
-                '쿠팡 주문만 지원합니다.',
+                '쿠팡 · 11번가 주문만 지원합니다.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,

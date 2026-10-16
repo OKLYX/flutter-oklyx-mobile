@@ -18,24 +18,36 @@ import '../utils/reserved_time_picker.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 
-/// 발송처리(운송장 업로드) 다이얼로그.
+/// Shipment (invoice upload) dialog.
 ///
-/// **용도**: 택배사가 운송장번호를 채운 결과 xlsx 를 올리고 [지금 발송]·[예약 발송] 버튼으로 보낸다.
-///   [지금 발송] = 기존 요청 그대로 — 서버가 주문번호로 매칭해 쿠팡 송장업로드(상품준비중→발송처리)를
-///   배치 전송하고 결과(성공/미매칭/실패)를 표시한다. 「내부 상품준비중」·「발송대기중」 주문은 서버가
-///   발주처리 → 송장 등록 순으로 보낸다(FEATURE_2609_75 / D27) — 화면 흐름은 같다.
-///   [예약 발송] = 「내부 상품준비중」 배송건의 송장만 저장하고 예약 시각에 서버가 발주처리·송장 등록을 한다(D20).
-///   저장된 송장 모드(`storedOrderItemIds` 전달, D18) = 파일 선택이 없고 두 버튼이 저장된 송장으로 보낸다. 결과 화면은 같다.
-/// **사용법**: `showShipmentConfirmDialog(context)` 헬퍼로 연다(BlocProvider 스코프 자동 제공).
-///   저장된 송장 모드 = `showShipmentConfirmDialog(context, storedOrderItemIds: ids)`(출고관리 [저장된 송장으로 발송]).
-///   열 때 기본 예약 시각(주문관리 설정, D12)을 1회 읽는다.
-/// **반환값**: 업로드·예약이 한 번이라도 성공하면 `true`, 아니면 `false`.
-///   바깥 탭·안드로이드 뒤로가기로 닫으면 `null` — 호출부는 목록을 재조회하지 않는다.
-/// 결과는 요약 칩 6개 + 선택한 칩의 상세 표 1개(PLAN 2609_12 D2 — 목록이 있는 3개만 클릭 가능).
-/// **파일**: lib/features/shipping_label/presentation/dialogs/shipment_confirm_dialog.dart
+/// **Purpose**: upload the result xlsx the carrier filled with invoice numbers
+/// and send it with [지금 발송] · [예약 발송].
+///   [지금 발송] = the existing request as is — the server matches by order
+///   number, sends the marketplace invoice upload in batches (Coupang:
+///   preparing → shipped; 11st: per delivery number, FEATURE_2610_17 / D2) and
+///   shows the result (success / unmatched / failed). 「내부 상품준비중」 ·
+///   「발송대기중」 orders are sent by the server as confirmation → invoice
+///   (FEATURE_2609_75 / D27) — the screen flow is the same.
+///   [예약 발송] = stores only the invoices of 「내부 상품준비중」 deliveries, and
+///   at the reserved time the server confirms and registers the invoices
+///   (D20). Stored-invoice mode (`storedOrderItemIds` given, D18) = no file
+///   pick, both buttons send the stored invoices. Same result screen.
+/// **Usage**: open with the `showShipmentConfirmDialog(context)` helper (the
+///   BlocProvider scope comes with it). Stored-invoice mode =
+///   `showShipmentConfirmDialog(context, storedOrderItemIds: ids)` (shipment
+///   page [저장된 송장으로 발송]). Reads the default reserved time (order
+///   settings, D12) once on open.
+/// **Returns**: `true` if an upload or reservation succeeded at least once,
+///   else `false`. Closed by an outside tap / Android back → `null` — the
+///   caller does not refetch the list.
+/// The result is 6 summary chips + one detail table of the chosen chip
+/// (PLAN 2609_12 D2 — only the 3 with lists are tappable).
+/// **File**: lib/features/shipping_label/presentation/dialogs/shipment_confirm_dialog.dart
 ///
-/// ⚠️ 주문내역 페이지에서만 사용. role 클라이언트 게이트 없음(백엔드 403 의존).
-/// ⚠️ 다이얼로그를 닫으면 BLoC 폐기 → 다음에 열면 초기 상태.
+/// ⚠️ Used only on the order pages. No client role gate (relies on the
+/// backend 403).
+/// ⚠️ Closing the dialog disposes the BLoC → it opens in the initial state
+/// next time.
 Future<bool?> showShipmentConfirmDialog(
   BuildContext context, {
   List<int>? storedOrderItemIds,
@@ -187,7 +199,7 @@ class _UploadPanel extends StatelessWidget {
         else ...[
           const Text(
             '택배사가 운송장번호를 채운 결과 xlsx 를 업로드하세요. '
-            '서버가 주문번호로 매칭해 쿠팡에 송장을 등록합니다.',
+            '서버가 주문번호로 매칭해 마켓에 송장을 등록합니다.',
             style: TextStyle(fontSize: 13),
           ),
           const SizedBox(height: 8),
@@ -483,7 +495,7 @@ class _ResultPanel extends StatelessWidget {
               context,
               bloc.storedOrderItemIds != null
                   ? '저장된 송장이 없거나 내부 단계 주문이 아니라 제외됨'
-                  : 'order_item 없거나 쿠팡이 아니라 스킵됨'),
+                  : 'order_item 없거나 쿠팡 · 11번가가 아니라 스킵됨'),
           const SizedBox(height: 8),
           _ResultTable(
             headers: const ['#', '주문번호'],
@@ -525,7 +537,6 @@ class _ResultPanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _title('전송 제외'),
-        _caption(context, '이미 발송처리된 상태입니다.'),
         const SizedBox(height: 8),
         Text(
           summary,
@@ -535,23 +546,28 @@ class _ResultPanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
+        // FEATURE_2610_17 / D47: the reason is per row from the server; an
+        // older server sends none (empty cell).
         _ResultTable(
-          headers: const ['주문번호', '상태'],
+          headers: const ['주문번호', '상태', '사유'],
           rows: [
-            for (final r in rows) [r.orderId, label(r.status)],
+            for (final r in rows) [r.orderId, label(r.status), r.reason ?? ''],
           ],
-          flex: const [5, 3],
+          flex: const [4, 3, 6],
+          scrollHorizontally: true,
         ),
       ],
     );
   }
 }
 
-/// 결과 상세 표 — 헤더 1행 + 데이터 행.
+/// Result detail table — one header row + data rows.
 ///
-/// [flex] = 열 너비 비율(합이 얼마든 상관없다). [scrollHorizontally] 는 실패 표처럼
-/// 쿠팡 원문 메시지가 들어가 폭이 모자란 표에만 켠다 — 2열 표에 켜면 셀이 내용 폭으로
-/// 쪼그라들어 오히려 읽기 나빠진다.
+/// [flex] = column width ratios (any sum). [scrollHorizontally] is on only for
+/// tables whose long text runs out of width — the failure table (the
+/// marketplace's original message) and the skipped table (the reason,
+/// FEATURE_2610_17 / D47). On a 2-column table it shrinks the cells to their
+/// content width and reads worse.
 class _ResultTable extends StatelessWidget {
   final List<String> headers;
   final List<List<String>> rows;

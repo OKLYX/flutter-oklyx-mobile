@@ -1,6 +1,7 @@
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import '../../data/models/cancel_reason_option.dart';
+import '../../data/models/elevenst_cancel_request.dart';
 import '../../data/models/internal_stage_result.dart';
 import '../../data/models/order_acknowledge_result.dart';
 import '../../data/models/order_cancel_result.dart';
@@ -111,5 +112,44 @@ class OrderUseCase {
     List<int> orderItemIds,
   ) {
     return repository.cancelReservedItems(orderItemIds);
+  }
+
+  /// 11st cancel requests of one order line (FEATURE_2610_17 / D19).
+  Future<Either<Failure, List<ElevenstCancelRequest>>>
+      getElevenstCancelRequests(int orderItemId) {
+    return repository.getElevenstCancelRequests(orderItemId);
+  }
+
+  /// [취소 승인] — cannot be undone (D37).
+  Future<Either<Failure, Unit>> approveElevenstCancel(int requestId) {
+    return repository.approveElevenstCancel(requestId);
+  }
+
+  /// [취소 거부] — carrier · invoice · date sent 'yyyy-MM-dd' (D38).
+  Future<Either<Failure, Unit>> rejectElevenstCancel(
+    int requestId, {
+    required String deliveryCompanyCode,
+    required String invoiceNumber,
+    required String sendDate,
+  }) {
+    return repository.rejectElevenstCancel(
+      requestId,
+      deliveryCompanyCode: deliveryCompanyCode,
+      invoiceNumber: invoiceNumber,
+      sendDate: sendDate,
+    );
+  }
+
+  /// The 13 seller-return reasons (D39 ⑤).
+  Future<Either<Failure, List<CancelReasonOption>>> getElevenstReturnReasons() {
+    return repository.getElevenstReturnReasons();
+  }
+
+  /// [판매자가 대신 반품 신청] (D35 · D36 · D39 ⑤).
+  Future<Either<Failure, Unit>> requestElevenstReturn(
+    int orderItemId,
+    Map<String, dynamic> body,
+  ) {
+    return repository.requestElevenstReturn(orderItemId, body);
   }
 }

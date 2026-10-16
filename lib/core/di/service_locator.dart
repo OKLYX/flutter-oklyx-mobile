@@ -122,6 +122,7 @@ import 'package:flutter_oklyn_mobile/features/order/data/datasources/order_remot
 import 'package:flutter_oklyn_mobile/features/order/data/repositories/order_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/order/domain/repositories/order_repository.dart';
 import 'package:flutter_oklyn_mobile/features/order/domain/usecases/order_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/elevenst_order_action_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_acknowledge_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_cancel_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_internal_stage_bloc.dart';
@@ -882,6 +883,12 @@ void _registerOrderServices() {
   // ⚠️ 싱글턴이면 이전 주문의 취소 결과·SnackBar 가 다음 주문에 다시 뜬다.
   getIt.registerFactory<OrderCancelBloc>(
     () => OrderCancelBloc(useCase: getIt<OrderUseCase>()),
+  );
+
+  // BLoC (11st cancel requests + seller return, FEATURE_2610_17) as factory —
+  // a new instance per order detail, so one order's list never shows on the next.
+  getIt.registerFactory<ElevenstOrderActionBloc>(
+    () => ElevenstOrderActionBloc(useCase: getIt<OrderUseCase>()),
   );
 
   // BLoC (내부 발주처리·해제, FEATURE_2609_75) as factory — 화면·주문마다 새 인스턴스.

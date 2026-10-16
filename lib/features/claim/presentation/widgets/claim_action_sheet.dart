@@ -11,15 +11,16 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import '../../domain/entities/claim.dart';
 import '../../domain/usecases/claim_usecase.dart';
+import 'claim_reason_sheet.dart';
 import 'claim_reject_sheet.dart';
 
-/// 클레임 상세의 처리 액션 영역 (FEATURE_2609_21 / 04).
+/// Action area of the claim detail (FEATURE_2609_21 / 04).
 ///
-/// **용도**: 서버가 내려준 [Claim.availableActions] 를 버튼으로 그리고, 실행 후 단건 재조회
-/// 결과를 [onActionDone] 으로 올린다.
-/// **파일**: lib/features/claim/presentation/widgets/claim_action_sheet.dart
+/// **Purpose**: draws the server's [Claim.availableActions] as buttons and,
+/// after a run, hands the re-read claim up through [onActionDone].
+/// **File**: lib/features/claim/presentation/widgets/claim_action_sheet.dart
 ///
-/// **사용 예제**:
+/// **Usage**:
 /// ```dart
 /// ClaimActionSheet(
 ///   claim: _claim,
@@ -27,16 +28,22 @@ import 'claim_reject_sheet.dart';
 /// )
 /// ```
 ///
-/// 🔴 **상태 코드로 분기하지 않는다.** 무엇을 보여줄지는 서버의 `availableActions` 가 정하고
-/// (D1), 분기는 `requires` 로만 한다 — `action` 코드로 `switch` 하면 교환 4종이 붙는 날 화면을
-/// 다시 짜야 하고, 웹(03)과 같은 클레임에 다른 버튼이 보인다.
+/// 🔴 **No branching on status codes.** What to show is decided by the
+/// server's `availableActions` (D1), and branching is by `requires` only — a
+/// `switch` on the `action` code would need a redesign the day the 4 exchange
+/// actions arrive, and the web (03) would show other buttons for the same
+/// claim. Coupang and 11st claims go through the same rule
+/// (FEATURE_2610_17 / D15).
 ///
-/// ⚠️ **BLoC 을 쓰지 않는다**(D9 / 04 Step 5). 목록 `ClaimListBloc` 은 목록 화면의
-/// `BlocProvider(create:)` 가 만들어 상세에서 닿을 수 없고(`registerFactory` 라 `getIt` 은 다른
-/// 인스턴스다), 액션이 바꾸는 값은 상세에서만 쓰는 `availableActions` 하나다.
-/// ⚠️ **낙관적 갱신 금지**(D7) — 상태 라벨을 미리 바꾸지 않는다. 쿠팡 상태는 다음 동기화가 가져온다.
-/// ⚠️ 모바일엔 ADMIN 게이트가 없다 — 서버가 비-ADMIN 에게 빈 목록을 주고, 그래도 눌리면 403 이
-/// 유일한 방어선이다(D13). role 조회를 새로 만들지 말 것.
+/// ⚠️ **No BLoC** (D9 / 04 Step 5). The list `ClaimListBloc` is made by the
+/// list screen's `BlocProvider(create:)` and cannot be reached from the detail
+/// (`registerFactory`, so `getIt` returns another instance), and the only
+/// value an action changes is the detail's own `availableActions`.
+/// ⚠️ **No optimistic update** (D7) — the status label is not changed ahead.
+/// The marketplace status comes with the next sync.
+/// ⚠️ Mobile has no ADMIN gate — the server gives a non-ADMIN an empty list,
+/// and a 403 is the last line of defense if a button is pressed anyway (D13).
+/// Do not add a role lookup.
 class ClaimActionSheet extends StatefulWidget {
   final Claim claim;
 
@@ -59,12 +66,14 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
   static const _successMessage = '처리 요청을 보냈습니다. 다음 동기화 후 상태가 갱신됩니다.';
   static const _conflictMessage = '이미 처리된 접수입니다.';
   static const _forbiddenMessage = '권한이 없습니다. 관리자 계정으로 로그인해주세요.';
-  static const _rawResponseTitle = '쿠팡 응답 보기';
+  static const _rawResponseTitle = '마켓 응답 보기';
 
-  /// 쿠팡이 거절해 우리 장부에만 남은 회차(2609_70 / D6)의 안내.
-  /// 🔴 실패가 아니라 **절반의 성공**이다 — 붉은색으로 띄우면 사용자가 기록까지 실패한 줄 안다.
+  /// Notice for a round the marketplace rejected and only our ledger kept
+  /// (2609_70 / D6 · FEATURE_2610_17 / D18 · D22).
+  /// 🔴 Not a failure but **half a success** — shown in red, the user would
+  /// think the record failed too.
   static const _localRecordMessage =
-      '쿠팡에는 반영되지 않았습니다. 회수송장은 우리 기록에만 저장했습니다.';
+      '마켓에는 반영되지 않았습니다. 회수송장은 우리 기록에만 저장했습니다.';
 
   /// X3(재발송 송장)의 400 안내 꼬리말. **클라이언트가 붙이는 유일한 문구**다 —
   /// 05 Step 5 의 박스 alias 가 실제 스키마와 다르면 10분이 지나도 같은 400 이 오는데,
@@ -133,10 +142,14 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
     final actions = widget.claim.availableActions
         // 모르는 requires = 입력 폼을 만들 수 없다 → 버튼을 그리지 않는다(PLAN §8).
         .where((a) => ClaimActionRequires.supported.contains(a.requires))
-        // 선택지가 비면 고를 것이 없다 → 시트가 아니라 **버튼 자체**를 그리지 않는다.
-        // 시트 안에서 막으면 눌러도 아무것도 안 열리는 죽은 버튼이 남는다(07 Step 1).
+        // No choices means nothing to pick → draw no **button** at all, not
+        // an empty sheet. Blocking inside the sheet would leave a dead button
+        // that opens nothing (07 Step 1).
+        // Same for REASON (FEATURE_2610_17 / D34) — it picks from choices too.
         .where((a) =>
-            a.requires != ClaimActionRequires.rejectCode || a.choices.isNotEmpty)
+            (a.requires != ClaimActionRequires.rejectCode &&
+                a.requires != ClaimActionRequires.reason) ||
+            a.choices.isNotEmpty)
         .toList();
     if (actions.isEmpty) return const SizedBox.shrink();
 
@@ -251,6 +264,10 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
       await _openRejectSheet(action);
       return;
     }
+    if (action.requires == ClaimActionRequires.reason) {
+      await _openReasonSheet(action);
+      return;
+    }
     if (action.irreversible && !await _confirm(action)) return;
     await _execute(ClaimActionRequest(action: action.action));
   }
@@ -274,6 +291,29 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
     );
   }
 
+  /// Reason sheet (`REASON`, FEATURE_2610_17 / D34). Like the reject sheet it
+  /// owns its confirm — no second dialog here.
+  Future<void> _openReasonSheet(ClaimAction action) async {
+    ClaimReasonInput? input;
+    await showAppSheet<void>(
+      context,
+      builder: (ctx) => ClaimReasonSheet(
+        claim: widget.claim,
+        action: action,
+        onSubmit: (value) => input = value,
+      ),
+    );
+    final chosen = input;
+    if (chosen == null || !mounted) return;
+    await _execute(
+      ClaimActionRequest(
+        action: action.action,
+        rejectCode: chosen.code,
+        reasonText: chosen.text,
+      ),
+    );
+  }
+
   /// 2단 확인 (D10). 문구에 **무엇을 확정하는지 실명으로** 박는다 —
   /// "정말 하시겠습니까?" 만으로는 아무것도 막지 못한다.
   Future<bool> _confirm(ClaimAction action) async {
@@ -289,8 +329,12 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
       title: c.itemName ?? '-',
       lines: [
         details,
-        // 03 문구 표. 교환 거부(07)의 문구는 `ClaimRejectSheet` 가 같은 함수에 넘긴다.
-        '이 반품을 승인하면 환불이 확정되며 되돌릴 수 없습니다.',
+        // 03 wording table; the exchange reject (07) wording goes through
+        // `ClaimRejectSheet` into the same function. INVOICE = the 11st
+        // exchange approve with the re-shipping invoice (FEATURE_2610_17 / D24).
+        action.requires == ClaimActionRequires.invoice
+            ? '이 교환을 승인하면 재발송 송장이 등록되며 되돌릴 수 없습니다.'
+            : '이 반품을 승인하면 환불이 확정되며 되돌릴 수 없습니다.',
       ],
       confirmLabel: action.label.isEmpty ? action.action : action.label,
     );
@@ -320,6 +364,9 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
       );
       // 취소·바깥 탭이면 입력값을 버린다(07 Step 6).
       if (input == null || !mounted) return;
+      // An irreversible invoice action (the 11st exchange approve, D24) asks
+      // once more after the input.
+      if (action.irreversible && !await _confirm(action)) return;
       final retryable = await _execute(
         ClaimActionRequest(
           action: action.action,
@@ -345,8 +392,10 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
     await result.fold<Future<void>>(
       (failure) async => retryable = await _onFailure(failure, request),
       (actionResult) async {
-        // 🔴 **액션 코드로 분기하지 않는다** — 서버가 내려준 localRecordOnly 한 값으로만 가른다
-        //    (2609_70 / D6). 재조회하면 서버가 [쿠팡에 다시 보내기] 를 열어 준다(D7).
+        // 🔴 **No branching on the action code** — only the server's
+        //    localRecordOnly decides (2609_70 / D6). After the re-read the
+        //    server opens the resend button ([쿠팡에 다시 보내기] /
+        //    [마켓에 다시 보내기], D7 · FEATURE_2610_17 / D22).
         if (actionResult.localRecordOnly) {
           _showLocalRecordNotice(actionResult);
         } else {
@@ -374,7 +423,7 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
       return false;
     }
     if (status == 502) {
-      // 쿠팡 원문 그대로(D15). 번역·요약 금지.
+      // The marketplace's original text as is (D15). No translation or summary.
       _showRawResponse(f);
       return false;
     }
@@ -402,8 +451,9 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
     return false;
   }
 
-  /// 쿠팡 거절 + 로컬 기록(D6) 안내. 서버가 준 쿠팡 **원문**을 그대로 덧붙인다 —
-  /// 번역·요약하지 않는다(D15 와 같은 규칙).
+  /// Marketplace rejection + local record (D6) notice. The marketplace's
+  /// **original text** from the server is appended as is — no translation or
+  /// summary (same rule as D15).
   void _showLocalRecordNotice(ClaimActionResult result) {
     final raw = [
       if (result.resultCode != null && result.resultCode!.isNotEmpty)
@@ -423,13 +473,13 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
       if (f?.resultCode != null) f!.resultCode!,
       if (f?.resultMessage != null) f!.resultMessage!,
     ].join('\n');
-    final body = raw.isEmpty ? (f?.message ?? '쿠팡 처리에 실패했습니다.') : raw;
+    final body = raw.isEmpty ? (f?.message ?? '마켓 처리에 실패했습니다.') : raw;
     _showLongBody(body);
   }
 
   /// Long text goes to a dialog, short text to a toast — the two paths that
-  /// show Coupang's raw text (502 failure · local-record notice) use **the
-  /// same place**.
+  /// show the marketplace's raw text (502 failure · local-record notice) use
+  /// **the same place**.
   void _showLongBody(String body, {bool warning = false}) {
     if (body.length <= 60) {
       // warning == true: local-record notice (plain notice).

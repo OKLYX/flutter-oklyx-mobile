@@ -2,31 +2,41 @@ import 'package:equatable/equatable.dart';
 
 import 'package:flutter_oklyn_mobile/features/shipping_label/data/models/shipment_confirm_result.dart';
 
-/// 발주처리 결과 (POST /api/admin/orders/acknowledge).
+/// Order-confirmation result (POST /api/admin/orders/acknowledge).
 ///
-/// 백엔드 `OrderAcknowledgeResult` record 와 1:1. 실패 사유는 쿠팡 원문 그대로 담는다
-/// (PLAN 2609_17 D8·D15) — 이미 상품준비중인 박스를 보내면 200 + [failed] 로 온다.
+/// 1:1 with the backend `OrderAcknowledgeResult` record. Failure reasons hold
+/// the marketplace's original text (PLAN 2609_17 D8·D15 · FEATURE_2610_17 /
+/// D54) — a box already in preparing comes back as 200 + [failed].
 ///
-/// ⚠️ 실패·스킵 타입을 새로 만들지 않는다. 백엔드가 `ShipmentConfirmResult.FailedBox`/
-/// `SkippedOrder` 를 그대로 재사용하므로 모바일도 shipping_label 모델을 import 한다.
+/// ⚠️ Do not make new failure / skip types. The backend reuses
+/// `ShipmentConfirmResult.FailedBox` / `SkippedOrder` as they are, so mobile
+/// imports the shipping_label models too.
 class OrderAcknowledgeResult extends Equatable {
   /// 조회에 성공한 라인 수 (없는 id 는 세지 않는다).
   final int requestedLines;
 
-  /// 실제 전송한 박스 수 (라인 → externalBoxId dedupe, D1).
+  /// Units actually sent — Coupang boxes (line → externalBoxId dedupe, D1) +
+  /// 11st (delivery number, product number) groups (FEATURE_2610_17 / D54).
   final int targetBoxes;
 
-  /// 성공 박스 수.
+  /// Succeeded units (same counting as [targetBoxes]).
   final int succeeded;
 
-  /// 실패 박스 상세 — 쿠팡 resultCode/resultMessage 원문(D15).
+  /// Failed units — the marketplace's resultCode / message as given (D15).
   final List<FailedBox> failed;
 
   /// 결제완료가 아니라 전송하지 않은 주문(D2). 출고관리 결과 문구에 건수로 표시한다(웹과 같다).
   final List<SkippedOrder> skipped;
 
-  /// 비-COUPANG 이거나 박스 ID 가 없어 전송 불가한 주문번호(D10). 출고관리 결과 문구에 건수로 표시한다.
+  /// Order numbers that cannot be sent: neither COUPANG nor ELEVENST, or no
+  /// box id (D10 · FEATURE_2610_17 / D20). Shown as a count in the shipment
+  /// page result.
   final List<String> unsupported;
+
+  /// The same send split per marketplace — only marketplaces that had
+  /// something to send, order COUPANG → ELEVENST (FEATURE_2610_17 / D57).
+  /// The fields above stay the sum of both.
+  final List<AcknowledgePlatformResult> byPlatform;
 
   const OrderAcknowledgeResult({
     required this.requestedLines,
@@ -35,6 +45,7 @@ class OrderAcknowledgeResult extends Equatable {
     required this.failed,
     required this.skipped,
     required this.unsupported,
+    this.byPlatform = const [],
   });
 
   factory OrderAcknowledgeResult.fromJson(Map<String, dynamic> json) =>
@@ -53,9 +64,50 @@ class OrderAcknowledgeResult extends Equatable {
         unsupported:
             (json['unsupported'] as List?)?.map((e) => e.toString()).toList() ??
                 const [],
+        byPlatform: (json['byPlatform'] as List?)
+                ?.map((e) => AcknowledgePlatformResult.fromJson(
+                    e as Map<String, dynamic>))
+                .toList() ??
+            const [],
       );
 
   @override
-  List<Object?> get props =>
-      [requestedLines, targetBoxes, succeeded, failed, skipped, unsupported];
+  List<Object?> get props => [
+        requestedLines,
+        targetBoxes,
+        succeeded,
+        failed,
+        skipped,
+        unsupported,
+        byPlatform,
+      ];
+}
+
+/// One marketplace's share of an order-confirmation send (FEATURE_2610_17 /
+/// D57). [succeeded] counts a Coupang box or an 11st (delivery number, product
+/// number) group (D54).
+class AcknowledgePlatformResult extends Equatable {
+  /// `COUPANG` · `ELEVENST` as the server sends it.
+  final String platform;
+  final int succeeded;
+  final List<FailedBox> failed;
+
+  const AcknowledgePlatformResult({
+    required this.platform,
+    required this.succeeded,
+    required this.failed,
+  });
+
+  factory AcknowledgePlatformResult.fromJson(Map<String, dynamic> json) =>
+      AcknowledgePlatformResult(
+        platform: json['platform']?.toString() ?? '',
+        succeeded: json['succeeded'] as int? ?? 0,
+        failed: (json['failed'] as List?)
+                ?.map((e) => FailedBox.fromJson(e as Map<String, dynamic>))
+                .toList() ??
+            const [],
+      );
+
+  @override
+  List<Object?> get props => [platform, succeeded, failed];
 }

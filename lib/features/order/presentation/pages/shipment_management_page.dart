@@ -35,29 +35,39 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_filter_chip.dart';
 
-/// 주문관리 > 출고관리 페이지 (미발송 주문 작업대)
+/// Order management > shipment page (the workbench of unshipped orders)
 ///
-/// **용도**: 아직 내보내지 않은 주문(결제완료·상품준비중)만 모아, 송장 접수시트를 뽑고
-/// 택배사 결과 파일로 발송처리하는 **작업 화면**. 지난 주문 조회는 주문내역이 담당한다
-/// (PLAN 2609_15 D1·D4).
+/// **Purpose**: gathers only the orders not sent out yet (paid · preparing) to
+/// pull the label sheet and ship from the carrier's result file — a **work
+/// screen**. Past orders are the order history's job (PLAN 2609_15 D1·D4).
 ///
-/// **필수 규칙**:
-/// - 목록·배지는 [kShipmentStatuses] 로 좁히고 전량취소(서버가 내려주는 `cancelled`)는 제외한다.
-///   화면에서 리터럴 상태 배열이나 자체 취소 판정을 만들지 말 것(PLAN 2609_26 D26).
-/// - 동기화 오케스트레이션은 기존 [OrderListBloc] 이벤트를 그대로 쓴다(신규 이벤트 금지, D6).
-/// - 목록 카드·상태 칩은 공유 위젯([OrderCard]·[OrderStatusFilterBar])을 쓴다.
+/// **Required rules**:
+/// - The list and badges narrow with [kShipmentStatuses] and drop fully
+///   cancelled orders (the server's `cancelled`). Do not build a literal status
+///   array or an own cancel decision on screen (PLAN 2609_26 D26).
+/// - Sync orchestration uses the existing [OrderListBloc] events as is (no new
+///   event, D6).
+/// - List cards and status chips use the shared widgets ([OrderCard] ·
+///   [OrderStatusFilterBar]).
 ///
-/// - 판정은 두 개다(리터럴 조건 사본 금지) — 체크박스를 그릴지는 [_isSelectable](쿠팡이면
-///   상태 무관), 실제로 발주처리할지는 [_isAcknowledgeTarget](결제완료만). 둘을 합치지 말 것:
-///   합치면 고착된 상품준비중 주문을 선택할 수 없어 [주문 상태 갱신] 이 영구 비활성이 된다.
+/// - There are two decisions (no copied literal conditions) — whether to draw
+///   the checkbox is [_isSelectable] (a Coupang or 11st order, whatever its
+///   status — FEATURE_2610_17 / D28), and whether to confirm is
+///   [_isAcknowledgeTarget] (paid only). Do not merge them: merged, a stuck
+///   preparing order cannot be selected and [주문 상태 갱신] stays disabled
+///   forever.
 ///
-/// ⚠️ [OrderListBloc] 은 `registerFactory` 라 주문내역과 **인스턴스를 공유하지 않는다** —
-/// 두 화면의 선택 상태가 이어질 거라 기대하지 말 것.
-/// ⚠️ 기간 선택 UI 없음(D8) — 기본 창(14일)만 쓴다. `SelectPeriod` 를 호출하지 않는다.
-/// - 검색은 주문내역과 **같은 규칙**을 쓴다(공용 [OrderSearchBar] + 기존 `ChangeSearchField`·
-///   `ChangeSearchTerm` 이벤트, 신규 이벤트 금지). 서버 창은 14일 그대로이고 검색은 그 안에서만
-///   걸리는 클라이언트 필터다.
-/// ❌ 채널 필터를 BLoC 이벤트로 만들지 말 것 — 화면 로컬 state 다(D3).
+/// ⚠️ [OrderListBloc] is `registerFactory`, so it **does not share the
+/// instance** with the order history — do not expect the selection to carry
+/// over between the two screens.
+/// ⚠️ No period picker (D8) — only the default window (14 days). `SelectPeriod`
+/// is not called.
+/// - Search follows **the same rules** as the order history (shared
+///   [OrderSearchBar] + the existing `ChangeSearchField` · `ChangeSearchTerm`
+///   events, no new event). The server window stays 14 days, and search is a
+///   client filter inside it.
+/// ❌ Do not make the channel filter a BLoC event — it is screen-local state
+/// (D3).
 class ShipmentManagementPage extends StatelessWidget {
   const ShipmentManagementPage({super.key});
 
@@ -87,29 +97,57 @@ class ShipmentManagementPage extends StatelessWidget {
   }
 }
 
-/// 발주처리 선택 가능 판정 (PLAN 2609_17 D2·D10).
+/// Order-confirmation target (PLAN 2609_17 D2·D10 · FEATURE_2610_17 / D20).
 ///
-/// 결제완료([OrderStatus.paid])·쿠팡·박스 ID 보유 셋을 모두 만족해야 한다. **화이트리스트**인 것이
-/// 발송처리(2609_07 D1)의 블랙리스트와 반대 방향인 이유: 발주처리는 되돌릴 수 없어
-/// "모르는 상태면 안 보낸다" 가 맞다(발송처리는 안 보내면 발송 누락이라 반대).
+/// Paid ([OrderStatus.paid]) · Coupang or 11st · has a box id (11st: the
+/// delivery number) — all three. It is a **whitelist**, the opposite of the
+/// shipment blacklist (2609_07 D1), because confirmation cannot be undone:
+/// "unknown status → do not send" is right (for shipment, not sending means a
+/// missed shipment, hence the opposite).
 bool _isAcknowledgeTarget(OrderItem order) =>
     order.status == OrderStatus.paid &&
-    order.platform == 'COUPANG' &&
+    (order.platform == 'COUPANG' || order.platform == 'ELEVENST') &&
     (order.externalBoxId?.isNotEmpty ?? false);
 
-/// 체크박스를 그릴지 = **쿠팡 주문이면 상태 무관**.
+/// Whether to draw the checkbox = **a Coupang or 11st order, whatever its
+/// status** (FEATURE_2610_17 / D28 — same rule as web `ShipmentContainer`).
 ///
-/// 🔴 발주처리 화이트리스트([_isAcknowledgeTarget])를 체크박스 판정으로 쓰면 안 된다 — 그러면
-/// 상품준비중으로 고착된 주문에 체크박스가 없어서 [주문 상태 갱신] 이 영구 비활성이 된다.
-/// 고착 건을 푸는 것이 2609_50 의 존재 이유이므로 판정을 액션별로 나눈다.
+/// 🔴 Do not use the confirmation whitelist ([_isAcknowledgeTarget]) for the
+/// checkbox — then an order stuck in preparing has no checkbox and
+/// [주문 상태 갱신] stays disabled forever. Unsticking those is why 2609_50
+/// exists, so the decision is split per action. [주문 상태 갱신] and the
+/// internal stage stay Coupang only (D12) — their id lists narrow the
+/// selection again in `_LoadedBody`.
 ///
-/// 발주처리는 좁은 쪽이 맞다(되돌릴 수 없는 쓰기) — 넓어진 선택에서 발주처리 대상만 추려
-/// 보내므로(`_LoadedBody` 의 `ackTargetIds`) 비대상이 요청에 섞이지 않는다.
-bool _isSelectable(OrderItem order) => order.platform == 'COUPANG';
+/// Confirmation is the narrow one (an irreversible write) — only the targets
+/// are picked out of the wider selection (`_LoadedBody`'s `ackTargetIds`), so
+/// no non-target gets into the request.
+bool _isSelectable(OrderItem order) =>
+    order.platform == 'COUPANG' || order.platform == 'ELEVENST';
 
-/// 내부 발주 대상 = 발주처리 대상 중 아직 내부 단계가 없는 주문(FEATURE_2609_75 / D1). 서버가 다시 판정한다.
+/// Internal-acknowledge target = a Coupang confirmation target without an
+/// internal stage yet (FEATURE_2609_75 / D1 · FEATURE_2610_17 / D12). The
+/// server judges again.
 bool _isInternalTarget(OrderItem order) =>
-    _isAcknowledgeTarget(order) && order.internalStage == null;
+    _isAcknowledgeTarget(order) &&
+    order.platform == 'COUPANG' &&
+    order.internalStage == null;
+
+/// [주문 상태 갱신] target = a Coupang order (FEATURE_2610_17 / D12).
+bool _isRefreshTarget(OrderItem order) => order.platform == 'COUPANG';
+
+/// What [발주처리] covers, per marketplace — key order = line order (Coupang →
+/// 11st). Same text as web `AcknowledgeBar` (FEATURE_2610_17 / D56).
+const Map<String, String> _ackNoticeByPlatform = {
+  'COUPANG': '쿠팡: 선택한 옵션이 속한 배송건(박스) 전체가 함께 발주처리됩니다.',
+  'ELEVENST': '11번가: 선택한 상품(같은 배송건의 같은 상품 옵션 포함)만 발주확인됩니다.',
+};
+
+/// Marketplace names of the confirmation result lines (FEATURE_2610_17 / D57).
+const Map<String, String> _ackPlatformNames = {
+  'COUPANG': '쿠팡',
+  'ELEVENST': '11번가',
+};
 
 /// 내부 발주 해제 대상 = 「내부 상품준비중」만(D18 행1). 발송대기중은 먼저 [예약 취소] 한다.
 bool _isReleaseTarget(OrderItem order) =>
@@ -270,11 +308,9 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
   ///
   /// 🔴 50건 상한은 서버가 판정한다(D3) — 앱에서 미리 막지 않고 400 의 서버 메시지를
   /// 그대로 보여준다.
-  void _onRefreshPressed() {
-    if (_selectedIds.isEmpty) return;
-    context
-        .read<OrderRefreshBloc>()
-        .add(RefreshRequested(_selectedIds.toList()));
+  void _onRefreshPressed(List<int> ids) {
+    if (ids.isEmpty) return;
+    context.read<OrderRefreshBloc>().add(RefreshRequested(ids));
   }
 
   /// 주문 상태 갱신 결과 처리. 문구는 웹 `buildRefreshMessage` 와 같다 — `empty`(쿠팡 0박스 =
@@ -420,8 +456,10 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
         .add(const InternalStageResultCleared());
   }
 
-  /// 전송 결과 처리 (D8·D9). 문구는 웹 `buildMessage` 와 같다 — 발주처리 대상만 추려 보내도
-  /// 목록이 낡았으면 서버가 `skipped`·`unsupported` 로 돌려줄 수 있어 건수를 함께 적는다.
+  /// Send result (D8·D9 · FEATURE_2610_17 / D57). Same wording as web
+  /// `buildMessage`: 「발주처리 완료」, one line per marketplace that was sent,
+  /// then the skipped / unsupported line — even when only targets are sent, a
+  /// stale list can make the server return `skipped` · `unsupported`.
   void _onAcknowledgeState(BuildContext context, OrderAcknowledgeState state) {
     if (state.forbidden) {
       _showAckSnackBar(context, '발주처리 권한이 없습니다.', const []);
@@ -430,23 +468,32 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
 
     final result = state.result;
     if (result != null) {
-      var summary = '발주처리 완료 — 성공 ${result.succeeded}건';
-      if (result.failed.isNotEmpty) {
-        summary += ' / 실패 ${result.failed.length}건';
+      final lines = <String>['발주처리 완료'];
+      for (final part in result.byPlatform) {
+        final name = _ackPlatformNames[part.platform] ?? part.platform;
+        lines.add(part.failed.isEmpty
+            ? '$name: 성공 ${part.succeeded}건'
+            : '$name: 성공 ${part.succeeded}건 / 실패 ${part.failed.length}건');
       }
-      if (result.skipped.isNotEmpty) {
-        summary += ' / 제외 ${result.skipped.length}건(결제완료 아님)';
-      }
-      if (result.unsupported.isNotEmpty) {
-        summary += ' / 처리불가 ${result.unsupported.length}건';
-      }
-      // 실패 사유는 쿠팡 원문 그대로, 중복 제거 최대 3종(D8).
-      final details = result.failed
-          .map((f) => '${f.resultCode}: ${f.message}')
-          .toSet()
-          .take(3)
-          .toList();
-      _showAckSnackBar(context, summary, details);
+      final notSent = <String>[
+        if (result.skipped.isNotEmpty)
+          '제외 ${result.skipped.length}건(결제완료 아님)',
+        if (result.unsupported.isNotEmpty)
+          '처리불가 ${result.unsupported.length}건',
+      ];
+      if (notSent.isNotEmpty) lines.add(notSent.join(' / '));
+      // Failure reasons as the marketplace gave them, named per marketplace,
+      // deduped, at most 3 per marketplace (D8 · FEATURE_2610_17 / D57).
+      final details = [
+        for (final part in result.byPlatform)
+          ...part.failed
+              .map((f) =>
+                  '${_ackPlatformNames[part.platform] ?? part.platform} · '
+                  '${f.resultCode}: ${f.message}')
+              .toSet()
+              .take(3),
+      ];
+      _showAckSnackBar(context, lines.join('\n'), details);
       _clearSelection();
       // 판매자 필터를 유지하는 SearchOrders 를 쓴다(발송처리 성공 후 처리와 같은 이벤트).
       context.read<OrderListBloc>().add(SearchOrders());
@@ -544,8 +591,9 @@ class _LoadedBody extends StatelessWidget {
   /// [저장된 송장으로 발송] — 내부 단계 주문만 추려 넘긴다(D18 🔁). 다이얼로그는 부모가 연다.
   final void Function(List<int> ids) onShipStored;
 
-  /// `RefreshRequested` 발행은 부모가 한다(확인 다이얼로그 없음 — 읽기다).
-  final VoidCallback onRefresh;
+  /// The parent dispatches `RefreshRequested` (no confirm dialog — it is a
+  /// read). Only the selected Coupang orders are passed (FEATURE_2610_17 / D12).
+  final void Function(List<int> ids) onRefresh;
 
   const _LoadedBody({
     required this.state,
@@ -613,6 +661,14 @@ class _LoadedBody extends StatelessWidget {
         .where((o) => selectedIds.contains(o.id) && _isAcknowledgeTarget(o))
         .map((o) => o.id)
         .toList();
+    // Marketplaces among the confirmation targets, Coupang → 11st
+    // (FEATURE_2610_17 / D56).
+    final ackPlatforms = _ackNoticeByPlatform.keys
+        .where((platform) => scoped.any((o) =>
+            selectedIds.contains(o.id) &&
+            _isAcknowledgeTarget(o) &&
+            o.platform == platform))
+        .toList();
     final internalTargetIds = scoped
         .where((o) => selectedIds.contains(o.id) && _isInternalTarget(o))
         .map((o) => o.id)
@@ -628,6 +684,10 @@ class _LoadedBody extends StatelessWidget {
         .toList();
     final storedTargetIds = scoped
         .where((o) => selectedIds.contains(o.id) && _isStoredShipTarget(o))
+        .map((o) => o.id)
+        .toList();
+    final refreshTargetIds = scoped
+        .where((o) => selectedIds.contains(o.id) && _isRefreshTarget(o))
         .map((o) => o.id)
         .toList();
     // D14 — 발주처리로 보낼 주문 중 내부 단계가 있는 것이 하나라도 있는가.
@@ -843,8 +903,10 @@ class _LoadedBody extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  // 발송처리 (Shipping Label 업로드): 택배사 결과 xlsx → 쿠팡 송장업로드 배치.
-                  // OrderListBloc.busy 와 무관 — 별도 BLoC·다이얼로그.
+                  // Shipment (label upload): carrier result xlsx → the
+                  // marketplace invoice upload batch (Coupang · 11st,
+                  // FEATURE_2610_17 / D2). Unrelated to OrderListBloc.busy —
+                  // its own BLoC and dialog.
                   Row(
                     children: [
                       Expanded(
@@ -956,10 +1018,10 @@ class _LoadedBody extends StatelessWidget {
                       // 선택이 없어도 버튼은 보이되 비활성이다.
                       BlocBuilder<OrderRefreshBloc, OrderRefreshState>(
                         builder: (context, refreshState) => OutlinedButton(
-                          onPressed:
-                              selectedIds.isEmpty || refreshState.submitting
-                                  ? null
-                                  : onRefresh,
+                          onPressed: refreshTargetIds.isEmpty ||
+                                  refreshState.submitting
+                              ? null
+                              : () => onRefresh(refreshTargetIds),
                           child: refreshState.submitting
                               ? const AppBusyLabel('주문 상태 갱신')
                               : const Text('주문 상태 갱신'),
@@ -1025,16 +1087,18 @@ class _LoadedBody extends StatelessWidget {
                         ),
                     ],
                   ),
-                  // Same guidance lines as web `AcknowledgeBar`.
-                  // 선택한 라인이 아니라 그 라인이 속한 박스 전체가 전송된다(PLAN 2609_17 D1).
+                  // Same guidance lines as web `AcknowledgeBar`: what
+                  // [발주처리] covers, one line per marketplace in the targets
+                  // (PLAN 2609_17 D1 · FEATURE_2610_17 / D56).
                   if (ackTargetIds.isNotEmpty && !ackState.forbidden)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        '선택한 옵션이 속한 배송건(박스) 전체가 함께 발주처리됩니다.',
-                        style: hintStyle,
+                    for (final platform in ackPlatforms)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          _ackNoticeByPlatform[platform]!,
+                          style: hintStyle,
+                        ),
                       ),
-                    ),
                   // 발주처리 버튼이 왜 안 보이는지 말해 준다 — 상태 갱신만 하려고 고른 경우가 흔하다.
                   if (notAcknowledgeable > 0)
                     Padding(
