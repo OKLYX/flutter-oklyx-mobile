@@ -44,11 +44,9 @@ class PurchaseListLoaded extends PurchaseListState {
   // active 탭 데이터
   final List<PurchaseListItem> items;
   final List<UnmappedOrder> unmappedOrders;
-  final int? expandedProductId;
 
   // completed 탭 데이터 (지연 로드)
   final List<PurchaseListItem>? completedItems;
-  final int? expandedCompletedProductId;
   final bool isLoadingCompleted;
 
   // completed 탭 필터 (구매일 기간). 기본값은 오늘(YYYY-MM-DD), '조회' 버튼으로 적용한다.
@@ -66,9 +64,7 @@ class PurchaseListLoaded extends PurchaseListState {
     this.activeTab = PurchaseTab.active,
     required this.items,
     this.unmappedOrders = const [],
-    this.expandedProductId,
     this.completedItems,
-    this.expandedCompletedProductId,
     this.isLoadingCompleted = false,
     required this.completedFrom,
     required this.completedTo,
@@ -84,12 +80,8 @@ class PurchaseListLoaded extends PurchaseListState {
     PurchaseTab? activeTab,
     List<PurchaseListItem>? items,
     List<UnmappedOrder>? unmappedOrders,
-    int? expandedProductId,
-    bool clearExpanded = false,
     List<PurchaseListItem>? completedItems,
     bool clearCompleted = false,
-    int? expandedCompletedProductId,
-    bool clearExpandedCompleted = false,
     bool? isLoadingCompleted,
     String? completedFrom,
     String? completedTo,
@@ -107,14 +99,8 @@ class PurchaseListLoaded extends PurchaseListState {
       activeTab: activeTab ?? this.activeTab,
       items: items ?? this.items,
       unmappedOrders: unmappedOrders ?? this.unmappedOrders,
-      expandedProductId: clearExpanded
-          ? null
-          : (expandedProductId ?? this.expandedProductId),
       completedItems:
           clearCompleted ? null : (completedItems ?? this.completedItems),
-      expandedCompletedProductId: clearExpandedCompleted
-          ? null
-          : (expandedCompletedProductId ?? this.expandedCompletedProductId),
       isLoadingCompleted: isLoadingCompleted ?? this.isLoadingCompleted,
       completedFrom: completedFrom ?? this.completedFrom,
       completedTo: completedTo ?? this.completedTo,

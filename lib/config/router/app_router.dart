@@ -54,6 +54,7 @@ import 'package:flutter_oklyn_mobile/features/user/domain/entities/user.dart';
 import 'package:flutter_oklyn_mobile/features/user/presentation/pages/user_edit_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/dashboard_page.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/pages/purchase_list_page.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/pages/purchase_product_detail_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/not_found_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/notification_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/product_search_page.dart';
@@ -134,6 +135,15 @@ class AppRouter {
       path: Routes.listToShopPath,
       pageBuilder: (context, state) => const NoTransitionPage(
         child: PurchaseListPage(),
+      ),
+    ),
+    GoRoute(
+      name: Routes.purchaseProductDetail,
+      path: Routes.purchaseProductDetailPath,
+      pageBuilder: (context, state) => NoTransitionPage(
+        child: PurchaseProductDetailPage(
+          args: state.extra! as PurchaseProductDetailArgs,
+        ),
       ),
     ),
     GoRoute(
