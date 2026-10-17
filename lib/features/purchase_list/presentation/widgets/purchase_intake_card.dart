@@ -20,11 +20,14 @@ enum _AmountMode { total, unit }
 /// **위치**: `lib/features/purchase_list/presentation/widgets/purchase_intake_card.dart`
 /// **필수 규칙**: 구매목록 탭과 완료 탭이 **같은 위젯**을 쓴다(D21) — 완료탭용 복제 금지.
 ///
-/// **컨트롤**
-/// - 판매자: `SellerFilterDropdown(includeAll: false)` · 기본 미선택
-/// - 구매일 / 기준(총액·단가) / 수량(음수=정정) / 금액(빈칸=금액 미상) / 기준가 반영(D14)
-/// - 재고 즉시 반영: **체크 + 비활성**(D19) — 전송은 항상 `recordStock: true`
-/// - [입고]: 판매자 미선택 또는 수량 0/미입력이면 비활성
+/// **배치**(2026-10-08 정리): 왼쪽 고정폭 라벨 + 오른쪽 입력, 한 줄에 하나.
+/// - 판매자: `SellerFilterDropdown(includeAll: false, labelText: null)` · 기본 미선택
+/// - 구매일 / 수량(`개`, 음수=정정) / 금액(총액·단가 토글 + `원`, 빈칸=금액 미상)
+///   → 금액 아래 환산(`개당 N원` / `합계 N원`)
+/// - 기준가 반영 체크(D14) — 끄면 체크 아래 설명
+/// - [입고하기] 전폭 버튼 + 아래 안내 「입고하면 재고에 바로 더해집니다」.
+///   재고 즉시 반영은 항상 켜짐(D19) — **스위치를 두지 않는다**, 전송은 늘 `recordStock: true`
+/// - [입고하기]: 판매자 미선택 또는 수량 0/미입력이면 비활성
 ///
 /// **최근 구매이력**(D9)
 /// 카드 하단 [최근 구매이력 ▾]. 기본 접힘. 펼칠 때 `GetRecentPurchasesUseCase` 를
@@ -111,14 +114,14 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
 
   int? _parsedQty() => int.tryParse(_qtyController.text.trim());
 
-  /// 총액 모드 `@단가`, 단가 모드 `계 총액`. 수량 0/미입력이거나 금액이 비면 null.
+  /// 총액 모드 `개당 N원`, 단가 모드 `합계 N원`. 수량 0/미입력이거나 금액이 비면 null.
   String? _amountPreview() {
     final qty = _parsedQty();
     final amount = _parsedAmount();
     if (qty == null || qty == 0 || amount == null) return null;
     return _amountMode == _AmountMode.total
-        ? '@${_amountFormat.format(amount / qty)}'
-        : '계 ${_amountFormat.format(amount * qty)}';
+        ? '개당 ${_amountFormat.format(amount / qty)}원'
+        : '합계 ${_amountFormat.format(amount * qty)}원';
   }
 
   bool get _canSubmit {
@@ -209,9 +212,10 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
   @override
   Widget build(BuildContext context) {
     final preview = _amountPreview();
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     return Container(
       margin: const EdgeInsets.only(top: 4, bottom: 8),
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
       decoration: BoxDecoration(
         color: AppColors.infoSurface,
         border: Border.all(color: AppColors.infoSurface),
@@ -221,87 +225,88 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            '입고',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+            '입고 기록',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
 
-          // 판매자 (필수) — '전체' 옵션 없음
-          SellerFilterDropdown(
-            sellers: widget.sellers,
-            selectedSellerId: _sellerId,
-            enabled: !widget.busy,
-            includeAll: false,
-            onChanged: (value) => setState(() => _sellerId = value),
+          // 판매자 (필수) — '전체' 옵션 없음. 라벨은 왼쪽 칸이 그린다.
+          _field(
+            '판매자',
+            SellerFilterDropdown(
+              sellers: widget.sellers,
+              selectedSellerId: _sellerId,
+              enabled: !widget.busy,
+              includeAll: false,
+              labelText: null,
+              onChanged: (value) => setState(() => _sellerId = value),
+            ),
           ),
-          const SizedBox(height: 8),
-
-          // 구매일 + 기준(총액/단가)
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: widget.busy ? null : _pickDate,
-                  icon: const Icon(Icons.calendar_today, size: 16),
-                  label: Text(
-                    DateFormat('yyyy-MM-dd').format(_purchasedOn),
-                    style: const TextStyle(fontSize: 13),
+          _field(
+            '구매일',
+            OutlinedButton.icon(
+              onPressed: widget.busy ? null : _pickDate,
+              icon: const Icon(Icons.calendar_today, size: 16),
+              label: Text(
+                DateFormat('yyyy-MM-dd').format(_purchasedOn),
+                style: const TextStyle(fontSize: 13),
+              ),
+              style: OutlinedButton.styleFrom(
+                alignment: Alignment.centerLeft,
+              ),
+            ),
+          ),
+          _field(
+            '수량',
+            TextField(
+              controller: _qtyController,
+              enabled: !widget.busy,
+              keyboardType: const TextInputType.numberWithOptions(signed: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^-?\d*')),
+              ],
+              decoration: const InputDecoration(
+                hintText: '예: 3  (정정은 -3)',
+                suffixText: '개',
+                isDense: true,
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+              ),
+            ),
+          ),
+          _field(
+            '금액',
+            Row(
+              children: [
+                SizedBox(width: 116, child: _amountModeSelector()),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: TextField(
+                    controller: _amountController,
+                    enabled: !widget.busy,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                    ],
+                    decoration: const InputDecoration(
+                      hintText: '모르면 비움',
+                      suffixText: '원',
+                      isDense: true,
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              SizedBox(width: 116, child: _amountModeSelector()),
-            ],
-          ),
-          const SizedBox(height: 6),
-
-          // 수량 + 금액 + 환산 미리보기
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: TextField(
-                  controller: _qtyController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(signed: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^-?\d*')),
-                  ],
-                  decoration: const InputDecoration(
-                    hintText: '수량',
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                flex: 3,
-                child: TextField(
-                  controller: _amountController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                  ],
-                  decoration: InputDecoration(
-                    hintText: _amountMode == _AmountMode.total ? '총액' : '단가',
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 12),
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
           if (preview != null)
             Padding(
-              padding: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.only(left: _labelWidth, bottom: 6),
               child: Text(
-                preview,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+                '→ $preview',
+                style: TextStyle(fontSize: 12, color: muted),
               ),
             ),
 
@@ -312,82 +317,84 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
                 ? null
                 : (v) => setState(() => _reflectToBasePrice = v ?? true),
             title: const Text('상품 기준가에 반영', style: TextStyle(fontSize: 13)),
+            subtitle: _reflectToBasePrice
+                ? null
+                : Text(
+                    '이번 매입가는 손익에만 쓰이고 판매가에는 반영되지 않습니다',
+                    style: TextStyle(fontSize: 11, color: muted),
+                  ),
             dense: true,
             contentPadding: EdgeInsets.zero,
             visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
             controlAffinity: ListTileControlAffinity.leading,
           ),
-          if (!_reflectToBasePrice)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
+          const SizedBox(height: 6),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _canSubmit ? _submit : null,
+              child: const Text('입고하기'),
+            ),
+          ),
+          // 재고 즉시 반영은 항상 켜져 있다(PLAN 2609_29 D19) — 끄는 스위치를
+          // 두지 않고 결과만 알린다. 전송은 늘 recordStock: true.
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Center(
               child: Text(
-                '이번 매입가는 손익에만 쓰이고 판매가에는 반영되지 않습니다',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+                '입고하면 재고에 바로 더해집니다',
+                style: TextStyle(fontSize: 11, color: muted),
               ),
             ),
-
-          // 재고 즉시 반영 — 체크 + 비활성(PLAN 2609_29 D19).
-          // ❌ 켜고 끌 수 있게 두지 말 것 — 끄면 입고대기 건을 치울 화면이 아직 없다.
-          Row(
-            children: [
-              Expanded(
-                child: CheckboxListTile(
-                  value: true,
-                  onChanged: null,
-                  title: Row(
-                    children: [
-                      const Flexible(
-                        child: Text('재고 즉시 반영',
-                            style: TextStyle(fontSize: 13)),
-                      ),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          '(입고대기 화면 준비 중)',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  visualDensity:
-                      const VisualDensity(horizontal: -4, vertical: -4),
-                  controlAffinity: ListTileControlAffinity.leading,
-                ),
-              ),
-              const SizedBox(width: 6),
-              FilledButton(
-                onPressed: _canSubmit ? _submit : null,
-                child: const Text('입고'),
-              ),
-            ],
           ),
+          const Divider(height: 16),
 
           // 최근 구매이력 (기본 접힘)
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: _toggleHistory,
-              icon: Icon(
-                _historyExpanded ? Icons.expand_less : Icons.expand_more,
-                size: 18,
+          InkWell(
+            onTap: _toggleHistory,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                children: [
+                  const Text('최근 구매이력', style: TextStyle(fontSize: 13)),
+                  const Spacer(),
+                  Icon(
+                    _historyExpanded ? Icons.expand_less : Icons.expand_more,
+                    size: 18,
+                  ),
+                ],
               ),
-              label: const Text('최근 구매이력', style: TextStyle(fontSize: 13)),
             ),
           ),
-          if (_historyExpanded) _buildHistory(),
+          if (_historyExpanded)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _buildHistory(),
+            ),
         ],
       ),
     );
   }
+
+  static const double _labelWidth = 56;
+
+  /// One labelled form row: fixed-width label on the left, control on the right.
+  Widget _field(String label, Widget control) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(
+          children: [
+            SizedBox(
+              width: _labelWidth,
+              child: Text(
+                label,
+                style:
+                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              ),
+            ),
+            Expanded(child: control),
+          ],
+        ),
+      );
 
   Widget _buildHistory() {
     if (_historyLoading) {
@@ -450,9 +457,8 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
         padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 4)),
         textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 12)),
       ),
-      onSelectionChanged: widget.busy
-          ? null
-          : (set) => setState(() => _amountMode = set.first),
+      onSelectionChanged:
+          widget.busy ? null : (set) => setState(() => _amountMode = set.first),
     );
   }
 
@@ -460,8 +466,7 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
   /// 금액이 없으면 `금액 미상` — `0원` 으로 쓰지 않는다(PLAN 2609_28 D1).
   Widget _recordText(PurchaseRecord r) {
     final scheme = Theme.of(context).colorScheme;
-    final baseColor =
-        r.quantity < 0 ? scheme.error : scheme.onSurfaceVariant;
+    final baseColor = r.quantity < 0 ? scheme.error : scheme.onSurfaceVariant;
     final mutedColor = Theme.of(context).colorScheme.onSurfaceVariant;
     final date =
         r.purchasedOn.length >= 10 ? r.purchasedOn.substring(5) : r.purchasedOn;

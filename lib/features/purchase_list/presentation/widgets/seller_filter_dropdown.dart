@@ -14,7 +14,9 @@ class SellerFilterDropdown extends StatelessWidget {
   final ValueChanged<int?> onChanged;
   final bool enabled;
   final bool includeAll;
-  final String labelText;
+
+  /// Floating label; null when the caller draws its own label (입고 카드).
+  final String? labelText;
 
   const SellerFilterDropdown({
     required this.sellers,
@@ -34,8 +36,7 @@ class SellerFilterDropdown extends StatelessWidget {
       hint: includeAll ? null : const Text('선택'),
       decoration: InputDecoration(
         labelText: labelText,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
       items: [
         if (includeAll)

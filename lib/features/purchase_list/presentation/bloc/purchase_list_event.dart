@@ -7,13 +7,6 @@ abstract class PurchaseListEvent {}
 /// ⚠️ 판매자 목록은 **입고 카드 드롭다운**이 쓴다 — 툴바 필터는 없어졌다(PLAN 2609_29 D11).
 class LoadPurchaseList extends PurchaseListEvent {}
 
-/// 상품 카드 펼침/접힘 토글 (재조회 없음)
-class ToggleExpand extends PurchaseListEvent {
-  final int productId;
-
-  ToggleExpand({required this.productId});
-}
-
 /// 입고 1회 (PLAN 2609_29 D1) — 물품 × 판매자. 수량 음수 허용 = 정정.
 ///
 /// 성공 시 현재 탭 기준으로 목록을 재조회하고, 서버가 준 stockRecorded 를
@@ -60,13 +53,6 @@ class SwitchTab extends PurchaseListEvent {
   final PurchaseTab tab;
 
   SwitchTab({required this.tab});
-}
-
-/// 완료 탭 상품 카드 펼침/접힘 토글.
-class ToggleExpandCompleted extends PurchaseListEvent {
-  final int productId;
-
-  ToggleExpandCompleted({required this.productId});
 }
 
 /// 완료내역 필터 적용 ('조회' 버튼): 구매일 기간(YYYY-MM-DD, 빈 값=전체)으로 재조회.
