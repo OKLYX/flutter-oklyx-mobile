@@ -1,7 +1,8 @@
-/// 입고 1회의 결과 (PLAN 2609_29 D1·D17·D19).
+/// Result of one check-in (PLAN 2609_29 D1 · D17 · D19 · FEATURE_2610_09 D65).
 ///
-/// ⚠️ [stockRecorded] == false 는 두 가지 뜻이다 — 음수 정정(D17) 또는
-/// `recordStock=false`(D19). 화면 문구가 같으므로 사유를 나누지 않는다.
+/// ⚠️ [stockRecorded] == false has three causes — a negative correction (D17),
+/// `recordStock=false` (D19) or the stock link setting is off (D65). The screen
+/// shows its notice only while the stock link is on.
 class PurchaseRecordResult {
   final int purchaseRecordId;
   final bool stockRecorded;

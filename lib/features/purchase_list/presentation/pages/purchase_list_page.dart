@@ -6,13 +6,18 @@ import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import '../../domain/entities/purchase_list_item.dart';
 import '../bloc/purchase_list_bloc.dart';
 import '../bloc/purchase_list_event.dart';
 import '../bloc/purchase_list_state.dart';
+import '../bloc/purchase_setting_bloc.dart';
+import '../bloc/purchase_setting_event.dart';
 import '../widgets/add_manual_item_dialog.dart';
 import 'purchase_product_detail_page.dart';
 import '../widgets/completed_purchase_filter.dart';
 import '../widgets/purchase_product_card.dart';
+import '../widgets/purchase_share_actions.dart';
+import '../widgets/seller_filter_dropdown.dart';
 import '../widgets/unmapped_orders_section.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
@@ -20,23 +25,33 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 
-/// 구매목록 페이지 (하단 탭 3번째, `/list-to-shop`).
+/// Purchase list page (third bottom tab, `/list-to-shop`).
 ///
-/// **용도**: 프론트 구매목록(dashboard/purchase/list)을 모바일로 이식.
-/// **기능**:
-/// - 툴바: [주문내역 동기화](동기화 + 재적재 한 번에) · [수동 추가]
-///   🔴 판매자 드롭다운·[재적재] 는 없다(PLAN 2609_29 D11·D12)
-/// - 탭: 구매목록 / 구매완료내역(지연 로드, 기간 필터만)
-/// - 미매핑주문 섹션 (옵션 미등록 주문 안내)
-/// - 상품 카드 → 누르면 상세 페이지(입고 기록 + 최근 구매이력 + 채널 칩 + 주문 줄, 두 탭 동일, D21)
-/// - 수동항목 추가 (상품 검색·선택 + 수량)
+/// **Purpose**: the web purchase list (dashboard/purchase/list) on mobile.
+/// **Parts**:
+/// - Toolbar: [주문내역 동기화] (sync + re-extract at once) · [수동 추가]
+///   🔴 no [재적재] (PLAN 2609_29 D12)
+/// - Tabs: 「구매목록」 / 「구매완료내역」 (lazy, processing-day filter)
+/// - Seller filter under the tabs on both tabs (FEATURE_2610_09 D5), hidden
+///   with one seller (D53). A chosen seller puts the share buttons under each
+///   card (D83)
+/// - 「오늘 넘김」 group under the list (D67)
+/// - Unmapped orders section (orders whose option is unregistered)
+/// - Product card → detail page (intake + recent purchases + seller shares +
+///   channel chips + lines, the same for both tabs, D21)
+/// - Manual add (product search + seller + quantity, D11)
 class PurchaseListPage extends StatelessWidget {
   const PurchaseListPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => getIt<PurchaseListBloc>()..add(LoadPurchaseList()),
+      create: (providerContext) {
+        // D71 ③: the intake notice follows the stock link setting — refreshed
+        // once per visit.
+        providerContext.read<PurchaseSettingBloc>().add(LoadPurchaseSetting());
+        return getIt<PurchaseListBloc>()..add(LoadPurchaseList());
+      },
       child: const _PurchaseListView(),
     );
   }
@@ -64,7 +79,10 @@ class _PurchaseListView extends StatelessWidget {
             showErrorToast(context, loaded.actionError!);
           }
           if (loaded.stockRecorded != null) {
-            if (loaded.stockRecorded == false) {
+            // D65: with the stock link off, no check-in writes stock — no notice.
+            final stockLinked =
+                context.read<PurchaseSettingBloc>().state.stockLinked == true;
+            if (loaded.stockRecorded == false && stockLinked) {
               _snack(context,
                   '재고는 반영되지 않았습니다 — 실물이 줄었다면 재고 화면에서 조정하세요');
             }
@@ -114,9 +132,25 @@ class _LoadedBody extends StatelessWidget {
     final bloc = context.read<PurchaseListBloc>();
     final busy = state.isRefreshing || state.isSyncing;
 
-    final tabs = _TabSwitcher(
-      activeTab: state.activeTab,
-      onChanged: (tab) => bloc.add(SwitchTab(tab: tab)),
+    final tabs = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _TabSwitcher(
+          activeTab: state.activeTab,
+          onChanged: (tab) => bloc.add(SwitchTab(tab: tab)),
+        ),
+        // D1 · D5 · D53: one seller filter for both tabs, right under them.
+        if (state.sellers.length != 1) ...[
+          const SizedBox(height: 8),
+          SellerFilterDropdown(
+            sellers: state.sellers,
+            selectedSellerId: state.filterSellerId,
+            enabled: !busy,
+            onChanged: (sellerId) =>
+                bloc.add(ChangeSellerFilter(sellerId: sellerId)),
+          ),
+        ],
+      ],
     );
     // Each tab owns one scroll; the tab switcher is its first block (D100).
     return state.activeTab == PurchaseTab.active
@@ -198,9 +232,12 @@ class _ActiveTabBody extends StatelessWidget {
                     : () => showDialog<void>(
                           context: context,
                           builder: (_) => AddManualItemDialog(
-                            onSubmit: (productId, quantity) => bloc.add(
+                            sellers: state.sellers,
+                            onSubmit: (productId, sellerId, quantity) =>
+                                bloc.add(
                               AddManualItem(
                                 productId: productId,
+                                sellerId: sellerId,
                                 quantity: quantity,
                               ),
                             ),
@@ -272,9 +309,51 @@ class _ActiveTabBody extends StatelessWidget {
                       key: ValueKey(item.productId),
                       item: item,
                       onTap: () => _openDetail(context, bloc, item.productId),
+                      footer: _shareFooter(state, bloc, item, busy),
                     );
                   },
                 ),
+              // D67: 「오늘 넘김」 under the list, only when something was put off today.
+              if (state.skippedToday.isNotEmpty) ...[
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 16, bottom: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '오늘 넘김',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          '내일 매입으로 넘긴 구성품입니다. 다음 날 구매목록에 다시 나타납니다.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                SliverList.separated(
+                  itemCount: state.skippedToday.length,
+                  separatorBuilder: (_, __) => const AppRowGap(),
+                  itemBuilder: (context, index) {
+                    final item = state.skippedToday[index];
+                    return PurchaseProductCard(
+                      key: ValueKey('skipped-${item.productId}'),
+                      item: item,
+                      onTap: () => _openDetail(context, bloc, item.productId),
+                      footer: _shareFooter(state, bloc, item, busy),
+                    );
+                  },
+                ),
+              ],
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.only(top: 8),
@@ -343,10 +422,41 @@ class _CompletedTabBody extends StatelessWidget {
           key: ValueKey(item.productId),
           item: item,
           onTap: () => _openDetail(context, bloc, item.productId),
+          footer: _shareFooter(state, bloc, item, busy),
         );
       },
     );
   }
+}
+
+/// Seller view only: the share's tag and buttons under the card
+/// (FEATURE_2610_09 D83). 「전체」 puts them on the detail's share rows instead.
+Widget? _shareFooter(
+  PurchaseListLoaded state,
+  PurchaseListBloc bloc,
+  PurchaseListItem item,
+  bool busy,
+) {
+  if (state.filterSellerId == null || item.shares.isEmpty) return null;
+  final share = item.shares.first;
+  return Wrap(
+    spacing: 6,
+    runSpacing: 4,
+    crossAxisAlignment: WrapCrossAlignment.center,
+    children: [
+      TargetMetTag(share: share),
+      PurchaseShareActions(
+        share: share,
+        busy: busy,
+        onCheck: (status) => bloc.add(CheckShare(
+          productId: item.productId,
+          sellerId: share.sellerId,
+          status: status,
+        )),
+        onCancel: (checkId) => bloc.add(CancelShareCheck(checkId: checkId)),
+      ),
+    ],
+  );
 }
 
 /// Opens the product detail on top of the list, sharing the list's bloc so

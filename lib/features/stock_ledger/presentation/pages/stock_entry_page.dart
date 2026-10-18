@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/product.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_setting_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_setting_event.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/seller_filter_dropdown.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/purchase_candidate.dart';
@@ -33,7 +35,12 @@ class StockEntryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => getIt<StockLedgerBloc>()..add(LoadEntryData()),
+      create: (providerContext) {
+        // FEATURE_2610_09 D71 ②: the 「입고 대기」 purchase picker follows the
+        // stock link setting — refreshed once per visit.
+        providerContext.read<PurchaseSettingBloc>().add(LoadPurchaseSetting());
+        return getIt<StockLedgerBloc>()..add(LoadEntryData());
+      },
       child: const _StockEntryView(),
     );
   }
@@ -174,6 +181,11 @@ class _StockEntryViewState extends State<_StockEntryView> {
   Widget _buildForm(BuildContext context, StockLedgerLoaded state) {
     final reasons = StockReason.forType(_type);
     final busy = state.actionInProgressKey != null;
+    // FEATURE_2610_09 D71: on (loaded and true) shows the 「입고 대기」
+    // picker (②, round 12); off or not loaded gives PURCHASE the unit price
+    // field instead (round 13).
+    final stockLinked =
+        context.watch<PurchaseSettingBloc>().state.stockLinked == true;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -202,8 +214,11 @@ class _StockEntryViewState extends State<_StockEntryView> {
         ),
         const SizedBox(height: 12),
         _buildProductField(context, busy),
+        // FEATURE_2610_09 D71 ②: the 「입고 대기」 picker shows only while the
+        // stock link is on.
         if (_type == StockMovementType.stockIn &&
-            _reason == StockReason.purchase) ...[
+            _reason == StockReason.purchase &&
+            stockLinked) ...[
           const SizedBox(height: 12),
           _buildPurchasePicker(context, state, busy),
         ],
@@ -251,7 +266,12 @@ class _StockEntryViewState extends State<_StockEntryView> {
                       _reason = value;
                       if (value != StockReason.purchase) _purchase = null;
                       if (value != StockReason.etc) _noteController.clear();
-                      if (value != StockReason.opening) {
+                      // FEATURE_2610_09 D71 (round 13): a reason change
+                      // clears the unit price when the new reason hides
+                      // its field (shown for OPENING, and for PURCHASE
+                      // while the stock link is off).
+                      if (value != StockReason.opening &&
+                          (value != StockReason.purchase || stockLinked)) {
                         _unitPriceController.clear();
                       }
                     }),
@@ -267,8 +287,12 @@ class _StockEntryViewState extends State<_StockEntryView> {
             ),
           ),
         ],
+        // FEATURE_2610_09 D71 (round 13): with the stock link off, PURCHASE
+        // has no purchase record to copy a price from, so it gets the same
+        // optional field as OPENING.
         if (_type == StockMovementType.stockIn &&
-            _reason == StockReason.opening) ...[
+            (_reason == StockReason.opening ||
+                (_reason == StockReason.purchase && !stockLinked))) ...[
           const SizedBox(height: 12),
           TextField(
             controller: _unitPriceController,

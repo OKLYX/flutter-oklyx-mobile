@@ -9,44 +9,56 @@ import 'package:flutter_oklyn_mobile/features/product/domain/entities/product.da
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_event.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_state.dart';
+import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import 'product_thumbnail.dart';
+import 'seller_filter_dropdown.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
-/// 수동항목 추가 다이얼로그.
+/// Manual add dialog.
 ///
-/// 상품을 검색·선택하고 수량(>=1)을 입력하면 [onSubmit]에 (productId, quantity)를
-/// 전달한다. 상품 검색은 기존 [ProductBloc](getIt factory)을 재사용한다
-/// (product_search_page와 동일: 검색필드 + 300ms 디바운스 + 무한스크롤).
+/// Search and pick a product, pick the seller it is bought for and enter a
+/// quantity (>= 1); [onSubmit] receives (productId, sellerId, quantity). The
+/// seller is required and starts empty on every opening (FEATURE_2610_09 D11 ·
+/// D12); with one seller the field is hidden and that seller is used (D53).
+/// Product search reuses [ProductBloc] (getIt factory) — the same search field
+/// + 300 ms debounce + infinite scroll as product_search_page.
 ///
-/// 호출 예:
+/// Usage:
 /// ```dart
 /// showDialog(
 ///   context: context,
 ///   builder: (_) => AddManualItemDialog(
-///     onSubmit: (productId, qty) =>
-///         bloc.add(AddManualItem(productId: productId, quantity: qty)),
+///     sellers: state.sellers,
+///     onSubmit: (productId, sellerId, qty) => bloc.add(AddManualItem(
+///         productId: productId, sellerId: sellerId, quantity: qty)),
 ///   ),
 /// );
 /// ```
 class AddManualItemDialog extends StatelessWidget {
-  final void Function(int productId, int quantity) onSubmit;
+  final List<Seller> sellers;
+  final void Function(int productId, int sellerId, int quantity) onSubmit;
 
-  const AddManualItemDialog({required this.onSubmit, super.key});
+  const AddManualItemDialog({
+    required this.sellers,
+    required this.onSubmit,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => getIt<ProductBloc>()..add(const LoadProducts()),
-      child: _AddManualItemView(onSubmit: onSubmit),
+      child: _AddManualItemView(sellers: sellers, onSubmit: onSubmit),
     );
   }
 }
 
 class _AddManualItemView extends StatefulWidget {
-  final void Function(int productId, int quantity) onSubmit;
+  final List<Seller> sellers;
+  final void Function(int productId, int sellerId, int quantity) onSubmit;
 
-  const _AddManualItemView({required this.onSubmit});
+  const _AddManualItemView({required this.sellers, required this.onSubmit});
 
   @override
   State<_AddManualItemView> createState() => _AddManualItemViewState();
@@ -58,6 +70,8 @@ class _AddManualItemViewState extends State<_AddManualItemView> {
   final ScrollController _scrollController = ScrollController();
   Timer? _debounce;
   Product? _selected;
+  late int? _sellerId =
+      widget.sellers.length == 1 ? widget.sellers.first.id : null;
 
   @override
   void initState() {
@@ -97,12 +111,17 @@ class _AddManualItemViewState extends State<_AddManualItemView> {
       _toast('상품을 선택하세요.');
       return;
     }
+    final sellerId = _sellerId;
+    if (sellerId == null) {
+      _toast('판매자를 선택하세요.');
+      return;
+    }
     final qty = int.tryParse(_qtyController.text.trim());
     if (qty == null || qty < 1) {
       _toast('수량은 1 이상의 정수여야 합니다.');
       return;
     }
-    widget.onSubmit(_selected!.id, qty);
+    widget.onSubmit(_selected!.id, sellerId, qty);
     Navigator.of(context).pop();
   }
 
@@ -197,6 +216,16 @@ class _AddManualItemViewState extends State<_AddManualItemView> {
                 ),
               ),
               const Divider(),
+              if (widget.sellers.length != 1)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: SellerFilterDropdown(
+                    sellers: widget.sellers,
+                    selectedSellerId: _sellerId,
+                    includeAll: false,
+                    onChanged: (value) => setState(() => _sellerId = value),
+                  ),
+                ),
               if (_selected != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
