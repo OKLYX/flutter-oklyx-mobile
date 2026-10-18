@@ -155,7 +155,12 @@ import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/reco
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/get_recent_purchases_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/adjust_manual_qty_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/add_manual_item_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/change_manual_seller_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/check_purchase_share_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/delete_manual_item_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/get_stock_linked_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_list_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_setting_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/data/datasources/stock_ledger_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/data/datasources/stock_ledger_remote_datasource_impl.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/data/repositories/stock_ledger_repository_impl.dart';
@@ -1029,6 +1034,24 @@ void _registerPurchaseListServices() {
   getIt.registerSingleton<GetRecentPurchasesUseCase>(
     GetRecentPurchasesUseCase(repository: getIt<PurchaseListRepository>()),
   );
+  getIt.registerSingleton<ChangeManualSellerUseCase>(
+    ChangeManualSellerUseCase(repository: getIt<PurchaseListRepository>()),
+  );
+  getIt.registerSingleton<DeleteManualItemUseCase>(
+    DeleteManualItemUseCase(repository: getIt<PurchaseListRepository>()),
+  );
+  getIt.registerSingleton<CheckPurchaseShareUseCase>(
+    CheckPurchaseShareUseCase(repository: getIt<PurchaseListRepository>()),
+  );
+  getIt.registerSingleton<GetStockLinkedUseCase>(
+    GetStockLinkedUseCase(repository: getIt<PurchaseListRepository>()),
+  );
+
+  // 🔴 Singleton like AlertSummaryBloc (FEATURE_2610_09 D71): the drawer is
+  // rebuilt on every opening and must not start from null again.
+  getIt.registerSingleton<PurchaseSettingBloc>(
+    PurchaseSettingBloc(getStockLinkedUseCase: getIt<GetStockLinkedUseCase>()),
+  );
 
   // BLoC as factory to allow fresh state per page.
   // 판매자 드롭다운/주문동기화는 기존 seller/order 기능 usecase 를 재사용한다.
@@ -1040,6 +1063,9 @@ void _registerPurchaseListServices() {
       recordPurchaseUseCase: getIt<RecordPurchaseUseCase>(),
       adjustManualQtyUseCase: getIt<AdjustManualQtyUseCase>(),
       addManualItemUseCase: getIt<AddManualItemUseCase>(),
+      changeManualSellerUseCase: getIt<ChangeManualSellerUseCase>(),
+      deleteManualItemUseCase: getIt<DeleteManualItemUseCase>(),
+      checkPurchaseShareUseCase: getIt<CheckPurchaseShareUseCase>(),
       getSellersUseCase: getIt<GetSellersUseCase>(),
       orderUseCase: getIt<OrderUseCase>(),
     ),

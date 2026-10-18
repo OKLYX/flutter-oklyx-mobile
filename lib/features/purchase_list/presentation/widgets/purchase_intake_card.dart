@@ -13,33 +13,49 @@ import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 /// 금액 입력 모드 (PLAN 2609_28 D2) — 영수증 표기가 총액/단가 어느 쪽이든 받는다.
 enum _AmountMode { total, unit }
 
-/// 입고 카드 — 그룹(물품) 토글 최상단의 **유일한 구매 입력창** (PLAN 2609_29 D1).
+/// Intake card — the **only purchase input** of a product (PLAN 2609_29 D1).
 ///
-/// **용도**: "이 판매자가 이 물품을 이만큼 들였다"를 1회로 기록한다. 라인(주문)마다
-/// 폼을 두지 않는다 — 구매기록은 주문을 모른다(D3·D7).
-/// **위치**: `lib/features/purchase_list/presentation/widgets/purchase_intake_card.dart`
-/// **필수 규칙**: 구매목록 탭과 완료 탭이 **같은 위젯**을 쓴다(D21) — 완료탭용 복제 금지.
+/// **Purpose**: records "this seller brought in this many of this product" once.
+/// No form per line (order) — purchase records do not know orders (D3 · D7).
+/// **File**: `lib/features/purchase_list/presentation/widgets/purchase_intake_card.dart`
+/// **Rule**: the list tab and the completed tab use **the same widget** (D21) —
+/// no copy for the completed tab.
 ///
-/// **배치**(2026-10-08 정리): 왼쪽 고정폭 라벨 + 오른쪽 입력, 한 줄에 하나.
-/// - 판매자: `SellerFilterDropdown(includeAll: false, labelText: null)` · 기본 미선택
-/// - 구매일 / 수량(`개`, 음수=정정) / 금액(총액·단가 토글 + `원`, 빈칸=금액 미상)
-///   → 금액 아래 환산(`개당 N원` / `합계 N원`)
-/// - 기준가 반영 체크(D14) — 끄면 체크 아래 설명
-/// - [입고하기] 전폭 버튼 + 아래 안내 「입고하면 재고에 바로 더해집니다」.
-///   재고 즉시 반영은 항상 켜짐(D19) — **스위치를 두지 않는다**, 전송은 늘 `recordStock: true`
-/// - [입고하기]: 판매자 미선택 또는 수량 0/미입력이면 비활성
+/// **Layout** (2026-10-08): fixed-width label on the left, input on the right,
+/// one per line.
+/// - 「판매자」: `SellerFilterDropdown(includeAll: false, labelText: null)` — starts
+///   at [initialSellerId] (the page's seller filter, FEATURE_2610_09 D9) and
+///   returns to it after [입고하기] (D10). Hidden when [hideSeller] (one seller,
+///   D53) — [initialSellerId] is then that seller.
+/// - 「구매일」 / 「수량」 (「개」, negative = correction) / 「금액」 (「총액」·「단가」
+///   toggle + 「원」, empty = amount unknown) → conversion under the amount
+///   (「개당 N원」 / 「합계 N원」)
+/// - 「상품 기준가에 반영」 checkbox (D14) — explained under it when off
+/// - full-width [입고하기] + 「입고하면 재고에 바로 더해집니다」 under it while
+///   [stockLinked] (D71 ③). **No stock switch** — the server follows the stock
+///   link setting; `recordStock: true` is always sent (FEATURE_2610_09 D65).
+/// - [입고하기] is disabled without a seller or with quantity 0 / empty
 ///
-/// **최근 구매이력**(D9)
-/// 카드 하단 [최근 구매이력 ▾]. 기본 접힘. 펼칠 때 `GetRecentPurchasesUseCase` 를
-/// **위젯이 직접** 호출해 로컬 상태로 들고 있다 — BLoC 에 담지 않는다(그룹 N개면 상태도 N벌).
-/// 판매자 조건이 없어 다른 판매자 건도 함께 보인다. 한 번 부른 뒤 접었다 펴면 재호출하지 않고,
-/// [입고] 후에는 캐시를 비우고 접는다(방금 넣은 건이 안 보이면 이상하다).
+/// **Recent purchases** (D9 · FEATURE_2610_09 D7 · D25)
+/// [최근 구매이력 ▾] at the bottom, folded by default. Every opening starts at
+/// 「전체」 and calls `GetRecentPurchasesUseCase` **from the widget** (rows kept
+/// locally, not in the BLoC — N products would mean N states). A 「판매자」
+/// dropdown above the rows filters one seller (hidden when [hideSeller]).
+/// After [입고하기] the rows are dropped and the box folds.
 ///
-/// ❌ 최근 구매이력을 `PurchaseListBloc` 에 담지 말 것
-/// ❌ 이력 조회에 `sellerId` 조건을 걸지 말 것
+/// ❌ Do not keep recent purchases in `PurchaseListBloc`
 class PurchaseIntakeCard extends StatefulWidget {
   final int productId;
   final List<Seller> sellers;
+
+  /// Seller field start value (FEATURE_2610_09 D9 · D10 · D53).
+  final int? initialSellerId;
+
+  /// One seller → no seller fields (D53).
+  final bool hideSeller;
+
+  /// Stock link setting — the 「입고하면 재고에 바로 더해집니다」 line (D71 ③).
+  final bool stockLinked;
 
   /// 목록 조회/액션 진행 중이면 폼을 비활성화한다.
   final bool busy;
@@ -57,6 +73,9 @@ class PurchaseIntakeCard extends StatefulWidget {
   const PurchaseIntakeCard({
     required this.productId,
     required this.sellers,
+    required this.initialSellerId,
+    required this.hideSeller,
+    required this.stockLinked,
     required this.busy,
     required this.onSubmit,
     super.key,
@@ -71,7 +90,7 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
   static final NumberFormat _amountFormat = NumberFormat('#,##0.##', 'ko_KR');
   static const int _recentLimit = 5;
 
-  int? _sellerId;
+  late int? _sellerId = widget.initialSellerId;
   DateTime _purchasedOn = DateTime.now();
   final TextEditingController _qtyController = TextEditingController();
   final TextEditingController _amountController = TextEditingController();
@@ -80,6 +99,7 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
 
   // 최근 구매이력 — 위젯 로컬 상태(PLAN 2609_29 D9).
   bool _historyExpanded = false;
+  int? _historySellerId;
   bool _historyLoading = false;
   String? _historyError;
   List<PurchaseRecord>? _records;
@@ -166,6 +186,7 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
     _qtyController.clear();
     _amountController.clear();
     setState(() {
+      _sellerId = widget.initialSellerId;
       _amountMode = _AmountMode.total;
       _reflectToBasePrice = true;
       // 방금 넣은 건이 빠진 이력을 보여주지 않도록 캐시를 비우고 접는다.
@@ -182,12 +203,23 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
     showInputNoticeToast(context, message);
   }
 
-  /// 펼칠 때 한 번만 조회한다 — 이미 받아둔 캐시가 있으면 재호출하지 않는다.
+  /// D25: every opening starts at 「전체」 and loads again.
   Future<void> _toggleHistory() async {
     final willExpand = !_historyExpanded;
-    setState(() => _historyExpanded = willExpand);
-    if (!willExpand || _records != null || _historyLoading) return;
+    setState(() {
+      _historyExpanded = willExpand;
+      _historySellerId = null;
+    });
+    if (willExpand) await _loadHistory();
+  }
 
+  /// The box's own seller filter, separate from the page's (D25).
+  Future<void> _changeHistorySeller(int? sellerId) async {
+    setState(() => _historySellerId = sellerId);
+    await _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
     setState(() {
       _historyLoading = true;
       _historyError = null;
@@ -195,6 +227,7 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
     final result = await getIt<GetRecentPurchasesUseCase>()(
       widget.productId,
       limit: _recentLimit,
+      sellerId: _historySellerId,
     );
     if (!mounted) return;
     result.fold(
@@ -231,17 +264,18 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
           const SizedBox(height: 10),
 
           // 판매자 (필수) — '전체' 옵션 없음. 라벨은 왼쪽 칸이 그린다.
-          _field(
-            '판매자',
-            SellerFilterDropdown(
-              sellers: widget.sellers,
-              selectedSellerId: _sellerId,
-              enabled: !widget.busy,
-              includeAll: false,
-              labelText: null,
-              onChanged: (value) => setState(() => _sellerId = value),
+          if (!widget.hideSeller)
+            _field(
+              '판매자',
+              SellerFilterDropdown(
+                sellers: widget.sellers,
+                selectedSellerId: _sellerId,
+                enabled: !widget.busy,
+                includeAll: false,
+                labelText: null,
+                onChanged: (value) => setState(() => _sellerId = value),
+              ),
             ),
-          ),
           _field(
             '구매일',
             OutlinedButton.icon(
@@ -336,17 +370,17 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
               child: const Text('입고하기'),
             ),
           ),
-          // 재고 즉시 반영은 항상 켜져 있다(PLAN 2609_29 D19) — 끄는 스위치를
-          // 두지 않고 결과만 알린다. 전송은 늘 recordStock: true.
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Center(
-              child: Text(
-                '입고하면 재고에 바로 더해집니다',
-                style: TextStyle(fontSize: 11, color: muted),
+          // D71 ③: shown only while the stock link is on — no switch here.
+          if (widget.stockLinked)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Center(
+                child: Text(
+                  '입고하면 재고에 바로 더해집니다',
+                  style: TextStyle(fontSize: 11, color: muted),
+                ),
               ),
             ),
-          ),
           const Divider(height: 16),
 
           // 최근 구매이력 (기본 접힘)
@@ -366,6 +400,16 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
               ),
             ),
           ),
+          if (_historyExpanded && !widget.hideSeller)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: SellerFilterDropdown(
+                sellers: widget.sellers,
+                selectedSellerId: _historySellerId,
+                enabled: !_historyLoading,
+                onChanged: _changeHistorySeller,
+              ),
+            ),
           if (_historyExpanded)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),

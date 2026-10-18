@@ -8,6 +8,9 @@ import 'package:flutter_oklyn_mobile/features/alert/presentation/bloc/alert_summ
 import 'package:flutter_oklyn_mobile/features/alert/presentation/bloc/alert_summary_state.dart';
 import 'package:flutter_oklyn_mobile/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/auth/presentation/bloc/auth_event.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_setting_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_setting_event.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_setting_state.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/alert_badge.dart';
 
 /// 전 페이지 공통 Drawer.
@@ -28,6 +31,8 @@ class _AppDrawerState extends State<AppDrawer> {
     super.initState();
     // Drawer 가 열릴 때마다 한 번. 닫혀 있는 동안은 폴링하지 않는다.
     context.read<AlertSummaryBloc>().add(LoadAlertSummary());
+    // FEATURE_2610_09 D71 ②: 「재고 조회」 shows only while the stock link is on.
+    context.read<PurchaseSettingBloc>().add(LoadPurchaseSetting());
   }
 
   @override
@@ -236,15 +241,19 @@ class _AppDrawerState extends State<AppDrawer> {
                   },
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.only(left: 16),
-                child: ListTile(
-                  title: const Text('재고 조회'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.go(Routes.stockSearchPath);
-                  },
-                ),
+              BlocBuilder<PurchaseSettingBloc, PurchaseSettingState>(
+                builder: (context, setting) => setting.stockLinked == true
+                    ? Padding(
+                        padding: const EdgeInsets.only(left: 16),
+                        child: ListTile(
+                          title: const Text('재고 조회'),
+                          onTap: () {
+                            Navigator.pop(context);
+                            context.go(Routes.stockSearchPath);
+                          },
+                        ),
+                      )
+                    : const SizedBox.shrink(),
               ),
             ],
           ),

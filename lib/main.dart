@@ -7,6 +7,7 @@ import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/alert/presentation/bloc/alert_summary_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/auth/presentation/bloc/auth_state.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_setting_bloc.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_theme.dart';
 
 void main() {
@@ -23,6 +24,11 @@ class MyApp extends StatelessWidget {
       BlocProvider<AuthBloc>(create: (_) => getIt<AuthBloc>()),
       // Drawer 는 어느 화면에서 열려도 같은 배지 숫자를 봐야 한다 → 앱 최상단 1개(싱글턴).
       BlocProvider<AlertSummaryBloc>(create: (_) => getIt<AlertSummaryBloc>()),
+      // The stock link setting is read by the drawer, the 「입고·조정」 page and the
+      // purchase list wherever they open → one app-wide instance (FEATURE_2610_09 D71).
+      BlocProvider<PurchaseSettingBloc>(
+        create: (_) => getIt<PurchaseSettingBloc>(),
+      ),
     ],
     child: MaterialApp.router(
       debugShowCheckedModeBanner: false,

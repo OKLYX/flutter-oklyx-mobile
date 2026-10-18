@@ -17,9 +17,9 @@ class PurchaseListRepositoryImpl implements PurchaseListRepository {
   PurchaseListRepositoryImpl({required this.remoteDataSource});
 
   @override
-  Future<Either<Failure, PurchaseListResult>> getList() async {
+  Future<Either<Failure, PurchaseListResult>> getList(int? sellerId) async {
     try {
-      return Right(await remoteDataSource.getList());
+      return Right(await remoteDataSource.getList(sellerId));
     } on DioException catch (e) {
       return Left(_failure(e, 'Server error occurred'));
     } catch (e) {
@@ -42,9 +42,10 @@ class PurchaseListRepositoryImpl implements PurchaseListRepository {
   Future<Either<Failure, List<PurchaseListItem>>> getCompleted(
     String? from,
     String? to,
+    int? sellerId,
   ) async {
     try {
-      final models = await remoteDataSource.getCompleted(from, to);
+      final models = await remoteDataSource.getCompleted(from, to, sellerId);
       return Right(models.cast<PurchaseListItem>());
     } on DioException catch (e) {
       return Left(_failure(e, 'Server error occurred'));
@@ -89,9 +90,11 @@ class PurchaseListRepositoryImpl implements PurchaseListRepository {
   Future<Either<Failure, List<PurchaseRecord>>> recentPurchases(
     int productId, {
     int limit = 5,
+    int? sellerId,
   }) async {
     try {
-      final models = await remoteDataSource.recentPurchases(productId, limit);
+      final models =
+          await remoteDataSource.recentPurchases(productId, limit, sellerId);
       return Right(models.cast<PurchaseRecord>());
     } on DioException catch (e) {
       return Left(_failure(e, 'Failed to load recent purchases'));
@@ -116,14 +119,88 @@ class PurchaseListRepositoryImpl implements PurchaseListRepository {
   }
 
   @override
-  Future<Either<Failure, void>> addManual(int productId, int quantity) async {
+  Future<Either<Failure, void>> addManual(
+    int productId,
+    int sellerId,
+    int quantity,
+  ) async {
     try {
       await remoteDataSource.addManual(
-        AddManualParams(productId: productId, quantity: quantity),
+        AddManualParams(
+          productId: productId,
+          sellerId: sellerId,
+          quantity: quantity,
+        ),
       );
       return const Right(null);
     } on DioException catch (e) {
       return Left(_failure(e, 'Failed to add manual item'));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> changeManualSeller(
+    int itemId,
+    int sellerId,
+  ) async {
+    try {
+      await remoteDataSource.changeManualSeller(itemId, sellerId);
+      return const Right(null);
+    } on DioException catch (e) {
+      return Left(_failure(e, 'Failed to change the seller'));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteManual(int itemId) async {
+    try {
+      await remoteDataSource.deleteManual(itemId);
+      return const Right(null);
+    } on DioException catch (e) {
+      return Left(_failure(e, 'Failed to delete manual item'));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> check(
+    int productId,
+    int sellerId,
+    String status,
+  ) async {
+    try {
+      await remoteDataSource.check(productId, sellerId, status);
+      return const Right(null);
+    } on DioException catch (e) {
+      return Left(_failure(e, 'Failed to save the purchase check'));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> cancelCheck(int checkId) async {
+    try {
+      await remoteDataSource.cancelCheck(checkId);
+      return const Right(null);
+    } on DioException catch (e) {
+      return Left(_failure(e, 'Failed to cancel the purchase check'));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, bool>> getStockLinked() async {
+    try {
+      return Right(await remoteDataSource.getStockLinked());
+    } on DioException catch (e) {
+      return Left(_failure(e, 'Failed to load purchase settings'));
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }

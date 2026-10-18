@@ -11,8 +11,9 @@ class RecordPurchaseParams {
   final double? unitPrice; // unit mode only
   final bool reflectToBasePrice;
 
-  /// 재고 즉시 반영 (PLAN 2609_29 D19) — 화면 체크박스는 체크 + 비활성이라
-  /// 현재는 **항상 true** 로 전송한다. 계약만 미리 세우고 스위치는 잠근 상태다.
+  /// Stock check-in wish (PLAN 2609_29 D19) — always sent as **true**; the
+  /// server writes stock only while the stock link setting is on
+  /// (FEATURE_2610_09 D65).
   final bool recordStock;
 
   RecordPurchaseParams({

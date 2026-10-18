@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 
-/// 구매완료내역 탭의 필터 바: 구매일 기간(시작/종료).
+/// Filter bar of the completed tab: processing-day range (start/end,
+/// FEATURE_2610_09 D63 · D81 · D85).
 ///
-/// 🔴 판매자 드롭다운은 없다(PLAN 2609_29 D11·D21) — 서버가 `/completed` 의
-/// sellerId 파라미터를 없앴고, 완료 목록도 항상 전체다.
+/// 🔴 No seller dropdown here — the page's seller filter under the tabs covers
+/// both tabs (FEATURE_2610_09 D5).
 ///
-/// '조회' 버튼으로 적용한다(즉시 재조회 X). 입력값은 위젯 로컬 상태로 들고 있다가
-/// [onApply]로 한 번에 전달하며, 부모의 적용값([from]/[to])이 바뀌면(조회/초기화 후)
-/// 로컬 상태를 재동기화한다. 날짜를 비우면 해당 경계 없음(=전체 기간)으로 전달한다.
+/// Applied by [조회] (no reload on each change). Inputs live in local widget
+/// state, go to [onApply] at once, and re-sync when the parent's applied values
+/// ([from]/[to]) change (after [조회] / [초기화]). An empty date means no bound on
+/// that side (= all time).
 class CompletedPurchaseFilter extends StatefulWidget {
   final String from;
   final String to;
@@ -98,7 +100,7 @@ class _CompletedPurchaseFilterState extends State<CompletedPurchaseFilter> {
           children: [
             Expanded(
               child: _DateField(
-                label: '구매일 시작',
+                label: '처리일 시작',
                 value: _from,
                 enabled: !widget.isLoading,
                 onTap: () => _pickDate(isFrom: true),
@@ -107,7 +109,7 @@ class _CompletedPurchaseFilterState extends State<CompletedPurchaseFilter> {
             const SizedBox(width: 8),
             Expanded(
               child: _DateField(
-                label: '구매일 종료',
+                label: '처리일 종료',
                 value: _to,
                 enabled: !widget.isLoading,
                 onTap: () => _pickDate(isFrom: false),
@@ -140,7 +142,7 @@ class _CompletedPurchaseFilterState extends State<CompletedPurchaseFilter> {
   }
 }
 
-/// 구매일 날짜 선택 필드(탭하면 DatePicker). 값이 비면 '전체'로 표시한다.
+/// Processing-day field (tap → DatePicker). Empty shows 「전체」.
 class _DateField extends StatelessWidget {
   final String label;
   final String value;

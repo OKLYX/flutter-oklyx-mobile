@@ -7,7 +7,8 @@ class AddManualItemUseCase {
 
   AddManualItemUseCase({required this.repository});
 
-  Future<Either<Failure, void>> call(int productId, int quantity) {
-    return repository.addManual(productId, quantity);
+  Future<Either<Failure, void>> call(
+      int productId, int sellerId, int quantity) {
+    return repository.addManual(productId, sellerId, quantity);
   }
 }

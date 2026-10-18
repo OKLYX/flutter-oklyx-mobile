@@ -2,16 +2,19 @@ import 'purchase_list_state.dart' show PurchaseTab;
 
 abstract class PurchaseListEvent {}
 
-/// 페이지 진입 시: 판매자 목록 + 구매목록 로드.
+/// Page entry: loads the sellers and the purchase list (filter 「전체」).
 ///
-/// ⚠️ 판매자 목록은 **입고 카드 드롭다운**이 쓴다 — 툴바 필터는 없어졌다(PLAN 2609_29 D11).
+/// ⚠️ The sellers feed the seller filter under the tabs, the intake card, the
+/// manual add dialog and [판매자 바꾸기] (FEATURE_2610_09 D5 · D9 · D11 · D24).
 class LoadPurchaseList extends PurchaseListEvent {}
 
-/// 입고 1회 (PLAN 2609_29 D1) — 물품 × 판매자. 수량 음수 허용 = 정정.
+/// One check-in (PLAN 2609_29 D1) — product × seller. A negative quantity is a
+/// correction.
 ///
-/// 성공 시 현재 탭 기준으로 목록을 재조회하고, 서버가 준 stockRecorded 를
-/// 1회성 안내로 상태에 싣는다. 금액은 총액/단가 중 하나만 채워 보낸다(PLAN 2609_28 D1/D2).
-/// recordStock 은 항상 true 다 — 화면 체크박스는 체크 + 비활성(D19).
+/// On success the current tab reloads and the server's stockRecorded travels in
+/// the state as a one-time notice. Only one of total/unit is sent (PLAN 2609_28
+/// D1/D2). recordStock is always true — the server writes stock only while the
+/// stock link setting is on (FEATURE_2610_09 D65).
 class RecordPurchase extends PurchaseListEvent {
   final int productId;
   final int sellerId;
@@ -37,10 +40,8 @@ class RecordPurchase extends PurchaseListEvent {
 /// ⚠️ 안 보내면 다음 리빌드에 같은 안내가 또 뜬다.
 class ClearStockNotice extends PurchaseListEvent {}
 
-/// 라인의 수동수량을 절대값으로 교체. 성공 시 목록 재조회.
-///
-/// ⚠️ 주문 줄에는 입력 컨트롤이 없어(D7) 현재 이 이벤트를 쏘는 화면이 없다 —
-/// 서버 엔드포인트(PATCH /items/{itemId})와 배선은 그대로 살려둔다.
+/// Replaces a manual line's quantity (1 or more, FEATURE_2610_09 D23). The
+/// manual line's quantity field sends it; the list reloads on success.
 class AdjustManualQty extends PurchaseListEvent {
   final int itemId;
   final int manualQty;
@@ -55,8 +56,9 @@ class SwitchTab extends PurchaseListEvent {
   SwitchTab({required this.tab});
 }
 
-/// 완료내역 필터 적용 ('조회' 버튼): 구매일 기간(YYYY-MM-DD, 빈 값=전체)으로 재조회.
-/// 판매자 필터는 없다(D21).
+/// Completed filter applied ([조회]): reloads with the processing-day range
+/// (YYYY-MM-DD, empty = unbounded, FEATURE_2610_09 D63) and the page's seller
+/// filter.
 class ApplyCompletedFilter extends PurchaseListEvent {
   final String from;
   final String to;
@@ -64,7 +66,7 @@ class ApplyCompletedFilter extends PurchaseListEvent {
   ApplyCompletedFilter({required this.from, required this.to});
 }
 
-/// 완료내역 필터 초기화 ('초기화' 버튼): 구매일 오늘로 되돌린 뒤 재조회.
+/// Completed filter reset ([초기화]): back to today, then reload.
 class ResetCompletedFilter extends PurchaseListEvent {}
 
 /// 주문내역 동기화 버튼: 외부 마켓플레이스 동기화 후 재적재 → 목록 갱신.
@@ -72,10 +74,61 @@ class ResetCompletedFilter extends PurchaseListEvent {}
 /// ⚠️ 동기화는 항상 전체다(D11) — 별도 [재적재] 버튼은 없앴다(D12).
 class SyncOrders extends PurchaseListEvent {}
 
-/// 수동항목 추가: 상품 + 수량(>=1)으로 수동 라인 추가. 성공 시 목록 재조회.
+/// Manual add: product + seller + quantity (>= 1) (FEATURE_2610_09 D11).
+/// The list reloads on success.
 class AddManualItem extends PurchaseListEvent {
   final int productId;
+  final int sellerId;
   final int quantity;
 
-  AddManualItem({required this.productId, required this.quantity});
+  AddManualItem({
+    required this.productId,
+    required this.sellerId,
+    required this.quantity,
+  });
+}
+
+/// Seller filter under the tabs (FEATURE_2610_09 D1 · D5). null = 「전체」.
+/// The current tab reloads; the other tab reloads on its next entry.
+class ChangeSellerFilter extends PurchaseListEvent {
+  final int? sellerId;
+
+  ChangeSellerFilter({required this.sellerId});
+}
+
+/// [매입 완료] · [오늘 매입 안 함] on one share (FEATURE_2610_09 D57 · D61).
+/// [status] = `PURCHASED` · `NOT_NEEDED` · `TOMORROW`.
+class CheckShare extends PurchaseListEvent {
+  final int productId;
+  final int sellerId;
+  final String status;
+
+  CheckShare({
+    required this.productId,
+    required this.sellerId,
+    required this.status,
+  });
+}
+
+/// [완료 취소] · [되돌리기] of one share (FEATURE_2610_09 D62 · D67 · D79).
+class CancelShareCheck extends PurchaseListEvent {
+  final int checkId;
+
+  CancelShareCheck({required this.checkId});
+}
+
+/// Moves a manual line to another seller (FEATURE_2610_09 D13 · D24). A seller
+/// that already has one → the server's 409 text arrives as actionError (D26).
+class ChangeManualSeller extends PurchaseListEvent {
+  final int itemId;
+  final int sellerId;
+
+  ChangeManualSeller({required this.itemId, required this.sellerId});
+}
+
+/// [제거] — deletes the manual line (FEATURE_2610_09 D77).
+class DeleteManualLine extends PurchaseListEvent {
+  final int itemId;
+
+  DeleteManualLine({required this.itemId});
 }

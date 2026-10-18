@@ -1,9 +1,14 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:fpdart/fpdart.dart';
+import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/order/domain/usecases/order_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/usecases/get_sellers_usecase.dart';
 import '../../domain/usecases/add_manual_item_usecase.dart';
 import '../../domain/usecases/adjust_manual_qty_usecase.dart';
+import '../../domain/usecases/change_manual_seller_usecase.dart';
+import '../../domain/usecases/check_purchase_share_usecase.dart';
+import '../../domain/usecases/delete_manual_item_usecase.dart';
 import '../../domain/usecases/extract_purchase_list_usecase.dart';
 import '../../domain/usecases/get_completed_purchase_list_usecase.dart';
 import '../../domain/usecases/get_purchase_list_usecase.dart';
@@ -11,22 +16,28 @@ import '../../domain/usecases/record_purchase_usecase.dart';
 import 'purchase_list_event.dart';
 import 'purchase_list_state.dart';
 
-/// 구매목록 BLoC (PLAN 2609_29)
+/// Purchase list BLoC (PLAN 2609_29 · FEATURE_2610_09)
 ///
-/// - 진입 시 판매자 목록 + 구매목록(+미매핑주문) 로드 ([LoadPurchaseList])
-/// - 주문내역 동기화 ([SyncOrders]) = 동기화 + 재적재 한 번에 (별도 [재적재] 없음, D12)
-/// - 탭 전환 ([SwitchTab]) — 완료내역은 지연 로드 후 캐시
-/// - 상품 카드 펼침 토글 (active: [ToggleExpand], completed: [ToggleExpandCompleted])
-/// - 입고 ([RecordPurchase]) / 수동수량 교체 ([AdjustManualQty]) /
-///   수동항목 추가 ([AddManualItem]) 후 재조회
+/// - Entry: sellers + purchase list (+ 「오늘 넘김」 + unmapped orders) ([LoadPurchaseList])
+/// - Order sync ([SyncOrders]) = sync + re-extract, then a reload with the
+///   current filter (no separate [재적재], D12 · FEATURE_2610_09 D4)
+/// - Tab switch ([SwitchTab]) — completed is lazy and cached; a stale list
+///   reloads on entry
+/// - Seller filter ([ChangeSellerFilter]) — the current tab reloads, the other
+///   one on its next entry (D5)
+/// - Check-in ([RecordPurchase]) / manual quantity ([AdjustManualQty]) / manual
+///   add ([AddManualItem]) / manual seller ([ChangeManualSeller]) / manual
+///   delete ([DeleteManualLine]) / share processing ([CheckShare] ·
+///   [CancelShareCheck]) — then the current tab reloads
 ///
-/// 🔴 판매자 스코프가 없다(D11) — 조회·동기화는 항상 전체이고, 판매자는 입고 요청의
-/// 귀속 값으로만 등장한다. 판매자 목록은 입고 카드 드롭다운이 쓴다.
-/// 🔴 최근 구매이력은 이 BLoC 에 담지 않는다(D9) — 그룹마다 상태가 N벌이라 목록 상태와
-/// 뒤엉킨다. 입고 카드 위젯이 `GetRecentPurchasesUseCase` 를 직접 호출해 로컬로 들고 있다.
+/// 🔴 The seller filter narrows the reads only — sync always covers every seller
+/// (FEATURE_2610_09 D19).
+/// 🔴 Recent purchases are not kept in this BLoC (D9) — one state per product
+/// would tangle with the list state. The intake card calls
+/// `GetRecentPurchasesUseCase` itself and keeps the rows locally.
 ///
-/// 판매자 목록은 seller 기능의 [GetSellersUseCase], 주문동기화는 order 기능의
-/// [OrderUseCase]를 재사용한다.
+/// Sellers come from the seller feature's [GetSellersUseCase], order sync from
+/// the order feature's [OrderUseCase].
 class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
   final GetPurchaseListUseCase getPurchaseListUseCase;
   final ExtractPurchaseListUseCase extractPurchaseListUseCase;
@@ -34,6 +45,9 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
   final RecordPurchaseUseCase recordPurchaseUseCase;
   final AdjustManualQtyUseCase adjustManualQtyUseCase;
   final AddManualItemUseCase addManualItemUseCase;
+  final ChangeManualSellerUseCase changeManualSellerUseCase;
+  final DeleteManualItemUseCase deleteManualItemUseCase;
+  final CheckPurchaseShareUseCase checkPurchaseShareUseCase;
   final GetSellersUseCase getSellersUseCase;
   final OrderUseCase orderUseCase;
 
@@ -44,6 +58,9 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
     required this.recordPurchaseUseCase,
     required this.adjustManualQtyUseCase,
     required this.addManualItemUseCase,
+    required this.changeManualSellerUseCase,
+    required this.deleteManualItemUseCase,
+    required this.checkPurchaseShareUseCase,
     required this.getSellersUseCase,
     required this.orderUseCase,
   }) : super(PurchaseListInitial()) {
@@ -56,6 +73,11 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
     on<ClearStockNotice>(_onClearStockNotice);
     on<AdjustManualQty>(_onAdjustManualQty);
     on<AddManualItem>(_onAddManualItem);
+    on<ChangeSellerFilter>(_onChangeSellerFilter);
+    on<CheckShare>(_onCheckShare);
+    on<CancelShareCheck>(_onCancelShareCheck);
+    on<ChangeManualSeller>(_onChangeManualSeller);
+    on<DeleteManualLine>(_onDeleteManualLine);
   }
 
   bool _busy(PurchaseListLoaded s) => s.isRefreshing || s.isSyncing;
@@ -78,12 +100,16 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
     final sellersResult = await getSellersUseCase();
     final sellers = sellersResult.fold((_) => <Seller>[], (list) => list);
 
-    final listResult = await getPurchaseListUseCase();
+    // D53: exactly one seller = that seller picked (the filter is hidden).
+    final soleSellerId = sellers.length == 1 ? sellers.first.id : null;
+    final listResult = await getPurchaseListUseCase(sellerId: soleSellerId);
     listResult.fold(
       (failure) => emit(PurchaseListError(message: failure.message)),
       (result) => emit(PurchaseListLoaded(
         sellers: sellers,
+        filterSellerId: soleSellerId,
         items: result.items,
+        skippedToday: result.skippedToday,
         unmappedOrders: result.unmappedOrders,
         completedFrom: _todayStr(),
         completedTo: _todayStr(),
@@ -91,8 +117,9 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
     );
   }
 
-  /// 주문내역 동기화: order 기능 동기화 후 재적재해 구매목록을 갱신한다.
-  /// 동기화 범위는 항상 전체다(D11).
+  /// Order sync: the order feature syncs, the list re-extracts, then the list
+  /// reloads with the current filter (FEATURE_2610_09 D4). Sync always covers
+  /// every seller (D19).
   Future<void> _onSync(SyncOrders event, Emitter<PurchaseListState> emit) async {
     final current = state;
     if (current is! PurchaseListLoaded) return;
@@ -112,7 +139,19 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
       )),
       (sync) async {
         final extracted = await extractPurchaseListUseCase();
-        extracted.fold(
+        final extractFailure = extracted.fold((f) => f, (_) => null);
+        if (extractFailure != null) {
+          emit(current.copyWith(
+            isSyncing: false,
+            syncResult: sync,
+            actionError: extractFailure.message,
+          ));
+          return;
+        }
+        // D4: the extract answers with 「전체」 — reload with the filter instead.
+        final reloaded =
+            await getPurchaseListUseCase(sellerId: current.filterSellerId);
+        reloaded.fold(
           (failure) => emit(current.copyWith(
             isSyncing: false,
             syncResult: sync,
@@ -122,6 +161,7 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
             isSyncing: false,
             syncResult: sync,
             items: res.items,
+            skippedToday: res.skippedToday,
             unmappedOrders: res.unmappedOrders,
             clearCompleted: true,
           )),
@@ -138,6 +178,15 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
     if (current is! PurchaseListLoaded) return;
 
     emit(current.copyWith(activeTab: event.tab));
+
+    // D5: a list marked stale by the completed tab reloads on entry.
+    if (event.tab == PurchaseTab.active && current.listStale) {
+      await _reloadList(
+        current.copyWith(activeTab: PurchaseTab.active, listStale: false),
+        emit,
+      );
+      return;
+    }
 
     // 완료 탭 진입 시 미로드 캐시면 현재 완료내역 필터로 지연 로드한다.
     if (event.tab == PurchaseTab.completed &&
@@ -164,7 +213,7 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
     await _loadCompleted(current, event.from, event.to, emit);
   }
 
-  /// 완료내역 필터 초기화 → 구매일 오늘로 재조회.
+  /// Completed filter reset → reload with today as the processing-day range.
   Future<void> _onResetCompletedFilter(
     ResetCompletedFilter event,
     Emitter<PurchaseListState> emit,
@@ -177,8 +226,9 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
     await _loadCompleted(current, today, today, emit);
   }
 
-  /// 완료내역을 주어진 구매일 기간으로 조회한다. 필터 값은 상태에 함께 저장해
-  /// active 탭 변이 후 완료 탭 재진입 시에도 유지한다.
+  /// Loads the completed list for the given processing-day range
+  /// (FEATURE_2610_09 D63) and the seller filter. The range stays in the
+  /// state so it survives tab switches.
   Future<void> _loadCompleted(
     PurchaseListLoaded base,
     String from,
@@ -195,6 +245,7 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
     final result = await getCompletedPurchaseListUseCase(
       from.isEmpty ? null : from,
       to.isEmpty ? null : to,
+      sellerId: base.filterSellerId,
     );
     final latest = state;
     if (latest is! PurchaseListLoaded) return;
@@ -233,7 +284,8 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
       totalAmount: event.totalAmount,
       unitPrice: event.unitPrice,
       reflectToBasePrice: event.reflectToBasePrice,
-      // D19 — 화면 체크박스는 체크 + 비활성이라 항상 즉시 반영이다.
+      // Always true — the server writes stock only while the stock link is on
+      // (FEATURE_2610_09 D65).
       recordStock: true,
     );
     await result.fold(
@@ -291,7 +343,11 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
 
     emit(current.copyWith(isRefreshing: true, clearActionError: true));
 
-    final result = await addManualItemUseCase(event.productId, event.quantity);
+    final result = await addManualItemUseCase(
+      event.productId,
+      event.sellerId,
+      event.quantity,
+    );
     await result.fold(
       (failure) async => emit(current.copyWith(
         isRefreshing: false,
@@ -301,11 +357,139 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
     );
   }
 
-  /// 액션 성공 후 **현재 탭의** 목록을 재조회한다.
+  /// D5: the current tab reloads with the new filter, the other one is marked
+  /// for reload on its next entry.
+  Future<void> _onChangeSellerFilter(
+    ChangeSellerFilter event,
+    Emitter<PurchaseListState> emit,
+  ) async {
+    final current = state;
+    if (current is! PurchaseListLoaded) return;
+    if (_busy(current)) return;
+
+    final next = current.copyWith(
+      filterSellerId: event.sellerId,
+      clearFilterSeller: event.sellerId == null,
+    );
+    if (current.activeTab == PurchaseTab.completed) {
+      await _loadCompleted(
+        next.copyWith(listStale: true),
+        current.completedFrom,
+        current.completedTo,
+        emit,
+      );
+      return;
+    }
+    await _reloadList(next.copyWith(clearCompleted: true), emit);
+  }
+
+  Future<void> _onCheckShare(
+    CheckShare event,
+    Emitter<PurchaseListState> emit,
+  ) async {
+    await _runAction(
+      emit,
+      () => checkPurchaseShareUseCase(
+        event.productId,
+        event.sellerId,
+        event.status,
+      ),
+    );
+  }
+
+  Future<void> _onCancelShareCheck(
+    CancelShareCheck event,
+    Emitter<PurchaseListState> emit,
+  ) async {
+    await _runAction(
+      emit,
+      () => checkPurchaseShareUseCase.cancel(event.checkId),
+    );
+  }
+
+  Future<void> _onChangeManualSeller(
+    ChangeManualSeller event,
+    Emitter<PurchaseListState> emit,
+  ) async {
+    await _runAction(
+      emit,
+      () => changeManualSellerUseCase(event.itemId, event.sellerId),
+      movedManualItemId: event.itemId,
+    );
+  }
+
+  Future<void> _onDeleteManualLine(
+    DeleteManualLine event,
+    Emitter<PurchaseListState> emit,
+  ) async {
+    await _runAction(
+      emit,
+      () => deleteManualItemUseCase(event.itemId),
+      deletedManualItemId: event.itemId,
+    );
+  }
+
+  /// Runs one write, then reloads the current tab; a failure keeps the list
+  /// and travels as actionError. [deletedManualItemId] and [movedManualItemId]
+  /// go into the state only on success; a success without [movedManualItemId]
+  /// clears the last moved line (FEATURE_2610_09 D64).
+  Future<void> _runAction(
+    Emitter<PurchaseListState> emit,
+    Future<Either<Failure, void>> Function() action, {
+    int? deletedManualItemId,
+    int? movedManualItemId,
+  }) async {
+    final current = state;
+    if (current is! PurchaseListLoaded) return;
+    if (_busy(current)) return;
+
+    emit(current.copyWith(isRefreshing: true, clearActionError: true));
+
+    final result = await action();
+    await result.fold(
+      (failure) async => emit(current.copyWith(
+        isRefreshing: false,
+        actionError: failure.message,
+      )),
+      (_) async => _refreshAfterAction(
+        current.copyWith(
+          deletedManualItemId: deletedManualItemId,
+          movedManualItemId: movedManualItemId,
+          clearMovedManualItem: movedManualItemId == null,
+        ),
+        emit,
+      ),
+    );
+  }
+
+  /// Reloads the list tab with [base]'s filter.
+  Future<void> _reloadList(
+    PurchaseListLoaded base,
+    Emitter<PurchaseListState> emit,
+  ) async {
+    emit(base.copyWith(isRefreshing: true, clearActionError: true));
+    final result =
+        await getPurchaseListUseCase(sellerId: base.filterSellerId);
+    result.fold(
+      (failure) => emit(base.copyWith(
+        isRefreshing: false,
+        actionError: failure.message,
+      )),
+      (res) => emit(base.copyWith(
+        isRefreshing: false,
+        items: res.items,
+        skippedToday: res.skippedToday,
+        unmappedOrders: res.unmappedOrders,
+      )),
+    );
+  }
+
+  /// Reloads **the current tab** after a successful action.
   ///
-  /// 완료 탭이면 화면에 적용 중인 기간(from/to)을 유지한 채 완료 목록을 다시 부른다
-  /// (D21) — 구매목록 조회로 갈아타지 않는다. 구매목록 탭이면 완료 캐시를 무효화해
-  /// 완료 탭 재진입 시 최신을 받는다. 재조회 실패는 목록을 유지한 채 actionError 만 전달한다.
+  /// Completed tab: reloads the completed list with the applied range and
+  /// filter (D21) and marks the list stale (FEATURE_2610_09 D5). List tab:
+  /// reloads the list with the filter and drops the completed cache. A failed
+  /// reload keeps the list and only carries actionError.
   Future<void> _refreshAfterAction(
     PurchaseListLoaded current,
     Emitter<PurchaseListState> emit, {
@@ -316,6 +500,7 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
         current.copyWith(
           isRefreshing: false,
           stockRecorded: stockRecorded,
+          listStale: true,
         ),
         current.completedFrom,
         current.completedTo,
@@ -324,7 +509,8 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
       return;
     }
 
-    final result = await getPurchaseListUseCase();
+    final result =
+        await getPurchaseListUseCase(sellerId: current.filterSellerId);
     result.fold(
       (failure) => emit(current.copyWith(
         isRefreshing: false,
@@ -335,6 +521,7 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
       (res) => emit(current.copyWith(
         isRefreshing: false,
         items: res.items,
+        skippedToday: res.skippedToday,
         unmappedOrders: res.unmappedOrders,
         clearCompleted: true,
         stockRecorded: stockRecorded,
