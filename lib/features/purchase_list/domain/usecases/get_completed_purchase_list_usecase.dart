@@ -8,11 +8,12 @@ class GetCompletedPurchaseListUseCase {
 
   GetCompletedPurchaseListUseCase({required this.repository});
 
-  /// 구매일 기간만으로 조회한다 — 판매자 필터는 없다(PLAN 2609_29 D21).
+  /// Processing-day range + optional seller (FEATURE_2610_09 D5 · D63).
   Future<Either<Failure, List<PurchaseListItem>>> call(
     String? from,
-    String? to,
-  ) {
-    return repository.getCompleted(from, to);
+    String? to, {
+    int? sellerId,
+  }) {
+    return repository.getCompleted(from, to, sellerId);
   }
 }

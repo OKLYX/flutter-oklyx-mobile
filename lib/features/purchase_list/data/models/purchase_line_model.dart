@@ -7,7 +7,8 @@ class PurchaseLineModel extends PurchaseLine {
     required String source,
     required String? externalOrderId,
     int? marketplaceAccountId,
-    String? sellerName,
+    required int sellerId,
+    required String sellerName,
     String? platform,
     required int autoQty,
     required int manualQty,
@@ -17,6 +18,7 @@ class PurchaseLineModel extends PurchaseLine {
           source: source,
           externalOrderId: externalOrderId,
           marketplaceAccountId: marketplaceAccountId,
+          sellerId: sellerId,
           sellerName: sellerName,
           platform: platform,
           autoQty: autoQty,
@@ -29,9 +31,11 @@ class PurchaseLineModel extends PurchaseLine {
       orderItemId: json['orderItemId'] as int?,
       source: json['source'] as String,
       externalOrderId: json['externalOrderId'] as String?,
-      // 채널 3필드는 수동 라인에서 전부 null 이다 (PLAN 2609_29 D8).
+      // A manual line has no account and no platform; both kinds carry the
+      // seller (FEATURE_2610_09 D17).
       marketplaceAccountId: json['marketplaceAccountId'] as int?,
-      sellerName: json['sellerName'] as String?,
+      sellerId: json['sellerId'] as int,
+      sellerName: json['sellerName'] as String,
       platform: json['platform'] as String?,
       autoQty: json['autoQty'] as int,
       manualQty: json['manualQty'] as int,

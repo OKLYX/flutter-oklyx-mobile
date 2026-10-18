@@ -6,24 +6,29 @@ import '../entities/purchase_record.dart';
 import '../entities/purchase_record_result.dart';
 
 abstract class PurchaseListRepository {
-  /// Active purchase list (items + unmapped orders). 항상 전체다(PLAN 2609_29 D11).
-  Future<Either<Failure, PurchaseListResult>> getList();
+  /// Purchase list tab (rows to buy + 「오늘 넘김」 + unmapped orders).
+  /// [sellerId] null = 「전체」 (FEATURE_2610_09 D1 · D4).
+  Future<Either<Failure, PurchaseListResult>> getList(int? sellerId);
 
   /// Re-extract from 결제완료(PAID) orders (idempotent); returns the refreshed result.
   Future<Either<Failure, PurchaseListResult>> extract();
 
-  /// Completed purchases (remainingQty <= 0 && purchasedQty > 0).
-  /// 구매일 기간([from]/[to], YYYY-MM-DD)만으로 거른다 — null = 전체(D21).
+  /// Completed rows (every share processed, FEATURE_2610_09 D57 · D78).
+  /// Processing-day range ([from]/[to], YYYY-MM-DD, null = unbounded) and
+  /// [sellerId] (null = 「전체」).
   Future<Either<Failure, List<PurchaseListItem>>> getCompleted(
     String? from,
     String? to,
+    int? sellerId,
   );
 
-  /// 입고 1회 — 물품 × 판매자에 귀속된다(D1·D3). [quantity] 음수는 정정이다.
+  /// One check-in, attributed to product × seller (D1 · D3). A negative
+  /// [quantity] is a correction.
   ///
   /// Pass at most one of [totalAmount]/[unitPrice] — the server derives the other
   /// and rejects both-present (PLAN 2609_28 D1/D2). Both null = amount unknown.
-  /// 응답의 stockRecorded=false 는 재고가 반영되지 않았다는 뜻이다(D17·D19).
+  /// stockRecorded=false in the response = no stock written: a negative
+  /// correction (D17) or the stock link setting is off (FEATURE_2610_09 D65).
   Future<Either<Failure, PurchaseRecordResult>> recordPurchase(
     int productId,
     int sellerId,
@@ -35,15 +40,39 @@ abstract class PurchaseListRepository {
     bool recordStock = true,
   });
 
-  /// 그 물품의 최근 구매이력 — 판매자 무관, 최신순 [limit]건(D9).
+  /// Recent purchases of a product, newest first, [limit] rows; [sellerId]
+  /// null = every seller (FEATURE_2610_09 D7 · D25).
   Future<Either<Failure, List<PurchaseRecord>>> recentPurchases(
     int productId, {
     int limit = 5,
+    int? sellerId,
   });
 
-  /// Replace the manual quantity of a line with an absolute value (0+).
+  /// Replace a manual line's quantity with an absolute value (1+).
   Future<Either<Failure, void>> adjustManualQty(int itemId, int manualQty);
 
-  /// Add (or accumulate) a manual line for a product. [quantity] >= 1.
-  Future<Either<Failure, void>> addManual(int productId, int quantity);
+  /// Add (or accumulate) the (product × seller) manual line. [quantity] >= 1.
+  Future<Either<Failure, void>> addManual(
+    int productId,
+    int sellerId,
+    int quantity,
+  );
+
+  /// Move a manual line to another seller; 409 when that seller already has
+  /// one (FEATURE_2610_09 D13 · D26).
+  Future<Either<Failure, void>> changeManualSeller(int itemId, int sellerId);
+
+  /// Delete a manual line (FEATURE_2610_09 D77).
+  Future<Either<Failure, void>> deleteManual(int itemId);
+
+  /// [매입 완료] · [오늘 매입 안 함] on one share. [status] = PURCHASED ·
+  /// NOT_NEEDED · TOMORROW (FEATURE_2610_09 D57 · D61).
+  Future<Either<Failure, void>> check(
+      int productId, int sellerId, String status);
+
+  /// [완료 취소] · [되돌리기] (FEATURE_2610_09 D62 · D67 · D79).
+  Future<Either<Failure, void>> cancelCheck(int checkId);
+
+  /// Stock link setting (FEATURE_2610_09 D65 · D71).
+  Future<Either<Failure, bool>> getStockLinked();
 }

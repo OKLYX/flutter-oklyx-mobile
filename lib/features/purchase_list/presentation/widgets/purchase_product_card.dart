@@ -5,26 +5,35 @@ import 'product_thumbnail.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 
-/// 구매목록 상품(물품) 카드.
+/// Purchase list product card.
 ///
-/// 썸네일(누르면 확대) + 상품명 + 브랜드 / 필요 수량 / 매입 완료 수량(한 줄에 하나)
-/// + 오른쪽 아래 강조된 매입 필요 수량.
-/// 🔴 세 숫자는 **전체 기준**이다 — 판매자로 쪼개지 않는다(PLAN 2609_29 D6).
+/// Thumbnail (tap to zoom) + product name + 「브랜드」 / 「필요 수량」 /
+/// 「매입 완료 수량」 (one per line) + the emphasised 「매입 필요 수량」 at the
+/// bottom-right.
+/// 🔴 The numbers are the response's as they are: a chosen seller's share, or in
+/// 「전체」 the sum of the shares' shortfalls (FEATURE_2610_09 D2 · D22 · D58).
 ///
-/// **두 자리에서 쓴다**(2026-10-09, 펼침 토글 → 상세 페이지):
-/// - 목록: [onTap] 을 주면 오른쪽 위 `›` 와 함께 누르면 상세(`PurchaseProductDetailPage`)로 간다.
-/// - 상세 머리: [onTap] 없이 같은 카드를 요약으로 쓴다(`›` 없음).
-/// 입고 기록 · 최근 구매이력 · 채널 칩 + 주문 줄은 **상세 페이지에만** 있다.
-/// ❌ 완료탭용 카드를 복제하지 말 것 — 두 탭은 같은 카드·같은 상세를 쓴다(D21).
+/// **Used in two places** (2026-10-09, expand toggle → detail page):
+/// - List: with [onTap] it shows `›` and opens the detail
+///   (`PurchaseProductDetailPage`). In the seller view the list passes the
+///   share buttons as [footer] (D83).
+/// - Detail header: the same card without [onTap] as a summary (no `›`).
+/// Intake · recent purchases · channel chips + lines live **on the detail only**.
+/// ❌ Do not copy the card for the completed tab — both tabs use the same card
+/// and the same detail (D21).
 class PurchaseProductCard extends StatelessWidget {
   final PurchaseListItem item;
 
   /// Opens the product detail. Null on the detail page itself.
   final VoidCallback? onTap;
 
+  /// Drawn under the card's row — the share tag and buttons in the seller view.
+  final Widget? footer;
+
   const PurchaseProductCard({
     required this.item,
     this.onTap,
+    this.footer,
     super.key,
   });
 
@@ -34,78 +43,90 @@ class PurchaseProductCard extends StatelessWidget {
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.all(12),
-            // IntrinsicHeight + stretch lets the right column span the row so
-            // the emphasised remaining quantity sits at the bottom-right.
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _row(context),
+                if (footer != null) ...[
+                  const SizedBox(height: 8),
+                  footer!,
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+
+  Widget _row(BuildContext context) =>
+      // IntrinsicHeight + stretch lets the right column span the row so
+      // the emphasised remaining quantity sits at the bottom-right.
+      IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Align keeps the fixed-size thumbnail from being
+            // stretched to the row height.
+            Align(
+              alignment: Alignment.topCenter,
+              child: ProductThumbnail(
+                productId: item.productId,
+                size: 104,
+                zoomable: true,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Align keeps the fixed-size thumbnail from being
-                  // stretched to the row height.
-                  Align(
-                    alignment: Alignment.topCenter,
-                    child: ProductThumbnail(
-                      productId: item.productId,
-                      size: 104,
-                      zoomable: true,
+                  Text(
+                    item.productName,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.productName,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        // One metric per line: full-word labels read
-                        // unambiguously on a narrow screen.
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _labelLine(
-                              '브랜드',
-                              (item.brand?.trim().isNotEmpty ?? false)
-                                  ? item.brand!.trim()
-                                  : '-',
-                              Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                            _metric(
-                              '필요 수량',
-                              item.neededQty,
-                              Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                            _metric(
-                              '매입 완료 수량',
-                              item.purchasedQty,
-                              Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
+                  const SizedBox(height: 6),
+                  // One metric per line: full-word labels read
+                  // unambiguously on a narrow screen.
                   Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (onTap != null)
-                        const Icon(Icons.chevron_right)
-                      else
-                        const SizedBox.shrink(),
-                      _remaining(context, item.remainingQty),
+                      _labelLine(
+                        '브랜드',
+                        (item.brand?.trim().isNotEmpty ?? false)
+                            ? item.brand!.trim()
+                            : '-',
+                        Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      _metric(
+                        '필요 수량',
+                        item.neededQty,
+                        Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      _metric(
+                        '매입 완료 수량',
+                        item.purchasedQty,
+                        Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ],
                   ),
                 ],
               ),
             ),
-          ),
+            const SizedBox(width: 8),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (onTap != null)
+                  const Icon(Icons.chevron_right)
+                else
+                  const SizedBox.shrink(),
+                _remaining(context, item.remainingQty),
+              ],
+            ),
+          ],
         ),
       );
 

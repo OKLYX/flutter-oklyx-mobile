@@ -1,7 +1,8 @@
-/// A single purchase transaction (입고 1건) recorded against a product.
+/// A single purchase transaction (one check-in) recorded against a product.
 ///
-/// 🔴 판매자 무관 조회다 (PLAN 2609_29 D9) — 물품 기준 최근 구매이력에 여러 판매자
-/// 건이 섞여 나오므로 [sellerName] 으로 각 줄이 누구 것인지 보여야 한다.
+/// 🔴 Recent purchases come for every seller unless the history box filters one
+/// (PLAN 2609_29 D9 · FEATURE_2610_09 D7 · D25) — [sellerName] shows whose each
+/// row is.
 ///
 /// `quantity` may be negative for corrections.
 /// `totalAmount`/`unitPrice` are null for rows recorded before FEATURE_2609_28 —

@@ -8,7 +8,8 @@ class GetPurchaseListUseCase {
 
   GetPurchaseListUseCase({required this.repository});
 
-  Future<Either<Failure, PurchaseListResult>> call() {
-    return repository.getList();
+  /// [sellerId] null = 「전체」 (FEATURE_2610_09 D1).
+  Future<Either<Failure, PurchaseListResult>> call({int? sellerId}) {
+    return repository.getList(sellerId);
   }
 }

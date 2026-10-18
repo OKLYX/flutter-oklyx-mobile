@@ -21,35 +21,60 @@ class PurchaseListError extends PurchaseListState {
   PurchaseListError({required this.message});
 }
 
-/// 조회 성공 상태.
+/// Loaded state.
 ///
-/// 동기화/탭/펼침 컨트롤을 유지해야 하므로, 진행 상태는 별도 상태가 아닌
-/// 플래그([isRefreshing]/[isSyncing]/[isLoadingCompleted])로 표현한다.
-/// 일시적 실패는 [actionError]로 전달해 SnackBar로 표시한 뒤 다음 상태에서 비운다.
+/// Sync / tab / detail controls must stay, so progress is a flag
+/// ([isRefreshing] / [isSyncing] / [isLoadingCompleted]), not a separate state.
+/// A transient failure travels in [actionError], is shown as a toast and is
+/// cleared by the next state.
 ///
-/// [sellers]는 툴바 필터가 아니라 **입고 카드 드롭다운**이 쓴다(PLAN 2609_29 D11) —
-/// 판매자 스코프(selectedSellerId)는 없어졌고 조회·동기화는 항상 전체다.
+/// [filterSellerId] is the seller view filter (null = 「전체」, FEATURE_2610_09
+/// D5) — reads only; sync always covers every seller (D19). [sellers] feeds the
+/// filter, the intake card, the manual add dialog and [판매자 바꾸기].
 ///
-/// [completedItems]는 지연 로드 캐시다(null = 미로드). active 탭에서 변이가
-/// 일어나면 null로 무효화해 완료 탭 재진입 시 재조회한다.
+/// [completedItems] is a lazy cache (null = not loaded) and [listStale] marks
+/// the list for reload on the next entry — an action or a filter change on one
+/// tab invalidates the other (D5).
 ///
-/// [stockRecorded]는 입고 1회의 결과를 나르는 **1회성 안내**다 —
-/// false 면 재고가 반영되지 않았다는 SnackBar 를 띄우고 곧바로
-/// `ClearStockNotice`로 지운다(안 지우면 다음 리빌드에 또 뜬다).
+/// [stockRecorded] is a **one-time notice** of a check-in — false shows the
+/// "stock not recorded" toast while the stock link is on, then
+/// `ClearStockNotice` clears it (otherwise the next rebuild shows it again).
+///
+/// [deletedManualItemId] is the manual line the last successful
+/// `DeleteManualLine` removed (FEATURE_2610_09 D64). The detail page matches
+/// it against its last seen lines to word its notice; a deleted id never
+/// comes back, so it is not cleared.
+///
+/// [movedManualItemId] is the manual line the last successful
+/// `ChangeManualSeller` moved to another seller (FEATURE_2610_09 D64). The
+/// next successful share processing, [제거] or [판매자 바꾸기] replaces it (null
+/// unless it is a move) — a moved line still exists under its new seller, so
+/// a kept id would word a later notice wrongly. The detail page checks it
+/// after [deletedManualItemId].
 class PurchaseListLoaded extends PurchaseListState {
   final List<Seller> sellers;
 
   final PurchaseTab activeTab;
 
+  /// Seller view filter; null = 「전체」 (FEATURE_2610_09 D5).
+  final int? filterSellerId;
+
   // active 탭 데이터
   final List<PurchaseListItem> items;
+
+  /// The 「오늘 넘김」 group (FEATURE_2610_09 D67).
+  final List<PurchaseListItem> skippedToday;
   final List<UnmappedOrder> unmappedOrders;
+
+  /// The list must reload on the next entry to the list tab (D5).
+  final bool listStale;
 
   // completed 탭 데이터 (지연 로드)
   final List<PurchaseListItem>? completedItems;
   final bool isLoadingCompleted;
 
-  // completed 탭 필터 (구매일 기간). 기본값은 오늘(YYYY-MM-DD), '조회' 버튼으로 적용한다.
+  // Completed tab filter (processing-day range, FEATURE_2610_09 D63). Defaults to
+  // today (YYYY-MM-DD), applied by [조회].
   final String completedFrom;
   final String completedTo;
 
@@ -58,12 +83,17 @@ class PurchaseListLoaded extends PurchaseListState {
   final OrderSyncResult? syncResult;
   final String? actionError;
   final bool? stockRecorded;
+  final int? deletedManualItemId;
+  final int? movedManualItemId;
 
   PurchaseListLoaded({
     required this.sellers,
     this.activeTab = PurchaseTab.active,
+    this.filterSellerId,
     required this.items,
+    this.skippedToday = const [],
     this.unmappedOrders = const [],
+    this.listStale = false,
     this.completedItems,
     this.isLoadingCompleted = false,
     required this.completedFrom,
@@ -73,13 +103,19 @@ class PurchaseListLoaded extends PurchaseListState {
     this.syncResult,
     this.actionError,
     this.stockRecorded,
+    this.deletedManualItemId,
+    this.movedManualItemId,
   });
 
   PurchaseListLoaded copyWith({
     List<Seller>? sellers,
     PurchaseTab? activeTab,
+    int? filterSellerId,
+    bool clearFilterSeller = false,
     List<PurchaseListItem>? items,
+    List<PurchaseListItem>? skippedToday,
     List<UnmappedOrder>? unmappedOrders,
+    bool? listStale,
     List<PurchaseListItem>? completedItems,
     bool clearCompleted = false,
     bool? isLoadingCompleted,
@@ -93,12 +129,19 @@ class PurchaseListLoaded extends PurchaseListState {
     bool clearActionError = false,
     bool? stockRecorded,
     bool clearStockRecorded = false,
+    int? deletedManualItemId,
+    int? movedManualItemId,
+    bool clearMovedManualItem = false,
   }) {
     return PurchaseListLoaded(
       sellers: sellers ?? this.sellers,
       activeTab: activeTab ?? this.activeTab,
+      filterSellerId:
+          clearFilterSeller ? null : (filterSellerId ?? this.filterSellerId),
       items: items ?? this.items,
+      skippedToday: skippedToday ?? this.skippedToday,
       unmappedOrders: unmappedOrders ?? this.unmappedOrders,
+      listStale: listStale ?? this.listStale,
       completedItems:
           clearCompleted ? null : (completedItems ?? this.completedItems),
       isLoadingCompleted: isLoadingCompleted ?? this.isLoadingCompleted,
@@ -110,6 +153,10 @@ class PurchaseListLoaded extends PurchaseListState {
       actionError: clearActionError ? null : (actionError ?? this.actionError),
       stockRecorded:
           clearStockRecorded ? null : (stockRecorded ?? this.stockRecorded),
+      deletedManualItemId: deletedManualItemId ?? this.deletedManualItemId,
+      movedManualItemId: clearMovedManualItem
+          ? null
+          : (movedManualItemId ?? this.movedManualItemId),
     );
   }
 }
