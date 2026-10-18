@@ -132,3 +132,8 @@ class DeleteManualLine extends PurchaseListEvent {
 
   DeleteManualLine({required this.itemId});
 }
+
+/// The receipt popup saved a receipt, or the receipt sheet edited a receipt
+/// header (FEATURE_2610_18 D46 · D100) — the current tab reloads like after a
+/// check-in. The popup and the sheet call the use case themselves.
+class ReceiptSaved extends PurchaseListEvent {}

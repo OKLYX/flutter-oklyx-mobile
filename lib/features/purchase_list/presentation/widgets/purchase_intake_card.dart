@@ -6,14 +6,17 @@ import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import '../../domain/entities/purchase_record.dart';
 import '../../domain/usecases/get_recent_purchases_usecase.dart';
+import 'receipt_detail_sheet.dart';
 import 'seller_filter_dropdown.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 /// 금액 입력 모드 (PLAN 2609_28 D2) — 영수증 표기가 총액/단가 어느 쪽이든 받는다.
 enum _AmountMode { total, unit }
 
-/// Intake card — the **only purchase input** of a product (PLAN 2609_29 D1).
+/// Intake card — the per-product purchase input (PLAN 2609_29 D1). The receipt
+/// popup (`ReceiptIntakeSheet`, FEATURE_2610_18 D46 · D75) is the other way in.
 ///
 /// **Purpose**: records "this seller brought in this many of this product" once.
 /// No form per line (order) — purchase records do not know orders (D3 · D7).
@@ -28,7 +31,7 @@ enum _AmountMode { total, unit }
 ///   returns to it after [입고하기] (D10). Hidden when [hideSeller] (one seller,
 ///   D53) — [initialSellerId] is then that seller.
 /// - 「구매일」 / 「수량」 (「개」, negative = correction) / 「금액」 (「총액」·「단가」
-///   toggle + 「원」, empty = amount unknown) → conversion under the amount
+///   toggle + 「원」, empty = amount not entered) → conversion under the amount
 ///   (「개당 N원」 / 「합계 N원」)
 /// - 「상품 기준가에 반영」 checkbox (D14) — explained under it when off
 /// - full-width [입고하기] + 「입고하면 재고에 바로 더해집니다」 under it while
@@ -41,6 +44,9 @@ enum _AmountMode { total, unit }
 /// 「전체」 and calls `GetRecentPurchasesUseCase` **from the widget** (rows kept
 /// locally, not in the BLoC — N products would mean N states). A 「판매자」
 /// dropdown above the rows filters one seller (hidden when [hideSeller]).
+/// A row that came with a receipt has [영수증] → `ReceiptDetailSheet`
+/// (FEATURE_2610_18 D93 ①); a header edit there reloads the rows and calls
+/// [onReceiptEdited] (D100).
 /// After [입고하기] the rows are dropped and the box folds.
 ///
 /// ❌ Do not keep recent purchases in `PurchaseListBloc`
@@ -70,6 +76,10 @@ class PurchaseIntakeCard extends StatefulWidget {
     required bool reflectToBasePrice,
   }) onSubmit;
 
+  /// A receipt header was edited from a recent purchase row (FEATURE_2610_18
+  /// D100) — the page reloads its numbers.
+  final VoidCallback onReceiptEdited;
+
   const PurchaseIntakeCard({
     required this.productId,
     required this.sellers,
@@ -78,6 +88,7 @@ class PurchaseIntakeCard extends StatefulWidget {
     required this.stockLinked,
     required this.busy,
     required this.onSubmit,
+    required this.onReceiptEdited,
     super.key,
   });
 
@@ -125,7 +136,8 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
     if (mounted) setState(() {});
   }
 
-  /// 입력된 금액(콤마 허용). 빈 값이면 null = 금액 미상.
+  /// Typed amount (commas allowed). Blank → null = amount not entered
+  /// (FEATURE_2610_18 D68 「미기입」).
   double? _parsedAmount() {
     final raw = _amountController.text.trim().replaceAll(',', '');
     if (raw.isEmpty) return null;
@@ -506,15 +518,16 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
     );
   }
 
-  /// `09-09 · A상사 · +3 · 6,000원 (@2,000) · 기준가 미반영`
-  /// 금액이 없으면 `금액 미상` — `0원` 으로 쓰지 않는다(PLAN 2609_28 D1).
+  /// 「09-09 · A상사 · +3 · 6,000원 (@2,000) · 기준가 미반영」 + [영수증] when the
+  /// purchase came with a receipt (FEATURE_2610_18 D93 ①).
+  /// No amount → 「미기입」 (D68) — never 「0원」 (PLAN 2609_28 D1).
   Widget _recordText(PurchaseRecord r) {
     final scheme = Theme.of(context).colorScheme;
     final baseColor = r.quantity < 0 ? scheme.error : scheme.onSurfaceVariant;
     final mutedColor = Theme.of(context).colorScheme.onSurfaceVariant;
     final date =
         r.purchasedOn.length >= 10 ? r.purchasedOn.substring(5) : r.purchasedOn;
-    return Text.rich(
+    final text = Text.rich(
       TextSpan(
         style: TextStyle(fontSize: 12, color: baseColor),
         children: [
@@ -523,7 +536,7 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
                 '${r.quantity > 0 ? '+' : ''}${r.quantity}',
           ),
           if (r.totalAmount == null)
-            TextSpan(text: ' · 금액 미상', style: TextStyle(color: mutedColor))
+            TextSpan(text: ' · 미기입', style: TextStyle(color: mutedColor))
           else
             TextSpan(
               text: ' · ${_amountFormat.format(r.totalAmount)}원'
@@ -533,6 +546,32 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
             TextSpan(text: ' · 기준가 미반영', style: TextStyle(color: mutedColor)),
         ],
       ),
+    );
+    final receiptId = r.receiptId;
+    if (receiptId == null) return text;
+    return Row(
+      children: [
+        Expanded(child: text),
+        TextButton(
+          onPressed: () => showAppSheet<void>(
+            context,
+            builder: (_) => ReceiptDetailSheet(
+              receiptId: receiptId,
+              sellers: widget.sellers,
+              onEdited: () {
+                // D100: the line may have moved to another seller or day.
+                if (_historyExpanded) _loadHistory();
+                widget.onReceiptEdited();
+              },
+            ),
+          ),
+          style: TextButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          child: const Text('영수증', style: TextStyle(fontSize: 12)),
+        ),
+      ],
     );
   }
 }

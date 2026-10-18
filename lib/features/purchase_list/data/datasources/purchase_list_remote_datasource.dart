@@ -1,11 +1,19 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:dio/dio.dart';
+import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
 import '../models/add_manual_params.dart';
 import '../models/adjust_manual_qty_params.dart';
+import '../models/create_receipt_params.dart';
 import '../models/purchase_list_item_model.dart';
 import '../models/purchase_list_result_model.dart';
 import '../models/purchase_record_model.dart';
 import '../models/purchase_record_result_model.dart';
+import '../models/receipt_detail_model.dart';
 import '../models/record_purchase_params.dart';
+import '../models/seller_card_model.dart';
+import '../models/update_receipt_params.dart';
 
 /// Purchase list API (PLAN 2609_29 · FEATURE_2610_09).
 ///
@@ -34,6 +42,23 @@ abstract class PurchaseListRemoteDataSource {
 
   /// `GET /api/admin/purchase-settings` → `stockLinked` (any signed-in user).
   Future<bool> getStockLinked();
+
+  /// `GET /api/admin/seller-cards` — visible cards (FEATURE_2610_18 D87).
+  Future<List<SellerCardModel>> getSellerCards();
+
+  /// `POST /api/admin/purchase-receipts` (multipart `photo` + `request`) →
+  /// the new receipt id (FEATURE_2610_18 D76).
+  Future<int> createReceipt(File photo, CreateReceiptParams params);
+
+  /// `GET /api/admin/purchase-receipts/{id}` (FEATURE_2610_18 D93 ①).
+  Future<ReceiptDetailModel> getReceipt(int receiptId);
+
+  /// `PUT /api/admin/purchase-receipts/{id}` — header edit, returns the
+  /// receipt as saved (FEATURE_2610_18 D100).
+  Future<ReceiptDetailModel> updateReceipt(
+    int receiptId,
+    UpdateReceiptParams params,
+  );
 }
 
 class PurchaseListRemoteDataSourceImpl implements PurchaseListRemoteDataSource {
@@ -169,5 +194,73 @@ class PurchaseListRemoteDataSourceImpl implements PurchaseListRemoteDataSource {
     final response = await dio.get('/api/admin/purchase-settings');
     final data = response.data['data'] as Map<String, dynamic>;
     return data['stockLinked'] as bool;
+  }
+
+  @override
+  Future<List<SellerCardModel>> getSellerCards() async {
+    final response = _ensureOk(await dio.get('/api/admin/seller-cards'));
+    final cards = (response.data['data'] as List<dynamic>?) ?? const [];
+    return cards
+        .map((e) => SellerCardModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<int> createReceipt(File photo, CreateReceiptParams params) async {
+    final form = FormData.fromMap({
+      // The file name extension sets the part type (jpg → image/jpeg) — the
+      // server accepts jpeg/png only.
+      'photo': await MultipartFile.fromFile(
+        photo.path,
+        filename: photo.path.split('/').last,
+      ),
+      // The server reads this part as JSON (@RequestPart).
+      'request': MultipartFile.fromString(
+        jsonEncode(params.toJson()),
+        contentType: DioMediaType('application', 'json'),
+      ),
+    });
+    final response = _ensureOk(await dio.post(
+      '/api/admin/purchase-receipts',
+      data: form,
+      options: Options(contentType: 'multipart/form-data'),
+    ));
+    final data = response.data['data'] as Map<String, dynamic>;
+    return data['receiptId'] as int;
+  }
+
+  @override
+  Future<ReceiptDetailModel> getReceipt(int receiptId) async {
+    final response =
+        _ensureOk(await dio.get('/api/admin/purchase-receipts/$receiptId'));
+    return ReceiptDetailModel.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+    );
+  }
+
+  @override
+  Future<ReceiptDetailModel> updateReceipt(
+    int receiptId,
+    UpdateReceiptParams params,
+  ) async {
+    final response = _ensureOk(await dio.put(
+      '/api/admin/purchase-receipts/$receiptId',
+      data: params.toJson(),
+    ));
+    return ReceiptDetailModel.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+    );
+  }
+
+  /// `DioClient` lets every status below 500 through as a normal response —
+  /// a 4xx is turned into a [ServerException] carrying the server message.
+  Response _ensureOk(Response response) {
+    final code = response.statusCode ?? 0;
+    if (code >= 200 && code < 300) return response;
+    final body = response.data;
+    final message = body is Map && body['message'] is String
+        ? body['message'] as String
+        : '';
+    throw ServerException(message, statusCode: code);
   }
 }
