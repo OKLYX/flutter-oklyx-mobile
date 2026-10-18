@@ -1,14 +1,21 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/entities/purchase_list_item.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/entities/purchase_list_result.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/entities/purchase_record.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/entities/purchase_record_result.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/domain/entities/receipt_detail.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/domain/entities/seller_card.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/repositories/purchase_list_repository.dart';
 import '../datasources/purchase_list_remote_datasource.dart';
 import '../models/add_manual_params.dart';
 import '../models/adjust_manual_qty_params.dart';
+import '../models/create_receipt_params.dart';
+import '../models/update_receipt_params.dart';
 import '../models/record_purchase_params.dart';
 
 class PurchaseListRepositoryImpl implements PurchaseListRepository {
@@ -204,6 +211,74 @@ class PurchaseListRepositoryImpl implements PurchaseListRepository {
     } catch (e) {
       return Left(ServerFailure(e.toString()));
     }
+  }
+
+  @override
+  Future<Either<Failure, List<SellerCard>>> getSellerCards() async {
+    try {
+      final models = await remoteDataSource.getSellerCards();
+      return Right(models.cast<SellerCard>());
+    } on ServerException catch (e) {
+      return Left(_serverFailure(e, 'Failed to load the cards'));
+    } on DioException catch (e) {
+      return Left(_failure(e, 'Failed to load the cards'));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, int>> createReceipt(
+    File photo,
+    CreateReceiptParams params,
+  ) async {
+    try {
+      return Right(await remoteDataSource.createReceipt(photo, params));
+    } on ServerException catch (e) {
+      return Left(_serverFailure(e, 'Failed to save the receipt'));
+    } on DioException catch (e) {
+      return Left(_failure(e, 'Failed to save the receipt'));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, ReceiptDetail>> getReceipt(int receiptId) async {
+    try {
+      return Right(await remoteDataSource.getReceipt(receiptId));
+    } on ServerException catch (e) {
+      return Left(_serverFailure(e, 'Failed to load the receipt'));
+    } on DioException catch (e) {
+      return Left(_failure(e, 'Failed to load the receipt'));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, ReceiptDetail>> updateReceipt(
+    int receiptId,
+    UpdateReceiptParams params,
+  ) async {
+    try {
+      return Right(await remoteDataSource.updateReceipt(receiptId, params));
+    } on ServerException catch (e) {
+      return Left(_serverFailure(e, 'Failed to update the receipt'));
+    } on DioException catch (e) {
+      return Left(_failure(e, 'Failed to update the receipt'));
+    } catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  /// A 4xx turned into [ServerException] by the data source — the server
+  /// message first, [fallback] when it is empty.
+  ServerFailure _serverFailure(ServerException e, String fallback) {
+    return ServerFailure(
+      e.message.isEmpty ? fallback : e.message,
+      statusCode: e.statusCode,
+    );
   }
 
   /// 서버 원본 메시지를 우선 노출한다(입고 실패 사유가 그대로 보여야 한다).

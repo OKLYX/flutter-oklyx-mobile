@@ -28,7 +28,9 @@ import 'purchase_list_state.dart';
 /// - Check-in ([RecordPurchase]) / manual quantity ([AdjustManualQty]) / manual
 ///   add ([AddManualItem]) / manual seller ([ChangeManualSeller]) / manual
 ///   delete ([DeleteManualLine]) / share processing ([CheckShare] ·
-///   [CancelShareCheck]) — then the current tab reloads
+///   [CancelShareCheck]) / receipt saved by the popup or its header edited in
+///   the receipt sheet ([ReceiptSaved], FEATURE_2610_18) — then the current
+///   tab reloads
 ///
 /// 🔴 The seller filter narrows the reads only — sync always covers every seller
 /// (FEATURE_2610_09 D19).
@@ -78,6 +80,7 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
     on<CancelShareCheck>(_onCancelShareCheck);
     on<ChangeManualSeller>(_onChangeManualSeller);
     on<DeleteManualLine>(_onDeleteManualLine);
+    on<ReceiptSaved>(_onReceiptSaved);
   }
 
   bool _busy(PurchaseListLoaded s) => s.isRefreshing || s.isSyncing;
@@ -427,6 +430,20 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
       () => deleteManualItemUseCase(event.itemId),
       deletedManualItemId: event.itemId,
     );
+  }
+
+  /// The receipt popup saved a receipt or the receipt sheet edited a receipt
+  /// header (FEATURE_2610_18 D100) — reload the current tab like after a
+  /// check-in.
+  Future<void> _onReceiptSaved(
+    ReceiptSaved event,
+    Emitter<PurchaseListState> emit,
+  ) async {
+    final current = state;
+    if (current is! PurchaseListLoaded) return;
+
+    emit(current.copyWith(isRefreshing: true, clearActionError: true));
+    await _refreshAfterAction(current, emit);
   }
 
   /// Runs one write, then reloads the current tab; a failure keeps the list

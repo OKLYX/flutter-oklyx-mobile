@@ -17,10 +17,12 @@ import 'purchase_product_detail_page.dart';
 import '../widgets/completed_purchase_filter.dart';
 import '../widgets/purchase_product_card.dart';
 import '../widgets/purchase_share_actions.dart';
+import '../widgets/receipt_intake_sheet.dart';
 import '../widgets/seller_filter_dropdown.dart';
 import '../widgets/unmapped_orders_section.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
@@ -29,7 +31,8 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 ///
 /// **Purpose**: the web purchase list (dashboard/purchase/list) on mobile.
 /// **Parts**:
-/// - Toolbar: [주문내역 동기화] (sync + re-extract at once) · [수동 추가]
+/// - Toolbar: [주문내역 동기화] (sync + re-extract at once) · [수동 추가];
+///   a full-width [영수증 입고] under it (receipt popup, FEATURE_2610_18 D46)
 ///   🔴 no [재적재] (PLAN 2609_29 D12)
 /// - Tabs: 「구매목록」 / 「구매완료내역」 (lazy, processing-day filter)
 /// - Seller filter under the tabs on both tabs (FEATURE_2610_09 D5), hidden
@@ -250,6 +253,16 @@ class _ActiveTabBody extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
+        // FEATURE_2610_18 D46: receipt check-in popup above the list.
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: busy ? null : () => _openReceiptSheet(context, bloc, state),
+            icon: const Icon(Icons.receipt_long, size: 18),
+            label: const Text('영수증 입고'),
+          ),
+        ),
+        const SizedBox(height: 8),
         if (state.syncResult != null) ...[
           Container(
             width: double.infinity,
@@ -457,6 +470,23 @@ Widget? _shareFooter(
       ),
     ],
   );
+}
+
+/// Opens the receipt popup; a saved receipt shows the success toast and
+/// reloads the current tab (FEATURE_2610_18 D46).
+Future<void> _openReceiptSheet(
+  BuildContext context,
+  PurchaseListBloc bloc,
+  PurchaseListLoaded state,
+) async {
+  final saved = await showAppSheet<bool>(
+    context,
+    builder: (_) => ReceiptIntakeSheet(sellers: state.sellers),
+  );
+  if (saved == true && context.mounted) {
+    showSuccessToast(context, '영수증 입고를 저장했습니다.');
+    bloc.add(ReceiptSaved());
+  }
 }
 
 /// Opens the product detail on top of the list, sharing the list's bloc so

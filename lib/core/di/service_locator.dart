@@ -159,6 +159,10 @@ import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/chan
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/check_purchase_share_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/delete_manual_item_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/get_stock_linked_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/get_seller_cards_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/create_receipt_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/get_receipt_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/update_receipt_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_setting_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/data/datasources/stock_ledger_remote_datasource.dart';
@@ -1045,6 +1049,20 @@ void _registerPurchaseListServices() {
   );
   getIt.registerSingleton<GetStockLinkedUseCase>(
     GetStockLinkedUseCase(repository: getIt<PurchaseListRepository>()),
+  );
+  // FEATURE_2610_18: the receipt popup and the receipt sheet call these
+  // themselves (not through PurchaseListBloc), like the recent purchases.
+  getIt.registerSingleton<GetSellerCardsUseCase>(
+    GetSellerCardsUseCase(repository: getIt<PurchaseListRepository>()),
+  );
+  getIt.registerSingleton<CreateReceiptUseCase>(
+    CreateReceiptUseCase(repository: getIt<PurchaseListRepository>()),
+  );
+  getIt.registerSingleton<GetReceiptUseCase>(
+    GetReceiptUseCase(repository: getIt<PurchaseListRepository>()),
+  );
+  getIt.registerSingleton<UpdateReceiptUseCase>(
+    UpdateReceiptUseCase(repository: getIt<PurchaseListRepository>()),
   );
 
   // 🔴 Singleton like AlertSummaryBloc (FEATURE_2610_09 D71): the drawer is

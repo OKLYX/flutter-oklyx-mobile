@@ -1,9 +1,15 @@
+import 'dart:io';
+
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
+import '../../data/models/create_receipt_params.dart';
+import '../../data/models/update_receipt_params.dart';
 import '../entities/purchase_list_item.dart';
 import '../entities/purchase_list_result.dart';
 import '../entities/purchase_record.dart';
 import '../entities/purchase_record_result.dart';
+import '../entities/receipt_detail.dart';
+import '../entities/seller_card.dart';
 
 abstract class PurchaseListRepository {
   /// Purchase list tab (rows to buy + 「오늘 넘김」 + unmapped orders).
@@ -75,4 +81,23 @@ abstract class PurchaseListRepository {
 
   /// Stock link setting (FEATURE_2610_09 D65 · D71).
   Future<Either<Failure, bool>> getStockLinked();
+
+  /// Visible cards of every seller (FEATURE_2610_18 D87 · D91).
+  Future<Either<Failure, List<SellerCard>>> getSellerCards();
+
+  /// Receipt check-in — [photo] + [params] in one multipart request
+  /// (FEATURE_2610_18 D76). Right = the new receipt id.
+  Future<Either<Failure, int>> createReceipt(
+    File photo,
+    CreateReceiptParams params,
+  );
+
+  /// One receipt with its photo and lines (FEATURE_2610_18 D93 ①).
+  Future<Either<Failure, ReceiptDetail>> getReceipt(int receiptId);
+
+  /// Receipt header edit (FEATURE_2610_18 D100). Right = the receipt as saved.
+  Future<Either<Failure, ReceiptDetail>> updateReceipt(
+    int receiptId,
+    UpdateReceiptParams params,
+  );
 }
