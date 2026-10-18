@@ -29,6 +29,7 @@ class OrderModel extends OrderItem {
     super.visitPickup,
     super.reservedSale,
     super.stockConfirmSent,
+    super.thumbnailProductId,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
@@ -63,6 +64,8 @@ class OrderModel extends OrderItem {
       visitPickup: json['visitPickup'] as bool? ?? false,
       reservedSale: json['reservedSale'] as bool? ?? false,
       stockConfirmSent: json['stockConfirmSent'] as bool? ?? false,
+      // Missing on an older server = null (empty box).
+      thumbnailProductId: (json['thumbnailProductId'] as num?)?.toInt(),
     );
   }
 }

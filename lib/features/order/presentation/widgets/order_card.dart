@@ -7,6 +7,7 @@ import '../../domain/entities/order_item.dart';
 import 'elevenst_reserved_badge.dart';
 import 'internal_stage_badge.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/product_thumbnail.dart';
 
 /// Card for one order — shared by the two screens, order history and shipment
 /// management.
@@ -36,6 +37,9 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 /// ⚠️ The selection checkbox is **optional** ([onToggleSelect] not passed =
 /// exactly the card as it is now). Only order acknowledgement (shipment
 /// management) passes it — order history does not.
+/// ⚠️ The thumbnail (left) is the server-picked first component product; a
+/// line without one shows a grey box of the same size. Tapping a loaded image
+/// opens the zoom viewer instead of the detail page.
 /// ❌ Do not make a `_OrderCard` copy per screen (the cards of the two screens
 /// silently drift apart).
 class OrderCard extends StatelessWidget {
@@ -72,7 +76,8 @@ class OrderCard extends StatelessWidget {
       onTap: () => context.push(Routes.orderHistoryDetailPath, extra: order),
       // 카드 항목은 프론트 OrderTable 컬럼과 동일:
       // 주문번호 / 고객명 / 상품명 / 주문수량 / 취소 / 결제일.
-      child: _withCheckbox(
+      child: _withCheckbox(_withThumbnail(
+            context,
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -140,7 +145,38 @@ class OrderCard extends StatelessWidget {
                 ),
               ],
             ),
-          ),
+          )),
+    );
+  }
+
+  static const double _thumbSize = 56;
+
+  /// Thumbnail on the left, the text column on the right.
+  Widget _withThumbnail(BuildContext context, Widget content) {
+    final productId = order.thumbnailProductId;
+    final thumb = productId != null
+        ? ProductThumbnail(
+            productId: productId, size: _thumbSize, zoomable: true)
+        : ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Container(
+              width: _thumbSize,
+              height: _thumbSize,
+              color: Theme.of(context).colorScheme.outlineVariant,
+              child: Icon(
+                Icons.image,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                size: _thumbSize * 0.5,
+              ),
+            ),
+          );
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        thumb,
+        const SizedBox(width: 12),
+        Expanded(child: content),
+      ],
     );
   }
 
