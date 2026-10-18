@@ -59,6 +59,11 @@ class OrderItem {
   final bool reservedSale;
   final bool stockConfirmSent;
 
+  /// Row thumbnail = first component product of the line's master option
+  /// (server-picked). null when the line could not be expanded (unmapped
+  /// option etc.) — the card draws an empty box.
+  final int? thumbnailProductId;
+
   const OrderItem({
     required this.id,
     required this.marketplaceAccountId,
@@ -85,6 +90,7 @@ class OrderItem {
     this.visitPickup = false,
     this.reservedSale = false,
     this.stockConfirmSent = false,
+    this.thumbnailProductId,
   });
 }
 
