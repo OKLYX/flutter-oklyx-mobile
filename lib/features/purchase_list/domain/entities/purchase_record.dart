@@ -5,10 +5,11 @@
 /// row is.
 ///
 /// `quantity` may be negative for corrections.
-/// `totalAmount`/`unitPrice` are null for rows recorded before FEATURE_2609_28 —
-/// null means "unknown", NOT zero (PLAN 2609_28 D1).
+/// `totalAmount`/`unitPrice` are null when the amount was not entered
+/// (FEATURE_2610_18 D68 「미기입」) or the row predates FEATURE_2609_28 —
+/// never zero (PLAN 2609_28 D1).
 /// The server owns the derivation: whichever of total/unit was submitted, it
-/// stores both, so both are non-null together on newer rows.
+/// stores both, so both are non-null together on rows with an amount.
 class PurchaseRecord {
   final int id;
   final String purchasedOn; // YYYY-MM-DD
@@ -23,6 +24,10 @@ class PurchaseRecord {
   /// 귀속 판매자명 (PLAN 2609_29 D3).
   final String sellerName;
 
+  /// Set = the purchase came in with a receipt → [영수증] (FEATURE_2610_18
+  /// D93 ①). null = per-product check-in.
+  final int? receiptId;
+
   PurchaseRecord({
     required this.id,
     required this.purchasedOn,
@@ -31,5 +36,6 @@ class PurchaseRecord {
     this.unitPrice,
     this.reflectToBasePrice = true,
     this.sellerName = '',
+    this.receiptId,
   });
 }

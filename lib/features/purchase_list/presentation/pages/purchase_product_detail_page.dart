@@ -193,6 +193,7 @@ class _PurchaseProductDetailPageState extends State<PurchaseProductDetailPage> {
           unitPrice: unitPrice,
           reflectToBasePrice: reflectToBasePrice,
         )),
+        onReceiptEdited: () => bloc.add(ReceiptSaved()),
       ),
       const SizedBox(height: 4),
       AppCard(
