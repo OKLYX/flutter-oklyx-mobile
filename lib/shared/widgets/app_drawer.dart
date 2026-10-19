@@ -259,6 +259,22 @@ class _AppDrawerState extends State<AppDrawer> {
           ),
           ExpansionTile(
             shape: const Border(),
+            title: const Text('정산관리'),
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('정산 내역'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.settlementPayoutsPath);
+                  },
+                ),
+              ),
+            ],
+          ),
+          ExpansionTile(
+            shape: const Border(),
             title: const Text('비용관리'),
             children: [
               Padding(

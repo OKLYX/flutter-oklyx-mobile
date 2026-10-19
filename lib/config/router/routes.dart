@@ -11,6 +11,8 @@ class Routes {
   static const String stockInOut = 'stockInOut';
   static const String stockSearch = 'stockSearch';
   static const String stockOutbound = 'stockOutbound';
+  static const String settlementPayouts = 'settlementPayouts';
+  static const String settlementPayoutDetail = 'settlementPayoutDetail';
   static const String userRegister = 'userRegister';
   static const String userManage = 'userManage';
   static const String userEdit = 'userEdit';
@@ -71,6 +73,7 @@ class Routes {
   static const String stockInOutPath = '/stock/in-out';
   static const String stockSearchPath = '/stock/search';
   static const String stockOutboundPath = '/stock/outbound';
+  static const String settlementPayoutsPath = '/settlement/payouts';
   static const String userRegisterPath = '/users/register';
   static const String userManagePath = '/users/manage';
   static const String userEditPath = '/users/edit';
