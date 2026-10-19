@@ -165,6 +165,12 @@ import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/get_
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/update_receipt_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_setting_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/settlement/data/datasources/settlement_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/settlement/data/repositories/settlement_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/settlement/domain/repositories/settlement_repository.dart';
+import 'package:flutter_oklyn_mobile/features/settlement/domain/usecases/settlement_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/settlement/presentation/bloc/payout_detail_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/settlement/presentation/bloc/payout_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/data/datasources/stock_ledger_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/data/datasources/stock_ledger_remote_datasource_impl.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/data/repositories/stock_ledger_repository_impl.dart';
@@ -224,6 +230,7 @@ void setupServiceLocator() {
   _registerAlertServices();
   _registerPurchaseListServices();
   _registerStockLedgerServices();
+  _registerSettlementServices();
   _registerMasterProductServices();
   _registerErrorHandling();
 }
@@ -1135,6 +1142,35 @@ void _registerStockLedgerServices() {
       getOutboundUseCase: getIt<GetOutboundUseCase>(),
       confirmOutboundUseCase: getIt<ConfirmOutboundUseCase>(),
       getSellersUseCase: getIt<GetSellersUseCase>(),
+    ),
+  );
+}
+
+/// 「정산관리」 screens (FEATURE_2610_20 / D18). Sellers come from the seller
+/// feature's [GetSellersUseCase].
+void _registerSettlementServices() {
+  getIt.registerSingleton<SettlementRemoteDataSource>(
+    SettlementRemoteDataSource(dio: getIt<DioClient>().dio),
+  );
+  getIt.registerSingleton<SettlementRepository>(
+    SettlementRepositoryImpl(
+      remoteDataSource: getIt<SettlementRemoteDataSource>(),
+    ),
+  );
+  getIt.registerSingleton<SettlementUseCase>(
+    SettlementUseCase(repository: getIt<SettlementRepository>()),
+  );
+  // Factories — every page gets a fresh state.
+  getIt.registerFactory<PayoutListBloc>(
+    () => PayoutListBloc(
+      settlementUseCase: getIt<SettlementUseCase>(),
+      getSellersUseCase: getIt<GetSellersUseCase>(),
+    ),
+  );
+  getIt.registerFactoryParam<PayoutDetailBloc, int, void>(
+    (payoutId, _) => PayoutDetailBloc(
+      settlementUseCase: getIt<SettlementUseCase>(),
+      payoutId: payoutId,
     ),
   );
 }

@@ -11,6 +11,8 @@ import 'package:flutter_oklyn_mobile/features/claim/presentation/pages/claim_det
 import 'package:flutter_oklyn_mobile/features/inquiry/domain/entities/inquiry.dart';
 import 'package:flutter_oklyn_mobile/features/inquiry/presentation/pages/inquiry_list_page.dart';
 import 'package:flutter_oklyn_mobile/features/inquiry/presentation/pages/inquiry_detail_page.dart';
+import 'package:flutter_oklyn_mobile/features/settlement/presentation/pages/payout_detail_page.dart';
+import 'package:flutter_oklyn_mobile/features/settlement/presentation/pages/payout_list_page.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_event.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_detail_bloc.dart';
@@ -191,6 +193,24 @@ class AppRouter {
       pageBuilder: (context, state) => const NoTransitionPage(
         child: StockOutboundPage(),
       ),
+    ),
+    GoRoute(
+      name: Routes.settlementPayouts,
+      path: Routes.settlementPayoutsPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: PayoutListPage(),
+      ),
+      routes: [
+        GoRoute(
+          name: Routes.settlementPayoutDetail,
+          path: ':id',
+          pageBuilder: (context, state) => NoTransitionPage(
+            child: PayoutDetailPage(
+              payoutId: int.parse(state.pathParameters['id']!),
+            ),
+          ),
+        ),
+      ],
     ),
     GoRoute(
       name: Routes.stockSearch,
