@@ -13,6 +13,9 @@ class Routes {
   static const String stockOutbound = 'stockOutbound';
   static const String settlementPayouts = 'settlementPayouts';
   static const String settlementPayoutDetail = 'settlementPayoutDetail';
+  static const String salesSummary = 'salesSummary';
+  static const String salesByChannel = 'salesByChannel';
+  static const String salesByProduct = 'salesByProduct';
   static const String userRegister = 'userRegister';
   static const String userManage = 'userManage';
   static const String userEdit = 'userEdit';
@@ -74,6 +77,11 @@ class Routes {
   static const String stockSearchPath = '/stock/search';
   static const String stockOutboundPath = '/stock/outbound';
   static const String settlementPayoutsPath = '/settlement/payouts';
+  static const String salesSummaryPath = '/sales/summary';
+
+  /// query = `from` · `to` (`yyyy-MM-dd`) · `accountId` — all optional.
+  static const String salesByChannelPath = '/sales/channels';
+  static const String salesByProductPath = '/sales/products';
   static const String userRegisterPath = '/users/register';
   static const String userManagePath = '/users/manage';
   static const String userEditPath = '/users/edit';

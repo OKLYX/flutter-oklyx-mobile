@@ -11,6 +11,9 @@ import 'package:flutter_oklyn_mobile/features/claim/presentation/pages/claim_det
 import 'package:flutter_oklyn_mobile/features/inquiry/domain/entities/inquiry.dart';
 import 'package:flutter_oklyn_mobile/features/inquiry/presentation/pages/inquiry_list_page.dart';
 import 'package:flutter_oklyn_mobile/features/inquiry/presentation/pages/inquiry_detail_page.dart';
+import 'package:flutter_oklyn_mobile/features/sales/presentation/pages/channel_sales_page.dart';
+import 'package:flutter_oklyn_mobile/features/sales/presentation/pages/product_profit_page.dart';
+import 'package:flutter_oklyn_mobile/features/sales/presentation/pages/sales_summary_page.dart';
 import 'package:flutter_oklyn_mobile/features/settlement/presentation/pages/payout_detail_page.dart';
 import 'package:flutter_oklyn_mobile/features/settlement/presentation/pages/payout_list_page.dart';
 import 'package:flutter_oklyn_mobile/features/category/presentation/bloc/category_list_bloc.dart';
@@ -192,6 +195,34 @@ class AppRouter {
       path: Routes.stockOutboundPath,
       pageBuilder: (context, state) => const NoTransitionPage(
         child: StockOutboundPage(),
+      ),
+    ),
+    GoRoute(
+      name: Routes.salesSummary,
+      path: Routes.salesSummaryPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: SalesSummaryPage(),
+      ),
+    ),
+    GoRoute(
+      name: Routes.salesByChannel,
+      path: Routes.salesByChannelPath,
+      pageBuilder: (context, state) {
+        final query = state.uri.queryParameters;
+        return NoTransitionPage(
+          child: ChannelSalesPage(
+            from: query['from'],
+            to: query['to'],
+            accountId: int.tryParse(query['accountId'] ?? ''),
+          ),
+        );
+      },
+    ),
+    GoRoute(
+      name: Routes.salesByProduct,
+      path: Routes.salesByProductPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: ProductProfitPage(),
       ),
     ),
     GoRoute(

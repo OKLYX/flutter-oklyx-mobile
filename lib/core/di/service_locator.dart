@@ -165,6 +165,14 @@ import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/get_
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/update_receipt_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_setting_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/sales/data/datasources/sales_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/sales/data/repositories/sales_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/sales/domain/repositories/sales_repository.dart';
+import 'package:flutter_oklyn_mobile/features/sales/domain/usecases/sales_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/channel_sales_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/channel_sales_state.dart';
+import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/product_profit_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/sales_summary_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/settlement/data/datasources/settlement_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/settlement/data/repositories/settlement_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/settlement/domain/repositories/settlement_repository.dart';
@@ -231,6 +239,7 @@ void setupServiceLocator() {
   _registerPurchaseListServices();
   _registerStockLedgerServices();
   _registerSettlementServices();
+  _registerSalesServices();
   _registerMasterProductServices();
   _registerErrorHandling();
 }
@@ -1171,6 +1180,40 @@ void _registerSettlementServices() {
     (payoutId, _) => PayoutDetailBloc(
       settlementUseCase: getIt<SettlementUseCase>(),
       payoutId: payoutId,
+    ),
+  );
+}
+
+/// 「매출」 screens (FEATURE_2610_20 / D26). Payouts come from
+/// [SettlementUseCase], sellers from [GetSellersUseCase] — no sales copy of
+/// either.
+void _registerSalesServices() {
+  getIt.registerSingleton<SalesRemoteDataSource>(
+    SalesRemoteDataSource(dio: getIt<DioClient>().dio),
+  );
+  getIt.registerSingleton<SalesRepository>(
+    SalesRepositoryImpl(remoteDataSource: getIt<SalesRemoteDataSource>()),
+  );
+  getIt.registerSingleton<SalesUseCase>(
+    SalesUseCase(repository: getIt<SalesRepository>()),
+  );
+  // Factories — every page gets a fresh state.
+  getIt.registerFactory<SalesSummaryBloc>(
+    () => SalesSummaryBloc(
+      salesUseCase: getIt<SalesUseCase>(),
+      settlementUseCase: getIt<SettlementUseCase>(),
+    ),
+  );
+  getIt.registerFactoryParam<ChannelSalesBloc, ChannelSalesState, void>(
+    (initial, _) => ChannelSalesBloc(
+      salesUseCase: getIt<SalesUseCase>(),
+      initial: initial,
+    ),
+  );
+  getIt.registerFactory<ProductProfitBloc>(
+    () => ProductProfitBloc(
+      salesUseCase: getIt<SalesUseCase>(),
+      getSellersUseCase: getIt<GetSellersUseCase>(),
     ),
   );
 }
