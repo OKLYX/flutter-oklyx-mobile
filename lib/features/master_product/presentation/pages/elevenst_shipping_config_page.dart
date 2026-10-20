@@ -16,6 +16,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 /// 11st channel default shipping settings — the 11st branch of `Routes.masterShippingConfig`
 /// (FEATURE_2610_13 / D84). Port of web `sellers/list/components/ElevenstShippingConfigModal.tsx`.
@@ -137,7 +138,8 @@ class _ElevenstShippingConfigPageState
   @override
   Widget build(BuildContext context) {
     final alias = widget.args.account.accountAlias;
-    final label = alias == null || alias.isEmpty ? '11번가' : alias;
+    final label =
+        alias == null || alias.isEmpty ? platformName('ELEVENST') : alias;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {

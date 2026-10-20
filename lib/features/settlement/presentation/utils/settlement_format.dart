@@ -4,12 +4,7 @@
 // shown as they are, so a new market or enum never leaves a cell blank.
 import 'package:intl/intl.dart';
 import 'package:flutter_oklyn_mobile/features/settlement/domain/entities/settlement.dart';
-
-const Map<String, String> _platformLabels = {
-  'COUPANG': '쿠팡',
-  'NAVER': '네이버',
-  'ELEVENST': '11번가',
-};
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 const Map<String, String> _settlementTypeLabels = {
   'WEEKLY': '주정산',
@@ -53,7 +48,8 @@ const String kNoTotalNotice = '11번가는 입금 총액을 따로 주지 않아
 String _label(Map<String, String> dictionary, String? code) =>
     code == null || code.isEmpty ? '—' : (dictionary[code] ?? code);
 
-String platformLabel(String? platform) => _label(_platformLabels, platform);
+String platformLabel(String? platform) =>
+    platform == null || platform.isEmpty ? '—' : platformName(platform);
 String settlementTypeLabel(String? type) => _label(_settlementTypeLabels, type);
 String payoutStatusLabel(String? status) => _label(_payoutStatusLabels, status);
 String adjustmentLabel(String? type) => _label(_adjustmentLabels, type);
@@ -66,8 +62,8 @@ String payoutStatusText(PayoutSummary row) =>
 /// D14: the market name in a sentence — 「마켓」 when no channel is chosen or the
 /// platform has no name.
 String marketName(String? platform) =>
-    platform != null && _platformLabels.containsKey(platform)
-        ? _platformLabels[platform]!
+    platform != null && platformName(platform) != platform
+        ? platformName(platform)
         : '마켓';
 
 bool _endsWithFinalConsonant(String word) {

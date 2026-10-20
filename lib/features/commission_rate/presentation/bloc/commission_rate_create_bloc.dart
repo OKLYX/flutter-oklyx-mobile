@@ -4,12 +4,13 @@ import '../../../category/domain/usecases/get_categories_usecase.dart';
 import '../../domain/usecases/create_commission_rate_usecase.dart';
 import 'commission_rate_create_event.dart';
 import 'commission_rate_create_state.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 class CommissionRateCreateBloc extends Bloc<CommissionRateCreateEvent, CommissionRateCreateState> {
   final CreateCommissionRateUseCase _createCommissionRateUseCase;
   final GetCategoriesUseCase _getCategoriesUseCase;
 
-  static const List<String> platforms = ['COUPANG', 'GMARKET', 'AUCTION', 'SMARTSTORE'];
+  static const List<String> platforms = kPlatforms;
 
   CommissionRateCreateBloc(
     this._createCommissionRateUseCase,

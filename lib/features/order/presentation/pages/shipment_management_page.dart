@@ -34,6 +34,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_filter_chip.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 /// Order management > shipment page (the workbench of unshipped orders)
 ///
@@ -143,12 +144,6 @@ bool _isRefreshTarget(OrderItem order) => order.platform == 'COUPANG';
 const Map<String, String> _ackNoticeByPlatform = {
   'COUPANG': '쿠팡: 선택한 옵션이 속한 배송건(박스) 전체가 함께 발주처리됩니다.',
   'ELEVENST': '11번가: 선택한 상품(같은 배송건의 같은 상품 옵션 포함)만 발주확인됩니다.',
-};
-
-/// Marketplace names of the confirmation result lines (FEATURE_2610_17 / D57).
-const Map<String, String> _ackPlatformNames = {
-  'COUPANG': '쿠팡',
-  'ELEVENST': '11번가',
 };
 
 /// 내부 발주 해제 대상 = 「내부 상품준비중」만(D18 행1). 발송대기중은 먼저 [예약 취소] 한다.
@@ -472,7 +467,7 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
     if (result != null) {
       final lines = <String>['발주처리 완료'];
       for (final part in result.byPlatform) {
-        final name = _ackPlatformNames[part.platform] ?? part.platform;
+        final name = platformName(part.platform);
         lines.add(part.failed.isEmpty
             ? '$name: 성공 ${part.succeeded}건'
             : '$name: 성공 ${part.succeeded}건 / 실패 ${part.failed.length}건');
@@ -490,7 +485,7 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
         for (final part in result.byPlatform)
           ...part.failed
               .map((f) =>
-                  '${_ackPlatformNames[part.platform] ?? part.platform} · '
+                  '${platformName(part.platform)} · '
                   '${f.resultCode}: ${f.message}')
               .toSet()
               .take(3),

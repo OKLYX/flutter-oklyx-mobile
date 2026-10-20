@@ -16,6 +16,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_filter_chip.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 /// 판매상품 조회 페이지 (목록 + 검색)
 ///
@@ -37,14 +38,6 @@ class ProductListingSearchPage extends StatelessWidget {
     );
   }
 }
-
-/// 플랫폼 코드 → 한글 표시명 (프론트 ProductListingSearchCard와 동일)
-const Map<String, String> _platformLabels = {
-  'COUPANG': '쿠팡',
-  'GMARKET': '지마켓',
-  'AUCTION': '옥션',
-  'SMARTSTORE': '스마트스토어',
-};
 
 class _ProductListingSearchView extends StatefulWidget {
   const _ProductListingSearchView();
@@ -119,11 +112,13 @@ class _ProductListingSearchViewState extends State<_ProductListingSearchView> {
                 child: Row(
                 children: [
                   AppFilterChip<String?>(
-                    label: _platformLabels[_selectedPlatform] ?? '플랫폼',
+                    label: _selectedPlatform == null
+                        ? '플랫폼'
+                        : platformName(_selectedPlatform!),
                     value: _selectedPlatform,
                     options: [
-                      for (final e in _platformLabels.entries)
-                        AppFilterOption(e.key, e.value),
+                      for (final p in kPlatforms)
+                        AppFilterOption(p, platformName(p)),
                     ],
                     highlighted: _selectedPlatform != null,
                     onSelected: (value) {
@@ -278,8 +273,7 @@ class _ProductListingCard extends StatelessWidget {
                         Row(
                           children: [
                             _Badge(
-                              text: _platformLabels[listing.platform] ??
-                                  listing.platform,
+                              text: platformName(listing.platform),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
