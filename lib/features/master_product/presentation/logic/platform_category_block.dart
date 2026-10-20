@@ -6,6 +6,7 @@
 // ❌ No category picker on mobile — the notice points to the web (D16).
 
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_support.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 /// Platforms whose upload buttons hide when the standard category has no
 /// mapping row and the master has no own platform category for them (D20 ·
@@ -22,7 +23,7 @@ List<String> activeLookupPlatformsOf(List<AccountPlatform> accounts) => [
 /// Screen label of a [kCategoryBlockPlatforms] platform (「쿠팡」 · 「11번가」) — the category
 /// block notices and the master shipping tabs (FEATURE_2610_13 / D98).
 String categoryPlatformLabel(String platform) =>
-    platform == 'COUPANG' ? '쿠팡' : '11번가';
+    platform == 'COUPANG' ? platformName('COUPANG') : platformName('ELEVENST');
 
 /// Notice shown where the upload buttons are hidden (D18 (h) + D25).
 String categoryBlockText(String platform) {

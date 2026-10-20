@@ -1,3 +1,5 @@
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
+
 /// One line of the purchase list: either an order-derived line (source "ORDER")
 /// or a user-added manual line (source "MANUAL").
 ///
@@ -44,13 +46,6 @@ class PurchaseLine {
   int get neededQty => autoQty + manualQty;
 }
 
-/// 플랫폼 코드 → 한글 라벨. 매핑에 없는 코드는 원문 그대로 쓴다
-/// (새 플랫폼이 추가돼도 빈칸이 되지 않는다).
-const Map<String, String> _platformLabel = {
-  'COUPANG': '쿠팡',
-  'NAVER': '네이버',
-};
-
 /// Channel label SSOT (PLAN 2609_29 D10) — channel = seller × platform.
 ///
 /// 「A상사/쿠팡」. A manual line has no platform → 「A상사/수동」 (FEATURE_2610_09
@@ -59,5 +54,5 @@ const Map<String, String> _platformLabel = {
 /// (the same rule as `getOrderStatusLabel`).
 String channelLabel(PurchaseLine line) {
   if (line.platform == null) return '${line.sellerName}/수동';
-  return '${line.sellerName}/${_platformLabel[line.platform] ?? line.platform}';
+  return '${line.sellerName}/${platformName(line.platform!)}';
 }

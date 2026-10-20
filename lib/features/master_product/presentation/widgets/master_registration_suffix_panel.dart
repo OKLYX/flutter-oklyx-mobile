@@ -7,6 +7,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/mas
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/option_check_suffix_control.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 /// Master registration-name "옵션확인" suffix override panel on the master
 /// detail screen — FEATURE_2609_80 / 07.
@@ -144,9 +145,9 @@ class _MasterRegistrationSuffixPanelState
                   color: AppColors.coupangTagSurface,
                   borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
-                child: const Text(
-                  '쿠팡',
-                  style: TextStyle(
+                child: Text(
+                  platformName('COUPANG'),
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                     color: AppColors.coupangTagForeground,

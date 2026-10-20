@@ -12,8 +12,9 @@ import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
-const List<String> PLATFORMS = ['COUPANG', 'GMARKET', 'AUCTION', 'SMARTSTORE'];
+const List<String> PLATFORMS = kPlatforms;
 
 // ── 마진 계산 헬퍼 ──
 // margin = 판매가 − (판매가 × 수수료율 × 1.1) − 배송료 − 패키지비

@@ -15,6 +15,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 /// 판매상품 상세 페이지
 ///
@@ -160,15 +161,7 @@ class _ProductListingDetailView extends StatelessWidget {
     );
   }
 
-  String _platformLabel(String platform) {
-    const labels = {
-      'COUPANG': '쿠팡',
-      'GMARKET': '지마켓',
-      'AUCTION': '옥션',
-      'SMARTSTORE': '스마트스토어',
-    };
-    return labels[platform] ?? platform;
-  }
+  String _platformLabel(String platform) => platformName(platform);
 
   // 수정 페이지로 이동 (프론트 router.push(EDIT)와 동일). 뒤로가기 시 상세로 복귀.
   void _onEdit(BuildContext context) {

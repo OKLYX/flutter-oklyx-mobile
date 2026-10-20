@@ -49,13 +49,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
-
-// Platform display labels — same shape as product_listing_detail_page;
-// unknown codes fall back to the raw value.
-const Map<String, String> _platformLabels = {
-  'COUPANG': '쿠팡',
-  'ELEVENST': '11번가',
-};
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 /// 주문 상세 페이지
 ///
@@ -1716,7 +1710,7 @@ class _OrderSheetSection extends StatelessWidget {
     // same empty value — reissue happens in WING(반품관리) or via ARS.
     // See PLAN.md D3~D6.
     final hasMissingPhone = rows.any((r) => r.receiverPhone.trim().isEmpty);
-    final platformLabel = _platformLabels[order.platform] ?? order.platform;
+    final platformLabel = platformName(order.platform);
 
     return AppCard(
         child: Column(
