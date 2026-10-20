@@ -7,6 +7,7 @@ import '../../domain/usecases/get_commission_rate_usecase.dart';
 import '../../domain/usecases/update_commission_rate_usecase.dart';
 import 'commission_rate_detail_event.dart';
 import 'commission_rate_detail_state.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 class CommissionRateDetailBloc extends Bloc<CommissionRateDetailEvent, CommissionRateDetailState> {
   final GetCommissionRateUseCase _getCommissionRateUseCase;
@@ -14,7 +15,7 @@ class CommissionRateDetailBloc extends Bloc<CommissionRateDetailEvent, Commissio
   final DeleteCommissionRateUseCase _deleteCommissionRateUseCase;
   final GetCategoriesUseCase _getCategoriesUseCase;
 
-  static const List<String> platforms = ['COUPANG', 'GMARKET', 'AUCTION', 'SMARTSTORE'];
+  static const List<String> platforms = kPlatforms;
 
   CommissionRateDetailBloc(
     this._getCommissionRateUseCase,

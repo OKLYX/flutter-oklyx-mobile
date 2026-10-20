@@ -21,6 +21,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 // Status enum -> screen text (never show the raw enum). Kept local like the web.
 const Map<String, String> _statusLabel = {
@@ -34,8 +35,8 @@ const Map<String, String> _statusLabel = {
 /// Supported platforms — Coupang only today (D17 · UX D64: one more record per
 /// platform). (value, label, idLabel, idNumeric)
 /// ⚠️ Never write a platform name directly in the widget tree.
-const List<(String, String, String, bool)> _platforms = [
-  ('COUPANG', '쿠팡', '쿠팡 상품 ID', true),
+final List<(String, String, String, bool)> _platforms = [
+  ('COUPANG', platformName('COUPANG'), '쿠팡 상품 ID', true),
 ];
 
 /// Tokens taken from the product name · candidates shown · size of one search (UX D79).

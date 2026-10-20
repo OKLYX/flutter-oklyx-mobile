@@ -24,9 +24,6 @@ class MarketSource {
   });
 }
 
-/// Platform code → display name. A new platform adds one line here (UX D64).
-const Map<String, String> kPlatformLabel = {'COUPANG': '쿠팡'};
-
 /// Confirm message when components or the category change in market mode —
 /// options stay, only the per-option quantities are cleared (UX D71 · D32).
 const String kMarketOptionResetMessage =

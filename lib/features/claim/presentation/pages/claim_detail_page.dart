@@ -9,13 +9,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import '../../domain/entities/claim.dart';
 import '../widgets/claim_action_sheet.dart';
-
-// Platform display labels — same shape as order_detail_page;
-// unknown codes fall back to the raw value.
-const Map<String, String> _platformLabels = {
-  'COUPANG': '쿠팡',
-  'ELEVENST': '11번가',
-};
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 /// 클레임 상세 페이지 (FEATURE_2609_18).
 ///
@@ -133,7 +127,7 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
               _InfoRow('접수일',
                   formatOrderDateTime(c.receivedAt.toIso8601String())),
               _InfoRow('상태', getClaimStatusLabel(c.status)),
-              _InfoRow('플랫폼', _platformLabels[c.platform] ?? c.platform),
+              _InfoRow('플랫폼', platformName(c.platform)),
             ],
             // 원문 상태 코드는 정보 손실 방지용 — 목록 카드에는 내지 않는다.
             footnote: c.platformStatus.isEmpty

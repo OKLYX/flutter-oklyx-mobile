@@ -4,6 +4,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/master_format.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 // Status enum → display text (enum names are never shown to users). Kept
 // local on purpose, same as the web — importing the import sheet's map would
@@ -40,7 +41,7 @@ class MarketSourceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final preview = market.preview;
-    final label = kPlatformLabel[market.platform] ?? market.platform;
+    final label = platformName(market.platform);
     final muted = TextStyle(fontSize: 14, color: scheme.onSurfaceVariant);
     return AppCard(
         child: Column(

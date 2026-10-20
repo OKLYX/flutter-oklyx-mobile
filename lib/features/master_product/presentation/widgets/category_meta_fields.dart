@@ -6,14 +6,15 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/measure_attributes.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/notice_templates.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/option_meta_fields.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 const String _groupEtc = '기타';
 
 /// FEATURE_2610_13 / D97 · D109: the tabs shown when a switched-on 11st channel exists.
-const List<(String, String)> _metaTabs = [
+final List<(String, String)> _metaTabs = [
   ('ALL', '통합'),
-  ('COUPANG', '쿠팡'),
-  ('ELEVENST', '11번가'),
+  ('COUPANG', platformName('COUPANG')),
+  ('ELEVENST', platformName('ELEVENST')),
 ];
 
 /// D99: the gray line under a read-only shared field.
@@ -313,7 +314,7 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
                         n.label,
                         required: n.required,
                         tag: tabbed && _tab == 'ALL' && shared != null && !shared.contains(n.key)
-                            ? '쿠팡'
+                            ? platformName('COUPANG')
                             : null,
                       ),
                       value: noticeValues[n.key] ?? '',
@@ -334,7 +335,7 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
             for (final line in ownLines) ...[
               _MetaTextField(
                 key: ValueKey('notice-${line.ownKey}'),
-                label: _fieldLabel(context, line.name, required: false, tag: '11번가'),
+                label: _fieldLabel(context, line.name, required: false, tag: platformName('ELEVENST')),
                 value: noticeValues[line.ownKey] ?? '',
                 enabled: !disabled,
                 hintText: '비우면 「상품 상세페이지 참조」',
