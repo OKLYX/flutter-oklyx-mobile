@@ -38,13 +38,18 @@ class MarketplaceAccountRemoteDataSourceImpl implements MarketplaceAccountRemote
       'accessKey': params.accessKey,
       'secretKey': params.secretKey,
       'apiKey': params.apiKey,
+      'esmMasterId': params.esmMasterId,
+      'esmSecretKey': params.esmSecretKey,
+      'gmarketSellerId': params.gmarketSellerId,
+      'auctionSellerId': params.auctionSellerId,
     });
     return MarketplaceAccountModel.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 
   @override
   Future<MarketplaceAccountModel> update(int id, UpdateMarketplaceAccountParams params) async {
-    // Blank/null secretKey / apiKey is omitted → backend keeps the existing key.
+    // Blank/null secretKey / apiKey / esmSecretKey is omitted → backend keeps
+    // the existing key.
     final response = await dio.patch('$_path/$id', data: {
       'sellerId': params.sellerId,
       'platform': params.platform,
@@ -55,6 +60,11 @@ class MarketplaceAccountRemoteDataSourceImpl implements MarketplaceAccountRemote
         'secretKey': params.secretKey,
       if (params.apiKey != null && params.apiKey!.isNotEmpty)
         'apiKey': params.apiKey,
+      'esmMasterId': params.esmMasterId,
+      if (params.esmSecretKey != null && params.esmSecretKey!.isNotEmpty)
+        'esmSecretKey': params.esmSecretKey,
+      'gmarketSellerId': params.gmarketSellerId,
+      'auctionSellerId': params.auctionSellerId,
     });
     return MarketplaceAccountModel.fromJson(response.data['data'] as Map<String, dynamic>);
   }

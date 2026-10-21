@@ -1,10 +1,18 @@
-/// Screen name of a platform value. The stored / API value stays `ELEVENST`;
-/// screens show 「11번가」. Other platforms are returned unchanged.
+/// Screen name of a platform value. The stored / API values stay `ELEVENST`
+/// and `ESM`; screens show 「11번가」 and 「G마켓 · 옥션」 (FEATURE_2610_26 /
+/// D71). Other platforms are returned unchanged.
 ///
 /// ❌ Display only — never send the returned text to the server.
 /// Web twin: `nextjs-oklyx-front/src/config/platforms.ts` `platformDisplayName`.
-String platformDisplayName(String platform) =>
-    platform == 'ELEVENST' ? '11번가' : platform;
+String platformDisplayName(String platform) {
+  if (platform == 'ELEVENST') {
+    return '11번가';
+  }
+  if (platform == 'ESM') {
+    return 'G마켓 · 옥션';
+  }
+  return platform;
+}
 
 /// Marketplace platforms the server accepts (FEATURE_2610_22 / D10 · D15).
 /// The platform selects of the sales-channel form, the commission rate forms,
@@ -12,16 +20,17 @@ String platformDisplayName(String platform) =>
 /// built from this list. A new marketplace adds its value here in its
 /// sales-channel work (D10).
 /// Web twin: `nextjs-oklyx-front/src/config/platforms.ts` `PLATFORMS`.
-const List<String> kPlatforms = ['COUPANG', 'ELEVENST'];
+const List<String> kPlatforms = ['COUPANG', 'ELEVENST', 'ESM'];
 
 const Map<String, String> _platformNames = {
   'COUPANG': '쿠팡',
   'NAVER': '네이버',
   'ELEVENST': '11번가',
+  'ESM': 'G마켓 · 옥션',
 };
 
 /// Screen name of a platform value (FEATURE_2610_22 / D15 · D18): 「쿠팡」 ·
-/// 「네이버」 · 「11번가」. A value missing from the table is returned
+/// 「네이버」 · 「11번가」 · 「G마켓 · 옥션」. A value missing from the table is returned
 /// unchanged. The marketplace name tables and the platform select labels use
 /// this.
 ///
