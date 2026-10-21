@@ -31,6 +31,14 @@ class OptionPrice {
   final String? optionNameSource;
   final bool? channelOnly;
 
+  /// FEATURE_2610_26 / D50: on a Gmarket · Auction (ESM) listing [sellingPrice]
+  /// is the Gmarket price and this is the Auction price; null on every other
+  /// platform.
+  final num? auctionSellingPrice;
+
+  /// FEATURE_2610_26 / D53 ②: origin of [auctionSellingPrice]; null elsewhere.
+  final String? auctionPriceSource;
+
   const OptionPrice({
     required this.optionId,
     required this.sellingPrice,
@@ -42,6 +50,8 @@ class OptionPrice {
     this.priceSource,
     this.optionNameSource,
     this.channelOnly,
+    this.auctionSellingPrice,
+    this.auctionPriceSource,
   });
 }
 
@@ -58,8 +68,8 @@ class GeneratedProduct {
   final Map<String, String>? shippingOverride;
   final bool? shippingReady;
   final int? detailTemplateId;
-  // FEATURE_2610_13 / D120: 1 when this 11st listing's re-price failed after
-  // a shipping save, else 0.
+  // FEATURE_2610_13 / D120 · FEATURE_2610_26 / D65: 1 when this 11st or ESM
+  // listing's re-price failed after a shipping save, else 0.
   final int priceRecalcFailedCount;
 
   const GeneratedProduct({
@@ -255,6 +265,13 @@ class ListingOptionSummary {
   final String? platformOptionId;
   final int? masterOptionId;
 
+  /// FEATURE_2610_26 / D50: the Auction price of an ESM option ([sellingPrice]
+  /// = Gmarket); null elsewhere.
+  final num? auctionSellingPrice;
+
+  /// FEATURE_2610_26 / D53 ②: origin of [auctionSellingPrice]; null elsewhere.
+  final String? auctionPriceSource;
+
   const ListingOptionSummary({
     required this.optionId,
     required this.optionName,
@@ -268,6 +285,8 @@ class ListingOptionSummary {
     this.channelOnly,
     this.platformOptionId,
     this.masterOptionId,
+    this.auctionSellingPrice,
+    this.auctionPriceSource,
   });
 }
 
@@ -326,7 +345,18 @@ class OptionPriceChange {
   final int optionId;
   final num? sellingPrice;
 
-  const OptionPriceChange({required this.optionId, this.sellingPrice});
+  /// FEATURE_2610_26 / D53 ②: true on an ESM option — then
+  /// [auctionSellingPrice] is sent too (null = back to the calculated Auction
+  /// price); false leaves the key out.
+  final bool esm;
+  final num? auctionSellingPrice;
+
+  const OptionPriceChange({
+    required this.optionId,
+    this.sellingPrice,
+    this.esm = false,
+    this.auctionSellingPrice,
+  });
 }
 
 /// Web `OptionNamesRequest.names[]` — [optionName] null = back to the master

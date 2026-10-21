@@ -22,6 +22,15 @@ class MarketplaceAccount extends Equatable {
   /// FEATURE_2610_13 / D88: the server says the 11st key went unused for over 150 days (null = not 11st).
   final bool? elevenstKeyRenewalNeeded;
 
+  /// FEATURE_2610_26 / D4: the ESM+ master ID — null on every other account.
+  final String? esmMasterId;
+
+  /// FEATURE_2610_26 / D5: the Gmarket seller ID — null on every other account.
+  final String? gmarketSellerId;
+
+  /// FEATURE_2610_26 / D5: the Auction seller ID — null on every other account.
+  final String? auctionSellerId;
+
   const MarketplaceAccount({
     required this.id,
     required this.sellerId,
@@ -33,6 +42,9 @@ class MarketplaceAccount extends Equatable {
     required this.createdAt,
     required this.updatedAt,
     this.elevenstKeyRenewalNeeded,
+    this.esmMasterId,
+    this.gmarketSellerId,
+    this.auctionSellerId,
   });
 
   @override
@@ -47,5 +59,8 @@ class MarketplaceAccount extends Equatable {
         createdAt,
         updatedAt,
         elevenstKeyRenewalNeeded,
+        esmMasterId,
+        gmarketSellerId,
+        auctionSellerId,
       ];
 }

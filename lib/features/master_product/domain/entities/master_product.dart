@@ -224,6 +224,10 @@ class MatrixCell {
   final String registrationName;
   final String? platformProductId;
   final num? sellingPrice;
+
+  /// FEATURE_2610_26 / D50: the Auction price of the same option on an ESM cell
+  /// ([sellingPrice] = Gmarket); null elsewhere.
+  final num? auctionSellingPrice;
   final String? status;
   final String? categoryCode;
   final String? categoryName;
@@ -236,6 +240,7 @@ class MatrixCell {
     required this.registrationName,
     this.platformProductId,
     this.sellingPrice,
+    this.auctionSellingPrice,
     this.status,
     this.categoryCode,
     this.categoryName,

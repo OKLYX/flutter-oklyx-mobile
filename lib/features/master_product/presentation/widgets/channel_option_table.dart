@@ -2,15 +2,13 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/listing_registration.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_product.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/master_format.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/copy_id_button.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/listing_detail_panel.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/info_bubble_icon.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
-// Same notation as the matrix price column (`12,900원`).
-String _formatWon(num v) => '${koNumber(v)}원';
 
 const String _noAccountLabel = '계정 없음';
 const String _channelOnlyReason = '마스터 옵션이 없는 채널 전용 옵션입니다';
@@ -42,7 +40,8 @@ class _OptionColumn {
 bool _isOrphanColumn(String label) => label.startsWith(_noAccountLabel);
 
 String _cellText(ListingOptionSummary option) => option.active
-    ? '${_formatWon(option.sellingPrice)} / ${option.stockQuantity ?? option.maxStock}'
+    ? '${formatSitePrices(option.sellingPrice, option.auctionSellingPrice)} / '
+        '${option.stockQuantity ?? option.maxStock}'
     : '미사용';
 
 /// Option × channel view (read-only) on the master detail screen —

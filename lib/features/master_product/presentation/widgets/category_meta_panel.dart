@@ -7,6 +7,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/mas
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/category_meta_validation.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/elevenst_notice.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/esm_notice.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/measure_attributes.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/notice_templates.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/option_meta_fields.dart';
@@ -59,6 +60,10 @@ class CategoryMetaPanel extends StatefulWidget {
   /// FEATURE_2610_13 / D98 · D109: a switched-on 11st channel exists → 「통합」 · 「쿠팡」 · 「11번가」 tabs.
   final bool elevenstActive;
 
+  /// FEATURE_2610_26 / D45: a switched-on Gmarket · Auction channel exists →
+  /// the 「G마켓 · 옥션」 tab too.
+  final bool esmActive;
+
   const CategoryMetaPanel({
     required this.masterId,
     required this.categoryCode,
@@ -67,6 +72,7 @@ class CategoryMetaPanel extends StatefulWidget {
     this.isBundle = false,
     this.onSaved,
     this.elevenstActive = false,
+    this.esmActive = false,
   });
 
   @override
@@ -91,6 +97,9 @@ class _CategoryMetaPanelState extends State<CategoryMetaPanel> {
   // FEATURE_2610_13 / D97: the 11st view of the chosen group's values.
   late final ElevenstNoticePreviewer _previewer =
       ElevenstNoticePreviewer(onChanged: () => setState(() {}));
+  // FEATURE_2610_26 / D56: the Gmarket · Auction view of the same values.
+  late final EsmNoticePreviewer _esmPreviewer =
+      EsmNoticePreviewer(onChanged: () => setState(() {}));
 
   // COUPANG owns the persisted per-master values; other platforms are
   // schema-only (read-only).
@@ -110,6 +119,7 @@ class _CategoryMetaPanelState extends State<CategoryMetaPanel> {
   @override
   void dispose() {
     _previewer.dispose();
+    _esmPreviewer.dispose();
     super.dispose();
   }
 
@@ -224,10 +234,13 @@ class _CategoryMetaPanelState extends State<CategoryMetaPanel> {
       widget.masterId,
       CategoryAttributesRequest(
         attributes: _attrValues,
-        // FEATURE_2610_13 / D101: the 11st-only values ride along under their ELEVENST:{code} keys.
+        // FEATURE_2610_13 / D101 · FEATURE_2610_26 / D17: the 11st-only and
+        // Gmarket · Auction-only values ride along under their ELEVENST:{code}
+        // and ESM:{code} keys.
         notices: {
           ...noticesToSubmit(_notices, _noticeValues, group),
           ...elevenstOwnNotices(_noticeValues),
+          ...esmOwnNotices(_noticeValues),
         },
         noticeGroup: group,
       ),
@@ -267,16 +280,18 @@ class _CategoryMetaPanelState extends State<CategoryMetaPanel> {
     }
     final scheme = Theme.of(context).colorScheme;
     final tabbed = widget.elevenstActive && !_readOnly;
-    if (tabbed) {
+    final esmTabbed = widget.esmActive && !_readOnly;
+    if (tabbed || esmTabbed) {
       final group = submitNoticeGroup(_notices, _noticeValues, _noticeGroup);
-      _previewer.update(
-        _useCase,
-        group,
-        _notices
-            .where((n) => !isOptionNotice(n) && noticeGroupName(n) == group)
-            .toList(),
-        _noticeValues,
-      );
+      final groupNotices = _notices
+          .where((n) => !isOptionNotice(n) && noticeGroupName(n) == group)
+          .toList();
+      if (tabbed) {
+        _previewer.update(_useCase, group, groupNotices, _noticeValues);
+      }
+      if (esmTabbed) {
+        _esmPreviewer.update(_useCase, group, groupNotices, _noticeValues);
+      }
     }
     final missingRequired = computeMissingRequired(
       _attributes,
@@ -326,6 +341,7 @@ class _CategoryMetaPanelState extends State<CategoryMetaPanel> {
             noticeGroup: _noticeGroup,
             onNoticeGroupChange: _handleNoticeGroupChange,
             elevenstPreview: tabbed ? _previewer.preview : null,
+            esmPreview: esmTabbed ? _esmPreviewer.preview : null,
           ),
           if (_readOnly)
             _Banner(

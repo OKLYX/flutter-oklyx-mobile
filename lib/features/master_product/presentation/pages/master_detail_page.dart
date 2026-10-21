@@ -16,6 +16,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/mas
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/category_meta_validation.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/master_image_fields.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/elevenst_shipping.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/esm_shipping.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/platform_category_block.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_route_args.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_tool_args.dart';
@@ -50,7 +51,8 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 /// Why a channel cannot be created for a seller without outbound/return
-/// places (user decision 2026-08-28).
+/// places (user decision 2026-08-28) — the same text for an ESM account with
+/// one of its six shipping values unset (FEATURE_2610_26 / D36).
 const String _shippingBlockReason =
     '이 판매자의 출고지·반품지가 지정되지 않아 채널을 만들 수 없습니다. 판매채널 관리 > 배송관리에서 출고지·반품지를 먼저 지정하세요.';
 
@@ -226,7 +228,8 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
   Map<int, GeneratedProduct?> _generated = {};
   bool _genLoading = false;
 
-  // Accounts whose outbound/return places are unset. Missing key = unknown.
+  // Accounts whose outbound/return places (an ESM account: its six shipping
+  // values) are unset. Missing key = unknown.
   Map<int, bool> _placesUnset = {};
 
   // FEATURE_2610_13 / D98: platforms with a switched-on sales channel (tenant-wide). Failure = Coupang alone.
@@ -354,6 +357,15 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
     final entries = await Future.wait(
       targets.map((row) async {
         final accountId = row.accountId;
+        // FEATURE_2610_26 / D36: an ESM account is unset while one of its six
+        // shipping values is empty.
+        if (row.platform == 'ESM') {
+          final result = await _useCase.getEsmShippingConfig(accountId);
+          return result.fold<MapEntry<int, bool>?>(
+            (_) => null,
+            (settings) => MapEntry(accountId, esmShippingUnset(settings)),
+          );
+        }
         // FEATURE_2610_13 / D84: an 11st account keeps its address numbers in its own settings map.
         if (row.platform == 'ELEVENST') {
           final result = await _useCase.getElevenstShippingConfig(accountId);
@@ -573,9 +585,9 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
   bool _isShippingBlocked(int accountId) => _placesUnset[accountId] == true;
 
   // FEATURE_2610_11 / D19 · D25 · 2610_12 / D41: no mapping row and no own
-  // row for that platform → its upload buttons are hidden. Coupang · 11st
-  // only, and only with a standard category (D18 (f)); unknown mappings or own
-  // rows never block.
+  // row for that platform → its upload buttons are hidden. Coupang · 11st ·
+  // ESM only (FEATURE_2610_26 / D45), and only with a standard category
+  // (D18 (f)); unknown mappings or own rows never block.
   bool _isCategoryBlocked(String platform) {
     final mappings = _categoryMappings;
     final owns = _platformCategories;
@@ -1511,8 +1523,10 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
     final blocked = _isShippingBlocked(row.accountId);
     final categoryBlocked = _isCategoryBlocked(row.platform);
     final isCoupang = row.platform == 'COUPANG';
-    // 2609_77/D43 · FEATURE_2610_13 / D9 ③: Coupang and 11st upload through the option picker.
-    final canUpload = isCoupang || row.platform == 'ELEVENST';
+    // 2609_77/D43 · FEATURE_2610_13 / D9 ③ · FEATURE_2610_26 / D2: Coupang,
+    // 11st and ESM upload through the option picker.
+    final canUpload =
+        isCoupang || row.platform == 'ELEVENST' || row.platform == 'ESM';
     final rowBusy = _rowBusyId == row.accountId;
     final smallButton = OutlinedButton.styleFrom(
       visualDensity: VisualDensity.compact,
@@ -1921,6 +1935,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
             isBundle: isBundle,
             onSaved: () => unawaited(_loadMetaBase()),
             elevenstActive: _activePlatforms.contains('ELEVENST'),
+            esmActive: _activePlatforms.contains('ESM'),
           ),
         ),
         const Divider(height: 1),

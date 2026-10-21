@@ -53,11 +53,26 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
   final TextEditingController _accessKeyController = TextEditingController();
   final TextEditingController _secretKeyController = TextEditingController();
   final TextEditingController _apiKeyController = TextEditingController();
+  // FEATURE_2610_26 / D4 · D5: the ESM fields.
+  final TextEditingController _esmMasterIdController = TextEditingController();
+  final TextEditingController _esmSecretKeyController = TextEditingController();
+  final TextEditingController _gmarketSellerIdController =
+      TextEditingController();
+  final TextEditingController _auctionSellerIdController =
+      TextEditingController();
 
   final Map<String, String?> _errors = {};
 
   // FEATURE_2610_13 / D5: an 11st account takes 「API 키」 alone instead of the Coupang fields.
   bool get _isElevenst => _platform == 'ELEVENST';
+
+  // FEATURE_2610_26 / D40: each marketplace is named — Coupang fields, 11st
+  // key or the four ESM fields.
+  bool get _isCoupang => _platform == 'COUPANG';
+  bool get _isEsm => _platform == 'ESM';
+
+  static const String _esmSellerIdsMessage =
+      'G마켓 판매자 ID 와 옥션 판매자 ID 를 모두 입력하세요';
 
   @override
   void initState() {
@@ -68,6 +83,9 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
       _accountAliasController.text = channel.accountAlias ?? '';
       _vendorIdController.text = channel.vendorId ?? '';
       _accessKeyController.text = channel.accessKey ?? '';
+      _esmMasterIdController.text = channel.esmMasterId ?? '';
+      _gmarketSellerIdController.text = channel.gmarketSellerId ?? '';
+      _auctionSellerIdController.text = channel.auctionSellerId ?? '';
     }
   }
 
@@ -78,6 +96,10 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
     _accessKeyController.dispose();
     _secretKeyController.dispose();
     _apiKeyController.dispose();
+    _esmMasterIdController.dispose();
+    _esmSecretKeyController.dispose();
+    _gmarketSellerIdController.dispose();
+    _auctionSellerIdController.dispose();
     super.dispose();
   }
 
@@ -89,6 +111,21 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
     if (_isElevenst) {
       if (!widget.isEdit && _apiKeyController.text.trim().isEmpty) {
         errors['apiKey'] = '11번가 API 키를 입력하세요.';
+      }
+    } else if (_isEsm) {
+      // FEATURE_2610_26 / D4 · D5: all four on create; on edit a blank secret
+      // key keeps the stored one.
+      if (_esmMasterIdController.text.trim().isEmpty) {
+        errors['esmMasterId'] = 'ESM+ 마스터 ID 를 입력하세요.';
+      }
+      if (!widget.isEdit && _esmSecretKeyController.text.trim().isEmpty) {
+        errors['esmSecretKey'] = '비밀키를 입력하세요.';
+      }
+      if (_gmarketSellerIdController.text.trim().isEmpty) {
+        errors['gmarketSellerId'] = _esmSellerIdsMessage;
+      }
+      if (_auctionSellerIdController.text.trim().isEmpty) {
+        errors['auctionSellerId'] = _esmSellerIdsMessage;
       }
     } else {
       if (_vendorIdController.text.trim().isEmpty) {
@@ -123,10 +160,18 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
           sellerId: widget.sellerId,
           platform: _platform,
           accountAlias: alias.isEmpty ? null : alias,
-          vendorId: _isElevenst ? null : textOrNull(_vendorIdController),
-          accessKey: _isElevenst ? null : textOrNull(_accessKeyController),
-          secretKey: _isElevenst || _secretKeyController.text.isEmpty ? null : _secretKeyController.text,
+          vendorId: _isCoupang ? textOrNull(_vendorIdController) : null,
+          accessKey: _isCoupang ? textOrNull(_accessKeyController) : null,
+          secretKey: !_isCoupang || _secretKeyController.text.isEmpty
+              ? null
+              : _secretKeyController.text,
           apiKey: _isElevenst ? textOrNull(_apiKeyController) : null,
+          esmMasterId: _isEsm ? textOrNull(_esmMasterIdController) : null,
+          esmSecretKey: _isEsm ? textOrNull(_esmSecretKeyController) : null,
+          gmarketSellerId:
+              _isEsm ? textOrNull(_gmarketSellerIdController) : null,
+          auctionSellerId:
+              _isEsm ? textOrNull(_auctionSellerIdController) : null,
         ),
       ));
     } else {
@@ -135,10 +180,16 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
           sellerId: widget.sellerId,
           platform: _platform,
           accountAlias: alias.isEmpty ? null : alias,
-          vendorId: _isElevenst ? null : textOrNull(_vendorIdController),
-          accessKey: _isElevenst ? null : textOrNull(_accessKeyController),
-          secretKey: _isElevenst ? null : _secretKeyController.text,
+          vendorId: _isCoupang ? textOrNull(_vendorIdController) : null,
+          accessKey: _isCoupang ? textOrNull(_accessKeyController) : null,
+          secretKey: _isCoupang ? _secretKeyController.text : null,
           apiKey: _isElevenst ? textOrNull(_apiKeyController) : null,
+          esmMasterId: _isEsm ? textOrNull(_esmMasterIdController) : null,
+          esmSecretKey: _isEsm ? textOrNull(_esmSecretKeyController) : null,
+          gmarketSellerId:
+              _isEsm ? textOrNull(_gmarketSellerIdController) : null,
+          auctionSellerId:
+              _isEsm ? textOrNull(_auctionSellerIdController) : null,
         ),
       ));
     }
@@ -224,7 +275,10 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
                     hintText: '예: 쿠팡 본점',
                   ),
                 ),
-                // FEATURE_2610_13 / D5: the Coupang credential fields — an 11st account takes 「API 키」 alone.
+                // FEATURE_2610_13 / D5 · FEATURE_2610_26 / D40: each platform
+                // shows its own credential fields — 11st 「API 키」 alone, ESM
+                // the four ESM fields, Coupang the three below; no platform
+                // chosen yet = none.
                 if (_isElevenst) ...[
                   const SizedBox(height: 12),
                   TextField(
@@ -240,7 +294,49 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
                     ),
                   ),
                 ],
-                if (!_isElevenst) ...[
+                if (_isEsm) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _esmMasterIdController,
+                    enabled: !isSubmitting,
+                    decoration: InputDecoration(
+                      labelText: 'ESM+ 마스터 ID *',
+                      errorText: _errors['esmMasterId'],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _esmSecretKeyController,
+                    enabled: !isSubmitting,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: widget.isEdit ? '비밀키' : '비밀키 *',
+                      hintText: widget.isEdit
+                          ? '변경 시에만 입력하세요 (비워두면 기존 값 유지)'
+                          : 'ESM+ 비밀키를 입력하세요',
+                      errorText: _errors['esmSecretKey'],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _gmarketSellerIdController,
+                    enabled: !isSubmitting,
+                    decoration: InputDecoration(
+                      labelText: 'G마켓 판매자 ID *',
+                      errorText: _errors['gmarketSellerId'],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _auctionSellerIdController,
+                    enabled: !isSubmitting,
+                    decoration: InputDecoration(
+                      labelText: '옥션 판매자 ID *',
+                      errorText: _errors['auctionSellerId'],
+                    ),
+                  ),
+                ],
+                if (_isCoupang) ...[
                   const SizedBox(height: 12),
                   TextField(
                     controller: _vendorIdController,

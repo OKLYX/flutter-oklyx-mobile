@@ -3,6 +3,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/mas
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_support.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/basic_unit.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/elevenst_notice.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/esm_notice.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/measure_attributes.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/notice_templates.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/option_meta_fields.dart';
@@ -10,11 +11,14 @@ import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 const String _groupEtc = '기타';
 
-/// FEATURE_2610_13 / D97 · D109: the tabs shown when a switched-on 11st channel exists.
+/// FEATURE_2610_13 / D97 · D109 and FEATURE_2610_26 / D45: the tabs shown when
+/// a switched-on 11st or Gmarket · Auction channel exists — the 11st tab only
+/// with an 11st channel, the Gmarket · Auction tab only with an ESM channel.
 final List<(String, String)> _metaTabs = [
   ('ALL', '통합'),
   ('COUPANG', platformName('COUPANG')),
   ('ELEVENST', platformName('ELEVENST')),
+  ('ESM', platformName('ESM')),
 ];
 
 /// D99: the gray line under a read-only shared field.
@@ -87,8 +91,12 @@ class CategoryMetaFields extends StatefulWidget {
   final ValueChanged<String>? onNoticeGroupChange;
 
   /// FEATURE_2610_13 / D97 · D109: given only when a switched-on 11st channel exists → 「통합」 · 「쿠팡」 · 「11번가」 tabs.
-  /// null = the single-platform screen as before.
+  /// null together with [esmPreview] = the single-platform screen as before.
   final ElevenstNoticePreview? elevenstPreview;
+
+  /// FEATURE_2610_26 / D45 · D46: given only when a switched-on Gmarket ·
+  /// Auction channel exists → the 「G마켓 · 옥션」 tab. null = no such tab.
+  final EsmNoticePreview? esmPreview;
 
   const CategoryMetaFields({
     required this.attributes,
@@ -107,6 +115,7 @@ class CategoryMetaFields extends StatefulWidget {
     this.noticeGroup,
     this.onNoticeGroupChange,
     this.elevenstPreview,
+    this.esmPreview,
   });
 
   @override
@@ -166,12 +175,32 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
     final grayBoxText = TextStyle(fontSize: 14, color: scheme.onSurfaceVariant);
 
     final preview = widget.elevenstPreview;
-    final tabbed = preview != null;
+    final esmPreview = widget.esmPreview;
+    final tabbed = preview != null || esmPreview != null;
+    final tabs = [
+      for (final t in _metaTabs)
+        if ((t.$1 != 'ELEVENST' || preview != null) &&
+            (t.$1 != 'ESM' || esmPreview != null))
+          t,
+    ];
     final notification = preview?.notification;
-    // Coupang items 11st also reads (shared). null = not known yet / failed → no tags, nothing read-only.
-    final shared = notification?.usedCoupangItems.toSet();
+    final esmNotification = esmPreview?.notification;
+    // Coupang items another shown platform also reads (shared) — the union over
+    // the 11st and Gmarket · Auction previews. null = a shown preview is not
+    // known yet / failed → no tags, nothing read-only.
+    final shared = (preview != null && notification == null) ||
+            (esmPreview != null && esmNotification == null)
+        ? null
+        : {
+            ...?notification?.usedCoupangItems,
+            ...?esmNotification?.usedCoupangItems,
+          };
     final ownLines = [
       for (final l in notification?.lines ?? const <ElevenstNoticeLine>[])
+        if (l.ownKey != null) l,
+    ];
+    final esmOwnLines = [
+      for (final l in esmNotification?.lines ?? const <EsmNoticeLine>[])
         if (l.ownKey != null) l,
     ];
     // D109 (b) · (c): 「통합」 shows notices only and owns the group select; the Coupang tab shows the attributes too.
@@ -211,7 +240,7 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
             runSpacing: 4,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              for (final t in _metaTabs)
+              for (final t in tabs)
                 ChoiceChip(
                   label: Text(t.$2),
                   selected: _tab == t.$1,
@@ -244,8 +273,10 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
               ],
             ],
           ),
-        if (tabbed && _tab == 'ELEVENST')
+        if (tabbed && _tab == 'ELEVENST' && preview != null)
           _buildElevenstView(context, preview)
+        else if (tabbed && _tab == 'ESM' && esmPreview != null)
+          _buildEsmView(context, esmPreview)
         else ...[
           const SizedBox(height: 4),
           Divider(height: 1, color: scheme.outlineVariant),
@@ -343,6 +374,74 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
               ),
               const SizedBox(height: 12),
             ],
+          // FEATURE_2610_26 / D17: the Gmarket · Auction-only items of the ESM
+          // group, stored under ESM:{code}.
+          if (tabbed && _tab == 'ALL')
+            for (final line in esmOwnLines) ...[
+              _MetaTextField(
+                key: ValueKey('notice-${line.ownKey}'),
+                label: _fieldLabel(context, line.name,
+                    required: false, tag: platformName('ESM')),
+                value: noticeValues[line.ownKey] ?? '',
+                enabled: !disabled,
+                hintText: '비우면 「상품 상세페이지 참조」',
+                onChanged: (v) => widget.onNoticeChange(line.ownKey!, v),
+              ),
+              const SizedBox(height: 12),
+            ],
+        ],
+      ],
+    );
+  }
+
+  // FEATURE_2610_26 / D46: on the Gmarket · Auction tab every item shows the
+  // value ESM receives; only ESM-only items are editable.
+  Widget _buildEsmView(BuildContext context, EsmNoticePreview preview) {
+    final scheme = Theme.of(context).colorScheme;
+    final notification = preview.notification;
+    if (preview.failed && notification == null) {
+      return _grayBox(
+        context,
+        Text('G마켓 · 옥션 고시 미리보기를 불러오지 못했습니다.',
+            style: TextStyle(fontSize: 14, color: scheme.error)),
+      );
+    }
+    if (notification == null) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'G마켓 · 옥션 고시 유형: ${notification.groupName} '
+          '(쿠팡 품목군으로 정해집니다)',
+          style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 12),
+        for (final line in notification.lines) ...[
+          if (line.ownKey != null)
+            _MetaTextField(
+              key: ValueKey('esm-${line.code}'),
+              label: _fieldLabel(context, line.name, required: false),
+              value: widget.noticeValues[line.ownKey] ?? '',
+              enabled: !widget.disabled,
+              hintText: '비우면 「상품 상세페이지 참조」',
+              onChanged: (v) => widget.onNoticeChange(line.ownKey!, v),
+            )
+          else ...[
+            _MetaTextField(
+              key: ValueKey('esm-${line.code}-${line.value}'),
+              label: _fieldLabel(context, line.name, required: false),
+              value: line.value,
+              enabled: false,
+              onChanged: (_) {},
+            ),
+            _note(context, _sharedNote),
+          ],
+          const SizedBox(height: 12),
         ],
       ],
     );

@@ -199,7 +199,8 @@ Map<String, String> diffElevenst(
 }
 
 /// Web `recalcFailureNote` (D120) — the note a shipping save adds when some
-/// 11st listings could not be re-priced; `null` when there is none.
+/// 11st (or, FEATURE_2610_26 / D65, ESM) listings could not be re-priced;
+/// `null` when there is none.
 String? recalcFailureNote(int failed) => failed > 0
     ? '가격을 다시 계산하지 못한 상품 $failed개 — [가격 점검]에서 확인하세요'
     : null;

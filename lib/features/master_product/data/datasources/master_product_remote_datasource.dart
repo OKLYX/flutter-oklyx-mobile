@@ -224,4 +224,28 @@ class MasterProductRemoteDataSource {
           .toList(),
     );
   }
+
+  /// M25 — FEATURE_2610_26 / D56: the Gmarket · Auction view of the notice
+  /// values on screen (pure conversion, nothing saved).
+  Future<EsmNotification> previewEsmNotice(
+      String group, Map<String, String> notices) async {
+    final data = await api.post('/api/admin/esm/notice-preview',
+        body: {'group': group, 'notices': notices});
+    final j = data as Json;
+    return EsmNotification(
+      groupNo: j['groupNo'] as String,
+      groupName: j['groupName'] as String,
+      lines: (j['lines'] as List? ?? const [])
+          .map((e) => EsmNoticeLine(
+                code: (e as Json)['code'] as String,
+                name: e['name'] as String,
+                value: e['value'] as String,
+                ownKey: e['ownKey'] as String?,
+              ))
+          .toList(),
+      usedCoupangItems: (j['usedCoupangItems'] as List? ?? const [])
+          .map((e) => e as String)
+          .toList(),
+    );
+  }
 }
