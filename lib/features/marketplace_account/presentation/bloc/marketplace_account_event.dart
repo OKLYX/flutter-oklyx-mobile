@@ -27,6 +27,10 @@ class CreateChannelRequested extends MarketplaceAccountEvent {
         params.accessKey,
         params.secretKey,
         params.apiKey,
+        params.esmMasterId,
+        params.esmSecretKey,
+        params.gmarketSellerId,
+        params.auctionSellerId,
       ];
 }
 
@@ -45,6 +49,10 @@ class UpdateChannelRequested extends MarketplaceAccountEvent {
         params.accessKey,
         params.secretKey,
         params.apiKey,
+        params.esmMasterId,
+        params.esmSecretKey,
+        params.gmarketSellerId,
+        params.auctionSellerId,
       ];
 }
 

@@ -436,4 +436,39 @@ class MasterProductUseCase {
   Future<Either<Failure, ElevenstNotification>> previewElevenstNotice(
           String group, Map<String, String> notices) =>
       repository.previewElevenstNotice(group, notices);
+
+  /// L39 — FEATURE_2610_26 / D36.
+  Future<Either<Failure, Map<String, String>>> getInheritedEsmShipping(
+          int listingId) =>
+      repository.getInheritedEsmShipping(listingId);
+
+  /// S23 — FEATURE_2610_26 / D36.
+  Future<Either<Failure, Map<String, String>>> getEsmShippingConfig(
+          int accountId) =>
+      repository.getEsmShippingConfig(accountId);
+
+  /// S24 — Right = the D65 failed count.
+  Future<Either<Failure, int>> upsertEsmShippingConfig(
+          int accountId, Map<String, String> settings) =>
+      repository.upsertEsmShippingConfig(accountId, settings);
+
+  /// S25 — FEATURE_2610_26 / D37.
+  Future<Either<Failure, List<EsmChoice>>> listEsmBundlePolicies(
+          int accountId, String placeNo) =>
+      repository.listEsmBundlePolicies(accountId, placeNo);
+
+  /// S26 — FEATURE_2610_26 / D37 · D68.
+  Future<Either<Failure, List<EsmChoice>>> listEsmDispatchPolicies(
+          int accountId) =>
+      repository.listEsmDispatchPolicies(accountId);
+
+  /// S27 — FEATURE_2610_26 / D37.
+  Future<Either<Failure, List<EsmChoice>>> listEsmDeliveryCompanies(
+          int accountId) =>
+      repository.listEsmDeliveryCompanies(accountId);
+
+  /// M25 — FEATURE_2610_26 / D56.
+  Future<Either<Failure, EsmNotification>> previewEsmNotice(
+          String group, Map<String, String> notices) =>
+      repository.previewEsmNotice(group, notices);
 }

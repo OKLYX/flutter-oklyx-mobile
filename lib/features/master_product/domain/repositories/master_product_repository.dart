@@ -332,4 +332,32 @@ abstract class MasterProductRepository {
   /// M24 — FEATURE_2610_13 / D97.
   Future<Either<Failure, ElevenstNotification>> previewElevenstNotice(
       String group, Map<String, String> notices);
+
+  /// L39 — FEATURE_2610_26 / D36.
+  Future<Either<Failure, Map<String, String>>> getInheritedEsmShipping(
+      int listingId);
+
+  /// S23 — FEATURE_2610_26 / D36.
+  Future<Either<Failure, Map<String, String>>> getEsmShippingConfig(
+      int accountId);
+
+  /// S24 — Right = the D65 failed count.
+  Future<Either<Failure, int>> upsertEsmShippingConfig(
+      int accountId, Map<String, String> settings);
+
+  /// S25 — FEATURE_2610_26 / D37.
+  Future<Either<Failure, List<EsmChoice>>> listEsmBundlePolicies(
+      int accountId, String placeNo);
+
+  /// S26 — FEATURE_2610_26 / D37 · D68.
+  Future<Either<Failure, List<EsmChoice>>> listEsmDispatchPolicies(
+      int accountId);
+
+  /// S27 — FEATURE_2610_26 / D37.
+  Future<Either<Failure, List<EsmChoice>>> listEsmDeliveryCompanies(
+      int accountId);
+
+  /// M25 — FEATURE_2610_26 / D56.
+  Future<Either<Failure, EsmNotification>> previewEsmNotice(
+      String group, Map<String, String> notices);
 }

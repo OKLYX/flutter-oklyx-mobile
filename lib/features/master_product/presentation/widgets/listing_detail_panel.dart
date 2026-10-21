@@ -13,7 +13,12 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 const String _channelOnlyReason = '마스터 옵션이 없는 채널 전용 옵션입니다';
 const String _optionLinkUnknownReason =
     '채널별 옵션을 불러오지 못해 연결된 마스터 옵션을 알 수 없습니다';
-const String _optionLinkUnsupportedReason = '11번가 옵션 연결은 아직 지원하지 않습니다';
+/// FEATURE_2610_13 / D128 · D130 and FEATURE_2610_26 / D41: platforms whose
+/// [마켓 옵션 연결] is disabled, and why.
+const Map<String, String> _optionLinkUnsupportedReasons = {
+  'ELEVENST': '11번가 옵션 연결은 아직 지원하지 않습니다',
+  'ESM': 'G마켓 · 옥션 옵션 연결은 아직 지원하지 않습니다',
+};
 const String _optionIdPendingHint = '승인 후 부여';
 
 /// Why an option already on the market cannot be switched off (approved
@@ -23,6 +28,14 @@ const String kMarketOptionLockReason = '마켓에 등록된 옵션은 뺄 수 �
 /// Web `formatWon` — shared by the listing row and the option picker sheet.
 String formatWon(num v) => '${koNumber(v)}원';
 
+/// Web `formatSitePrices` — one option's price text (FEATURE_2610_26 / D48
+/// M20): 「G {G마켓 price} · 옥션 {옥션 price}」 on a Gmarket · Auction (ESM) option
+/// ([auctionSellingPrice] != null), otherwise `formatWon(sellingPrice)`.
+String formatSitePrices(num sellingPrice, num? auctionSellingPrice) =>
+    auctionSellingPrice == null
+        ? formatWon(sellingPrice)
+        : 'G ${formatWon(sellingPrice)} · 옥션 ${formatWon(auctionSellingPrice)}';
+
 /// Screen shape of one listing option — merges `generated[].optionPrices`
 /// (active · market lock · price · stock) with `channel-options` (option ID ·
 /// linked master option) — web `ListingOptionView`.
@@ -30,6 +43,10 @@ class ListingOptionView {
   final int optionId;
   final String name;
   final num sellingPrice;
+
+  /// FEATURE_2610_26 / D50: the Auction price of an ESM option ([sellingPrice]
+  /// = Gmarket); null elsewhere.
+  final num? auctionSellingPrice;
 
   /// A price set by a person, not the auto price (2609_19).
   final bool priceManual;
@@ -64,6 +81,7 @@ class ListingOptionView {
     required this.platformOptionId,
     required this.masterOptionId,
     required this.masterOptionKnown,
+    this.auctionSellingPrice,
   });
 }
 
@@ -80,7 +98,8 @@ class ListingOptionView {
 ///   active checkbox (2609_77/D57) — unused options are dimmed with `(미사용)`.
 ///   [수정] sends to the master option editor (does not edit here). An empty
 ///   option ID on a market listing shows [마켓 옵션 연결] — disabled with an ⓘ
-///   reason on an 11st listing (FEATURE_2610_13 / D128 · D130).
+///   reason on an 11st or ESM listing (FEATURE_2610_13 / D128 · D130 ·
+///   FEATURE_2610_26 / D41).
 /// - Tags: raw channel tags (current value from the matrix, no extra call).
 ///
 /// Every save is reflected through the parent reload ([onSaved]).
@@ -93,8 +112,9 @@ class ListingDetailPanel extends StatefulWidget {
   /// The listing is on a market (has a product ID) (2609_74/D13).
   final bool onMarket;
 
-  /// The listing's platform — `'ELEVENST'` disables [마켓 옵션 연결] and shows
-  /// the reason in an ⓘ next to it (FEATURE_2610_13 / D128 · D130).
+  /// The listing's platform — `'ELEVENST'` and `'ESM'` disable [마켓 옵션 연결]
+  /// and show the reason in an ⓘ next to it (FEATURE_2610_13 / D128 · D130 ·
+  /// FEATURE_2610_26 / D41).
   final String platform;
   final List<ListingOptionView> options;
 
@@ -385,7 +405,7 @@ class _ListingDetailPanelState extends State<ListingDetailPanel> {
               children: [
                 Text('가격:', style: labelStyle),
                 Text(
-                  formatWon(o.sellingPrice),
+                  formatSitePrices(o.sellingPrice, o.auctionSellingPrice),
                   style: TextStyle(
                     fontSize: 12,
                     fontFeatures: const [FontFeature.tabularFigures()],
@@ -480,17 +500,18 @@ class _ListingDetailPanelState extends State<ListingDetailPanel> {
     }
     if (widget.onMarket && o.masterOptionKnown) {
       // On a market but the option ID is empty → a person links it.
-      // FEATURE_2610_13 / D128 · D130: on an 11st listing the button stays
-      // visible but disabled, with the reason in an ⓘ next to it.
-      final unsupported = widget.platform == 'ELEVENST';
+      // FEATURE_2610_13 / D128 · D130 · FEATURE_2610_26 / D41: on an 11st or
+      // ESM listing the button stays visible but disabled, with the reason in
+      // an ⓘ next to it.
+      final unsupported = _optionLinkUnsupportedReasons[widget.platform];
       return [
         OutlinedButton(
-          onPressed: unsupported ? null : () => _openLink(o),
+          onPressed: unsupported != null ? null : () => _openLink(o),
           style: _smallOutlined(),
           child: const Text('마켓 옵션 연결'),
         ),
-        if (unsupported)
-          const InfoBubbleIcon(message: _optionLinkUnsupportedReason, size: 14),
+        if (unsupported != null)
+          InfoBubbleIcon(message: unsupported, size: 14),
       ];
     }
     return [

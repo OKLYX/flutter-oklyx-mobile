@@ -29,9 +29,9 @@ const String kUploadSuccessMessage =
 /// **Web original**: `master-products/[id]/components/ListingOptionPickerDialog.tsx` @09208a0
 ///
 /// - [mode] `'upload'`: pick options, check prices, [올리기] → (active options
-///   saved when changed) → market register (Coupang · 11st, FEATURE_2610_13 /
-///   D9 ③). 🔴 This sheet IS the confirmation for the market push (D29) —
-///   nothing is sent before [올리기].
+///   saved when changed) → market register (Coupang · 11st · ESM,
+///   FEATURE_2610_13 / D9 ③ · FEATURE_2610_26 / D2). 🔴 This sheet IS the
+///   confirmation for the market push (D29) — nothing is sent before [올리기].
 /// - [mode] `'select'`: [저장] → saves active options only (no market call).
 /// - Upload mode only: a 「노출상품명」 field prefilled with [displayName] and its
 ///   own [저장] — the same save as the listing detail panel
@@ -438,7 +438,7 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
               style: TextStyle(fontSize: 14, color: textColor),
             ),
             subtitle: Text(
-              formatWon(p.sellingPrice),
+              formatSitePrices(p.sellingPrice, p.auctionSellingPrice),
               style: TextStyle(fontSize: 14, color: textColor),
             ),
           ),

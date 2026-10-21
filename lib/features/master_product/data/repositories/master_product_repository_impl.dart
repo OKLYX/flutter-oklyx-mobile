@@ -516,4 +516,40 @@ class MasterProductRepositoryImpl implements MasterProductRepository {
   Future<Either<Failure, ElevenstNotification>> previewElevenstNotice(
           String group, Map<String, String> notices) =>
       _guard(() => masterDataSource.previewElevenstNotice(group, notices));
+
+  @override
+  Future<Either<Failure, Map<String, String>>> getInheritedEsmShipping(
+          int listingId) =>
+      _guard(() => listingDataSource.getInheritedEsmShipping(listingId));
+
+  @override
+  Future<Either<Failure, Map<String, String>>> getEsmShippingConfig(
+          int accountId) =>
+      _guard(() => supportDataSource.getEsmShippingConfig(accountId));
+
+  @override
+  Future<Either<Failure, int>> upsertEsmShippingConfig(
+          int accountId, Map<String, String> settings) =>
+      _guard(
+          () => supportDataSource.upsertEsmShippingConfig(accountId, settings));
+
+  @override
+  Future<Either<Failure, List<EsmChoice>>> listEsmBundlePolicies(
+          int accountId, String placeNo) =>
+      _guard(() => supportDataSource.listEsmBundlePolicies(accountId, placeNo));
+
+  @override
+  Future<Either<Failure, List<EsmChoice>>> listEsmDispatchPolicies(
+          int accountId) =>
+      _guard(() => supportDataSource.listEsmDispatchPolicies(accountId));
+
+  @override
+  Future<Either<Failure, List<EsmChoice>>> listEsmDeliveryCompanies(
+          int accountId) =>
+      _guard(() => supportDataSource.listEsmDeliveryCompanies(accountId));
+
+  @override
+  Future<Either<Failure, EsmNotification>> previewEsmNotice(
+          String group, Map<String, String> notices) =>
+      _guard(() => masterDataSource.previewEsmNotice(group, notices));
 }

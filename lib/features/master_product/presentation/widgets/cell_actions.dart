@@ -61,8 +61,9 @@ class _MenuGroup {
 /// **File**: lib/features/master_product/presentation/widgets/cell_actions.dart
 /// **Web original**: `master-products/[id]/components/CellActions.tsx` @09208a0
 ///
-/// - Primary: draft = Coupang · 11st [마켓에 올리기] (option picker sheet, D43 ·
-///   FEATURE_2610_13 / D9 ③) / other platforms [마켓 등록] · unsynced changes (`needsMarketSync`) =
+/// - Primary: draft = Coupang · 11st · ESM [마켓에 올리기] (option picker sheet,
+///   D43 · FEATURE_2610_13 / D9 ③ · FEATURE_2610_26 / D2) / other platforms
+///   [마켓 등록] · unsynced changes (`needsMarketSync`) =
 ///   [수정 요청] · otherwise none. A draft whose category the server could not
 ///   resolve ([categoryBlocked]) shows none — the category notice takes its
 ///   place (FEATURE_2610_11 / D25).
@@ -161,7 +162,10 @@ class _CellActionsState extends State<CellActions> {
 
   String? get _primary {
     if (_status == ListingStatusCode.draft) {
-      return widget.platform == 'COUPANG' || widget.platform == 'ELEVENST'
+      // FEATURE_2610_26 / D2: ESM uploads like Coupang and 11st.
+      return widget.platform == 'COUPANG' ||
+              widget.platform == 'ELEVENST' ||
+              widget.platform == 'ESM'
           ? _primaryUpload
           : _primaryRegister;
     }

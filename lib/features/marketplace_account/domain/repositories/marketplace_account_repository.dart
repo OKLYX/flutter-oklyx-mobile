@@ -3,7 +3,9 @@ import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import '../entities/marketplace_account.dart';
 
 /// Channel create parameters. FEATURE_2610_13 / D5: vendorId · accessKey · secretKey are the Coupang fields,
-/// apiKey is the 11st key — the fields of the other platform stay null.
+/// apiKey is the 11st key, and FEATURE_2610_26 / D4 · D5: esmMasterId ·
+/// esmSecretKey · gmarketSellerId · auctionSellerId are the ESM fields — the
+/// fields of the other platforms stay null.
 class CreateMarketplaceAccountParams {
   final int sellerId;
   final String platform;
@@ -12,6 +14,10 @@ class CreateMarketplaceAccountParams {
   final String? accessKey;
   final String? secretKey;
   final String? apiKey;
+  final String? esmMasterId;
+  final String? esmSecretKey;
+  final String? gmarketSellerId;
+  final String? auctionSellerId;
 
   const CreateMarketplaceAccountParams({
     required this.sellerId,
@@ -21,13 +27,18 @@ class CreateMarketplaceAccountParams {
     this.accessKey,
     this.secretKey,
     this.apiKey,
+    this.esmMasterId,
+    this.esmSecretKey,
+    this.gmarketSellerId,
+    this.auctionSellerId,
   });
 }
 
 /// Channel update parameters.
 ///
-/// secretKey and apiKey are optional — left blank, the backend keeps the stored key. FEATURE_2610_13 / D5: an 11st
-/// channel sends no Coupang field.
+/// secretKey, apiKey and esmSecretKey are optional — left blank, the backend
+/// keeps the stored key. FEATURE_2610_13 / D5: an 11st channel sends no Coupang
+/// field; FEATURE_2610_26 / D4: an ESM channel sends only the ESM fields.
 class UpdateMarketplaceAccountParams {
   final int sellerId;
   final String platform;
@@ -36,6 +47,10 @@ class UpdateMarketplaceAccountParams {
   final String? accessKey;
   final String? secretKey;
   final String? apiKey;
+  final String? esmMasterId;
+  final String? esmSecretKey;
+  final String? gmarketSellerId;
+  final String? auctionSellerId;
 
   const UpdateMarketplaceAccountParams({
     required this.sellerId,
@@ -45,6 +60,10 @@ class UpdateMarketplaceAccountParams {
     this.accessKey,
     this.secretKey,
     this.apiKey,
+    this.esmMasterId,
+    this.esmSecretKey,
+    this.gmarketSellerId,
+    this.auctionSellerId,
   });
 }
 

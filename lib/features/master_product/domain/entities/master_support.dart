@@ -247,3 +247,48 @@ class ElevenstNotification {
     required this.usedCoupangItems,
   });
 }
+
+/// One pickable Gmarket · Auction (ESM) value (FEATURE_2610_26 / D37 · D68):
+/// [code] is stored, [name] is shown. Web `EsmChoice`.
+class EsmChoice {
+  final String code;
+  final String name;
+
+  const EsmChoice({required this.code, required this.name});
+}
+
+/// One ESM notice item of the preview (FEATURE_2610_26 / D17 · D56). [ownKey]
+/// is set only for an ESM-only item — the notice-map key its value is stored
+/// under (`ESM:{code}`). Web `EsmNoticeLine`.
+class EsmNoticeLine {
+  final String code;
+  final String name;
+  final String value;
+  final String? ownKey;
+
+  const EsmNoticeLine({
+    required this.code,
+    required this.name,
+    required this.value,
+    this.ownKey,
+  });
+}
+
+/// The Gmarket · Auction view of the master notice values
+/// (`POST /api/admin/esm/notice-preview`). Web `EsmNotification`.
+class EsmNotification {
+  final String groupNo;
+  final String groupName;
+  final List<EsmNoticeLine> lines;
+
+  /// The request's Coupang item keys that some ESM item reads (= the items
+  /// both platforms share).
+  final List<String> usedCoupangItems;
+
+  const EsmNotification({
+    required this.groupNo,
+    required this.groupName,
+    required this.lines,
+    required this.usedCoupangItems,
+  });
+}
