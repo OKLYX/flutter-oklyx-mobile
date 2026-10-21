@@ -152,6 +152,7 @@ MatrixCell matrixCellFromJson(Json j) => MatrixCell(
       registrationName: _str(j['registrationName']),
       platformProductId: _strN(j['platformProductId']),
       sellingPrice: _numN(j['sellingPrice']),
+      auctionSellingPrice: _numN(j['auctionSellingPrice']),
       status: _strN(j['status']),
       categoryCode: _strN(j['categoryCode']),
       categoryName: _strN(j['categoryName']),
@@ -253,6 +254,8 @@ OptionPrice optionPriceFromJson(Json j) => OptionPrice(
       priceSource: _strN(j['priceSource']),
       optionNameSource: _strN(j['optionNameSource']),
       channelOnly: _boolN(j['channelOnly']),
+      auctionSellingPrice: _numN(j['auctionSellingPrice']),
+      auctionPriceSource: _strN(j['auctionPriceSource']),
     );
 
 GeneratedProduct generatedProductFromJson(Json j) => GeneratedProduct(
@@ -361,6 +364,8 @@ ListingOptionSummary listingOptionSummaryFromJson(Json j) =>
       channelOnly: _boolN(j['channelOnly']),
       platformOptionId: _strN(j['platformOptionId']),
       masterOptionId: _intN(j['masterOptionId']),
+      auctionSellingPrice: _numN(j['auctionSellingPrice']),
+      auctionPriceSource: _strN(j['auctionPriceSource']),
     );
 
 ListingOptions listingOptionsFromJson(Json j) => ListingOptions(

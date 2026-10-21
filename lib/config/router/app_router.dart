@@ -86,6 +86,8 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/channel_shipping_page.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/elevenst_channel_shipping_page.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/elevenst_shipping_config_page.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/esm_channel_shipping_page.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/esm_shipping_config_page.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/channel_stock_page.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/market_product_add_page.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/pages/master_shipping_config_page.dart';
@@ -666,11 +668,14 @@ class AppRouter {
       path: Routes.masterChannelShippingPath,
       pageBuilder: (context, state) {
         final args = state.extra! as ChannelShippingArgs;
-        // FEATURE_2610_13 / D104: an 11st listing edits only the 11st keys.
+        // FEATURE_2610_13 / D104: an 11st listing edits only the 11st keys;
+        // FEATURE_2610_26 / D36: an ESM listing only the six ESM keys.
         return NoTransitionPage(
-          child: args.platform == 'ELEVENST'
-              ? ElevenstChannelShippingPage(args: args)
-              : ChannelShippingPage(args: args),
+          child: switch (args.platform) {
+            'ELEVENST' => ElevenstChannelShippingPage(args: args),
+            'ESM' => EsmChannelShippingPage(args: args),
+            _ => ChannelShippingPage(args: args),
+          },
         );
       },
     ),
@@ -686,11 +691,14 @@ class AppRouter {
       path: Routes.masterShippingConfigPath,
       pageBuilder: (context, state) {
         final args = state.extra! as ShippingConfigArgs;
-        // FEATURE_2610_13 / D84: an 11st account keeps its own settings map.
+        // FEATURE_2610_13 / D84: an 11st account keeps its own settings map;
+        // FEATURE_2610_26 / D36: so does an ESM account.
         return NoTransitionPage(
-          child: args.account.platform == 'ELEVENST'
-              ? ElevenstShippingConfigPage(args: args)
-              : MasterShippingConfigPage(args: args),
+          child: switch (args.account.platform) {
+            'ELEVENST' => ElevenstShippingConfigPage(args: args),
+            'ESM' => EsmShippingConfigPage(args: args),
+            _ => MasterShippingConfigPage(args: args),
+          },
         );
       },
     ),

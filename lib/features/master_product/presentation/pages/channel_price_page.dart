@@ -34,6 +34,11 @@ String _jsString(num v) =>
 /// Result: `true` once something was saved (`null` = closed without saving).
 /// ⚠️ A partial result (skipped or failed rows) keeps the page open so the
 ///    failures stay visible — back then returns `true`.
+/// FEATURE_2610_26 / D53 ②: a Gmarket · Auction (ESM) option
+/// (`auctionSellingPrice != null`) has two fields, 「G마켓」 and 「옥션」, each
+/// with its own [기본값으로 변경]. An untouched field is sent as its current
+/// value when it was set by hand and as `null` when it is automatic, so saving
+/// one site never changes the other site's origin.
 class ChannelPricePage extends StatefulWidget {
   final ChannelOptionsArgs args;
 
@@ -53,6 +58,11 @@ class _ChannelPricePageState extends State<ChannelPricePage> {
   Map<int, String> _draft = {};
   // Rows where [기본값으로 변경] is on — saved as sellingPrice: null.
   Set<int> _restore = {};
+  // FEATURE_2610_26 / D53 ②: the Auction field of an ESM option — its own
+  // controller, input buffer and [기본값으로 변경].
+  final Map<int, TextEditingController> _auctionControllers = {};
+  Map<int, String> _draftAuction = {};
+  Set<int> _restoreAuction = {};
   ChannelPriceUpdateResult? _saveResult;
   bool _isLoading = true;
   bool _isSaving = false;
@@ -78,11 +88,17 @@ class _ChannelPricePageState extends State<ChannelPricePage> {
     for (final c in _controllers.values) {
       c.dispose();
     }
+    for (final c in _auctionControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
   TextEditingController _controllerFor(int optionId) =>
       _controllers.putIfAbsent(optionId, TextEditingController.new);
+
+  TextEditingController _auctionControllerFor(int optionId) =>
+      _auctionControllers.putIfAbsent(optionId, TextEditingController.new);
 
   // Server response → reseed. [keep] = rows the market rejected (NOT saved) —
   // only those keep their input buffer and restore state.
@@ -104,6 +120,21 @@ class _ChannelPricePageState extends State<ChannelPricePage> {
       }
     }
     _restore = _restore.where(kept.contains).toSet();
+    final prevAuction = _draftAuction;
+    _draftAuction = {
+      for (final o in visible)
+        if (o.auctionSellingPrice != null)
+          o.optionId: kept.contains(o.optionId)
+              ? (prevAuction[o.optionId] ?? _jsString(o.auctionSellingPrice!))
+              : _jsString(o.auctionSellingPrice!),
+    };
+    for (final e in _draftAuction.entries) {
+      final controller = _auctionControllerFor(e.key);
+      if (controller.text != e.value) {
+        controller.text = e.value;
+      }
+    }
+    _restoreAuction = _restoreAuction.where(kept.contains).toSet();
   }
 
   Future<void> _load() async {
@@ -140,16 +171,66 @@ class _ChannelPricePageState extends State<ChannelPricePage> {
         v >= 10;
   }
 
-  bool get _invalid =>
-      _rows.any((r) => !_restore.contains(r.optionId) && !_validRow(r.optionId));
+  // FEATURE_2610_26 / D53 ②: the same helpers for the Auction field.
+  String _rawAuction(int id) => _draftAuction[id] ?? '';
+
+  num? _parsedAuction(int id) => num.tryParse(_rawAuction(id).trim());
+
+  bool _validAuction(int id) {
+    final v = _parsedAuction(id);
+    return _rawAuction(id).trim() != '' &&
+        v != null &&
+        v.isFinite &&
+        v == v.truncateToDouble() &&
+        v >= 10;
+  }
+
+  bool _isEsmRow(ListingOptionSummary r) => r.auctionSellingPrice != null;
+
+  bool _sellingTouched(ListingOptionSummary r) =>
+      _restore.contains(r.optionId) || _parsed(r.optionId) != r.sellingPrice;
+
+  bool _auctionTouched(ListingOptionSummary r) =>
+      _isEsmRow(r) &&
+      (_restoreAuction.contains(r.optionId) ||
+          _parsedAuction(r.optionId) != r.auctionSellingPrice);
+
+  bool get _invalid => _rows.any(
+        (r) =>
+            (!_restore.contains(r.optionId) && !_validRow(r.optionId)) ||
+            (_isEsmRow(r) &&
+                !_restoreAuction.contains(r.optionId) &&
+                !_validAuction(r.optionId)),
+      );
 
   List<ListingOptionSummary> get _dirty => _rows
-      .where(
-        (r) =>
-            _restore.contains(r.optionId) ||
-            _parsed(r.optionId) != r.sellingPrice,
-      )
+      .where((r) => _sellingTouched(r) || _auctionTouched(r))
       .toList();
+
+  void _toggleRestoreAuction(int optionId) => setState(() {
+        final next = {..._restoreAuction};
+        if (!next.remove(optionId)) {
+          next.add(optionId);
+        }
+        _restoreAuction = next;
+      });
+
+  // D53 ②: an untouched site keeps its origin — its value when set by hand,
+  // null when automatic.
+  OptionPriceChange _esmChange(ListingOptionSummary r) => OptionPriceChange(
+        optionId: r.optionId,
+        sellingPrice: _restore.contains(r.optionId) ||
+                (!_sellingTouched(r) &&
+                    r.priceSource != GeneratedSourceCode.manualOverride)
+            ? null
+            : _parsed(r.optionId),
+        esm: true,
+        auctionSellingPrice: _restoreAuction.contains(r.optionId) ||
+                (!_auctionTouched(r) &&
+                    r.auctionPriceSource != GeneratedSourceCode.manualOverride)
+            ? null
+            : _parsedAuction(r.optionId),
+      );
 
   void _toggleRestore(int optionId) => setState(() {
         final next = {..._restore};
@@ -175,11 +256,14 @@ class _ChannelPricePageState extends State<ChannelPricePage> {
       widget.args.listingId,
       [
         for (final r in dirty)
-          OptionPriceChange(
-            optionId: r.optionId,
-            sellingPrice:
-                _restore.contains(r.optionId) ? null : _parsed(r.optionId),
-          ),
+          if (_isEsmRow(r))
+            _esmChange(r)
+          else
+            OptionPriceChange(
+              optionId: r.optionId,
+              sellingPrice:
+                  _restore.contains(r.optionId) ? null : _parsed(r.optionId),
+            ),
       ],
     );
     if (!mounted) {
@@ -281,7 +365,7 @@ class _ChannelPricePageState extends State<ChannelPricePage> {
               ),
               const SizedBox(height: 12),
               for (final r in _rows) ...[
-                _row(context, r),
+                if (_isEsmRow(r)) _esmRow(context, r) else _row(context, r),
                 const SizedBox(height: 8),
               ],
             ],
@@ -326,6 +410,144 @@ class _ChannelPricePageState extends State<ChannelPricePage> {
           ],
         ),
       ),
+    );
+  }
+
+  // FEATURE_2610_26 / D53 ②: 「G마켓」 and 「옥션」, each field with its own
+  // [기본값으로 변경].
+  Widget _esmRow(BuildContext context, ListingOptionSummary r) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(r.optionName, style: const TextStyle(fontSize: 14)),
+          const SizedBox(height: 8),
+          _siteField(
+            context,
+            label: 'G마켓',
+            manual: r.priceSource == GeneratedSourceCode.manualOverride,
+            restoring: _restore.contains(r.optionId),
+            value: _raw(r.optionId),
+            controller: _controllerFor(r.optionId),
+            onChanged: (next) =>
+                setState(() => _draft = {..._draft, r.optionId: next}),
+            onRestore: () => _toggleRestore(r.optionId),
+          ),
+          const SizedBox(height: 8),
+          _siteField(
+            context,
+            label: '옥션',
+            manual: r.auctionPriceSource == GeneratedSourceCode.manualOverride,
+            restoring: _restoreAuction.contains(r.optionId),
+            value: _rawAuction(r.optionId),
+            controller: _auctionControllerFor(r.optionId),
+            onChanged: (next) => setState(
+                () => _draftAuction = {..._draftAuction, r.optionId: next}),
+            onRestore: () => _toggleRestoreAuction(r.optionId),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _siteField(
+    BuildContext context, {
+    required String label,
+    required bool manual,
+    required bool restoring,
+    required String value,
+    required TextEditingController controller,
+    required ValueChanged<String> onChanged,
+    required VoidCallback onRestore,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final empty = !restoring && value.trim() == '';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Wrap(
+                spacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(label,
+                      style: TextStyle(
+                          fontSize: 12, color: scheme.onSurfaceVariant)),
+                  if (manual)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.warningSurface,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        '수동',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppColors.warningForeground,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 112,
+              child: TextField(
+                controller: controller,
+                enabled: !restoring && !_isSaving,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.right,
+                onChanged: onChanged,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '원',
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerRight,
+          child: OutlinedButton(
+            onPressed: _isSaving ? null : onRestore,
+            style: OutlinedButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              textStyle:
+                  const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+              foregroundColor: restoring ? AppColors.infoForeground : null,
+              backgroundColor: restoring ? AppColors.infoSurface : null,
+            ),
+            child: const Text('기본값으로 변경'),
+          ),
+        ),
+        if (restoring) ...[
+          const SizedBox(height: 4),
+          Text(
+            '저장하면 자동계산가로 돌아갑니다',
+            style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+          ),
+        ],
+        if (empty) ...[
+          const SizedBox(height: 4),
+          Text(
+            '값을 입력하거나 [기본값으로 변경]을 누르세요',
+            style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+          ),
+        ],
+      ],
     );
   }
 

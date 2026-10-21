@@ -230,7 +230,8 @@ class _MasterCategoryPanelState extends State<MasterCategoryPanel> {
                   ),
                 ],
               ),
-            // FEATURE_2610_12 / D48 · D50: own lines in 「쿠팡」 → 「11번가」 order.
+            // FEATURE_2610_12 / D48 · D50: own lines in 「쿠팡」 → 「11번가」 →
+            // 「G마켓 · 옥션」 order.
             for (final platform in kCategoryBlockPlatforms)
               for (final own in _owns.where((o) => o.platform == platform))
                 Padding(

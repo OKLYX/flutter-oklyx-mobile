@@ -188,6 +188,57 @@ class MasterSupportRemoteDataSource {
     return recalcFailedCountFromJson(data as Json);
   }
 
+  /// S23 — FEATURE_2610_26 / D36: the ESM channel layer (`esm.*` keys;
+  /// nothing stored = empty map).
+  Future<Map<String, String>> getEsmShippingConfig(int accountId) async {
+    final data = await api.get(
+        '/api/admin/marketplace-account/$accountId/esm-shipping-config');
+    final settings = data is Json ? data['settings'] : null;
+    return settings is Map
+        ? settings.map((k, v) => MapEntry(k as String, v.toString()))
+        : <String, String>{};
+  }
+
+  /// S24 — replaces the whole ESM settings map; returns the D65 failed count.
+  Future<int> upsertEsmShippingConfig(
+      int accountId, Map<String, String> settings) async {
+    final data = await api.put(
+        '/api/admin/marketplace-account/$accountId/esm-shipping-config',
+        body: {'settings': settings});
+    return recalcFailedCountFromJson(data as Json);
+  }
+
+  /// S25 — FEATURE_2610_26 / D37: the bundle-fee policies of one ESM
+  /// shipping place.
+  Future<List<EsmChoice>> listEsmBundlePolicies(
+      int accountId, String placeNo) async {
+    final data = await api.get(
+        '/api/admin/marketplace-account/$accountId/esm-shipping/bundle-policies',
+        query: {'placeNo': placeNo});
+    return _esmChoices(data);
+  }
+
+  /// S26 — FEATURE_2610_26 / D37 · D68: the ESM dispatch policies.
+  Future<List<EsmChoice>> listEsmDispatchPolicies(int accountId) async {
+    final data = await api.get(
+        '/api/admin/marketplace-account/$accountId/esm-shipping/dispatch-policies');
+    return _esmChoices(data);
+  }
+
+  /// S27 — FEATURE_2610_26 / D37: the ESM couriers.
+  Future<List<EsmChoice>> listEsmDeliveryCompanies(int accountId) async {
+    final data = await api.get(
+        '/api/admin/marketplace-account/$accountId/esm-shipping/delivery-companies');
+    return _esmChoices(data);
+  }
+
+  List<EsmChoice> _esmChoices(Object? data) => (data as List? ?? const [])
+      .map((e) => EsmChoice(
+            code: (e as Json)['code'] as String,
+            name: e['name'] as String,
+          ))
+      .toList();
+
   /// S22 — FEATURE_2610_13 / D98: every sales channel of the tenant (platform + on/off only).
   Future<List<AccountPlatform>> listAccountPlatforms() async {
     final data = await api.get('/api/admin/marketplace-account');

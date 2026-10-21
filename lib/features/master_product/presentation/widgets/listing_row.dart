@@ -73,6 +73,7 @@ List<ListingOptionView> _buildOptionViews(
             co?.optionName ??
             (master.isNotEmpty ? master.first.name : '옵션 #${p.optionId}'),
         sellingPrice: p.sellingPrice,
+        auctionSellingPrice: p.auctionSellingPrice,
         priceManual: p.priceSource == GeneratedSourceCode.manualOverride,
         stock: p.stockQuantity ?? p.maxStock,
         stockInherited: p.stockQuantity == null,
@@ -91,6 +92,7 @@ List<ListingOptionView> _buildOptionViews(
           optionId: o.optionId,
           name: o.optionName,
           sellingPrice: o.sellingPrice,
+          auctionSellingPrice: o.auctionSellingPrice,
           priceManual: o.priceSource == GeneratedSourceCode.manualOverride,
           stock: o.stockQuantity ?? o.maxStock,
           stockInherited: o.stockQuantity == null,
@@ -193,6 +195,17 @@ class _ListingRowState extends State<ListingRow> {
     final minPrice =
         prices.isNotEmpty ? prices.reduce(math.min) : cell.sellingPrice;
     final hasPriceRange = prices.length > 1 && prices.toSet().length > 1;
+    // FEATURE_2610_26 / D48 M20: an ESM row also shows its lowest Auction
+    // price.
+    final auctionPrices = [
+      for (final v in activeViews)
+        if (v.auctionSellingPrice != null) v.auctionSellingPrice!,
+    ];
+    final minAuction = auctionPrices.isNotEmpty
+        ? auctionPrices.reduce(math.min)
+        : cell.auctionSellingPrice;
+    final hasAuctionRange =
+        auctionPrices.length > 1 && auctionPrices.toSet().length > 1;
     final stockTotal = activeViews.fold<int>(0, (sum, v) => sum + v.stock);
     final needsSync = cell.needsMarketSync == true;
     final categoryMismatch = cell.usesOwnCategory == true;
@@ -377,7 +390,13 @@ class _ListingRowState extends State<ListingRow> {
                               if (minPrice != null) ...[
                                 Text('·', style: subStyle),
                                 Text(
-                                  '${formatWon(minPrice)}${hasPriceRange ? '~' : ''}',
+                                  minAuction == null
+                                      ? '${formatWon(minPrice)}'
+                                          '${hasPriceRange ? '~' : ''}'
+                                      : 'G ${formatWon(minPrice)}'
+                                          '${hasPriceRange ? '~' : ''}'
+                                          ' · 옥션 ${formatWon(minAuction)}'
+                                          '${hasAuctionRange ? '~' : ''}',
                                   style: subStyle,
                                 ),
                               ],

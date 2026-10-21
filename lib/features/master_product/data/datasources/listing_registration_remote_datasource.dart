@@ -211,7 +211,11 @@ class ListingRegistrationRemoteDataSource {
     final data = await api
         .put('/api/admin/product-listings/$listingId/options/price', body: {
       'prices': prices
-          .map((p) => {'optionId': p.optionId, 'sellingPrice': p.sellingPrice})
+          .map((p) => {
+                'optionId': p.optionId,
+                'sellingPrice': p.sellingPrice,
+                if (p.esm) 'auctionSellingPrice': p.auctionSellingPrice,
+              })
           .toList()
     });
     return channelPriceUpdateResultFromJson(data as Json);
@@ -346,6 +350,16 @@ class ListingRegistrationRemoteDataSource {
   Future<Map<String, String>> getInheritedElevenstShipping(int listingId) async {
     final data = await api.get(
         '/api/admin/product-listings/$listingId/elevenst-shipping-inherited');
+    return data is Map
+        ? data.map((k, v) => MapEntry(k as String, v.toString()))
+        : <String, String>{};
+  }
+
+  /// L39 — FEATURE_2610_26 / D36: an ESM listing's inherited baseline (the
+  /// ESM channel layer — there is no master level).
+  Future<Map<String, String>> getInheritedEsmShipping(int listingId) async {
+    final data = await api
+        .get('/api/admin/product-listings/$listingId/esm-shipping-inherited');
     return data is Map
         ? data.map((k, v) => MapEntry(k as String, v.toString()))
         : <String, String>{};
