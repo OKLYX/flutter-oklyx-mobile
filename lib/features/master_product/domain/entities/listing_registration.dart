@@ -574,3 +574,84 @@ class MasterFromChannelPreview {
     this.noticeGroup,
   });
 }
+
+/// Web `SiteMargin` — the margin of one price (FEATURE_2610_27 / D2 · D5 ·
+/// D11 · D12). Every amount is null when the margin cannot be calculated;
+/// [reason] then says why.
+class SiteMargin {
+  /// The price live on the market; null = unknown.
+  final num? marketPrice;
+  final num? systemPrice;
+
+  /// marketPrice ?? systemPrice (D2); for a preview = the price typed in.
+  final num? judgedPrice;
+
+  /// true = no market price, the system price was judged (D2).
+  final bool marketPriceMissing;
+  final num? costSum;
+  final num? delivery;
+  final num? box;
+  final num? feeAmount;
+  final num? marginAmount;
+
+  /// 0.1234 = 12.34%.
+  final num? marginRate;
+  final num? breakEvenPrice;
+
+  /// Under the margin preset's minimum amount or rate (D5).
+  final bool below;
+  final String? reason;
+
+  const SiteMargin({
+    required this.marketPriceMissing,
+    required this.below,
+    this.marketPrice,
+    this.systemPrice,
+    this.judgedPrice,
+    this.costSum,
+    this.delivery,
+    this.box,
+    this.feeAmount,
+    this.marginAmount,
+    this.marginRate,
+    this.breakEvenPrice,
+    this.reason,
+  });
+}
+
+/// Web `OptionMargin` — one option of `GET …/margins` (FEATURE_2610_27 / D3 ·
+/// D26).
+class OptionMargin {
+  final int optionId;
+  final String optionName;
+
+  /// KST wall clock 'yyyy-MM-ddTHH:mm:ss…' (D32); null = never confirmed.
+  final String? marketPriceAt;
+
+  /// The Gmarket margin on an ESM option.
+  final SiteMargin margin;
+
+  /// The Auction margin of an ESM option; null elsewhere.
+  final SiteMargin? auctionMargin;
+
+  const OptionMargin({
+    required this.optionId,
+    required this.optionName,
+    required this.margin,
+    this.marketPriceAt,
+    this.auctionMargin,
+  });
+}
+
+/// Web `ListingMarginResponse`.
+class ListingMargins {
+  final int listingId;
+  final String platform;
+  final List<OptionMargin> options;
+
+  const ListingMargins({
+    required this.listingId,
+    required this.platform,
+    required this.options,
+  });
+}

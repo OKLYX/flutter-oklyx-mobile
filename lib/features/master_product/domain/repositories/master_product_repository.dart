@@ -360,4 +360,11 @@ abstract class MasterProductRepository {
   /// M25 — FEATURE_2610_26 / D56.
   Future<Either<Failure, EsmNotification>> previewEsmNotice(
       String group, Map<String, String> notices);
+
+  /// L40 — FEATURE_2610_27 / D1 · D10.
+  Future<Either<Failure, ListingMargins>> getListingMargins(int listingId);
+
+  /// L41 — FEATURE_2610_27 / D6 · D20.
+  Future<Either<Failure, SiteMargin>> previewMargin(int listingId, int optionId,
+      {required num price, required bool auction});
 }

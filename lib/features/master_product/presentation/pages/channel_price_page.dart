@@ -8,6 +8,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/lis
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_tool_args.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/listing_margin.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
@@ -30,6 +31,9 @@ String _jsString(num v) =>
 /// - Save **pushes to the market** too; the result (pushed / skipped / failed)
 ///   is shown on this page.
 /// - Inactive options are hidden.
+/// - FEATURE_2610_27 / D6 · D7 · D20 · D21 · D38: under each input, the margin
+///   of the typed price ([MarginPreviewText], asked 300 ms after typing stops)
+///   — red when under the margin preset minimum. It never blocks a save.
 ///
 /// Result: `true` once something was saved (`null` = closed without saving).
 /// ⚠️ A partial result (skipped or failed rows) keeps the page open so the
@@ -438,6 +442,14 @@ class _ChannelPricePageState extends State<ChannelPricePage> {
             onChanged: (next) =>
                 setState(() => _draft = {..._draft, r.optionId: next}),
             onRestore: () => _toggleRestore(r.optionId),
+            marginPreview: MarginPreviewText(
+              listingId: widget.args.listingId,
+              optionId: r.optionId,
+              auction: false,
+              price: !_restore.contains(r.optionId) && _validRow(r.optionId)
+                  ? _parsed(r.optionId)
+                  : null,
+            ),
           ),
           const SizedBox(height: 8),
           _siteField(
@@ -450,6 +462,15 @@ class _ChannelPricePageState extends State<ChannelPricePage> {
             onChanged: (next) => setState(
                 () => _draftAuction = {..._draftAuction, r.optionId: next}),
             onRestore: () => _toggleRestoreAuction(r.optionId),
+            marginPreview: MarginPreviewText(
+              listingId: widget.args.listingId,
+              optionId: r.optionId,
+              auction: true,
+              price: !_restoreAuction.contains(r.optionId) &&
+                      _validAuction(r.optionId)
+                  ? _parsedAuction(r.optionId)
+                  : null,
+            ),
           ),
         ],
       ),
@@ -465,6 +486,7 @@ class _ChannelPricePageState extends State<ChannelPricePage> {
     required TextEditingController controller,
     required ValueChanged<String> onChanged,
     required VoidCallback onRestore,
+    required Widget marginPreview,
   }) {
     final scheme = Theme.of(context).colorScheme;
     final empty = !restoring && value.trim() == '';
@@ -518,6 +540,8 @@ class _ChannelPricePageState extends State<ChannelPricePage> {
             ),
           ],
         ),
+        const SizedBox(height: 4),
+        Align(alignment: Alignment.centerRight, child: marginPreview),
         const SizedBox(height: 8),
         Align(
           alignment: Alignment.centerRight,
@@ -610,6 +634,18 @@ class _ChannelPricePageState extends State<ChannelPricePage> {
                 style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
               ),
             ],
+          ),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerRight,
+            child: MarginPreviewText(
+              listingId: widget.args.listingId,
+              optionId: r.optionId,
+              auction: false,
+              price: !willRestore && _validRow(r.optionId)
+                  ? _parsed(r.optionId)
+                  : null,
+            ),
           ),
           const SizedBox(height: 8),
           Align(

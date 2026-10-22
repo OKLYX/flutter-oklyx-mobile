@@ -552,4 +552,14 @@ class MasterProductRepositoryImpl implements MasterProductRepository {
   Future<Either<Failure, EsmNotification>> previewEsmNotice(
           String group, Map<String, String> notices) =>
       _guard(() => masterDataSource.previewEsmNotice(group, notices));
+
+  @override
+  Future<Either<Failure, ListingMargins>> getListingMargins(int listingId) =>
+      _guard(() => listingDataSource.getListingMargins(listingId));
+
+  @override
+  Future<Either<Failure, SiteMargin>> previewMargin(int listingId, int optionId,
+          {required num price, required bool auction}) =>
+      _guard(() => listingDataSource.previewMargin(listingId, optionId,
+          price: price, auction: auction));
 }
