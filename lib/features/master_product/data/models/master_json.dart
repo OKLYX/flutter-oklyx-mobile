@@ -647,24 +647,40 @@ Json shippingConfigRequestToJson(ShippingSettings s) => {
       'extraInfoMessage': s.extraInfoMessage,
     };
 
-/// FEATURE_2610_27 / D11 · D12.
+/// FEATURE_2610_27 / D11 · D12 · FEATURE_2610_28 / D7 · D12 · D13 · D21 · D22.
 SiteMargin siteMarginFromJson(Json j) => SiteMargin(
+      site: _str(j['site']),
+      marketPriceAt: _strN(j['marketPriceAt']),
       marketPrice: _numN(j['marketPrice']),
       systemPrice: _numN(j['systemPrice']),
       judgedPrice: _numN(j['judgedPrice']),
       marketPriceMissing: _bool(j['marketPriceMissing']),
       costSum: _numN(j['costSum']),
+      components: _list(
+        j['components'],
+        (c) => CostComponent(
+          productName: _str(c['productName']),
+          quantity: _int(c['quantity']),
+          unitPrice: _numN(c['unitPrice']),
+          amount: _numN(c['amount']),
+        ),
+      ),
       delivery: _numN(j['delivery']),
       box: _numN(j['box']),
+      commissionRate: _numN(j['commissionRate']),
+      commissionAmount: _numN(j['commissionAmount']),
+      shippingFeeCommission: _numN(j['shippingFeeCommission']),
       feeAmount: _numN(j['feeAmount']),
       marginAmount: _numN(j['marginAmount']),
       marginRate: _numN(j['marginRate']),
       breakEvenPrice: _numN(j['breakEvenPrice']),
+      minMarginAmount: _numN(j['minMarginAmount']),
+      minMarginRate: _numN(j['minMarginRate']),
       below: _bool(j['below']),
       reason: _strN(j['reason']),
     );
 
-/// FEATURE_2610_27 / D1 · D3 · D26.
+/// FEATURE_2610_27 / D1 · D3 · FEATURE_2610_28 / D20.
 ListingMargins listingMarginsFromJson(Json j) => ListingMargins(
       listingId: _int(j['listingId']),
       platform: _str(j['platform']),
@@ -673,11 +689,7 @@ ListingMargins listingMarginsFromJson(Json j) => ListingMargins(
         (o) => OptionMargin(
           optionId: _int(o['optionId']),
           optionName: _str(o['optionName']),
-          marketPriceAt: _strN(o['marketPriceAt']),
-          margin: siteMarginFromJson(o['margin'] as Json),
-          auctionMargin: o['auctionMargin'] == null
-              ? null
-              : siteMarginFromJson(o['auctionMargin'] as Json),
+          sites: _list(o['sites'], siteMarginFromJson),
         ),
       ),
     );

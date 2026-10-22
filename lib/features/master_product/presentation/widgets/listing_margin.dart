@@ -9,28 +9,43 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/mas
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/master_format.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
 
-/// Margin view parts of the master detail (FEATURE_2610_27) — web
-/// `ListingMargin.tsx`.
+/// Margin view parts of the master detail (FEATURE_2610_27 · FEATURE_2610_28)
+/// — web `ListingMargin.tsx`.
 ///
 /// **File**: lib/features/master_product/presentation/widgets/listing_margin.dart
 ///
-/// - [MarginSummary]: the 「마진:」 value of an option card (D11) — amount +
-///   rate, red when under the preset minimum (D4 · D5), the reason instead of
-///   numbers when it cannot be calculated (D12), and 「마켓 가격 없음 — 시스템
-///   가격 기준」 under a margin judged on the system price (D2). An ESM option
-///   shows a 「G」 line and an 「옥션」 line (D3).
-/// - [MarginBreakdown]: the line opened under the card's margin (D11) —
-///   「마켓 가격 · 시스템 가격 · 원가합 · 택배비 · 박스비 · 수수료 · 손익분기가」,
-///   then 「마켓 가격 확인: MM/DD HH:mm」 when the check time is known (D26 ·
-///   D35).
+/// - [MarginSummary]: the 「마진:」 value of an option card — amount + rate,
+///   red when under the preset minimum (2610_27 D4 · D5), the reason instead
+///   of numbers when it cannot be calculated (2610_27 D12), and 「마켓 가격
+///   없음 — 시스템 가격 기준」 under a margin judged on the system price
+///   (2610_27 D2). An ESM option shows a 「G」 line and an 「옥션」 line
+///   (2610_27 D3).
+/// - [MarginBreakdown]: what opens under the card's margin — one formula per
+///   site, headed 「G마켓」 · 「옥션」 on an ESM option (2610_28 D4 · D9 · D21).
+/// - [SiteBreakdown]: one formula (2610_28 D3 · D5 · D7 · D10 · D12 ~ D15) —
+///   the price, 「− 상품 매입가」 with one line per component, 「− 상자비」,
+///   「− 택배비」, 「− 판매 수수료」, 「− 배송비 수수료」 (only when not 0),
+///   「= 마진」, 「손익분기가」, 「최소 마진 기준」 (only when set) and 「마켓 가격
+///   확인: MM/DD HH:mm」 (only when known). When the margin cannot be
+///   calculated: the reason, the price and the check time only.
 /// - [MarginPreviewText]: the margin of a price typed in the price page, asked
-///   300 ms after typing stops (D6 · D20 · D38). Saving is never blocked (D21).
+///   300 ms after typing stops (2610_27 D6 · D20 · D38), with 「▸」 that opens
+///   its formula below, as wide as the page (2610_28 D16 · D17). Saving is
+///   never blocked (2610_27 D21).
 ///
-/// ❌ Never compute a margin here — the numbers are the server's (D8 · D20).
+/// ❌ Never compute a margin, a rate or a difference here — the numbers are
+/// the server's (2610_27 D8 · D20 · 2610_28 D2).
 const String kMarketPriceMissingNote = '마켓 가격 없음 — 시스템 가격 기준';
 
 /// D38: how long typing must stop before the preview is asked.
 const Duration _previewDelay = Duration(milliseconds: 300);
+
+/// 2610_27 D3: the summary prefix of each ESM site (a single-site option has
+/// none).
+const Map<String, String> _summaryLabels = {'GMARKET': 'G ', 'AUCTION': '옥션 '};
+
+/// 2610_28 D21: the formula heading of each ESM site.
+const Map<String, String> _siteTitles = {'GMARKET': 'G마켓', 'AUCTION': '옥션'};
 
 /// Web repricing `formatWon` — '—' when absent.
 String _won(num? value) => value == null ? '—' : '${koNumber(value.round())}원';
@@ -47,18 +62,15 @@ String marginText(SiteMargin site) =>
 String marketCheckedText(String marketPriceAt) => '마켓 가격 확인: '
     '${formatOrderDateTime(marketPriceAt).substring(5).replaceFirst('-', '/')}';
 
-/// D11: the seven parts of one price, in the order the decision lists them.
-String _breakdownText(String label, SiteMargin s) =>
-    '$label마켓 가격 ${_won(s.marketPrice)} · 시스템 가격 ${_won(s.systemPrice)} · '
-    '원가합 ${_won(s.costSum)} · 택배비 ${_won(s.delivery)} · '
-    '박스비 ${_won(s.box)} · 수수료 ${_won(s.feeAmount)} · '
-    '손익분기가 ${_won(s.breakEvenPrice)}';
-
-List<(String, SiteMargin)> _siteLines(OptionMargin m) {
-  final auction = m.auctionMargin;
-  return auction == null
-      ? [('', m.margin)]
-      : [('G ', m.margin), ('옥션 ', auction)];
+/// 2610_28 D13: 「3,000원 · 10.0%」 — only the minimums that are set; '' when
+/// neither is.
+String _minimumText(SiteMargin s) {
+  final amount = s.minMarginAmount;
+  final rate = s.minMarginRate;
+  return [
+    if (amount != null) _won(amount),
+    if (rate != null) '${((rate * 1000).round() / 10).toStringAsFixed(1)}%',
+  ].join(' · ');
 }
 
 /// Text color of one margin line: grey reason · red below · default.
@@ -78,12 +90,14 @@ class MarginSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final multi = margin.sites.length > 1;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final (label, site) in _siteLines(margin)) ...[
+        for (final site in margin.sites) ...[
           Text(
-            '$label${marginText(site)}',
+            '${multi ? (_summaryLabels[site.site] ?? '') : ''}'
+            '${marginText(site)}',
             style: TextStyle(
               fontSize: 12,
               fontFeatures: const [FontFeature.tabularFigures()],
@@ -101,6 +115,160 @@ class MarginSummary extends StatelessWidget {
   }
 }
 
+/// 2610_28 D4: one line of a formula — the name on the left in grey, the
+/// amount right-aligned in body color.
+class _FormulaLine extends StatelessWidget {
+  final String label;
+  final String amount;
+
+  /// A component line under 「− 상품 매입가」 (2610_28 D7).
+  final bool indent;
+
+  /// The 「= 마진」 line: a rule above, bold, red when under the minimum
+  /// (2610_28 D4).
+  final bool total;
+  final bool below;
+
+  /// 2610_28 D14: the amount in red (「단가 없음」).
+  final bool amountAlert;
+
+  const _FormulaLine({
+    required this.label,
+    required this.amount,
+    this.indent = false,
+    this.total = false,
+    this.below = false,
+    this.amountAlert = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final weight = total ? FontWeight.w600 : FontWeight.w400;
+    final line = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: weight,
+              color: below ? scheme.error : scheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Text(
+          amount,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: weight,
+            fontFeatures: const [FontFeature.tabularFigures()],
+            color: below || amountAlert ? scheme.error : scheme.onSurface,
+          ),
+        ),
+      ],
+    );
+    if (total) {
+      return Container(
+        margin: const EdgeInsets.only(top: 4),
+        padding: const EdgeInsets.only(top: 4),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: scheme.outline)),
+        ),
+        child: line,
+      );
+    }
+    return Padding(
+      padding: EdgeInsets.only(left: indent ? 12 : 0),
+      child: line,
+    );
+  }
+}
+
+class SiteBreakdown extends StatelessWidget {
+  final SiteMargin site;
+
+  /// 2610_28 D9: 「G마켓」 · 「옥션」 above the formula of an ESM site; null =
+  /// no heading.
+  final String? title;
+
+  /// 2610_28 D16 · D17: 「입력한 가격」 on the price page; null = 「마켓 가격」
+  /// or 「시스템 가격 (마켓 가격 없음)」 (D5).
+  final String? priceLabel;
+
+  const SiteBreakdown({
+    required this.site,
+    required this.title,
+    required this.priceLabel,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final s = site;
+    final firstLabel =
+        priceLabel ?? (s.marketPriceMissing ? '시스템 가격 (마켓 가격 없음)' : '마켓 가격');
+    final minimum = _minimumText(s);
+    final note = TextStyle(fontSize: 12, color: scheme.onSurfaceVariant);
+    final heading = title;
+    final reason = s.reason;
+    final checkedAt = s.marketPriceAt;
+    final shippingFeeCommission = s.shippingFeeCommission;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (heading != null)
+          Text(
+            heading,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: scheme.onSurface,
+            ),
+          ),
+        if (reason != null) ...[
+          Text(reason, style: note),
+          _FormulaLine(label: firstLabel, amount: _won(s.judgedPrice)),
+        ] else ...[
+          _FormulaLine(label: firstLabel, amount: _won(s.judgedPrice)),
+          _FormulaLine(label: '− 상품 매입가', amount: _won(s.costSum)),
+          for (final c in s.components)
+            _FormulaLine(
+              indent: true,
+              label: '${c.productName} × ${c.quantity} =',
+              amount: c.amount == null ? '단가 없음' : _won(c.amount),
+              amountAlert: c.amount == null,
+            ),
+          _FormulaLine(label: '− 상자비', amount: _won(s.box)),
+          _FormulaLine(label: '− 택배비', amount: _won(s.delivery)),
+          _FormulaLine(
+            label: '− 판매 수수료 (${_percent(s.commissionRate)}, 부가세 포함)',
+            amount: _won(s.commissionAmount),
+          ),
+          if (shippingFeeCommission != null && shippingFeeCommission > 0)
+            _FormulaLine(
+              label: '− 배송비 수수료 (3.3%)',
+              amount: _won(shippingFeeCommission),
+            ),
+          _FormulaLine(
+            total: true,
+            below: s.below,
+            label: '= 마진 (${_percent(s.marginRate)})',
+            amount: _won(s.marginAmount),
+          ),
+          _FormulaLine(label: '손익분기가', amount: _won(s.breakEvenPrice)),
+          if (minimum.isNotEmpty)
+            _FormulaLine(label: '최소 마진 기준', amount: minimum),
+        ],
+        if (checkedAt != null) Text(marketCheckedText(checkedAt), style: note),
+      ],
+    );
+  }
+}
+
 class MarginBreakdown extends StatelessWidget {
   final OptionMargin margin;
 
@@ -108,28 +276,33 @@ class MarginBreakdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = TextStyle(
-      fontSize: 11,
-      color: Theme.of(context).colorScheme.onSurfaceVariant,
-    );
-    final checkedAt = margin.marketPriceAt;
+    final multi = margin.sites.length > 1;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final (label, site) in _siteLines(margin))
-          Text(_breakdownText(label, site), style: style),
-        if (checkedAt != null) Text(marketCheckedText(checkedAt), style: style),
+        for (final (index, site) in margin.sites.indexed) ...[
+          if (index > 0) const SizedBox(height: 8),
+          SiteBreakdown(
+            site: site,
+            title: multi ? (_siteTitles[site.site] ?? site.site) : null,
+            priceLabel: null,
+          ),
+        ],
       ],
     );
   }
 }
 
+/// The margin line and, once 「▸」 is tapped, the formula of the same answer
+/// below it, as wide as the page (2610_28 D16 · D17). A new price hides the
+/// formula until its answer arrives; the open state stays.
 class MarginPreviewText extends StatefulWidget {
   final int listingId;
   final int optionId;
 
-  /// true = the Auction field of an ESM option.
-  final bool auction;
+  /// 2610_28 D20 · D21: the site the price is for — the listing's platform, or
+  /// 'GMARKET' · 'AUCTION' on ESM.
+  final String site;
 
   /// The price typed in; null = not a valid price (nothing asked or shown).
   final num? price;
@@ -137,7 +310,7 @@ class MarginPreviewText extends StatefulWidget {
   const MarginPreviewText({
     required this.listingId,
     required this.optionId,
-    required this.auction,
+    required this.site,
     required this.price,
     super.key,
   });
@@ -152,6 +325,7 @@ class _MarginPreviewTextState extends State<MarginPreviewText> {
   num? _answeredPrice;
   SiteMargin? _site;
   String _error = '';
+  bool _open = false;
 
   @override
   void initState() {
@@ -164,7 +338,7 @@ class _MarginPreviewTextState extends State<MarginPreviewText> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.price != widget.price ||
         oldWidget.optionId != widget.optionId ||
-        oldWidget.auction != widget.auction) {
+        oldWidget.site != widget.site) {
       _schedule();
     }
   }
@@ -186,7 +360,7 @@ class _MarginPreviewTextState extends State<MarginPreviewText> {
 
   Future<void> _ask(num price) async {
     final res = await _useCase.previewMargin(widget.listingId, widget.optionId,
-        price: price, auction: widget.auction);
+        price: price, site: widget.site);
     if (!mounted || widget.price != price) {
       return;
     }
@@ -224,12 +398,34 @@ class _MarginPreviewTextState extends State<MarginPreviewText> {
       return Text(_error,
           style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant));
     }
-    return Text(
-      site.reason == null ? '마진 ${marginText(site)}' : marginText(site),
-      style: TextStyle(
-        fontSize: 11,
-        color: _marginColor(context, site) ?? scheme.onSurfaceVariant,
-      ),
+    final text =
+        site.reason == null ? '마진 ${marginText(site)}' : marginText(site);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        InkWell(
+          onTap: () => setState(() => _open = !_open),
+          child: Text(
+            '$text ${_open ? '▾' : '▸'}',
+            style: TextStyle(
+              fontSize: 11,
+              color: _marginColor(context, site) ?? scheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        if (_open) ...[
+          const SizedBox(height: 4),
+          SizedBox(
+            width: double.infinity,
+            child: SiteBreakdown(
+              site: site,
+              title: _siteTitles[widget.site],
+              priceLabel: '입력한 가격',
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
