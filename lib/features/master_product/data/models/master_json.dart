@@ -646,3 +646,38 @@ Json shippingConfigRequestToJson(ShippingSettings s) => {
       'unionDeliveryType': s.unionDeliveryType,
       'extraInfoMessage': s.extraInfoMessage,
     };
+
+/// FEATURE_2610_27 / D11 · D12.
+SiteMargin siteMarginFromJson(Json j) => SiteMargin(
+      marketPrice: _numN(j['marketPrice']),
+      systemPrice: _numN(j['systemPrice']),
+      judgedPrice: _numN(j['judgedPrice']),
+      marketPriceMissing: _bool(j['marketPriceMissing']),
+      costSum: _numN(j['costSum']),
+      delivery: _numN(j['delivery']),
+      box: _numN(j['box']),
+      feeAmount: _numN(j['feeAmount']),
+      marginAmount: _numN(j['marginAmount']),
+      marginRate: _numN(j['marginRate']),
+      breakEvenPrice: _numN(j['breakEvenPrice']),
+      below: _bool(j['below']),
+      reason: _strN(j['reason']),
+    );
+
+/// FEATURE_2610_27 / D1 · D3 · D26.
+ListingMargins listingMarginsFromJson(Json j) => ListingMargins(
+      listingId: _int(j['listingId']),
+      platform: _str(j['platform']),
+      options: _list(
+        j['options'],
+        (o) => OptionMargin(
+          optionId: _int(o['optionId']),
+          optionName: _str(o['optionName']),
+          marketPriceAt: _strN(o['marketPriceAt']),
+          margin: siteMarginFromJson(o['margin'] as Json),
+          auctionMargin: o['auctionMargin'] == null
+              ? null
+              : siteMarginFromJson(o['auctionMargin'] as Json),
+        ),
+      ),
+    );

@@ -364,4 +364,23 @@ class ListingRegistrationRemoteDataSource {
         ? data.map((k, v) => MapEntry(k as String, v.toString()))
         : <String, String>{};
   }
+
+  /// L40 — FEATURE_2610_27 / D1 · D10: every option's margin of one listing.
+  /// No market call, nothing stored.
+  Future<ListingMargins> getListingMargins(int listingId) async {
+    final data =
+        await api.get('/api/admin/product-listings/$listingId/margins');
+    return listingMarginsFromJson(data as Json);
+  }
+
+  /// L41 — FEATURE_2610_27 / D6 · D20: the margin of a price typed in the
+  /// price page. Nothing stored or sent.
+  Future<SiteMargin> previewMargin(int listingId, int optionId,
+      {required num price, required bool auction}) async {
+    final data = await api.post(
+        '/api/admin/product-listings/$listingId/options/$optionId'
+        '/margin-preview',
+        body: {'price': price, 'auction': auction});
+    return siteMarginFromJson(data as Json);
+  }
 }
