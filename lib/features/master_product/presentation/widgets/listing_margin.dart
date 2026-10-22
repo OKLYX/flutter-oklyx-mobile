@@ -115,46 +115,59 @@ class MarginSummary extends StatelessWidget {
   }
 }
 
-/// 2610_28 D4: one line of a formula — the name on the left in grey, the
-/// amount right-aligned in body color.
+/// Green for a margin that meets the minimum (web `text-emerald-700`).
+const Color _okColor = Color(0xFF047857);
+
+/// 2610_28 D4: one line that takes part in the calculation — operator column,
+/// name on the left, amount right-aligned. Reference lines (component detail,
+/// break-even, minimum) use [_DetailLine] / [_InfoLine] so what is summed and
+/// what only explains it never look alike.
 class _FormulaLine extends StatelessWidget {
+  /// '−' for a deducted amount, '=' for the margin, '' for the price.
+  final String sign;
   final String label;
   final String amount;
 
-  /// A component line under 「− 상품 매입가」 (2610_28 D7).
-  final bool indent;
-
-  /// The 「= 마진」 line: a rule above, bold, red when under the minimum
-  /// (2610_28 D4).
+  /// The 「= 마진」 line: a rule above, bold, green or red (2610_28 D4).
   final bool total;
   final bool below;
-
-  /// 2610_28 D14: the amount in red (「단가 없음」).
-  final bool amountAlert;
 
   const _FormulaLine({
     required this.label,
     required this.amount,
-    this.indent = false,
+    this.sign = '',
     this.total = false,
     this.below = false,
-    this.amountAlert = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final weight = total ? FontWeight.w600 : FontWeight.w400;
+    final tone = total ? (below ? scheme.error : _okColor) : scheme.onSurface;
     final line = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        SizedBox(
+          width: 14,
+          child: Text(
+            sign,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: weight,
+              color: total ? tone : scheme.outline,
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
         Expanded(
           child: Text(
             label,
             style: TextStyle(
               fontSize: 12,
               fontWeight: weight,
-              color: below ? scheme.error : scheme.onSurfaceVariant,
+              color: total ? tone : scheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -165,7 +178,7 @@ class _FormulaLine extends StatelessWidget {
             fontSize: 12,
             fontWeight: weight,
             fontFeatures: const [FontFeature.tabularFigures()],
-            color: below || amountAlert ? scheme.error : scheme.onSurface,
+            color: tone,
           ),
         ),
       ],
@@ -173,16 +186,93 @@ class _FormulaLine extends StatelessWidget {
     if (total) {
       return Container(
         margin: const EdgeInsets.only(top: 4),
-        padding: const EdgeInsets.only(top: 4),
+        padding: const EdgeInsets.only(top: 6),
         decoration: BoxDecoration(
           border: Border(top: BorderSide(color: scheme.outline)),
         ),
         child: line,
       );
     }
+    return Padding(padding: const EdgeInsets.only(top: 2), child: line);
+  }
+}
+
+/// A component under 「상품 매입가」 (2610_28 D7 · D14): explanation only, not
+/// added again — lighter, smaller, figures in parentheses as
+/// 「(단가 × 수량 = 금액)」.
+class _DetailLine extends StatelessWidget {
+  final CostComponent component;
+
+  const _DetailLine({required this.component});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final faint = TextStyle(
+      fontSize: 11,
+      color: scheme.outline,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+    final c = component;
+    final unitPrice = c.unitPrice;
+    final amount = c.amount;
+    final figures = unitPrice == null || amount == null
+        ? TextSpan(children: [
+            const TextSpan(text: '('),
+            TextSpan(text: '단가 없음', style: TextStyle(color: scheme.error)),
+            TextSpan(text: ' × ${c.quantity})'),
+          ])
+        : TextSpan(
+            text: '(${_won(unitPrice)} × ${c.quantity} = ${_won(amount)})');
+    return Container(
+      margin: const EdgeInsets.only(left: 20, top: 2),
+      padding: const EdgeInsets.only(left: 8),
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(color: scheme.outlineVariant, width: 2),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              c.productName,
+              style: faint,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text.rich(figures, style: faint),
+        ],
+      ),
+    );
+  }
+}
+
+/// A reference line below the margin (break-even, minimum) — not part of the
+/// calculation.
+class _InfoLine extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _InfoLine({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontSize: 11,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
     return Padding(
-      padding: EdgeInsets.only(left: indent ? 12 : 0),
-      child: line,
+      padding: const EdgeInsets.only(top: 2),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: style)),
+          Text(value, style: style),
+        ],
+      ),
     );
   }
 }
@@ -217,54 +307,82 @@ class SiteBreakdown extends StatelessWidget {
     final reason = s.reason;
     final checkedAt = s.marketPriceAt;
     final shippingFeeCommission = s.shippingFeeCommission;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (heading != null)
-          Text(
-            heading,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: scheme.onSurface,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (heading != null)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.only(bottom: 4),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: scheme.outlineVariant),
+                ),
+              ),
+              child: Text(
+                heading,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurface,
+                ),
+              ),
             ),
-          ),
-        if (reason != null) ...[
-          Text(reason, style: note),
-          _FormulaLine(label: firstLabel, amount: _won(s.judgedPrice)),
-        ] else ...[
-          _FormulaLine(label: firstLabel, amount: _won(s.judgedPrice)),
-          _FormulaLine(label: '− 상품 매입가', amount: _won(s.costSum)),
-          for (final c in s.components)
+          if (reason != null) ...[
+            Text(reason, style: note),
+            _FormulaLine(label: firstLabel, amount: _won(s.judgedPrice)),
+          ] else ...[
+            _FormulaLine(label: firstLabel, amount: _won(s.judgedPrice)),
+            _FormulaLine(sign: '−', label: '상품 매입가', amount: _won(s.costSum)),
+            for (final c in s.components) _DetailLine(component: c),
+            _FormulaLine(sign: '−', label: '상자비', amount: _won(s.box)),
+            _FormulaLine(sign: '−', label: '택배비', amount: _won(s.delivery)),
             _FormulaLine(
-              indent: true,
-              label: '${c.productName} × ${c.quantity} =',
-              amount: c.amount == null ? '단가 없음' : _won(c.amount),
-              amountAlert: c.amount == null,
+              sign: '−',
+              label: '판매 수수료 (${_percent(s.commissionRate)}, 부가세 포함)',
+              amount: _won(s.commissionAmount),
             ),
-          _FormulaLine(label: '− 상자비', amount: _won(s.box)),
-          _FormulaLine(label: '− 택배비', amount: _won(s.delivery)),
-          _FormulaLine(
-            label: '− 판매 수수료 (${_percent(s.commissionRate)}, 부가세 포함)',
-            amount: _won(s.commissionAmount),
-          ),
-          if (shippingFeeCommission != null && shippingFeeCommission > 0)
+            if (shippingFeeCommission != null && shippingFeeCommission > 0)
+              _FormulaLine(
+                sign: '−',
+                label: '배송비 수수료 (3.3%)',
+                amount: _won(shippingFeeCommission),
+              ),
             _FormulaLine(
-              label: '− 배송비 수수료 (3.3%)',
-              amount: _won(shippingFeeCommission),
+              sign: '=',
+              total: true,
+              below: s.below,
+              label: '마진 (${_percent(s.marginRate)})',
+              amount: _won(s.marginAmount),
             ),
-          _FormulaLine(
-            total: true,
-            below: s.below,
-            label: '= 마진 (${_percent(s.marginRate)})',
-            amount: _won(s.marginAmount),
-          ),
-          _FormulaLine(label: '손익분기가', amount: _won(s.breakEvenPrice)),
-          if (minimum.isNotEmpty)
-            _FormulaLine(label: '최소 마진 기준', amount: minimum),
+            const SizedBox(height: 6),
+            Divider(height: 1, color: scheme.outlineVariant),
+            _InfoLine(label: '손익분기가', value: _won(s.breakEvenPrice)),
+            if (minimum.isNotEmpty)
+              _InfoLine(label: '최소 마진 기준', value: minimum),
+          ],
+          if (checkedAt != null)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  marketCheckedText(checkedAt),
+                  style: TextStyle(fontSize: 10, color: scheme.outline),
+                ),
+              ),
+            ),
         ],
-        if (checkedAt != null) Text(marketCheckedText(checkedAt), style: note),
-      ],
+      ),
     );
   }
 }
