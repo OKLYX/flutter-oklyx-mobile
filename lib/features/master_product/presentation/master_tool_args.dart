@@ -15,11 +15,14 @@ class ChannelFieldValuesArgs {
 }
 
 /// `Routes.masterChannelStock` · `masterChannelPrice` · `masterChannelOptionName` — result: `true` (saved).
+/// [platform] = the listing's platform — the margin preview site of a
+/// non-ESM option on the price page (FEATURE_2610_28 / D20 · D21).
 class ChannelOptionsArgs {
   final int listingId;
   final String channelLabel;
+  final String platform;
 
-  const ChannelOptionsArgs({required this.listingId, required this.channelLabel});
+  const ChannelOptionsArgs({required this.listingId, required this.channelLabel, required this.platform});
 }
 
 /// `Routes.masterChannelShipping` — result: the saved `GeneratedProduct`.

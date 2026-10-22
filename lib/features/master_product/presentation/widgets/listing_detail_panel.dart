@@ -108,8 +108,9 @@ class ListingOptionView {
 /// - Tags: raw channel tags (current value from the matrix, no extra call).
 /// - Margin (FEATURE_2610_27 / D1 · D7 · D10 · D11): a 「마진:」 line on every
 ///   option card. Asked once when this panel opens and again whenever a save
-///   changes a price — never from the market (D13). Tapping it opens the
-///   breakdown under the margin.
+///   changes a price — never from the market (D13). Tapping it (「▸」 closed ·
+///   「▾」 open) opens the breakdown under the margin — one formula per site
+///   (FEATURE_2610_28 / D4 · D8 · D9).
 ///
 /// Every save is reflected through the parent reload ([onSaved]).
 class ListingDetailPanel extends StatefulWidget {
@@ -564,7 +565,18 @@ class _ListingDetailPanelState extends State<ListingDetailPanel> {
       value = [
         InkWell(
           onTap: () => _toggleMargin(o.optionId),
-          child: MarginSummary(margin: m),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Flexible(child: MarginSummary(margin: m)),
+              const SizedBox(width: 4),
+              Text(
+                _openMargins.contains(o.optionId) ? '▾' : '▸',
+                style: labelStyle,
+              ),
+            ],
+          ),
         ),
       ];
     }

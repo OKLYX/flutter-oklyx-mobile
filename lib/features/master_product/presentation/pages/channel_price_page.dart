@@ -34,6 +34,8 @@ String _jsString(num v) =>
 /// - FEATURE_2610_27 / D6 · D7 · D20 · D21 · D38: under each input, the margin
 ///   of the typed price ([MarginPreviewText], asked 300 ms after typing stops)
 ///   — red when under the margin preset minimum. It never blocks a save.
+/// - FEATURE_2610_28 / D16 · D17: tapping that margin (「▸」) opens its formula
+///   below it, as wide as the page.
 ///
 /// Result: `true` once something was saved (`null` = closed without saving).
 /// ⚠️ A partial result (skipped or failed rows) keeps the page open so the
@@ -445,7 +447,7 @@ class _ChannelPricePageState extends State<ChannelPricePage> {
             marginPreview: MarginPreviewText(
               listingId: widget.args.listingId,
               optionId: r.optionId,
-              auction: false,
+              site: 'GMARKET',
               price: !_restore.contains(r.optionId) && _validRow(r.optionId)
                   ? _parsed(r.optionId)
                   : null,
@@ -465,7 +467,7 @@ class _ChannelPricePageState extends State<ChannelPricePage> {
             marginPreview: MarginPreviewText(
               listingId: widget.args.listingId,
               optionId: r.optionId,
-              auction: true,
+              site: 'AUCTION',
               price: !_restoreAuction.contains(r.optionId) &&
                       _validAuction(r.optionId)
                   ? _parsedAuction(r.optionId)
@@ -641,7 +643,7 @@ class _ChannelPricePageState extends State<ChannelPricePage> {
             child: MarginPreviewText(
               listingId: widget.args.listingId,
               optionId: r.optionId,
-              auction: false,
+              site: widget.args.platform,
               price: !willRestore && _validRow(r.optionId)
                   ? _parsed(r.optionId)
                   : null,

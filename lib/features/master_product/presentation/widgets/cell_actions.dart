@@ -430,6 +430,7 @@ class _CellActionsState extends State<CellActions> {
       extra: ChannelOptionsArgs(
         listingId: _listingId,
         channelLabel: widget.channelLabel,
+        platform: widget.platform,
       ),
     );
     if (r == true) {

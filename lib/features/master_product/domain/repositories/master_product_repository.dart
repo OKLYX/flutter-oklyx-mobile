@@ -364,7 +364,7 @@ abstract class MasterProductRepository {
   /// L40 — FEATURE_2610_27 / D1 · D10.
   Future<Either<Failure, ListingMargins>> getListingMargins(int listingId);
 
-  /// L41 — FEATURE_2610_27 / D6 · D20.
+  /// L41 — FEATURE_2610_27 / D6 · D20 · FEATURE_2610_28 / D20 · D21.
   Future<Either<Failure, SiteMargin>> previewMargin(int listingId, int optionId,
-      {required num price, required bool auction});
+      {required num price, required String site});
 }

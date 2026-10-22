@@ -374,13 +374,14 @@ class ListingRegistrationRemoteDataSource {
   }
 
   /// L41 — FEATURE_2610_27 / D6 · D20: the margin of a price typed in the
-  /// price page. Nothing stored or sent.
+  /// price page. Nothing stored or sent. FEATURE_2610_28 / D20 · D21: [site]
+  /// = the listing's platform, or 'GMARKET' · 'AUCTION' on ESM.
   Future<SiteMargin> previewMargin(int listingId, int optionId,
-      {required num price, required bool auction}) async {
+      {required num price, required String site}) async {
     final data = await api.post(
         '/api/admin/product-listings/$listingId/options/$optionId'
         '/margin-preview',
-        body: {'price': price, 'auction': auction});
+        body: {'price': price, 'site': site});
     return siteMarginFromJson(data as Json);
   }
 }
