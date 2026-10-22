@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/listing_registration.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/master_format.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/copy_id_button.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/listing_margin.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/market_option_link_sheet.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/tag_chips_input.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
@@ -101,6 +106,10 @@ class ListingOptionView {
 ///   reason on an 11st or ESM listing (FEATURE_2610_13 / D128 · D130 ·
 ///   FEATURE_2610_26 / D41).
 /// - Tags: raw channel tags (current value from the matrix, no extra call).
+/// - Margin (FEATURE_2610_27 / D1 · D7 · D10 · D11): a 「마진:」 line on every
+///   option card. Asked once when this panel opens and again whenever a save
+///   changes a price — never from the market (D13). Tapping it opens the
+///   breakdown under the margin.
 ///
 /// Every save is reflected through the parent reload ([onSaved]).
 class ListingDetailPanel extends StatefulWidget {
@@ -165,12 +174,59 @@ class _ListingDetailPanelState extends State<ListingDetailPanel> {
 
   bool _extrasOpen = false;
 
+  // FEATURE_2610_27: margins by option id (null = not loaded yet), the load
+  // error and the options whose breakdown is open.
+  Map<int, OptionMargin>? _margins;
+  String _marginsError = '';
+  Set<int> _openMargins = {};
+
   @override
   void initState() {
     super.initState();
     _nameDraft = widget.name;
     _tagsDraft = widget.tags;
+    unawaited(_loadMargins());
   }
+
+  /// A save reloads the options with new prices → this key changes → the
+  /// margins are asked again.
+  static String _priceKey(List<ListingOptionView> options) => options
+      .map((o) => '${o.optionId}:${o.sellingPrice}:${o.auctionSellingPrice}')
+      .join('|');
+
+  @override
+  void didUpdateWidget(covariant ListingDetailPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.listingId != widget.listingId ||
+        _priceKey(oldWidget.options) != _priceKey(widget.options)) {
+      unawaited(_loadMargins());
+    }
+  }
+
+  Future<void> _loadMargins() async {
+    final res = await _useCase.getListingMargins(widget.listingId);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      res.fold(
+        (failure) =>
+            _marginsError = failureText(failure, '마진을 불러오지 못했습니다.'),
+        (margins) {
+          _marginsError = '';
+          _margins = {for (final m in margins.options) m.optionId: m};
+        },
+      );
+    });
+  }
+
+  void _toggleMargin(int optionId) => setState(() {
+        final next = {..._openMargins};
+        if (!next.remove(optionId)) {
+          next.add(optionId);
+        }
+        _openMargins = next;
+      });
 
   @override
   void dispose() {
@@ -431,6 +487,8 @@ class _ListingDetailPanelState extends State<ListingDetailPanel> {
               ],
             ),
             const SizedBox(height: 2),
+            _marginLine(context, o),
+            const SizedBox(height: 2),
             Wrap(
               spacing: 4,
               children: [
@@ -477,6 +535,52 @@ class _ListingDetailPanelState extends State<ListingDetailPanel> {
           ],
         ),
       ),
+    );
+  }
+
+  /// FEATURE_2610_27 / D11: 「마진:」 + the margin (tap = breakdown below it).
+  Widget _marginLine(BuildContext context, ListingOptionView o) {
+    final scheme = Theme.of(context).colorScheme;
+    final labelStyle = TextStyle(fontSize: 12, color: scheme.onSurfaceVariant);
+    final margins = _margins;
+    final m = margins?[o.optionId];
+    final List<Widget> value;
+    if (_marginsError.isNotEmpty) {
+      value = [
+        Text('–', style: labelStyle),
+        InfoBubbleIcon(message: _marginsError, size: 14),
+      ];
+    } else if (margins == null) {
+      value = const [
+        SizedBox(
+          width: 12,
+          height: 12,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      ];
+    } else if (m == null) {
+      value = [Text('–', style: labelStyle)];
+    } else {
+      value = [
+        InkWell(
+          onTap: () => _toggleMargin(o.optionId),
+          child: MarginSummary(margin: m),
+        ),
+      ];
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [Text('마진:', style: labelStyle), ...value],
+        ),
+        if (m != null && _openMargins.contains(o.optionId)) ...[
+          const SizedBox(height: 4),
+          MarginBreakdown(margin: m),
+        ],
+      ],
     );
   }
 

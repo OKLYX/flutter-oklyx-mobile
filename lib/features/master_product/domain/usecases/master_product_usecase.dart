@@ -471,4 +471,14 @@ class MasterProductUseCase {
   Future<Either<Failure, EsmNotification>> previewEsmNotice(
           String group, Map<String, String> notices) =>
       repository.previewEsmNotice(group, notices);
+
+  /// L40 — FEATURE_2610_27 / D1 · D10.
+  Future<Either<Failure, ListingMargins>> getListingMargins(int listingId) =>
+      repository.getListingMargins(listingId);
+
+  /// L41 — FEATURE_2610_27 / D6 · D20.
+  Future<Either<Failure, SiteMargin>> previewMargin(int listingId, int optionId,
+          {required num price, required bool auction}) =>
+      repository.previewMargin(listingId, optionId,
+          price: price, auction: auction);
 }
