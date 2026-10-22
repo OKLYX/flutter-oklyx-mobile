@@ -559,7 +559,7 @@ class MasterProductRepositoryImpl implements MasterProductRepository {
 
   @override
   Future<Either<Failure, SiteMargin>> previewMargin(int listingId, int optionId,
-          {required num price, required bool auction}) =>
+          {required num price, required String site}) =>
       _guard(() => listingDataSource.previewMargin(listingId, optionId,
-          price: price, auction: auction));
+          price: price, site: site));
 }

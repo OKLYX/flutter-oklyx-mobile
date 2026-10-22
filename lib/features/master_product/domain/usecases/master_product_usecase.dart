@@ -476,9 +476,8 @@ class MasterProductUseCase {
   Future<Either<Failure, ListingMargins>> getListingMargins(int listingId) =>
       repository.getListingMargins(listingId);
 
-  /// L41 — FEATURE_2610_27 / D6 · D20.
+  /// L41 — FEATURE_2610_27 / D6 · D20 · FEATURE_2610_28 / D20 · D21.
   Future<Either<Failure, SiteMargin>> previewMargin(int listingId, int optionId,
-          {required num price, required bool auction}) =>
-      repository.previewMargin(listingId, optionId,
-          price: price, auction: auction);
+          {required num price, required String site}) =>
+      repository.previewMargin(listingId, optionId, price: price, site: site);
 }

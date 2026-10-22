@@ -575,10 +575,18 @@ class MasterFromChannelPreview {
   });
 }
 
-/// Web `SiteMargin` — the margin of one price (FEATURE_2610_27 / D2 · D5 ·
-/// D11 · D12). Every amount is null when the margin cannot be calculated;
-/// [reason] then says why.
+/// Web `SiteMargin` — the margin of one price on one site (FEATURE_2610_27 /
+/// D2 · D5 · D11 · D12 · FEATURE_2610_28 / D7 · D12 · D13 · D21 · D22). Every
+/// amount is null and [components] is empty when the margin cannot be
+/// calculated; [reason] then says why.
 class SiteMargin {
+  /// 'COUPANG' · 'ELEVENST' · 'GMARKET' · 'AUCTION' (FEATURE_2610_28 / D21).
+  final String site;
+
+  /// KST wall clock 'yyyy-MM-ddTHH:mm:ss…' (D32); null = never confirmed, and
+  /// always null on a preview.
+  final String? marketPriceAt;
+
   /// The price live on the market; null = unknown.
   final num? marketPrice;
   final num? systemPrice;
@@ -589,8 +597,24 @@ class SiteMargin {
   /// true = no market price, the system price was judged (D2).
   final bool marketPriceMissing;
   final num? costSum;
+
+  /// FEATURE_2610_28 / D7 · D14 · D15: the components behind [costSum], in BOM
+  /// order.
+  final List<CostComponent> components;
   final num? delivery;
   final num? box;
+
+  /// FEATURE_2610_28 / D12: the sale commission rate with VAT (0.119 = 11.9%).
+  final num? commissionRate;
+
+  /// FEATURE_2610_28 / D12: the sale commission in won.
+  final num? commissionAmount;
+
+  /// FEATURE_2610_28 / D12: the 11st · ESM delivery-fee commission in won; 0
+  /// on every other site.
+  final num? shippingFeeCommission;
+
+  /// [commissionAmount] + [shippingFeeCommission].
   final num? feeAmount;
   final num? marginAmount;
 
@@ -598,48 +622,71 @@ class SiteMargin {
   final num? marginRate;
   final num? breakEvenPrice;
 
+  /// FEATURE_2610_28 / D13: the margin preset's minimum amount; null = unset.
+  final num? minMarginAmount;
+
+  /// FEATURE_2610_28 / D13: the margin preset's minimum rate; null = unset.
+  final num? minMarginRate;
+
   /// Under the margin preset's minimum amount or rate (D5).
   final bool below;
   final String? reason;
 
   const SiteMargin({
+    required this.site,
     required this.marketPriceMissing,
+    required this.components,
     required this.below,
+    this.marketPriceAt,
     this.marketPrice,
     this.systemPrice,
     this.judgedPrice,
     this.costSum,
     this.delivery,
     this.box,
+    this.commissionRate,
+    this.commissionAmount,
+    this.shippingFeeCommission,
     this.feeAmount,
     this.marginAmount,
     this.marginRate,
     this.breakEvenPrice,
+    this.minMarginAmount,
+    this.minMarginRate,
     this.reason,
   });
 }
 
+/// Web `CostComponent` — one component of [SiteMargin.costSum]
+/// (FEATURE_2610_28 / D7 · D14); [unitPrice] · [amount] null = 「단가 없음」.
+class CostComponent {
+  final String productName;
+  final int quantity;
+  final num? unitPrice;
+  final num? amount;
+
+  const CostComponent({
+    required this.productName,
+    required this.quantity,
+    this.unitPrice,
+    this.amount,
+  });
+}
+
 /// Web `OptionMargin` — one option of `GET …/margins` (FEATURE_2610_27 / D3 ·
-/// D26).
+/// FEATURE_2610_28 / D20).
 class OptionMargin {
   final int optionId;
   final String optionName;
 
-  /// KST wall clock 'yyyy-MM-ddTHH:mm:ss…' (D32); null = never confirmed.
-  final String? marketPriceAt;
-
-  /// The Gmarket margin on an ESM option.
-  final SiteMargin margin;
-
-  /// The Auction margin of an ESM option; null elsewhere.
-  final SiteMargin? auctionMargin;
+  /// One per site — Gmarket then Auction on an ESM option (FEATURE_2610_28 /
+  /// D20 · D21).
+  final List<SiteMargin> sites;
 
   const OptionMargin({
     required this.optionId,
     required this.optionName,
-    required this.margin,
-    this.marketPriceAt,
-    this.auctionMargin,
+    required this.sites,
   });
 }
 
