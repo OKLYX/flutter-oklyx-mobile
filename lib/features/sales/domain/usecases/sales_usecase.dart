@@ -22,6 +22,10 @@ class SalesUseCase {
           {required String from, required String to, required int accountId}) =>
       repository.getSalesLines(from: from, to: to, accountId: accountId);
 
+  Future<Either<Failure, List<DailySales>>> getDailySales(
+          {required String from, required String to}) =>
+      repository.getDailySales(from: from, to: to);
+
   Future<Either<Failure, List<ProductProfit>>> getProductProfit({
     required String from,
     required String to,

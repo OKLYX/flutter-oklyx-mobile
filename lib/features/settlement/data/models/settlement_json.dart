@@ -157,5 +157,12 @@ FirstMonthQuestion firstMonthQuestionFromJson(Json j) => FirstMonthQuestion(
       sellerName: _strN(j['sellerName']),
     );
 
+SettlementMonthSummary settlementMonthSummaryFromJson(Json j) =>
+    SettlementMonthSummary(
+      total: _numN(j['total']),
+      paid: _numN(j['paid']),
+      remaining: _numN(j['remaining']),
+    );
+
 /// A JSON list of objects → entities.
 List<T> listFromJson<T>(Object? v, T Function(Json) parse) => _list(v, parse);

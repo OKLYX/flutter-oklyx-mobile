@@ -5,8 +5,8 @@ import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/settlement/domain/entities/settlement.dart';
 import 'package:flutter_oklyn_mobile/features/settlement/domain/repositories/settlement_repository.dart';
 
-/// Settlement use case (FEATURE_2610_20) — shared by the 「정산 내역」 list · detail
-/// and the 「매출」 screens.
+/// Settlement use case (FEATURE_2610_20) — shared by the 「정산 내역」 list · detail,
+/// the 「매출」 screens and the dashboard payout card (FEATURE_2610_29).
 class SettlementUseCase {
   final SettlementRepository repository;
 
@@ -33,6 +33,11 @@ class SettlementUseCase {
   }) =>
       repository.getSaleMonthSettlements(
           accountId: accountId, from: from, to: to);
+
+  /// This month's payout sums — the dashboard payout card (FEATURE_2610_29 /
+  /// D30).
+  Future<Either<Failure, SettlementMonthSummary>> getMonthSummary() =>
+      repository.getMonthSummary();
 
   Future<Either<Failure, ReconReport>> getReport(int payoutId) =>
       repository.getReport(payoutId);

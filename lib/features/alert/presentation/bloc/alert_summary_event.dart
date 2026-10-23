@@ -1,6 +1,9 @@
 abstract class AlertSummaryEvent {}
 
-/// 배지 숫자 갱신 — Drawer 가 열릴 때(`AppDrawer.initState`) 1회.
+/// Refresh the badge numbers — sent once by `AppDrawer.initState`,
+/// `ScaffoldWithNavBar.initState`, the notification page refresh and
+/// `DashboardPage.initState`.
 ///
-/// ⚠️ 인자가 없다. 배지는 전 테넌트 공통 카운트라 화면의 필터(판매자·기간)를 싣지 않는다.
+/// ⚠️ No arguments. The badges are tenant-wide counts, so screen filters
+/// (seller, period) are not carried.
 class LoadAlertSummary extends AlertSummaryEvent {}

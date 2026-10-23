@@ -76,6 +76,14 @@ class SettlementRemoteDataSource {
     return listFromJson(_data(response), saleMonthSettlementFromJson);
   }
 
+  /// GET /api/admin/settlement/month-summary — this month's payout sums
+  /// (FEATURE_2610_29 / D30). No parameter: the server picks the month.
+  Future<SettlementMonthSummary> getMonthSummary() async {
+    final response = _ensureOk(
+        await dio.get<dynamic>('/api/admin/settlement/month-summary'));
+    return settlementMonthSummaryFromJson(_object(response));
+  }
+
   /// GET /api/admin/settlement/payouts/{id}/report.
   Future<ReconReport> getReport(int payoutId) async {
     final response = _ensureOk(await dio
