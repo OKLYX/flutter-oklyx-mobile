@@ -279,3 +279,22 @@ Map<int, MasterSaving> groupSavingsByMaster(List<OptionSaving> rows) {
   }
   return grouped;
 }
+
+/// One sale date of the dashboard sales chart — `GET /api/admin/sales/daily`
+/// (FEATURE_2610_29 / D22). One row per date of the period, zeros included.
+class DailySales {
+  /// `yyyy-MM-dd` sale date.
+  final String date;
+
+  /// Same amount as [SellerSales.grossSales] (before discount).
+  final num grossSales;
+
+  /// Orders of that date in that amount.
+  final int orderCount;
+
+  const DailySales({
+    required this.date,
+    required this.grossSales,
+    required this.orderCount,
+  });
+}

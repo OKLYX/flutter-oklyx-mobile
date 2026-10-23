@@ -214,6 +214,11 @@ import 'package:flutter_oklyn_mobile/features/master_product/data/datasources/ma
 import 'package:flutter_oklyn_mobile/features/master_product/data/repositories/master_product_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/repositories/master_product_repository.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/dashboard/data/datasources/dashboard_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/dashboard/data/repositories/dashboard_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/dashboard/domain/repositories/dashboard_repository.dart';
+import 'package:flutter_oklyn_mobile/features/dashboard/domain/usecases/dashboard_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/dashboard/presentation/bloc/dashboard_bloc.dart';
 
 final getIt = GetIt.instance;
 
@@ -240,6 +245,7 @@ void setupServiceLocator() {
   _registerStockLedgerServices();
   _registerSettlementServices();
   _registerSalesServices();
+  _registerDashboardServices();
   _registerMasterProductServices();
   _registerErrorHandling();
 }
@@ -1215,6 +1221,26 @@ void _registerSalesServices() {
       salesUseCase: getIt<SalesUseCase>(),
       getSellersUseCase: getIt<GetSellersUseCase>(),
     ),
+  );
+}
+
+/// Dashboard cards (FEATURE_2610_29 / D6). The card data come from the use
+/// cases of their own features — no dashboard copy of them.
+void _registerDashboardServices() {
+  getIt.registerSingleton<DashboardRemoteDataSource>(
+    DashboardRemoteDataSource(dio: getIt<DioClient>().dio),
+  );
+  getIt.registerSingleton<DashboardRepository>(
+    DashboardRepositoryImpl(
+      remoteDataSource: getIt<DashboardRemoteDataSource>(),
+    ),
+  );
+  getIt.registerSingleton<DashboardUseCase>(
+    DashboardUseCase(repository: getIt<DashboardRepository>()),
+  );
+  // Factory — a fresh state per dashboard entry.
+  getIt.registerFactory<DashboardBloc>(
+    () => DashboardBloc(dashboardUseCase: getIt<DashboardUseCase>()),
   );
 }
 

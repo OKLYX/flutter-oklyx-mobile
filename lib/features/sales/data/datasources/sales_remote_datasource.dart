@@ -53,6 +53,17 @@ class SalesRemoteDataSource {
     return listFromJson(_data(response), salesLineFromJson);
   }
 
+  /// GET /api/admin/sales/daily — one row per sale date (FEATURE_2610_29 /
+  /// D22).
+  Future<List<DailySales>> getDailySales(
+      {required String from, required String to}) async {
+    final response = _ensureOk(await dio.get<dynamic>(
+      '/api/admin/sales/daily',
+      queryParameters: _query(from: from, to: to),
+    ));
+    return listFromJson(_data(response), dailySalesFromJson);
+  }
+
   /// GET /api/admin/sales/by-product — [crossChannel] true = one row per
   /// master, false = per master × channel.
   Future<List<ProductProfit>> getProductProfit({

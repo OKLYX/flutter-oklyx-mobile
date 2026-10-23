@@ -24,6 +24,11 @@ abstract class SettlementRepository {
     required String to,
   });
 
+  /// This month's payout sums — the dashboard payout card (FEATURE_2610_29 /
+  /// D30). 🔴 Its date basis differs from [getPayouts] (confirmed payout date,
+  /// else scheduled).
+  Future<Either<Failure, SettlementMonthSummary>> getMonthSummary();
+
   Future<Either<Failure, ReconReport>> getReport(int payoutId);
 
   Future<Either<Failure, List<ReconLineView>>> getPayoutLines(int payoutId,

@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
+import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
+import 'package:flutter_oklyn_mobile/features/alert/presentation/bloc/alert_summary_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/alert/presentation/bloc/alert_summary_event.dart';
+import 'package:flutter_oklyn_mobile/features/dashboard/presentation/bloc/dashboard_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/dashboard/presentation/bloc/dashboard_event.dart';
+import 'package:flutter_oklyn_mobile/features/dashboard/presentation/widgets/dashboard_view.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_drawer.dart';
 
 class DashboardPage extends StatefulWidget {
@@ -19,6 +26,10 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void initState() {
     super.initState();
+    // The dashboard does not use ScaffoldWithNavBar, so it refreshes the alert
+    // numbers on entry itself — the same one event as
+    // ScaffoldWithNavBar.initState (FEATURE_2610_29 / D20). No timer.
+    context.read<AlertSummaryBloc>().add(LoadAlertSummary());
     WidgetsBinding.instance.addPersistentFrameCallback((_) {
       final isOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
       if (isOpen != _previousDrawerState) {
@@ -52,8 +63,10 @@ class _DashboardPageState extends State<DashboardPage> {
               elevation: 0,
             ),
             drawer: const AppDrawer(),
-            body: const Center(
-              child: Text('Dashboard Page'),
+            body: BlocProvider(
+              create: (_) =>
+                  getIt<DashboardBloc>()..add(const DashboardStarted()),
+              child: const DashboardView(),
             ),
             bottomNavigationBar: SizedBox.shrink(),
           ),
