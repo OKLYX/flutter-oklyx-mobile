@@ -23,8 +23,8 @@ class SalesUseCase {
       repository.getSalesLines(from: from, to: to, accountId: accountId);
 
   Future<Either<Failure, List<DailySales>>> getDailySales(
-          {required String from, required String to}) =>
-      repository.getDailySales(from: from, to: to);
+          {required String from, required String to, int? sellerId}) =>
+      repository.getDailySales(from: from, to: to, sellerId: sellerId);
 
   Future<Either<Failure, List<ProductProfit>>> getProductProfit({
     required String from,

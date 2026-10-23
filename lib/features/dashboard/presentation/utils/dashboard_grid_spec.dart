@@ -140,7 +140,11 @@ const Map<DashboardCardType, DashboardCardSpec> kDashboardCardSpecs = {
     minWidth: 2,
     initialWidth: 2,
     route: Routes.salesSummaryPath,
-    periods: [DashboardPeriod.days7, DashboardPeriod.days30],
+    periods: [
+      DashboardPeriod.days7,
+      DashboardPeriod.thisMonth,
+      DashboardPeriod.lastMonth,
+    ],
     defaultPeriod: DashboardPeriod.days7,
   ),
   DashboardCardType.channelSalesChart: DashboardCardSpec(
@@ -149,7 +153,11 @@ const Map<DashboardCardType, DashboardCardSpec> kDashboardCardSpecs = {
     minWidth: 2,
     initialWidth: 2,
     route: Routes.salesByChannelPath,
-    periods: [DashboardPeriod.days7, DashboardPeriod.days30],
+    periods: [
+      DashboardPeriod.days7,
+      DashboardPeriod.thisMonth,
+      DashboardPeriod.lastMonth,
+    ],
     defaultPeriod: DashboardPeriod.days7,
   ),
 };
@@ -163,17 +171,23 @@ const Map<DashboardPeriod, String> kPeriodLabels = {
   DashboardPeriod.days7: '최근 7일',
   DashboardPeriod.days30: '최근 30일',
   DashboardPeriod.thisMonth: '이번 달',
+  DashboardPeriod.lastMonth: '지난 달',
 };
 
 /// Widths the card may take: the D7 widths at or above its minimum.
 List<int> allowedWidths(DashboardCardType type) =>
     MobileGrid.widths.where((width) => width >= specOf(type).minWidth).toList();
 
-/// The stored period when the card offers it, otherwise the card's default
-/// period; null = the card has no period.
+/// A stored 「최근 30일」 is 「이번 달」 when the card offers 「이번 달」
+/// (FEATURE_2610_30 / D33); otherwise the stored period when the card offers
+/// it, else the card's default period; null = the card has no period.
 DashboardPeriod? effectivePeriod(
     DashboardCardType type, DashboardPeriod? period) {
   final spec = specOf(type);
+  if (period == DashboardPeriod.days30 &&
+      spec.periods.contains(DashboardPeriod.thisMonth)) {
+    return DashboardPeriod.thisMonth;
+  }
   return period != null && spec.periods.contains(period)
       ? period
       : spec.defaultPeriod;
