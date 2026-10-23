@@ -40,7 +40,8 @@ enum DashboardPeriod {
   today('TODAY'),
   days7('DAYS_7'),
   days30('DAYS_30'),
-  thisMonth('THIS_MONTH');
+  thisMonth('THIS_MONTH'),
+  lastMonth('LAST_MONTH');
 
   /// Server name.
   final String wire;

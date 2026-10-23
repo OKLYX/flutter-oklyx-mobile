@@ -89,7 +89,7 @@ SalesRange currentMonthRange() {
   );
 }
 
-SalesRange _lastMonthRange() {
+SalesRange lastMonthRange() {
   final today = DateTime.now();
   return (
     from: toDateText(DateTime(today.year, today.month - 1)),
@@ -109,6 +109,6 @@ SalesRange _recentDaysRange(int days) {
 final List<({String label, SalesRange Function() range})> kSalesPeriodPresets =
     [
   (label: '이번 달', range: currentMonthRange),
-  (label: '지난 달', range: _lastMonthRange),
+  (label: '지난 달', range: lastMonthRange),
   (label: '최근 7일', range: () => _recentDaysRange(7)),
 ];

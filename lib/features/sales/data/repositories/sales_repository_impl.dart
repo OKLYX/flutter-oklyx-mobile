@@ -35,8 +35,9 @@ class SalesRepositoryImpl implements SalesRepository {
 
   @override
   Future<Either<Failure, List<DailySales>>> getDailySales(
-          {required String from, required String to}) =>
-      _guard(() => remoteDataSource.getDailySales(from: from, to: to));
+          {required String from, required String to, int? sellerId}) =>
+      _guard(() => remoteDataSource.getDailySales(
+          from: from, to: to, sellerId: sellerId));
 
   @override
   Future<Either<Failure, List<ProductProfit>>> getProductProfit({

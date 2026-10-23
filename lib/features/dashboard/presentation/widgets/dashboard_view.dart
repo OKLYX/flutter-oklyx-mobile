@@ -9,6 +9,7 @@ import 'package:flutter_oklyn_mobile/features/dashboard/presentation/utils/dashb
 import 'package:flutter_oklyn_mobile/features/dashboard/presentation/widgets/dashboard_number_cards.dart';
 import 'package:flutter_oklyn_mobile/features/dashboard/presentation/widgets/period_sales_card.dart';
 import 'package:flutter_oklyn_mobile/features/dashboard/presentation/widgets/sales_chart_cards.dart';
+import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
@@ -64,7 +65,12 @@ class DashboardView extends StatelessWidget {
               if (state.status == DashboardStatus.ready && state.cards.isEmpty)
                 const AppEmpty('보일 카드가 없습니다. [편집]에서 카드를 넣으세요.'),
               if (state.status == DashboardStatus.ready)
-                _DashboardGrid(cards: state.cards, editing: state.editing),
+                _DashboardGrid(
+                  cards: state.cards,
+                  editing: state.editing,
+                  sellers: state.sellers,
+                  chartSellers: state.chartSellers,
+                ),
             ],
           ),
         ),
@@ -132,8 +138,15 @@ class DashboardView extends StatelessWidget {
 class _DashboardGrid extends StatelessWidget {
   final List<MobileCard> cards;
   final bool editing;
+  final List<Seller> sellers;
+  final Map<DashboardCardType, int> chartSellers;
 
-  const _DashboardGrid({required this.cards, required this.editing});
+  const _DashboardGrid({
+    required this.cards,
+    required this.editing,
+    required this.sellers,
+    required this.chartSellers,
+  });
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -158,6 +171,8 @@ class _DashboardGrid extends StatelessWidget {
                             card: rows[r][c],
                             editing: editing,
                             cell: cell,
+                            sellers: sellers,
+                            sellerId: chartSellers[rows[r][c].type],
                           ),
                         ),
                       ],
@@ -181,10 +196,17 @@ class _DashboardCell extends StatelessWidget {
   final bool editing;
   final double cell;
 
+  /// Seller list and this card's picked seller — the chart cards read them
+  /// (FEATURE_2610_30 / D34 · D35).
+  final List<Seller> sellers;
+  final int? sellerId;
+
   const _DashboardCell({
     required this.card,
     required this.editing,
     required this.cell,
+    required this.sellers,
+    required this.sellerId,
   });
 
   @override
@@ -241,6 +263,8 @@ class _DashboardCell extends StatelessWidget {
     void remove() => bloc.add(DashboardCardRemoved(card.type));
     void changePeriod(DashboardPeriod period) =>
         bloc.add(DashboardPeriodChanged(type: card.type, period: period));
+    void changeSeller(int? sellerId) => bloc
+        .add(DashboardChartSellerChanged(type: card.type, sellerId: sellerId));
     final period = card.period ?? specOf(card.type).defaultPeriod;
     switch (card.type) {
       case DashboardCardType.paidOrders:
@@ -266,6 +290,9 @@ class _DashboardCell extends StatelessWidget {
         return DailySalesChartCard(
           period: period ?? DashboardPeriod.days7,
           onPeriodChanged: changePeriod,
+          sellers: sellers,
+          sellerId: sellerId,
+          onSellerChanged: changeSeller,
           editing: editing,
           onRemove: remove,
         );
@@ -273,6 +300,9 @@ class _DashboardCell extends StatelessWidget {
         return ChannelSalesChartCard(
           period: period ?? DashboardPeriod.days7,
           onPeriodChanged: changePeriod,
+          sellers: sellers,
+          sellerId: sellerId,
+          onSellerChanged: changeSeller,
           editing: editing,
           onRemove: remove,
         );

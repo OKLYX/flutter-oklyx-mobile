@@ -5,6 +5,7 @@ import 'package:flutter_oklyn_mobile/features/dashboard/domain/entities/dashboar
 import 'package:flutter_oklyn_mobile/features/dashboard/presentation/bloc/dashboard_card_data_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/dashboard/presentation/bloc/dashboard_card_data_state.dart';
 import 'package:flutter_oklyn_mobile/features/dashboard/presentation/utils/dashboard_grid_spec.dart';
+import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 
 /// Frame of the dashboard cards (FEATURE_2610_29 / D16 · D21): card, title
@@ -20,7 +21,8 @@ class DashboardCardFrame extends StatelessWidget {
   final bool editing;
   final VoidCallback onRemove;
 
-  /// Controls at the right end of the title row (period · 「전체 | 채널」).
+  /// Controls at the right end of the title row (seller · period ·
+  /// 「전체 | 채널」).
   final List<Widget> actions;
   final Widget child;
 
@@ -153,6 +155,58 @@ class DashboardPeriodDropdown extends StatelessWidget {
           }
         },
       );
+}
+
+/// Seller selector in a chart card's title row (FEATURE_2610_30 / D34 · D35 ·
+/// D37): 「전체」 (null) first, then the sellers in the order of the seller
+/// list. A long name is cut with an ellipsis inside the selector.
+class DashboardSellerDropdown extends StatelessWidget {
+  final List<Seller> sellers;
+
+  /// null = 「전체」.
+  final int? value;
+  final ValueChanged<int?> onChanged;
+
+  const DashboardSellerDropdown({
+    required this.sellers,
+    required this.value,
+    required this.onChanged,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final names = ['전체', for (final seller in sellers) seller.sellerName];
+    return DropdownButton<int?>(
+      value: value,
+      isDense: true,
+      underline: const SizedBox.shrink(),
+      style: TextStyle(
+        fontSize: 12,
+        color: Theme.of(context).colorScheme.onSurface,
+      ),
+      selectedItemBuilder: (context) => [
+        for (final name in names)
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 88),
+            child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+      ],
+      items: [
+        const DropdownMenuItem<int?>(child: Text('전체')),
+        for (final seller in sellers)
+          DropdownMenuItem<int?>(
+            value: seller.id,
+            child: Text(
+              seller.sellerName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+      ],
+      onChanged: onChanged,
+    );
+  }
 }
 
 /// Big number with a small unit (counts of the number cards).

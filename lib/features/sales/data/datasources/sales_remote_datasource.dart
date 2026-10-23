@@ -54,12 +54,12 @@ class SalesRemoteDataSource {
   }
 
   /// GET /api/admin/sales/daily — one row per sale date (FEATURE_2610_29 /
-  /// D22).
+  /// D22; [sellerId] narrows to one seller — FEATURE_2610_30 / D34).
   Future<List<DailySales>> getDailySales(
-      {required String from, required String to}) async {
+      {required String from, required String to, int? sellerId}) async {
     final response = _ensureOk(await dio.get<dynamic>(
       '/api/admin/sales/daily',
-      queryParameters: _query(from: from, to: to),
+      queryParameters: _query(from: from, to: to, sellerId: sellerId),
     ));
     return listFromJson(_data(response), dailySalesFromJson);
   }

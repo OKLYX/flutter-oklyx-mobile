@@ -18,7 +18,9 @@ import 'package:flutter_oklyn_mobile/features/dashboard/presentation/bloc/dashbo
 /// )
 /// ```
 ///
-/// ⚠️ A card whose period changes gets a new BLoC (`key: ValueKey(period)`).
+/// ⚠️ A card whose period changes gets a new BLoC (`key: ValueKey(period)`);
+/// the chart cards also on a seller change (`key: ValueKey((period,
+/// sellerId))`, FEATURE_2610_30 / D34 · D35).
 class DashboardCardDataBloc<T>
     extends Bloc<DashboardCardDataEvent, DashboardCardDataState<T>> {
   final Future<Either<Failure, T>> Function() loader;
