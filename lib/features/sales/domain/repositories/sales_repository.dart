@@ -16,7 +16,7 @@ abstract class SalesRepository {
       {required String from, required String to, required int accountId});
 
   Future<Either<Failure, List<DailySales>>> getDailySales(
-      {required String from, required String to});
+      {required String from, required String to, int? sellerId});
 
   Future<Either<Failure, List<ProductProfit>>> getProductProfit({
     required String from,

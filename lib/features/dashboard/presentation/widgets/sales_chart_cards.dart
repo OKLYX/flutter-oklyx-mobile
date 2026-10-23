@@ -9,6 +9,7 @@ import 'package:flutter_oklyn_mobile/features/dashboard/presentation/utils/dashb
 import 'package:flutter_oklyn_mobile/features/dashboard/presentation/widgets/dashboard_card_frame.dart';
 import 'package:flutter_oklyn_mobile/features/sales/domain/entities/sales.dart';
 import 'package:flutter_oklyn_mobile/features/sales/domain/usecases/sales_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import 'package:flutter_oklyn_mobile/features/settlement/presentation/utils/settlement_format.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
@@ -36,15 +37,27 @@ TextStyle _tooltipStyle(BuildContext context) => TextStyle(
 ///
 /// The line is drawn over the bar chart with the same x positions (bar
 /// centers = −0.5 ~ n − 0.5 of the line chart).
+///
+/// The seller selector (FEATURE_2610_30 / D34 · D36 · D37) narrows the chart
+/// and the total to one seller; it starts at 「전체」, is not saved, and stays
+/// when the period changes.
 class DailySalesChartCard extends StatelessWidget {
   final DashboardPeriod period;
   final ValueChanged<DashboardPeriod> onPeriodChanged;
+
+  /// Seller list of the dashboard and the picked seller (null = 「전체」).
+  final List<Seller> sellers;
+  final int? sellerId;
+  final ValueChanged<int?> onSellerChanged;
   final bool editing;
   final VoidCallback onRemove;
 
   const DailySalesChartCard({
     required this.period,
     required this.onPeriodChanged,
+    required this.sellers,
+    required this.sellerId,
+    required this.onSellerChanged,
     required this.editing,
     required this.onRemove,
     super.key,
@@ -52,12 +65,12 @@ class DailySalesChartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => BlocProvider(
-        key: ValueKey(period),
+        key: ValueKey((period, sellerId)),
         create: (_) => DashboardCardDataBloc<List<DailySales>>(
           loader: () {
             final range = periodRange(period);
-            return getIt<SalesUseCase>()
-                .getDailySales(from: range.from, to: range.to);
+            return getIt<SalesUseCase>().getDailySales(
+                from: range.from, to: range.to, sellerId: sellerId);
           },
         )..add(const DashboardCardDataRequested()),
         child: DashboardCardFrame(
@@ -65,6 +78,11 @@ class DailySalesChartCard extends StatelessWidget {
           editing: editing,
           onRemove: onRemove,
           actions: [
+            DashboardSellerDropdown(
+              sellers: sellers,
+              value: sellerId,
+              onChanged: onSellerChanged,
+            ),
             DashboardPeriodDropdown(
               type: DashboardCardType.dailySalesChart,
               value: period,
@@ -156,15 +174,27 @@ String _channelName(ChannelSales row) =>
 /// G2 「채널별 매출」 (FEATURE_2610_29 / D22) — one sales bar (brand main) per
 /// channel, `/api/admin/sales/by-channel` as is. A tap on a bar shows the
 /// channel and its sales.
+///
+/// The seller selector (FEATURE_2610_30 / D35 · D36 · D37) narrows the bars
+/// to that seller's channels; it starts at 「전체」, is not saved, and stays
+/// when the period changes.
 class ChannelSalesChartCard extends StatelessWidget {
   final DashboardPeriod period;
   final ValueChanged<DashboardPeriod> onPeriodChanged;
+
+  /// Seller list of the dashboard and the picked seller (null = 「전체」).
+  final List<Seller> sellers;
+  final int? sellerId;
+  final ValueChanged<int?> onSellerChanged;
   final bool editing;
   final VoidCallback onRemove;
 
   const ChannelSalesChartCard({
     required this.period,
     required this.onPeriodChanged,
+    required this.sellers,
+    required this.sellerId,
+    required this.onSellerChanged,
     required this.editing,
     required this.onRemove,
     super.key,
@@ -172,12 +202,12 @@ class ChannelSalesChartCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => BlocProvider(
-        key: ValueKey(period),
+        key: ValueKey((period, sellerId)),
         create: (_) => DashboardCardDataBloc<List<ChannelSales>>(
           loader: () {
             final range = periodRange(period);
-            return getIt<SalesUseCase>()
-                .getChannelSales(from: range.from, to: range.to);
+            return getIt<SalesUseCase>().getChannelSales(
+                from: range.from, to: range.to, sellerId: sellerId);
           },
         )..add(const DashboardCardDataRequested()),
         child: DashboardCardFrame(
@@ -185,6 +215,11 @@ class ChannelSalesChartCard extends StatelessWidget {
           editing: editing,
           onRemove: onRemove,
           actions: [
+            DashboardSellerDropdown(
+              sellers: sellers,
+              value: sellerId,
+              onChanged: onSellerChanged,
+            ),
             DashboardPeriodDropdown(
               type: DashboardCardType.channelSalesChart,
               value: period,

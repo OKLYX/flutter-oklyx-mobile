@@ -53,3 +53,11 @@ class DashboardPeriodChanged extends DashboardEvent {
   final DashboardPeriod period;
   const DashboardPeriodChanged({required this.type, required this.period});
 }
+
+/// A seller picked on a chart card — not saved (FEATURE_2610_30 / D36);
+/// null = 「전체」.
+class DashboardChartSellerChanged extends DashboardEvent {
+  final DashboardCardType type;
+  final int? sellerId;
+  const DashboardChartSellerChanged({required this.type, this.sellerId});
+}

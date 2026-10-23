@@ -1,9 +1,12 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/dashboard/domain/entities/dashboard.dart';
 import 'package:flutter_oklyn_mobile/features/dashboard/domain/usecases/dashboard_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/dashboard/presentation/bloc/dashboard_event.dart';
 import 'package:flutter_oklyn_mobile/features/dashboard/presentation/bloc/dashboard_state.dart';
 import 'package:flutter_oklyn_mobile/features/dashboard/presentation/utils/dashboard_grid_spec.dart';
 import 'package:flutter_oklyn_mobile/features/dashboard/presentation/utils/dashboard_layout.dart';
+import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
+import 'package:flutter_oklyn_mobile/features/seller/domain/usecases/get_sellers_usecase.dart';
 
 /// Dashboard cards of the logged-in member (FEATURE_2610_29 / D2 · D3 · D6 ·
 /// D11 · D16) — the web `DashboardHome` logic.
@@ -13,10 +16,15 @@ import 'package:flutter_oklyn_mobile/features/dashboard/presentation/utils/dashb
 ///   it worked.
 /// - Outside edit mode a period change is saved at once.
 /// - A save answers with the stored cards, which replace the state.
+/// - An admin's entry also reads the seller list of the chart cards once
+///   (FEATURE_2610_30 / D37); a seller picked on a chart card stays in this
+///   state and is not saved (D36).
 class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   final DashboardUseCase dashboardUseCase;
+  final GetSellersUseCase getSellersUseCase;
 
-  DashboardBloc({required this.dashboardUseCase})
+  DashboardBloc(
+      {required this.dashboardUseCase, required this.getSellersUseCase})
       : super(const DashboardState()) {
     on<DashboardStarted>(_onStarted);
     on<DashboardEditStarted>(
@@ -26,9 +34,13 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<DashboardCardResized>(_onResized);
     on<DashboardCardAdded>(_onAdded);
     on<DashboardCardRemoved>((event, emit) => emit(state.copyWith(
-        cards: state.cards.where((card) => card.type != event.type).toList())));
+          cards: state.cards.where((card) => card.type != event.type).toList(),
+          chartSellers: Map<DashboardCardType, int>.of(state.chartSellers)
+            ..remove(event.type),
+        )));
     on<DashboardEditFinished>(_onEditFinished);
     on<DashboardPeriodChanged>(_onPeriodChanged);
+    on<DashboardChartSellerChanged>(_onChartSellerChanged);
   }
 
   Future<void> _onStarted(
@@ -43,6 +55,28 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         cards: toMobileCards(layout),
       ),
     ));
+    if (state.status != DashboardStatus.ready || !state.admin) {
+      return;
+    }
+    // After a failure the selectors offer 「전체」 alone; the cards stay.
+    final sellers =
+        (await getSellersUseCase()).fold((_) => <Seller>[], (list) => list);
+    if (emit.isDone) {
+      return;
+    }
+    emit(state.copyWith(sellers: sellers));
+  }
+
+  void _onChartSellerChanged(
+      DashboardChartSellerChanged event, Emitter<DashboardState> emit) {
+    final sellerId = event.sellerId;
+    final chartSellers = Map<DashboardCardType, int>.of(state.chartSellers);
+    if (sellerId == null) {
+      chartSellers.remove(event.type);
+    } else {
+      chartSellers[event.type] = sellerId;
+    }
+    emit(state.copyWith(chartSellers: chartSellers));
   }
 
   void _onResized(DashboardCardResized event, Emitter<DashboardState> emit) {

@@ -177,5 +177,7 @@ SalesRange periodRange(DashboardPeriod period) {
       );
     case DashboardPeriod.thisMonth:
       return currentMonthRange();
+    case DashboardPeriod.lastMonth:
+      return lastMonthRange();
   }
 }

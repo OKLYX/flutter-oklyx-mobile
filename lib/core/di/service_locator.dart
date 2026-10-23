@@ -1240,7 +1240,10 @@ void _registerDashboardServices() {
   );
   // Factory — a fresh state per dashboard entry.
   getIt.registerFactory<DashboardBloc>(
-    () => DashboardBloc(dashboardUseCase: getIt<DashboardUseCase>()),
+    () => DashboardBloc(
+      dashboardUseCase: getIt<DashboardUseCase>(),
+      getSellersUseCase: getIt<GetSellersUseCase>(),
+    ),
   );
 }
 
