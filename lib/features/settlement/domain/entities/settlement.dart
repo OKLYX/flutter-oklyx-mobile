@@ -292,3 +292,23 @@ class FirstMonthQuestion {
     this.sellerName,
   });
 }
+
+/// This month's payouts summed across sellers and channels —
+/// `GET /api/admin/settlement/month-summary` (FEATURE_2610_29 / D26 · D30).
+/// The server picks this month in KST; a payout belongs to the month of its
+/// confirmed payout date, else its scheduled payout date.
+///
+/// 🔴 Not the `getPayouts` axis (the scheduled payout date) — do not rebuild
+///    this from the payout list.
+class SettlementMonthSummary {
+  /// 「이번 달 지급 예정 총액」.
+  final num? total;
+
+  /// 「지금까지 지급된 금액」 — the `PAID` part of [total].
+  final num? paid;
+
+  /// 「남은 지급 예정 금액」 = [total] − [paid].
+  final num? remaining;
+
+  const SettlementMonthSummary({this.total, this.paid, this.remaining});
+}

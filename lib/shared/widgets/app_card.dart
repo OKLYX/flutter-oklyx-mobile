@@ -38,7 +38,8 @@ enum AppCardStyle {
 /// // Search box / info card — inner padding 16.
 /// AppCard(child: Column(children: [...]))
 ///
-/// // One row of a page's main list — inner padding 12, tap to open.
+/// // One row of a page's main list or one dashboard card — inner padding 12,
+/// // tap to open.
 /// AppCard.row(onTap: _open, child: Row(children: [...]))
 ///
 /// // Card whose content draws edge to edge (tab bar, dividers) — the content

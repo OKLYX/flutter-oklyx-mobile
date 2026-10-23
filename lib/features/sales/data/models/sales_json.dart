@@ -123,3 +123,9 @@ BoxSaving boxSavingFromJson(Json j) => BoxSaving(
       deliverySaving: _num(j['deliverySaving']),
       totalSaving: _num(j['totalSaving']),
     );
+
+DailySales dailySalesFromJson(Json j) => DailySales(
+      date: _str(j['date']),
+      grossSales: _num(j['grossSales']),
+      orderCount: _int(j['orderCount']),
+    );
