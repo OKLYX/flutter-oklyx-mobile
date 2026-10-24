@@ -5,6 +5,7 @@ import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/dashboard/domain/entities/dashboard.dart';
 import 'package:flutter_oklyn_mobile/features/dashboard/presentation/bloc/dashboard_card_data_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/dashboard/presentation/bloc/dashboard_card_data_event.dart';
+import 'package:flutter_oklyn_mobile/features/dashboard/presentation/utils/dashboard_grid_spec.dart';
 import 'package:flutter_oklyn_mobile/features/dashboard/presentation/utils/dashboard_layout.dart';
 import 'package:flutter_oklyn_mobile/features/dashboard/presentation/widgets/dashboard_card_frame.dart';
 import 'package:flutter_oklyn_mobile/features/sales/domain/entities/sales.dart';
@@ -171,9 +172,19 @@ class DailySalesChartCard extends StatelessWidget {
 String _channelName(ChannelSales row) =>
     channelLabel(row.platform, row.accountAlias, row.accountId);
 
-/// G2 「채널별 매출」 (FEATURE_2610_29 / D22) — one sales bar (brand main) per
-/// channel, `/api/admin/sales/by-channel` as is. A tap on a bar shows the
-/// channel and its sales.
+/// Row shape of the channel lines (DASHBOARD_CARDS D42) — fixed, never
+/// shrunk by the channel count.
+const double _rowHeight = 22;
+const double _foldHeight = 16;
+const double _barHeight = 10;
+const double _nameWidth = 96;
+const TextStyle _lineStyle = TextStyle(fontSize: 12);
+
+/// G2 「채널별 매출」 (FEATURE_2610_29 / D22) — `/api/admin/sales/by-channel`
+/// as is (rows come sorted by sales). The top [MobileGrid.channelChartRows]
+/// channels are drawn as name · bar (brand main) · amount lines with a fixed
+/// 12px font; the rest fold into one 「외 K개」 line (DASHBOARD_CARDS D41 ·
+/// D42).
 ///
 /// The seller selector (FEATURE_2610_30 / D35 · D36 · D37) narrows the bars
 /// to that seller's channels; it starts at 「전체」, is not saved, and stays
@@ -227,39 +238,98 @@ class ChannelSalesChartCard extends StatelessWidget {
             ),
           ],
           child: DashboardCardBody<List<ChannelSales>>(
-            builder: (context, rows) => BarChart(
-              BarChartData(
-                alignment: BarChartAlignment.spaceAround,
-                gridData: const FlGridData(show: false),
-                borderData: FlBorderData(show: false),
-                titlesData: const FlTitlesData(show: false),
-                barGroups: [
-                  for (var i = 0; i < rows.length; i++)
-                    BarChartGroupData(
-                      x: i,
-                      barRods: [
-                        BarChartRodData(
-                          toY: rows[i].grossSales.toDouble(),
-                          color: AppColors.brandMain,
-                        ),
-                      ],
-                    ),
-                ],
-                barTouchData: BarTouchData(
-                  touchTooltipData: BarTouchTooltipData(
-                    fitInsideHorizontally: true,
-                    fitInsideVertically: true,
-                    getTooltipItem: (group, groupIndex, rod, rodIndex) =>
-                        BarTooltipItem(
-                      '${_channelName(rows[groupIndex])}\n'
-                      '매출 ${formatMoney(rows[groupIndex].grossSales)}원',
-                      _tooltipStyle(context),
-                    ),
+            builder: (context, rows) => _ChannelLines(rows: rows),
+          ),
+        ),
+      );
+}
+
+/// The top channels as lines and the rest folded into one line.
+class _ChannelLines extends StatelessWidget {
+  final List<ChannelSales> rows;
+
+  const _ChannelLines({required this.rows});
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    if (rows.isEmpty) {
+      return Center(
+        child: Text('이 기간 매출이 없습니다.', style: _lineStyle.copyWith(color: muted)),
+      );
+    }
+    final shown = rows.take(MobileGrid.channelChartRows).toList();
+    final hidden = rows.skip(MobileGrid.channelChartRows).toList();
+    final top = shown.first.grossSales;
+    final hiddenSales = hidden.fold<num>(0, (sum, row) => sum + row.grossSales);
+    return ClipRect(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final row in shown) _ChannelLine(row: row, top: top),
+          if (hidden.isNotEmpty)
+            SizedBox(
+              height: _foldHeight,
+              child: Text(
+                '외 ${hidden.length}개 채널 · ${formatMoney(hiddenSales)}원',
+                style: _lineStyle.copyWith(color: muted, height: 1.2),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One channel line: name · bar (sales ÷ the top channel's sales) · amount.
+class _ChannelLine extends StatelessWidget {
+  final ChannelSales row;
+  final num top;
+
+  const _ChannelLine({required this.row, required this.top});
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = top > 0
+        ? (row.grossSales < 0 ? 0 : row.grossSales / top).toDouble()
+        : 0.0;
+    return SizedBox(
+      height: _rowHeight,
+      child: Row(
+        children: [
+          SizedBox(
+            width: _nameWidth,
+            child: Text(
+              _channelName(row),
+              style: _lineStyle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FractionallySizedBox(
+                widthFactor: ratio.clamp(0.0, 1.0),
+                child: Container(
+                  height: _barHeight,
+                  decoration: BoxDecoration(
+                    color: AppColors.brandMain,
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      );
+          const SizedBox(width: 6),
+          Text(
+            '${formatMoney(row.grossSales)}원',
+            style: _lineStyle
+                .copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+          ),
+        ],
+      ),
+    );
+  }
 }

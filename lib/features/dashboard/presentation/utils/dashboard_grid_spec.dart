@@ -38,6 +38,12 @@ class MobileGrid {
 
   /// Card widths in cells (D7).
   static const List<int> widths = [1, 2];
+
+  /// Channel rows the 「채널별 매출」 card shows before it folds the rest
+  /// into one 「외 K개」 line (DASHBOARD_CARDS D41 · D44) — 3 × 22px rows +
+  /// the 16px fold line fit the 104px chart area of a tall card.
+  /// ⚠️ Same value as the web `CHANNEL_CHART_ROWS.narrow`.
+  static const int channelChartRows = 3;
 }
 
 /// One card of the catalog.
