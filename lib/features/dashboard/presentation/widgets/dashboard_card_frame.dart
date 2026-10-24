@@ -157,8 +157,8 @@ class DashboardPeriodDropdown extends StatelessWidget {
       );
 }
 
-/// Seller selector in a chart card's title row (FEATURE_2610_30 / D34 · D35 ·
-/// D37): 「전체」 (null) first, then the sellers in the order of the seller
+/// Seller selector in a chart card's (and the payout card's) title row
+/// (FEATURE_2610_30 / D34 · D35 · D37): 「전체」 (null) first, then the sellers in the order of the seller
 /// list. A long name is cut with an ellipsis inside the selector.
 class DashboardSellerDropdown extends StatelessWidget {
   final List<Seller> sellers;

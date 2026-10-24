@@ -36,8 +36,9 @@ class SettlementUseCase {
 
   /// This month's payout sums — the dashboard payout card (FEATURE_2610_29 /
   /// D30).
-  Future<Either<Failure, SettlementMonthSummary>> getMonthSummary() =>
-      repository.getMonthSummary();
+  Future<Either<Failure, SettlementMonthSummary>> getMonthSummary(
+          {int? sellerId}) =>
+      repository.getMonthSummary(sellerId: sellerId);
 
   Future<Either<Failure, ReconReport>> getReport(int payoutId) =>
       repository.getReport(payoutId);
