@@ -42,7 +42,7 @@ class DashboardCardFrame extends StatelessWidget {
     return AppCard.row(
       onTap: editing ? null : () => context.go(spec.route),
       child: SizedBox(
-        height: MobileGrid.rowHeight - 24,
+        height: cardHeight(type) - 24,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

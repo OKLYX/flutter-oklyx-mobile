@@ -29,6 +29,10 @@ class MobileGrid {
   /// Height of the one row a card takes, in logical px (D17).
   static const double rowHeight = 104;
 
+  /// Height of a tall card's row — 1.5 × [rowHeight] (2026-10-24, the chart
+  /// and payout cards read too short at one row).
+  static const double tallRowHeight = 156;
+
   /// Space between cells, both directions (D17).
   static const double gap = 12;
 
@@ -59,6 +63,10 @@ class DashboardCardSpec {
   /// Period used while none is stored; null = no period (D22 · D23).
   final DashboardPeriod? defaultPeriod;
 
+  /// true = drawn [MobileGrid.tallRowHeight] high instead of one row; only
+  /// full-width cards, so a row never mixes heights.
+  final bool tall;
+
   const DashboardCardSpec({
     required this.title,
     required this.adminOnly,
@@ -67,6 +75,7 @@ class DashboardCardSpec {
     required this.route,
     this.periods = const [],
     this.defaultPeriod,
+    this.tall = false,
   });
 }
 
@@ -119,6 +128,7 @@ const Map<DashboardCardType, DashboardCardSpec> kDashboardCardSpecs = {
     minWidth: 2,
     initialWidth: 2,
     route: Routes.settlementPayoutsPath,
+    tall: true,
   ),
   DashboardCardType.purchaseList: DashboardCardSpec(
     title: '구매목록 남은 품목',
@@ -146,6 +156,7 @@ const Map<DashboardCardType, DashboardCardSpec> kDashboardCardSpecs = {
       DashboardPeriod.lastMonth,
     ],
     defaultPeriod: DashboardPeriod.days7,
+    tall: true,
   ),
   DashboardCardType.channelSalesChart: DashboardCardSpec(
     title: '채널별 매출',
@@ -159,6 +170,7 @@ const Map<DashboardCardType, DashboardCardSpec> kDashboardCardSpecs = {
       DashboardPeriod.lastMonth,
     ],
     defaultPeriod: DashboardPeriod.days7,
+    tall: true,
   ),
 };
 
@@ -173,6 +185,10 @@ const Map<DashboardPeriod, String> kPeriodLabels = {
   DashboardPeriod.thisMonth: '이번 달',
   DashboardPeriod.lastMonth: '지난 달',
 };
+
+/// Height in px the card is drawn at on the grid.
+double cardHeight(DashboardCardType type) =>
+    specOf(type).tall ? MobileGrid.tallRowHeight : MobileGrid.rowHeight;
 
 /// Widths the card may take: the D7 widths at or above its minimum.
 List<int> allowedWidths(DashboardCardType type) =>
