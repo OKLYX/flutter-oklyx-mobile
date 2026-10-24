@@ -47,8 +47,9 @@ class SettlementRepositoryImpl implements SettlementRepository {
           accountId: accountId, from: from, to: to));
 
   @override
-  Future<Either<Failure, SettlementMonthSummary>> getMonthSummary() =>
-      _guard(() => remoteDataSource.getMonthSummary());
+  Future<Either<Failure, SettlementMonthSummary>> getMonthSummary(
+          {int? sellerId}) =>
+      _guard(() => remoteDataSource.getMonthSummary(sellerId: sellerId));
 
   @override
   Future<Either<Failure, ReconReport>> getReport(int payoutId) =>

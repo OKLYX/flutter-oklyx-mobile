@@ -77,10 +77,15 @@ class SettlementRemoteDataSource {
   }
 
   /// GET /api/admin/settlement/month-summary — this month's payout sums
-  /// (FEATURE_2610_29 / D30). No parameter: the server picks the month.
-  Future<SettlementMonthSummary> getMonthSummary() async {
-    final response = _ensureOk(
-        await dio.get<dynamic>('/api/admin/settlement/month-summary'));
+  /// (FEATURE_2610_29 / D30). The server picks the month; [sellerId] narrows
+  /// to one seller.
+  Future<SettlementMonthSummary> getMonthSummary({int? sellerId}) async {
+    final response = _ensureOk(await dio.get<dynamic>(
+      '/api/admin/settlement/month-summary',
+      queryParameters: <String, dynamic>{
+        if (sellerId != null) 'sellerId': sellerId,
+      },
+    ));
     return settlementMonthSummaryFromJson(_object(response));
   }
 

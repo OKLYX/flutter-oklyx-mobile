@@ -281,7 +281,13 @@ class _DashboardCell extends StatelessWidget {
           onRemove: remove,
         );
       case DashboardCardType.settlementPayouts:
-        return PayoutCard(editing: editing, onRemove: remove);
+        return PayoutCard(
+          sellers: sellers,
+          sellerId: sellerId,
+          onSellerChanged: changeSeller,
+          editing: editing,
+          onRemove: remove,
+        );
       case DashboardCardType.purchaseList:
         return PurchaseListCard(editing: editing, onRemove: remove);
       case DashboardCardType.reservedShipments:

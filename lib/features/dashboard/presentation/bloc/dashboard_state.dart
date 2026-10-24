@@ -33,8 +33,8 @@ class DashboardState extends Equatable {
   /// until read and after a failed read.
   final List<Seller> sellers;
 
-  /// Seller picked on each chart card; a card that is not here shows 「전체」
-  /// (FEATURE_2610_30 / D34 · D35 · D36).
+  /// Seller picked on each chart card and the payout card; a card that is not
+  /// here shows 「전체」 (FEATURE_2610_30 / D34 · D35 · D36).
   final Map<DashboardCardType, int> chartSellers;
 
   const DashboardState({

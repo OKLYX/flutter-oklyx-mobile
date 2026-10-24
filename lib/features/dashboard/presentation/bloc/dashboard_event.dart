@@ -54,7 +54,7 @@ class DashboardPeriodChanged extends DashboardEvent {
   const DashboardPeriodChanged({required this.type, required this.period});
 }
 
-/// A seller picked on a chart card — not saved (FEATURE_2610_30 / D36);
+/// A seller picked on a chart card or the payout card — not saved (FEATURE_2610_30 / D36);
 /// null = 「전체」.
 class DashboardChartSellerChanged extends DashboardEvent {
   final DashboardCardType type;
