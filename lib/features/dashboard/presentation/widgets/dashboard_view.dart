@@ -166,7 +166,7 @@ class _DashboardGrid extends StatelessWidget {
                         if (c > 0) const SizedBox(width: MobileGrid.gap),
                         SizedBox(
                           width: _cardWidth(rows[r][c], cell),
-                          height: MobileGrid.rowHeight,
+                          height: cardHeight(rows[r][c].type),
                           child: _DashboardCell(
                             card: rows[r][c],
                             editing: editing,
@@ -229,7 +229,7 @@ class _DashboardCell extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           child: SizedBox(
             width: width,
-            height: MobileGrid.rowHeight,
+            height: cardHeight(card.type),
             child: Center(child: Text(specOf(card.type).title)),
           ),
         ),
