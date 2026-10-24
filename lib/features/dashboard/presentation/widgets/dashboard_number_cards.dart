@@ -66,7 +66,8 @@ class AlertCountCard extends StatelessWidget {
 /// across sellers and channels, from `GET /api/admin/settlement/month-summary`.
 /// The server picks this month in KST and dates a payout by its confirmed
 /// payout date, else its scheduled payout date. The three amounts are shown as
-/// the server sends them.
+/// the server sends them: the total on top, paid (left) and remaining (right)
+/// under it — the card is `tall` (1.5 rows) to fit both lines.
 class PayoutCard extends StatelessWidget {
   final bool editing;
   final VoidCallback onRemove;
@@ -83,25 +84,30 @@ class PayoutCard extends StatelessWidget {
           editing: editing,
           onRemove: onRemove,
           child: DashboardCardBody<SettlementMonthSummary>(
-            builder: (context, sums) => Row(
+            builder: (context, sums) => Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  child: DashboardFigure(
-                    label: '이번 달 지급 예정 총액',
-                    value: '${formatMoney(sums.total)}원',
-                  ),
+                DashboardFigure(
+                  label: '이번 달 지급 예정 총액',
+                  value: '${formatMoney(sums.total)}원',
                 ),
-                Expanded(
-                  child: DashboardFigure(
-                    label: '지금까지 지급된 금액',
-                    value: '${formatMoney(sums.paid)}원',
-                  ),
-                ),
-                Expanded(
-                  child: DashboardFigure(
-                    label: '남은 지급 예정 금액',
-                    value: '${formatMoney(sums.remaining)}원',
-                  ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DashboardFigure(
+                        label: '지금까지 지급된 금액',
+                        value: '${formatMoney(sums.paid)}원',
+                      ),
+                    ),
+                    Expanded(
+                      child: DashboardFigure(
+                        label: '남은 지급 예정 금액',
+                        value: '${formatMoney(sums.remaining)}원',
+                        alignEnd: true,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

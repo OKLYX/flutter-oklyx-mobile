@@ -242,16 +242,21 @@ class DashboardFigure extends StatelessWidget {
   final String value;
   final Color? color;
 
+  /// true = label and value on the right edge (the right half of a pair).
+  final bool alignEnd;
+
   const DashboardFigure({
     required this.label,
     required this.value,
     super.key,
     this.color,
+    this.alignEnd = false,
   });
 
   @override
   Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           Text(
             label,
