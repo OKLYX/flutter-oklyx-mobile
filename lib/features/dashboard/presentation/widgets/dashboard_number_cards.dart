@@ -8,6 +8,7 @@ import 'package:flutter_oklyn_mobile/features/dashboard/presentation/bloc/dashbo
 import 'package:flutter_oklyn_mobile/features/dashboard/presentation/bloc/dashboard_card_data_event.dart';
 import 'package:flutter_oklyn_mobile/features/dashboard/presentation/widgets/dashboard_card_frame.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/get_purchase_list_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import 'package:flutter_oklyn_mobile/features/settlement/domain/entities/settlement.dart';
 import 'package:flutter_oklyn_mobile/features/settlement/domain/usecases/settlement_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/settlement/presentation/utils/settlement_format.dart';
@@ -63,26 +64,49 @@ class AlertCountCard extends StatelessWidget {
 }
 
 /// C6 「정산 지급」 (FEATURE_2610_29 / D26 · D30) — this month's payouts summed
-/// across sellers and channels, from `GET /api/admin/settlement/month-summary`.
+/// across channels, from `GET /api/admin/settlement/month-summary`.
 /// The server picks this month in KST and dates a payout by its confirmed
 /// payout date, else its scheduled payout date. The three amounts are shown as
 /// the server sends them: the total on top, paid (left) and remaining (right)
 /// under it — the card is `tall` (1.5 rows) to fit both lines.
+///
+/// The seller selector narrows the sums to one seller, like the chart cards:
+/// it starts at 「전체」 and is not saved.
 class PayoutCard extends StatelessWidget {
+  /// Seller list of the dashboard and the picked seller (null = 「전체」).
+  final List<Seller> sellers;
+  final int? sellerId;
+  final ValueChanged<int?> onSellerChanged;
   final bool editing;
   final VoidCallback onRemove;
 
-  const PayoutCard({required this.editing, required this.onRemove, super.key});
+  const PayoutCard({
+    required this.sellers,
+    required this.sellerId,
+    required this.onSellerChanged,
+    required this.editing,
+    required this.onRemove,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) => BlocProvider(
+        key: ValueKey(sellerId),
         create: (_) => DashboardCardDataBloc<SettlementMonthSummary>(
-          loader: () => getIt<SettlementUseCase>().getMonthSummary(),
+          loader: () =>
+              getIt<SettlementUseCase>().getMonthSummary(sellerId: sellerId),
         )..add(const DashboardCardDataRequested()),
         child: DashboardCardFrame(
           type: DashboardCardType.settlementPayouts,
           editing: editing,
           onRemove: onRemove,
+          actions: [
+            DashboardSellerDropdown(
+              sellers: sellers,
+              value: sellerId,
+              onChanged: onSellerChanged,
+            ),
+          ],
           child: DashboardCardBody<SettlementMonthSummary>(
             builder: (context, sums) => Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
