@@ -52,7 +52,9 @@ class _LoginPageState extends State<LoginPage> {
                       child: SizedBox(
                         height: 120,
                         child: Image.asset(
-                          'assets/images/oclyx_letter_logo.png',
+                          Theme.of(context).brightness == Brightness.dark
+                              ? 'assets/images/oclyx_letter_logo_dark.png'
+                              : 'assets/images/oclyx_letter_logo.png',
                           fit: BoxFit.contain,
                         ),
                       ),
