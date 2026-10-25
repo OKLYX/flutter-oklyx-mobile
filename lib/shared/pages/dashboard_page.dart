@@ -56,7 +56,9 @@ class _DashboardPageState extends State<DashboardPage> {
               title: SizedBox(
                 height: 70,
                 child: Image.asset(
-                  'assets/images/oclyx_letter_logo.png',
+                  Theme.of(context).brightness == Brightness.dark
+                      ? 'assets/images/oclyx_letter_logo_dark.png'
+                      : 'assets/images/oclyx_letter_logo.png',
                   fit: BoxFit.contain,
                 ),
               ),
