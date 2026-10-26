@@ -6,6 +6,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/det
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/listing_registration.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_product.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_support.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/thumbnail_photo.dart';
 
 typedef Json = Map<String, dynamic>;
 
@@ -526,7 +527,22 @@ MasterPoolImage masterPoolImageFromJson(Json j) => MasterPoolImage(
       sortOrder: _int(j['sortOrder']),
       assignedZones: _strList(j['assignedZones']),
       isSource: _bool(j['isSource']),
+      usedForThumbnail: _bool(j['usedForThumbnail']),
       productImageId: _intN(j['productImageId']),
+    );
+
+// ── thumbnail_photo.dart ─────────────────────────────────────────────────
+ThumbnailPhotoStageView thumbnailPhotoStageViewFromJson(Json j) =>
+    ThumbnailPhotoStageView(
+      stage: _str(j['stage']),
+      sellerId: _intN(j['sellerId']),
+      sellerName: _strN(j['sellerName']),
+      listingId: _intN(j['listingId']),
+      platform: _strN(j['platform']),
+      source: _str(j['source']),
+      imageId: _intN(j['imageId']),
+      imageUrl: _strN(j['imageUrl']),
+      collageUsed: _bool(j['collageUsed']),
     );
 
 // ── master_support.dart ──────────────────────────────────────────────────

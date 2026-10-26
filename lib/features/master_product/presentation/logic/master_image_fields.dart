@@ -1,5 +1,6 @@
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/detail_content.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/thumbnail_photo.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_image_pool.dart';
 
@@ -7,10 +8,11 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/widget
 /// `app/dashboard/master-products/components/masterImageFields.ts` (@09208a0).
 /// **File**: lib/features/master_product/presentation/logic/master_image_fields.dart
 ///
-/// - [fields] = cover photo ([kSourceZone], always first) + every catalog
-///   group (key = code, label = name, catalog sortOrder).
-/// - [fieldFilters] = filter-only sets (cover photo + one per template).
-///   Render order is always owned by [fields].
+/// - [fields] = cover photo ([kSourceZone], always first) + thumbnail photo
+///   ([kThumbnailPhotoField], always second, FEATURE_2610_32 D30) + every
+///   catalog group (key = code, label = name, catalog sortOrder).
+/// - [fieldFilters] = filter-only sets (cover photo + thumbnail photo + one
+///   per template). Render order is always owned by [fields].
 /// - [requiredZoneKeys] = the default template only (create form gate).
 class MasterImageFields {
   final List<ImageField> fields;
@@ -32,16 +34,20 @@ List<String> _zoneKeysOf(DetailTemplate t) => t.blocks
 /// Derives the pool fields from the detail image group catalog and the
 /// detail templates (S14 · S1).
 ///
-/// A failure of either call is non-blocking → cover photo only (web `catch`).
+/// A failure of either call is non-blocking → cover photo and thumbnail photo
+/// only (web `catch`).
 /// ⚠️ Not pure (server calls) — call it from `initState` and keep the result
 ///    in State.
 /// ⚠️ Callers = create page · master detail only. The detail editor's
 ///    structured-data tab derives from a single template instead.
 Future<MasterImageFields> deriveMasterImageFields() async {
   final useCase = getIt<MasterProductUseCase>();
-  // Cover photo is a template-independent filter, always first.
+  // Cover photo and thumbnail photo are template-independent filters, always
+  // first.
   final filters = <ImageFieldFilter>[
     const ImageFieldFilter(label: '대표사진', keys: [kSourceZone], kind: 'cover'),
+    const ImageFieldFilter(
+        label: '썸네일 사진', keys: [kThumbnailPhotoField], kind: 'cover'),
   ];
   // Both calls run in parallel (web `Promise.all`).
   final groupsFuture = useCase.listDetailImageGroups();
@@ -51,7 +57,10 @@ Future<MasterImageFields> deriveMasterImageFields() async {
   final templates = (await templatesFuture).fold((_) => null, (r) => r);
   if (groups == null || templates == null) {
     return MasterImageFields(
-      fields: const [ImageField(key: kSourceZone, label: '대표사진')],
+      fields: const [
+        ImageField(key: kSourceZone, label: '대표사진'),
+        ImageField(key: kThumbnailPhotoField, label: '썸네일 사진'),
+      ],
       fieldFilters: filters,
       requiredZoneKeys: const [],
     );
@@ -72,6 +81,7 @@ Future<MasterImageFields> deriveMasterImageFields() async {
     // by template.
     fields: [
       const ImageField(key: kSourceZone, label: '대표사진'),
+      const ImageField(key: kThumbnailPhotoField, label: '썸네일 사진'),
       ...groups.map((g) => ImageField(key: g.code, label: g.name)),
     ],
     fieldFilters: filters,

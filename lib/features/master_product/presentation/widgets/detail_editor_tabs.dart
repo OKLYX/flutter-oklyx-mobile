@@ -95,6 +95,7 @@ class _DetailEditorTabsState extends State<DetailEditorTabs> {
         );
       case 'thumbnail':
         return ThumbnailPane(
+          masterId: widget.masterId,
           listingId: widget.listingId,
           generated: widget.generated,
           onGenerated: widget.onGenerated,

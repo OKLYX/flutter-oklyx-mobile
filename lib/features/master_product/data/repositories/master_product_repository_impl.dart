@@ -11,6 +11,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/det
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/listing_registration.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_product.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_support.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/thumbnail_photo.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/repositories/master_product_repository.dart';
 
 /// Fixed 403 message — same sentence as the mobile precedents (shipping_label · claim).
@@ -412,6 +413,27 @@ class MasterProductRepositoryImpl implements MasterProductRepository {
           int masterId, List<int> productImageIds) =>
       _guard(() =>
           supportDataSource.importProductImages(masterId, productImageIds));
+
+  @override
+  Future<Either<Failure, List<ThumbnailPhotoStageView>>>
+      listThumbnailPhotoStages(int masterId) =>
+          _guard(() => supportDataSource.listThumbnailPhotoStages(masterId));
+
+  @override
+  Future<Either<Failure, List<ThumbnailPhotoStageView>>> setThumbnailPhoto(
+    int masterId, {
+    required String stage,
+    required int? sellerId,
+    required int? listingId,
+    required int? imageId,
+  }) =>
+      _guard(() => supportDataSource.setThumbnailPhoto(
+            masterId,
+            stage: stage,
+            sellerId: sellerId,
+            listingId: listingId,
+            imageId: imageId,
+          ));
 
   @override
   Future<Either<Failure, List<ProductGalleryImage>>> listProductImages(
