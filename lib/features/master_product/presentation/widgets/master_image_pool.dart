@@ -7,6 +7,7 @@ import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/detail_content.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_support.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/thumbnail_photo.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_image_picker_sheet.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_network_image.dart';
@@ -26,7 +27,7 @@ const String _detailAll = '__detail_all__';
 // never collide in the unified token space.
 const int _productOffset = 1000000000;
 
-/// One image field (cover photo or a detail image group).
+/// One image field (cover photo, thumbnail photo or a detail image group).
 class ImageField {
   final String key;
   final String label;
@@ -73,16 +74,20 @@ class SourceProduct {
 // A pool entry unified across modes. `token` = image id (edit) or buffer
 // token (create). `file` = create-mode file entry (rendered with Image.file).
 // `isReference` = the entry live-links a product gallery image.
+// `usedForThumbnail` = chosen by any thumbnail photo stage (edit only; create
+// = false, FEATURE_2610_32 D34).
 class _PoolEntry {
   final int token;
   final String url;
   final File? file;
   final bool isReference;
+  final bool usedForThumbnail;
 
   const _PoolEntry({
     required this.token,
     required this.url,
     required this.isReference,
+    this.usedForThumbnail = false,
     this.file,
   });
 }
@@ -99,7 +104,8 @@ class _ProductSection {
   });
 }
 
-/// Master image pool + field (cover photo + detail zones) mapping — port of
+/// Master image pool + field (cover photo + thumbnail photo + detail zones)
+/// mapping — port of
 /// web `app/dashboard/master-products/components/MasterImagePool.tsx`
 /// (@09208a0), with the D84 interaction.
 ///
@@ -146,6 +152,11 @@ class _ProductSection {
 /// ⚠️ [fields] comes from the parent (`deriveMasterImageFields` or the detail
 ///    editor's single template). Rendering always follows [fields] order;
 ///    [fieldFilters] only decides which cards are visible.
+/// ⚠️ The [kThumbnailPhotoField] card (single) reads and writes the MASTER
+///    stage of the thumbnail-photo API — never a zone mapping
+///    (FEATURE_2610_32 D30). [reloadKey] changes reload the pool and that
+///    stage (the master detail bumps it after the 「단계별 썸네일 사진」 block
+///    changes a stage, D34).
 /// ⚠️ The 「제품 이미지」 tab shows only when [sourceProducts] is non-empty
 ///    (create mode too).
 /// ❌ No per-field upload input — uploads go to the pool only.
@@ -157,6 +168,7 @@ class MasterImagePool extends StatefulWidget {
   final MasterImageBuffer? buffer;
   final ValueChanged<MasterImageBuffer>? onBufferChange;
   final VoidCallback? onDirty;
+  final int reloadKey;
   final List<SourceProduct>?
       sourceProducts; // web `productImageUseCase` + `sourceProducts` — null = no 「제품 이미지」 tab
 
@@ -168,6 +180,7 @@ class MasterImagePool extends StatefulWidget {
     this.buffer,
     this.onBufferChange,
     this.onDirty,
+    this.reloadKey = 0,
     this.sourceProducts,
   });
 
@@ -180,6 +193,9 @@ class _MasterImagePoolState extends State<MasterImagePool> {
 
   // ---- Edit-mode server state ----
   List<MasterPoolImage> _pool = [];
+  // Master-stage thumbnail photo (pool image id) — the 「썸네일 사진」 card in
+  // edit mode (FEATURE_2610_32 D30).
+  int? _masterThumbnailId;
   bool _isLoading = false;
   bool _busy = false;
   String _error = '';
@@ -205,6 +221,11 @@ class _MasterImagePoolState extends State<MasterImagePool> {
 
   bool get _canUseProducts => (widget.sourceProducts?.length ?? 0) > 0;
 
+  // The 「썸네일 사진」 card is present only when the parent's field list has it
+  // (the detail editor's structured-data tab does not).
+  bool get _hasThumbnailField =>
+      widget.fields.any((f) => f.key == kThumbnailPhotoField);
+
   @override
   void initState() {
     super.initState();
@@ -219,6 +240,8 @@ class _MasterImagePoolState extends State<MasterImagePool> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.masterId != widget.masterId) {
       unawaited(_loadPool());
+    } else if (oldWidget.reloadKey != widget.reloadKey) {
+      unawaited(_reloadFromParent());
     }
     if (oldWidget.masterId != widget.masterId ||
         !_sameProducts(oldWidget.sourceProducts, widget.sourceProducts)) {
@@ -261,6 +284,7 @@ class _MasterImagePoolState extends State<MasterImagePool> {
       setState(start);
     }
     final result = await _useCase.listPoolImages(masterId);
+    final thumbnail = await _loadMasterThumbnail(masterId);
     if (!mounted || seq != _poolLoadSeq) {
       return;
     }
@@ -269,8 +293,38 @@ class _MasterImagePoolState extends State<MasterImagePool> {
         (_) => _error = '이미지 풀을 불러오지 못했습니다.',
         (list) => _pool = _sorted(list),
       );
+      if (thumbnail.failure != null) {
+        _error = '이미지 풀을 불러오지 못했습니다.';
+      } else {
+        _masterThumbnailId = thumbnail.id;
+      }
       _isLoading = false;
     });
+  }
+
+  // The MASTER row's own choice; any other source = the card is empty.
+  Future<({Failure? failure, int? id})> _loadMasterThumbnail(
+      int masterId) async {
+    if (!_hasThumbnailField) {
+      return (failure: null, id: null);
+    }
+    final result = await _useCase.listThumbnailPhotoStages(masterId);
+    return result.fold((f) => (failure: f, id: null), (stages) {
+      for (final s in stages) {
+        if (s.stage == 'MASTER') {
+          return (failure: null, id: s.source == 'OWN' ? s.imageId : null);
+        }
+      }
+      return (failure: null, id: null);
+    });
+  }
+
+  // Reload on the parent's signal ([MasterImagePool.reloadKey]).
+  Future<void> _reloadFromParent() async {
+    final failure = await _reload();
+    if (failure != null && mounted) {
+      setState(() => _error = '이미지 풀을 불러오지 못했습니다.');
+    }
   }
 
   // ---- Load the BOM products' galleries for the "제품 이미지" tab ----
@@ -310,9 +364,16 @@ class _MasterImagePoolState extends State<MasterImagePool> {
       return null;
     }
     final result = await _useCase.listPoolImages(masterId);
+    final thumbnail = await _loadMasterThumbnail(masterId);
     return result.fold((f) => f, (list) {
+      if (thumbnail.failure != null) {
+        return thumbnail.failure;
+      }
       if (mounted) {
-        setState(() => _pool = _sorted(list));
+        setState(() {
+          _pool = _sorted(list);
+          _masterThumbnailId = thumbnail.id;
+        });
       }
       return null;
     });
@@ -340,6 +401,7 @@ class _MasterImagePoolState extends State<MasterImagePool> {
             token: img.id,
             url: img.imageUrl,
             isReference: img.productImageId != null,
+            usedForThumbnail: img.usedForThumbnail,
           ),
       ];
     }
@@ -385,6 +447,10 @@ class _MasterImagePoolState extends State<MasterImagePool> {
           if (i.isSource) i.id,
       ];
     }
+    if (fieldKey == kThumbnailPhotoField) {
+      final id = _masterThumbnailId;
+      return id == null ? const <int>[] : [id];
+    }
     return [
       for (final i in _pool)
         if (i.assignedZones.contains(fieldKey)) i.id,
@@ -395,9 +461,16 @@ class _MasterImagePoolState extends State<MasterImagePool> {
   List<ImageField> _fieldsForToken(int token) =>
       widget.fields.where((f) => _fieldTokens(f.key).contains(token)).toList();
 
-  bool _inUse(int token) => _fieldsForToken(token).isNotEmpty;
+  // Chosen by any thumbnail photo stage (edit mode only, FEATURE_2610_32 D34).
+  bool _usedForThumbnail(int token) =>
+      _isEdit && _pool.any((i) => i.id == token && i.usedForThumbnail);
 
-  // ---- Auto-cleanup: delete product references no longer mapped anywhere ----
+  // In use = mapped to a field, or chosen by any thumbnail photo stage (D34).
+  bool _inUse(int token) =>
+      _fieldsForToken(token).isNotEmpty || _usedForThumbnail(token);
+
+  // ---- Auto-cleanup: delete product references no longer mapped anywhere
+  //      and not chosen as a thumbnail photo by any stage (D28) ----
   Future<void> _sweepOrphanReferences() async {
     final masterId = widget.masterId;
     if (masterId == null) {
@@ -411,6 +484,7 @@ class _MasterImagePoolState extends State<MasterImagePool> {
           .where((i) =>
               i.productImageId != null &&
               !i.isSource &&
+              !i.usedForThumbnail &&
               i.assignedZones.isEmpty)
           .toList(),
     );
@@ -428,8 +502,9 @@ class _MasterImagePoolState extends State<MasterImagePool> {
 
   // ---- Commit a field's mapping (edit → server, create → buffer) ----
   Future<void> _commit(String fieldKey, List<int> tokens) async {
-    final isSource = fieldKey == kSourceZone;
-    final capped = isSource ? tokens.take(1).toList() : tokens;
+    final isSingle =
+        fieldKey == kSourceZone || fieldKey == kThumbnailPhotoField;
+    final capped = isSingle ? tokens.take(1).toList() : tokens;
     if (!_isEdit) {
       // Split the unified tokens back into file indices and product image ids.
       final fileToks = capped.where((t) => t < _productOffset).toList();
@@ -454,10 +529,13 @@ class _MasterImagePoolState extends State<MasterImagePool> {
       _busy = true;
     });
     final Failure? failure;
-    if (isSource) {
+    if (fieldKey == kSourceZone) {
       failure = (await _useCase.setSourceImage(
               masterId, capped.isEmpty ? null : capped.first))
           .fold((f) => f, (_) => null);
+    } else if (fieldKey == kThumbnailPhotoField) {
+      failure = await _setMasterThumbnail(
+          masterId, capped.isEmpty ? null : capped.first);
     } else {
       failure = (await _useCase.setZoneImages(masterId, fieldKey, capped))
           .fold((f) => f, (_) => null);
@@ -478,8 +556,20 @@ class _MasterImagePoolState extends State<MasterImagePool> {
     });
   }
 
+  // The 「썸네일 사진」 card writes the MASTER stage of the thumbnail-photo API
+  // (FEATURE_2610_32 D23 · D30).
+  Future<Failure?> _setMasterThumbnail(int masterId, int? imageId) async =>
+      (await _useCase.setThumbnailPhoto(
+        masterId,
+        stage: 'MASTER',
+        sellerId: null,
+        listingId: null,
+        imageId: imageId,
+      ))
+          .fold((f) => f, (_) => null);
+
   void _addToField(String fieldKey, int token) {
-    if (fieldKey == kSourceZone) {
+    if (fieldKey == kSourceZone || fieldKey == kThumbnailPhotoField) {
       unawaited(_commit(fieldKey, [token]));
       return;
     }
@@ -558,6 +648,10 @@ class _MasterImagePoolState extends State<MasterImagePool> {
       if (set.isLeft()) {
         return false;
       }
+    } else if (fieldKey == kThumbnailPhotoField) {
+      if (await _setMasterThumbnail(masterId, ref.id) != null) {
+        return false;
+      }
     } else {
       final currentZoneIds = [
         for (final i in freshPool)
@@ -574,7 +668,8 @@ class _MasterImagePoolState extends State<MasterImagePool> {
     if (await _reload() != null) {
       return false;
     }
-    // Replacing the cover photo can orphan a previous product reference.
+    // Replacing the cover or thumbnail photo can orphan a previous product
+    // reference.
     await _sweepOrphanReferences();
     return true;
   }
@@ -774,7 +869,7 @@ class _MasterImagePoolState extends State<MasterImagePool> {
       context,
       builder: (sheetContext) => MasterImagePickerSheet(
         fieldLabel: field.label,
-        single: field.key == kSourceZone,
+        single: field.key == kSourceZone || field.key == kThumbnailPhotoField,
         images: [
           for (final e in _entries)
             PickerImage(token: e.token, url: e.url, file: e.file),
@@ -933,12 +1028,18 @@ class _MasterImagePoolState extends State<MasterImagePool> {
       );
 
   // One pool card. Deletion lives in the [이미지 관리] sheet, not per card.
-  //  - fieldTags = true: field-location chips (in-use view).
+  //  - fieldTags = true: field-location chips plus the 「단계별 썸네일 사진」
+  //    tag for a photo chosen only by a seller/listing stage (in-use view,
+  //    FEATURE_2610_32 D34).
   //  - fieldTags = false: single "사용중" badge (마스터 이미지 풀 tab).
   Widget _poolCard(BuildContext context, _PoolEntry entry,
       {required bool fieldTags}) {
     final scheme = Theme.of(context).colorScheme;
     final tagFields = _fieldsForToken(entry.token);
+    // Chosen only by a seller/listing stage (no field card to point at) → a
+    // plain 「단계별 썸네일 사진」 tag (FEATURE_2610_32 D34).
+    final stageOnly =
+        entry.usedForThumbnail && entry.token != _masterThumbnailId;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -953,9 +1054,9 @@ class _MasterImagePoolState extends State<MasterImagePool> {
             url: entry.url,
             file: entry.file,
             onTap: () => _choosePoolEntryField(entry),
-            badge: !fieldTags && tagFields.isNotEmpty ? '사용중' : null,
+            badge: !fieldTags && _inUse(entry.token) ? '사용중' : null,
           ),
-          if (fieldTags && tagFields.isNotEmpty) ...[
+          if (fieldTags && (tagFields.isNotEmpty || stageOnly)) ...[
             const SizedBox(height: 4),
             Wrap(
               spacing: 4,
@@ -980,6 +1081,22 @@ class _MasterImagePoolState extends State<MasterImagePool> {
                       ),
                     ),
                   ),
+                if (stageOnly)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.infoSurface,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      '단계별 썸네일 사진',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppColors.infoForeground,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ],
@@ -994,7 +1111,10 @@ class _MasterImagePoolState extends State<MasterImagePool> {
     final bool inUse;
     if (_isEdit) {
       final ref = _refByProductImageId[pi.id];
-      inUse = ref != null && (ref.isSource || ref.assignedZones.isNotEmpty);
+      inUse = ref != null &&
+          (ref.isSource ||
+              ref.usedForThumbnail ||
+              ref.assignedZones.isNotEmpty);
     } else {
       inUse = _mappedProductIds.contains(pi.id);
     }
@@ -1287,7 +1407,8 @@ class _MasterImagePoolState extends State<MasterImagePool> {
       Map<int, _PoolEntry> entryByToken) {
     final scheme = Theme.of(context).colorScheme;
     final tokens = _fieldTokens(field.key);
-    final isSource = field.key == kSourceZone;
+    final isSingle =
+        field.key == kSourceZone || field.key == kThumbnailPhotoField;
     final highlighted = field.key == _highlightedField;
     final key = _fieldCardKeys.putIfAbsent(field.key, GlobalKey.new);
     final mapped = [
@@ -1316,7 +1437,7 @@ class _MasterImagePoolState extends State<MasterImagePool> {
                   TextSpan(
                     text: field.label,
                     children: [
-                      if (isSource)
+                      if (isSingle)
                         TextSpan(
                           text: ' (단일)',
                           style: TextStyle(color: scheme.outline),
@@ -1501,7 +1622,10 @@ class _FieldChooserSheet extends StatelessWidget {
             children: [
               for (final f in fields)
                 ListTile(
-                  title: Text(f.label + (f.key == kSourceZone ? ' (단일)' : '')),
+                  title: Text(f.label +
+                      (f.key == kSourceZone || f.key == kThumbnailPhotoField
+                          ? ' (단일)'
+                          : '')),
                   trailing: alreadyIn(f.key) ? const Icon(Icons.check) : null,
                   onTap: () => Navigator.of(context)
                       .pop(alreadyIn(f.key) ? null : f.key),

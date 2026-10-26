@@ -15,12 +15,16 @@ class PickerImage {
   const PickerImage({required this.token, required this.url, this.file});
 }
 
-/// Sheet body that picks the pool images mapped to one field — port of web
+/// Sheet body that picks pool images — for one field (a detail zone, the
+/// cover photo or the thumbnail photo) or one thumbnail photo stage (the
+/// 「단계별 썸네일 사진」 block and the listing 「썸네일」 tab,
+/// FEATURE_2610_32 D30) — port of web
 /// `app/dashboard/master-products/components/MasterImagePickerModal.tsx`
 /// (@09208a0).
 /// **File**: lib/features/master_product/presentation/widgets/master_image_picker_sheet.dart
 ///
-/// Multi-select for a zone field, single (last pick wins) for the cover photo.
+/// Multi-select for a zone field, single (last pick wins) for the cover
+/// photo, the thumbnail photo and a stage.
 /// [확인] pops the selected tokens; [취소] / drag down pops `null`.
 ///
 /// **Usage**:

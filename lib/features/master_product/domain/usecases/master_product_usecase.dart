@@ -6,6 +6,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/det
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/listing_registration.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_product.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_support.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/thumbnail_photo.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/repositories/master_product_repository.dart';
 
 /// The only gateway the six master product screens use to call the server (thin delegation) — FEATURE_2609_80.
@@ -358,6 +359,27 @@ class MasterProductUseCase {
   Future<Either<Failure, List<MasterPoolImage>>> importProductImages(
           int masterId, List<int> productImageIds) =>
       repository.importProductImages(masterId, productImageIds);
+
+  /// S28 — FEATURE_2610_32 D31
+  Future<Either<Failure, List<ThumbnailPhotoStageView>>>
+      listThumbnailPhotoStages(int masterId) =>
+          repository.listThumbnailPhotoStages(masterId);
+
+  /// S29 — FEATURE_2610_32 D23 ([imageId] null clears the stage's own choice)
+  Future<Either<Failure, List<ThumbnailPhotoStageView>>> setThumbnailPhoto(
+    int masterId, {
+    required String stage,
+    required int? sellerId,
+    required int? listingId,
+    required int? imageId,
+  }) =>
+      repository.setThumbnailPhoto(
+        masterId,
+        stage: stage,
+        sellerId: sellerId,
+        listingId: listingId,
+        imageId: imageId,
+      );
 
   /// S8
   Future<Either<Failure, List<ProductGalleryImage>>> listProductImages(

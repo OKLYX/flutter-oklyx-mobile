@@ -6,6 +6,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/det
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/listing_registration.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_product.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_support.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/thumbnail_photo.dart';
 
 /// Server calls of the six master product screens — one method per web
 /// repository method (FEATURE_2609_80 R3, M1~M23 · L1~L37 · S1~S19).
@@ -271,6 +272,19 @@ abstract class MasterProductRepository {
   /// S7
   Future<Either<Failure, List<MasterPoolImage>>> importProductImages(
       int masterId, List<int> productImageIds);
+
+  /// S28 — FEATURE_2610_32 D31
+  Future<Either<Failure, List<ThumbnailPhotoStageView>>>
+      listThumbnailPhotoStages(int masterId);
+
+  /// S29 — FEATURE_2610_32 D23 ([imageId] null clears the stage's own choice)
+  Future<Either<Failure, List<ThumbnailPhotoStageView>>> setThumbnailPhoto(
+    int masterId, {
+    required String stage,
+    required int? sellerId,
+    required int? listingId,
+    required int? imageId,
+  });
 
   /// S8
   Future<Either<Failure, List<ProductGalleryImage>>> listProductImages(
