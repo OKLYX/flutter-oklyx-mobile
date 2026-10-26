@@ -40,6 +40,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/widget
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_shipping_override_panel.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_tags_panel.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/product_relation_panel.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/thumbnail_photo_stages_section.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/info_bubble_icon.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
@@ -221,6 +222,10 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
   String _metaBaseError = '';
   List<ImageField> _imageFields = [];
   List<ImageFieldFilter> _imageFieldFilters = [];
+  // Bumped when the image pool or the 「단계별 썸네일 사진」 block changes a
+  // mapping, so the other reloads its 「사용중」 / stage state
+  // (FEATURE_2610_32 D34).
+  int _thumbnailPhotoVersion = 0;
   bool _isLoading = true;
   String _error = '';
 
@@ -1802,6 +1807,9 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
         )
       : button;
 
+  void _bumpThumbnailPhotoVersion() =>
+      setState(() => _thumbnailPhotoVersion++);
+
   // ---------------------------------------------------------------- tabs
 
   Widget _buildTab(BuildContext context, String key, MasterProduct master) {
@@ -1834,12 +1842,23 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
                     masterId: _id,
                     fields: _imageFields,
                     fieldFilters: _imageFieldFilters,
+                    onDirty: _bumpThumbnailPhotoVersion,
+                    reloadKey: _thumbnailPhotoVersion,
                     sourceProducts: master.components
                         .map((c) =>
                             SourceProduct(id: c.productId, name: c.productName))
                         .toList(),
                   ),
                 ],
+              ),
+            ),
+            const Divider(height: 1),
+            _StackedBlock(
+              title: '단계별 썸네일 사진',
+              child: ThumbnailPhotoStagesSection(
+                masterId: _id,
+                reloadKey: _thumbnailPhotoVersion,
+                onChanged: _bumpThumbnailPhotoVersion,
               ),
             ),
             const Divider(height: 1),
