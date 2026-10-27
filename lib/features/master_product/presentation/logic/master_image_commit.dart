@@ -1,7 +1,6 @@
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/detail_content.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/thumbnail_photo.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_image_pool.dart';
 
@@ -81,20 +80,6 @@ Future<Failure?> commitMasterImageBuffer(
       final result = await useCase.setSourceImage(
         masterId,
         ids.isEmpty ? null : ids.first,
-      );
-      final failure = result.fold((f) => f, (_) => null);
-      if (failure != null) {
-        return failure;
-      }
-    } else if (fieldKey == kThumbnailPhotoField) {
-      // FEATURE_2610_32 D30: the master stage of the thumbnail photo, one
-      // photo.
-      final result = await useCase.setThumbnailPhoto(
-        masterId,
-        stage: 'MASTER',
-        sellerId: null,
-        listingId: null,
-        imageId: ids.isEmpty ? null : ids.first,
       );
       final failure = result.fold((f) => f, (_) => null);
       if (failure != null) {

@@ -7,15 +7,11 @@ import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/listing_registration.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_support.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/thumbnail_photo.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/thumbnail_photo_labels.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_image_picker_sheet.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_network_image.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
-import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
 
 bool _isReserved(String key) => kBuiltinFieldKeys.contains(key);
 
@@ -26,7 +22,7 @@ const Map<String, String> _reservedLabels = {
 };
 
 /// Tab 4 — channel cell thumbnail (view / regenerate / upload override /
-/// clear override / choose the thumbnail photo). FEATURE_2609_80 / 06.
+/// clear override). FEATURE_2609_80 / 06.
 ///
 /// **File**: lib/features/master_product/presentation/widgets/thumbnail_pane.dart
 /// **Web original**: `master-products/[id]/detail/[listingId]/components/ThumbnailPane.tsx` @09208a0
@@ -37,17 +33,12 @@ const Map<String, String> _reservedLabels = {
 /// thumbnail + detail. Reserved keys fall back to the product value when blank,
 /// custom keys to the template default. While overridden only the thumbnail is
 /// kept (field values and detail still update).
-/// 「썸네일 사진」 (FEATURE_2610_32 D29 · D30 (다)) shows which stage photo this
-/// listing's single-photo thumbnail uses, with [썸네일 사진 고르기] (one photo
-/// of the master pool) and, for its own choice, [지우기].
 class ThumbnailPane extends StatefulWidget {
-  final int masterId;
   final int listingId;
   final GeneratedProduct generated;
   final ValueChanged<GeneratedProduct> onGenerated;
 
   const ThumbnailPane({
-    required this.masterId,
     required this.listingId,
     required this.generated,
     required this.onGenerated,
@@ -78,13 +69,7 @@ class _ThumbnailPaneState extends State<ThumbnailPane> {
   Map<String, String> _values = {};
   final Map<String, TextEditingController> _controllers = {};
 
-  // ---- Thumbnail photo of this listing's stage (FEATURE_2610_32 D30 (다)) ----
-  ThumbnailPhotoStageView? _photoStage;
-  bool _photoBusy = false;
-  String _photoError = '';
-
-  bool get _busy =>
-      _isRegenerating || _isUploading || _isClearing || _photoBusy;
+  bool get _busy => _isRegenerating || _isUploading || _isClearing;
 
   bool get _isOverridden =>
       widget.generated.thumbnailSource == GeneratedSourceCode.manualOverride;
@@ -113,7 +98,6 @@ class _ThumbnailPaneState extends State<ThumbnailPane> {
     _values = {...widget.generated.fieldValues};
     _syncControllers();
     _loadFields();
-    _loadPhotoStage();
   }
 
   @override
@@ -152,90 +136,6 @@ class _ThumbnailPaneState extends State<ThumbnailPane> {
       });
       _syncControllers();
       _fieldsLoading = false;
-    });
-  }
-
-  ThumbnailPhotoStageView? _listingRow(List<ThumbnailPhotoStageView> stages) {
-    for (final s in stages) {
-      if (s.stage == 'LISTING' && s.listingId == widget.listingId) {
-        return s;
-      }
-    }
-    return null;
-  }
-
-  Future<void> _loadPhotoStage() async {
-    final result = await _useCase.listThumbnailPhotoStages(widget.masterId);
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      result.fold(
-        (_) => _photoError = '썸네일 사진 상태를 불러오지 못했습니다.',
-        (stages) => _photoStage = _listingRow(stages),
-      );
-    });
-  }
-
-  Future<void> _pickPhoto() async {
-    final stage = _photoStage;
-    if (stage == null) {
-      return;
-    }
-    setState(() => _photoError = '');
-    final pool = await _useCase.listPoolImages(widget.masterId);
-    if (!mounted) {
-      return;
-    }
-    final images = pool.fold((_) => null, (list) {
-      final sorted = [...list]
-        ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-      return [
-        for (final img in sorted) PickerImage(token: img.id, url: img.imageUrl),
-      ];
-    });
-    if (images == null) {
-      setState(() => _photoError = '이미지 풀을 불러오지 못했습니다.');
-      return;
-    }
-    final tokens = await showAppSheet<List<int>>(
-      context,
-      builder: (sheetContext) => MasterImagePickerSheet(
-        fieldLabel: '썸네일 사진',
-        single: true,
-        images: images,
-        initialSelected: stage.source == 'OWN' && stage.imageId != null
-            ? [stage.imageId!]
-            : const <int>[],
-      ),
-    );
-    if (tokens == null || !mounted) {
-      return;
-    }
-    await _savePhoto(tokens.isEmpty ? null : tokens.first);
-  }
-
-  Future<void> _savePhoto(int? imageId) async {
-    setState(() {
-      _photoBusy = true;
-      _photoError = '';
-    });
-    final result = await _useCase.setThumbnailPhoto(
-      widget.masterId,
-      stage: 'LISTING',
-      sellerId: null,
-      listingId: widget.listingId,
-      imageId: imageId,
-    );
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      result.fold(
-        (_) => _photoError = '썸네일 사진을 바꾸지 못했습니다.',
-        (stages) => _photoStage = _listingRow(stages),
-      );
-      _photoBusy = false;
     });
   }
 
@@ -418,10 +318,6 @@ class _ThumbnailPaneState extends State<ThumbnailPane> {
         const SizedBox(height: 16),
         const Divider(height: 1),
         const SizedBox(height: 12),
-        ..._photoSection(context),
-        const SizedBox(height: 16),
-        const Divider(height: 1),
-        const SizedBox(height: 12),
         Text(
           '필드값 (재생성 시 적용)',
           style: TextStyle(
@@ -471,81 +367,6 @@ class _ThumbnailPaneState extends State<ThumbnailPane> {
         ),
       ],
     );
-  }
-
-  List<Widget> _photoSection(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final stage = _photoStage;
-    return [
-      Text(
-        '썸네일 사진',
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          color: scheme.onSurfaceVariant,
-        ),
-      ),
-      const SizedBox(height: 8),
-      if (_photoError.isNotEmpty) ...[
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: scheme.errorContainer,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Text(
-            _photoError,
-            style: TextStyle(fontSize: 14, color: scheme.error),
-          ),
-        ),
-        const SizedBox(height: 8),
-      ],
-      if (stage != null) ...[
-        Row(
-          children: [
-            if (stage.imageUrl != null) ...[
-              MasterNetworkImage(url: stage.imageUrl, width: 64, height: 64),
-              const SizedBox(width: 12),
-            ],
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    kThumbnailPhotoSourceLabel[stage.source] ?? stage.source,
-                    style:
-                        TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-                  ),
-                  if (stage.collageUsed)
-                    const Text(
-                      kThumbnailPhotoCollageNotice,
-                      style: TextStyle(
-                          fontSize: 11, color: AppColors.warningForeground),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            OutlinedButton(
-              onPressed: _busy ? null : _pickPhoto,
-              child: const Text('썸네일 사진 고르기'),
-            ),
-            if (stage.source == 'OWN')
-              OutlinedButton(
-                onPressed: _busy ? null : () => _savePhoto(null),
-                child: const Text('지우기'),
-              ),
-          ],
-        ),
-      ],
-    ];
   }
 
   List<Widget> _fieldInput(TemplateField f) {
