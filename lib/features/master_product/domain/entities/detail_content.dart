@@ -51,15 +51,13 @@ class DetailTemplate {
 }
 
 /// Web `MasterPoolImage`. [imageUrl] is a complete URL (render it directly
-/// with `MasterNetworkImage`). [usedForThumbnail] = chosen by any thumbnail
-/// photo stage (master · seller · listing, FEATURE_2610_32 D28).
+/// with `MasterNetworkImage`).
 class MasterPoolImage {
   final int id;
   final String imageUrl;
   final int sortOrder;
   final List<String> assignedZones;
   final bool isSource;
-  final bool usedForThumbnail;
   final int? productImageId;
 
   const MasterPoolImage({
@@ -68,7 +66,6 @@ class MasterPoolImage {
     required this.sortOrder,
     required this.assignedZones,
     required this.isSource,
-    required this.usedForThumbnail,
     this.productImageId,
   });
 }
