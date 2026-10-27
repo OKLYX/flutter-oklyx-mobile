@@ -61,18 +61,22 @@ class TemplateField {
 /// Web `BUILTIN_FIELD_KEYS`.
 const List<String> kBuiltinFieldKeys = ['brandName', 'productName'];
 
-/// Thumbnail template — the master screens read only [isDefault] and [fields].
+/// Thumbnail template — the master screens read [name], [isDefault], [fields]
+/// and [imageGroupKey] (the zone id of this template's image group, built by
+/// the server — never assembled on the client, FEATURE_2610_33 D9 · D15).
 class ThumbnailTemplateSummary {
   final int id;
   final String name;
   final bool isDefault;
   final List<TemplateField> fields;
+  final String imageGroupKey;
 
   const ThumbnailTemplateSummary({
     required this.id,
     required this.name,
     required this.isDefault,
     required this.fields,
+    required this.imageGroupKey,
   });
 }
 

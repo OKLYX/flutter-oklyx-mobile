@@ -4,7 +4,6 @@ import 'package:flutter_oklyn_mobile/features/master_product/data/datasources/ma
 import 'package:flutter_oklyn_mobile/features/master_product/data/models/master_json.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/detail_content.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_support.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/thumbnail_photo.dart';
 
 /// Remote calls for the master screens — port of web `DetailContentRepositoryImpl.ts · ProductImageRepositoryImpl.ts · CategoryRepositoryImpl.ts · CategoryMappingRepositoryImpl.ts · ThumbnailTemplateRepositoryImpl.ts · DetailImageGroupRepositoryImpl.ts · PackageRepositoryImpl.ts · ShippingRepositoryImpl.ts` (FEATURE_2609_80 R3).
 /// **File**: lib/features/master_product/data/datasources/master_support_remote_datasource.dart
@@ -57,39 +56,6 @@ class MasterSupportRemoteDataSource {
     await api.put('/api/admin/master-products/$masterId/source-image',
         body: {'imageId': imageId});
   }
-
-  /// S28 — FEATURE_2610_32 D31: every thumbnail photo stage of the master.
-  Future<List<ThumbnailPhotoStageView>> listThumbnailPhotoStages(
-      int masterId) async {
-    final data =
-        await api.get('/api/admin/master-products/$masterId/thumbnail-photo');
-    return _thumbnailPhotoStages(data);
-  }
-
-  /// S29 — FEATURE_2610_32 D23: choose ([imageId]) or clear (null) one
-  /// stage's thumbnail photo; returns every stage row.
-  Future<List<ThumbnailPhotoStageView>> setThumbnailPhoto(
-    int masterId, {
-    required String stage,
-    required int? sellerId,
-    required int? listingId,
-    required int? imageId,
-  }) async {
-    final data = await api.put(
-        '/api/admin/master-products/$masterId/thumbnail-photo',
-        body: {
-          'stage': stage,
-          'sellerId': sellerId,
-          'listingId': listingId,
-          'imageId': imageId,
-        });
-    return _thumbnailPhotoStages(data);
-  }
-
-  List<ThumbnailPhotoStageView> _thumbnailPhotoStages(Object? data) =>
-      (data as List? ?? const [])
-          .map((e) => thumbnailPhotoStageViewFromJson(e as Json))
-          .toList();
 
   /// S7
   Future<List<MasterPoolImage>> importProductImages(
