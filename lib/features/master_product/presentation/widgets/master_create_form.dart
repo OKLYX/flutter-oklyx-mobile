@@ -123,8 +123,9 @@ class _CategoryResult {
 ///
 /// [overviewOpen] = on mobile the product-relation 「물품」 section is showing:
 /// the product panel is drawn (and kept mounted once opened — R9) and the
-/// form body is offstage. The form itself is always mounted, so toggling the
-/// overview keeps every input.
+/// form body is offstage. The form itself stays mounted while the overview is
+/// toggled, so toggling keeps every input (the page rebuilds it for
+/// 「마켓 상품으로 등록」 — FEATURE_2610_35 / D19).
 ///
 /// [initialProductIds] = products to preselect (read once in initState).
 /// [market] = market "new master" mode (UX D70 · D71 · D77) — read as the
@@ -151,6 +152,10 @@ class MasterCreateForm extends StatefulWidget {
   final void Function(int masterId, String warning) onCreatedWithWarning;
   final VoidCallback onCancel;
   final MarketSource? market;
+  // FEATURE_2610_35 / D14: told whether the form has input (name not blank
+  // or any component picked) whenever that changes — the page's
+  // 「마켓 상품으로 등록」 button asks before leaving while it is true.
+  final ValueChanged<bool>? onDirtyChange;
 
   const MasterCreateForm({
     required this.initialProductIds,
@@ -160,6 +165,7 @@ class MasterCreateForm extends StatefulWidget {
     required this.onCancel,
     super.key,
     this.market,
+    this.onDirtyChange,
   });
 
   @override
@@ -175,6 +181,8 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
 
   final TextEditingController _nameController = TextEditingController();
   List<int> _selectedIds = [];
+  // FEATURE_2610_35 / D14: the input state last sent to onDirtyChange.
+  bool _reportedDirty = false;
 
   List<MasterOptionRequest> _options = [];
   // True while the option add/edit form is open → components are locked.
@@ -295,7 +303,22 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
     super.dispose();
   }
 
-  void _onTextChanged() => setState(() {});
+  void _onTextChanged() {
+    setState(() {});
+    _reportDirty();
+  }
+
+  // FEATURE_2610_35 / D14: same rule as [_handleCancel]; sent only when it
+  // differs from the last value sent.
+  void _reportDirty() {
+    final dirty =
+        _nameController.text.trim().isNotEmpty || _selectedIds.isNotEmpty;
+    if (dirty == _reportedDirty) {
+      return;
+    }
+    _reportedDirty = dirty;
+    widget.onDirtyChange?.call(dirty);
+  }
 
   // ---------------------------------------------------------------- loading
 
@@ -364,6 +387,7 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
         _defaultDeliveryId = defaultRate.isEmpty ? null : defaultRate.first.id;
         _defaultPackageId = defaultBox.isEmpty ? null : defaultBox.first.id;
       });
+      _reportDirty();
     }
     // Template fields are a secondary input — a failure never blocks.
     final templates = await _useCase.listThumbnailTemplates();
@@ -420,6 +444,7 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
     );
     if (ok && mounted) {
       setState(onConfirm);
+      _reportDirty();
     }
   }
 
@@ -728,6 +753,7 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
       return;
     }
     setState(doToggle);
+    _reportDirty();
   }
 
   /// Product panel "구성상품에 넣기" (2609_78 / UX D67). A locked set is
@@ -761,6 +787,7 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
       return;
     }
     setState(doAdd);
+    _reportDirty();
   }
 
   void _handleProductSearch() {

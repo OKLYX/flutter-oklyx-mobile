@@ -12,6 +12,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/market_source_card.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_create_form.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_section_bar.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
@@ -35,16 +36,24 @@ enum _MarketStatus { idle, loading, error, ready }
 /// looked up once and the form is drawn only after it arrives (the lookup
 /// result is its initial value).
 ///
-/// Top of the body: overview off = a single 「상품 관계」 chip (the form only);
-/// on = section row `물품 · 마스터` (no sales-channel section before saving —
-/// D69). Turning it on shows 물품 first, turning it off shows the form (R25).
+/// Top of the body: overview off = the 「상품 관계」 chip + the
+/// 「마켓 상품으로 등록」 button (the form only); on = section row
+/// `물품 · 마스터` ending with the same chip + button (no sales-channel
+/// section before saving — D69). Turning it on shows 「물품」 first, turning
+/// it off shows the form (R25).
+///
+/// 「마켓 상품으로 등록」 (FEATURE_2610_35 / D4 · D6 · D17 · D19) stacks the
+/// market page: disabled in market mode, asks first when the form has
+/// input, and resets this page (fresh form · overview off) right before
+/// leaving so back returns to the first state (D18).
 ///
 /// There is no completion screen (UX S3): a save shows a toast and goes to
 /// the master detail with the overview on — this page leaves the stack
 /// (R17).
 ///
 /// ⚠️ The body is a single scroll (not a lazy list) so the offstage product
-///    panel and the form are never disposed (R9 — unsaved input).
+///    panel and the form are never disposed by scrolling (R9 — unsaved
+///    input). 「마켓 상품으로 등록」 rebuilds the form on purpose (D19).
 /// ❌ No product registration in the product panel (R-g).
 class MasterCreatePage extends StatefulWidget {
   final MasterCreateArgs? args;
@@ -58,6 +67,11 @@ class MasterCreatePage extends StatefulWidget {
 class _MasterCreatePageState extends State<MasterCreatePage> {
   bool _overviewOpen = false;
   String _section = _secMaster;
+  // FEATURE_2610_35 / D14: whether the form has input, reported by the form.
+  bool _formHasInput = false;
+  // FEATURE_2610_35 / D19: bumped right before leaving for the market page
+  // so the plain form is built again from scratch (D18).
+  int _formGeneration = 0;
 
   _MarketStatus _status = _MarketStatus.idle;
   String _marketError = '';
@@ -143,6 +157,33 @@ class _MasterCreatePageState extends State<MasterCreatePage> {
     });
   }
 
+  // FEATURE_2610_35 / D17: no input = go now; input = confirm first. The
+  // button is disabled in market mode (D6).
+  Future<void> _handleMarketEntry() async {
+    if (_formHasInput) {
+      final ok = await showAppConfirmDialog(
+        context,
+        title: '마켓 상품으로 등록',
+        message: '작성 중인 내용이 저장되지 않고 사라집니다. '
+            '마켓 상품으로 등록 화면으로 이동하시겠습니까?',
+        confirmText: '이동',
+        cancelText: '계속 작성',
+        isDangerous: true,
+      );
+      if (!ok || !mounted) {
+        return;
+      }
+    }
+    // D19: reset this page first, then stack the market page (D11).
+    setState(() {
+      _formGeneration += 1;
+      _overviewOpen = false;
+      _section = _secMaster;
+      _formHasInput = false;
+    });
+    unawaited(context.pushNamed(Routes.masterProductFromMarket));
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -151,6 +192,17 @@ class _MasterCreatePageState extends State<MasterCreatePage> {
       label: const Text('상품 관계'),
       selected: _overviewOpen,
       onSelected: (_) => _toggleOverview(),
+    );
+    // FEATURE_2610_35 / D4 · D6: right next to the chip in both layouts;
+    // disabled (no hint) in market mode.
+    final marketButton = OutlinedButton(
+      style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+      onPressed: _isMarketMode ? null : () => unawaited(_handleMarketEntry()),
+      child: const Text('마켓 상품으로 등록'),
+    );
+    final relationRow = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [relationChip, const SizedBox(width: 8), marketButton],
     );
     return ScaffoldWithNavBar(
       title: '판매상품 마스터 등록',
@@ -168,10 +220,10 @@ class _MasterCreatePageState extends State<MasterCreatePage> {
                 ],
                 selected: _section,
                 onSelected: (key) => setState(() => _section = key),
-                trailing: relationChip,
+                trailing: relationRow,
               )
             else
-              Align(alignment: Alignment.centerLeft, child: relationChip),
+              Align(alignment: Alignment.centerLeft, child: relationRow),
             const SizedBox(height: 12),
             if (_status == _MarketStatus.loading)
               const SizedBox(
@@ -215,7 +267,7 @@ class _MasterCreatePageState extends State<MasterCreatePage> {
                       onPressed: () =>
                           context.go(Routes.masterProductFromMarketPath),
                       child: const Text(
-                        '마켓 상품으로 시작으로 돌아가기',
+                        '다시 조회하기',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
@@ -231,12 +283,13 @@ class _MasterCreatePageState extends State<MasterCreatePage> {
             ],
             if (_status == _MarketStatus.idle || _status == _MarketStatus.ready)
               // 🔴 Market values are the form's initial value — a different
-              // (or no) starting product remounts the form.
+              // (or no) starting product remounts the form, and so does a new
+              // _formGeneration (FEATURE_2610_35 / D19).
               KeyedSubtree(
                 key: ValueKey(
                   market != null
                       ? 'market-${market.platformProductId}'
-                      : 'plain',
+                      : 'plain-$_formGeneration',
                 ),
                 child: MasterCreateForm(
                   initialProductIds: widget.args?.productIds ?? const [],
@@ -245,6 +298,8 @@ class _MasterCreatePageState extends State<MasterCreatePage> {
                   onCreatedWithWarning: _handleCreatedWithWarning,
                   onCancel: _handleCancel,
                   market: market,
+                  onDirtyChange: (dirty) =>
+                      setState(() => _formHasInput = dirty),
                 ),
               ),
           ],

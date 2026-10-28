@@ -147,7 +147,7 @@ bool _isPositiveInt(String raw) {
 ///
 /// Result: `MarketProductAddResult` on success (`null` = closed).
 /// ⚠️ Shared by every entry (channel row button · detached listing picker ·
-///    「마켓 상품으로 시작」). ❌ Do not build a second copy per entry.
+///    「마켓 상품으로 등록」). ❌ Do not build a second copy per entry.
 class MarketProductAddPage extends StatefulWidget {
   final MarketProductAddArgs args;
 
