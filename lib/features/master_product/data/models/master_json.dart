@@ -302,6 +302,7 @@ ListingRegisterResult listingRegisterResultFromJson(Json j) =>
       productListingId: _int(j['productListingId']),
       status: _str(j['status']),
       platformProductId: _strN(j['platformProductId']),
+      grandTotalNotice: _strN(j['grandTotalNotice']),
     );
 
 ListingStatusOption listingStatusOptionFromJson(Json j) => ListingStatusOption(
@@ -581,6 +582,7 @@ CategoryMapping categoryMappingFromJson(Json j) => CategoryMapping(
       platform: _str(j['platform']),
       platformCategoryId: _str(j['platformCategoryId']),
       platformCategoryName: _strN(j['platformCategoryName']),
+      grandTotalOmitted: _bool(j['grandTotalOmitted']),
     );
 
 MasterBox masterBoxFromJson(Json j) => MasterBox(

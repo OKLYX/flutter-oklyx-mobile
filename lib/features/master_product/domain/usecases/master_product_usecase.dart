@@ -480,4 +480,8 @@ class MasterProductUseCase {
   Future<Either<Failure, SiteMargin>> previewMargin(int listingId, int optionId,
           {required num price, required String site}) =>
       repository.previewMargin(listingId, optionId, price: price, site: site);
+
+  /// S28 — FEATURE_2610_34 / D20.
+  Future<Either<Failure, Unit>> clearGrandTotalOmitted(String code) =>
+      repository.clearGrandTotalOmitted(code);
 }

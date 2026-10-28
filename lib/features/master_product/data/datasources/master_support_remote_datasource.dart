@@ -249,4 +249,10 @@ class MasterSupportRemoteDataSource {
             ))
         .toList();
   }
+
+  /// S28 — FEATURE_2610_34 / D20: [기억 지우기] of a Coupang category code.
+  Future<void> clearGrandTotalOmitted(String code) async {
+    await api.delete(
+        '/api/admin/category-mappings/coupang-categories/$code/grand-total-omitted');
+  }
 }

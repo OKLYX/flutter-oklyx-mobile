@@ -237,7 +237,15 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
         _fail(failure);
         return;
       }
-      showSuccessToast(context, kUploadSuccessMessage);
+      // FEATURE_2610_34 / D9 · D13: the server's 총 수량 line follows the
+      // success text.
+      final notice = res.fold((_) => null, (r) => r.grandTotalNotice);
+      showSuccessToast(
+        context,
+        notice == null
+            ? kUploadSuccessMessage
+            : '$kUploadSuccessMessage $notice',
+      );
     } else {
       showSuccessToast(
         context,
