@@ -52,9 +52,6 @@ class CategoryMetaPanel extends StatefulWidget {
   /// Default 'COUPANG' (the only platform with a category attribute
   /// schema — FEATURE_2610_13 / D93).
   final String platform;
-
-  /// Component kinds ≥ 2 — computed by the parent.
-  final bool isBundle;
   final VoidCallback? onSaved;
 
   /// FEATURE_2610_13 / D98 · D109: a switched-on 11st channel exists → 「통합」 · 「쿠팡」 · 「11번가」 tabs.
@@ -69,7 +66,6 @@ class CategoryMetaPanel extends StatefulWidget {
     required this.categoryCode,
     super.key,
     this.platform = 'COUPANG',
-    this.isBundle = false,
     this.onSaved,
     this.elevenstActive = false,
     this.esmActive = false,
@@ -104,9 +100,6 @@ class _CategoryMetaPanelState extends State<CategoryMetaPanel> {
   // COUPANG owns the persisted per-master values; other platforms are
   // schema-only (read-only).
   bool get _readOnly => widget.platform != 'COUPANG';
-
-  // Only COUPANG today, so the detail always has coupangSelected = true.
-  bool get _hideCategoryAttrs => widget.isBundle;
 
   @override
   void initState() {
@@ -298,7 +291,7 @@ class _CategoryMetaPanelState extends State<CategoryMetaPanel> {
       _attrValues,
       _notices,
       _noticeValues,
-      _hideCategoryAttrs,
+      false,
       _noticeGroup,
     );
     return Padding(
@@ -337,7 +330,6 @@ class _CategoryMetaPanelState extends State<CategoryMetaPanel> {
             disabled: _readOnly || _isSaving,
             onlyRequired: _onlyRequired,
             onOnlyRequiredChange: (v) => setState(() => _onlyRequired = v),
-            hideCategoryAttrs: _hideCategoryAttrs,
             noticeGroup: _noticeGroup,
             onNoticeGroupChange: _handleNoticeGroupChange,
             elevenstPreview: tabbed ? _previewer.preview : null,

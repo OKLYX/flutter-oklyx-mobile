@@ -265,8 +265,9 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
 
   int get _id => widget.masterId;
 
-  // Mixed composition = 2+ component kinds (backend 63 mirror). The basic tab
-  // and the option picker (FEATURE_2610_36 / D14) both read it.
+  // Mixed composition = 2+ component kinds (backend 63 mirror). Read by the
+  // option picker (FEATURE_2610_36 / D14); the Coupang attribute fields no
+  // longer hide on it (FEATURE_2610_37 / D17).
   bool get _isBundle => (_master?.components.length ?? 0) >= 2;
 
   @override
@@ -1919,10 +1920,6 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
   Widget _buildBasicTab(BuildContext context, MasterProduct master) {
     final scheme = Theme.of(context).colorScheme;
     final category = _category;
-    final isBundle = _isBundle;
-    // Coupang is the only platform today → always selected.
-    const coupangSelected = true;
-    final hideCategoryAttrs = coupangSelected && isBundle;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1945,7 +1942,6 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
           child: CategoryMetaPanel(
             masterId: _id,
             categoryCode: category != null ? '${category.categoryId}' : null,
-            isBundle: isBundle,
             onSaved: () => unawaited(_loadMetaBase()),
             elevenstActive: _activePlatforms.contains('ELEVENST'),
             esmActive: _activePlatforms.contains('ESM'),
@@ -2010,7 +2006,6 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
                 masterAttrValues: _masterAttrValues,
                 masterNoticeValues: _masterNoticeValues,
                 masterNoticeGroup: _masterNoticeGroup,
-                hideCategoryAttrs: hideCategoryAttrs,
                 onChanged: _load,
                 focusOption: _focusOption,
               ),
