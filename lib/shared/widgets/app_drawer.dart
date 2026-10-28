@@ -74,7 +74,7 @@ class _AppDrawerState extends State<AppDrawer> {
               Padding(
                 padding: const EdgeInsets.only(left: 16),
                 child: ListTile(
-                  title: const Text('판매 상품 관리 마스터'),
+                  title: const Text('판매상품 마스터 등록'),
                   onTap: () {
                     Navigator.pop(context);
                     context.go(Routes.masterProductNewPath);

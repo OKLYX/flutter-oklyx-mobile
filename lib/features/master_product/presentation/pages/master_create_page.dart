@@ -23,7 +23,7 @@ const String _secMaster = 'master';
 // Market lookup state of "new master" mode (2609_79). idle = not market mode.
 enum _MarketStatus { idle, loading, error, ready }
 
-/// 「판매 상품 관리 마스터」 = master **create** page (FEATURE_2609_80 / 10) —
+/// 「판매상품 마스터 등록」 = master **create** page (FEATURE_2609_80 / 10) —
 /// port of web `master-products/new/page.tsx` +
 /// `components/MasterProductCreateContainer.tsx` (@09208a0).
 ///
@@ -153,7 +153,7 @@ class _MasterCreatePageState extends State<MasterCreatePage> {
       onSelected: (_) => _toggleOverview(),
     );
     return ScaffoldWithNavBar(
-      title: '판매 상품 관리 마스터',
+      title: '판매상품 마스터 등록',
       navBarIndex: 2,
       showAppBarDrawerButton: false,
       body: AppPageBody.scroll(
