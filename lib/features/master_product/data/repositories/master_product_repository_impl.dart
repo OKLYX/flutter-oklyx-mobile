@@ -562,4 +562,11 @@ class MasterProductRepositoryImpl implements MasterProductRepository {
           {required num price, required String site}) =>
       _guard(() => listingDataSource.previewMargin(listingId, optionId,
           price: price, site: site));
+
+  @override
+  Future<Either<Failure, Unit>> clearGrandTotalOmitted(String code) =>
+      _guard(() async {
+        await supportDataSource.clearGrandTotalOmitted(code);
+        return unit;
+      });
 }

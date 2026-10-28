@@ -367,4 +367,7 @@ abstract class MasterProductRepository {
   /// L41 — FEATURE_2610_27 / D6 · D20 · FEATURE_2610_28 / D20 · D21.
   Future<Either<Failure, SiteMargin>> previewMargin(int listingId, int optionId,
       {required num price, required String site});
+
+  /// S28 — FEATURE_2610_34 / D20.
+  Future<Either<Failure, Unit>> clearGrandTotalOmitted(String code);
 }
