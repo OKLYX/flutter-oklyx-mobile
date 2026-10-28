@@ -13,6 +13,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/category_tree_list.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 /// Standard category assignment panel on the master detail screen —
@@ -25,10 +26,15 @@ import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 ///
 /// Assign = one-level-at-a-time tree drill-down ([CategoryTreeList], R-h);
 /// picking a leaf assigns it immediately. Mapping badges and the own platform
-/// category lines (「{플랫폼}: {경로} (개별 지정)」, D48) are read-only — picking,
-/// [변경] and [기준으로 되돌리기] are web-only; the `카테고리 관리` links open the
-/// existing category screen. There is no [해제] — an assigned standard
-/// category can be replaced, not removed (D49).
+/// category lines (「{플랫폼}: {경로} (개별 지정)」, D48) are read-only apart
+/// from [기억 지우기] (below) — picking, [변경] and [기준으로 되돌리기] are
+/// web-only; the `카테고리 관리` links open the existing category screen.
+/// There is no [해제] — an assigned standard category can be replaced, not
+/// removed (D49).
+///
+/// FEATURE_2610_34 / D20: the 「쿠팡 ✓」 chip and the 「개별 지정」 Coupang line
+/// each get 「총 수량 안 보냄」 + [기억 지우기] when their Coupang category
+/// remembers to leave 총 수량 out ([기억 지우기] asks first — D19).
 ///
 /// ⚠️ The category feeds sibling sections (category meta, option inheritance)
 ///    → every assign is reported through [onCategoryChanged] (the server
@@ -155,6 +161,63 @@ class _MasterCategoryPanelState extends State<MasterCategoryPanel> {
     setState(() => _isSaving = false);
   }
 
+  // FEATURE_2610_34 / D19 · D20: confirm, clear the Coupang category memory,
+  // then reload — every line showing that category updates together.
+  Future<void> _handleClearGrandTotal(String code) async {
+    final confirmed = await showAppConfirmDialog(
+      context,
+      title: '기억 지우기',
+      message: '지우면 다음 등록 때 총 수량을 다시 넣어 보냅니다. 지울까요?',
+      confirmText: '지우기',
+    );
+    if (!confirmed || !mounted) {
+      return;
+    }
+    setState(() {
+      _isSaving = true;
+      _error = '';
+    });
+    final result = await _useCase.clearGrandTotalOmitted(code);
+    if (!mounted) {
+      return;
+    }
+    final failure = result.fold((f) => f, (_) => null);
+    if (failure != null) {
+      setState(() {
+        _error = failureText(failure, '기억을 지우지 못했습니다.');
+        _isSaving = false;
+      });
+      return;
+    }
+    await _load();
+    if (!mounted) {
+      return;
+    }
+    setState(() => _isSaving = false);
+  }
+
+  // FEATURE_2610_34 / D20: 「총 수량 안 보냄」 + [기억 지우기] next to a Coupang
+  // category that remembers to leave 총 수량 out.
+  Widget _grandTotalMark(String code) => Wrap(
+        spacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          const Text(
+            '총 수량 안 보냄',
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.warningForeground,
+            ),
+          ),
+          TextButton(
+            onPressed:
+                _busy ? null : () => unawaited(_handleClearGrandTotal(code)),
+            style: _linkStyle(AppColors.infoForeground),
+            child: const Text('기억 지우기'),
+          ),
+        ],
+      );
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -192,7 +255,7 @@ class _MasterCategoryPanelState extends State<MasterCategoryPanel> {
                 spacing: 4,
                 runSpacing: 4,
                 children: [
-                  for (final m in _mappings)
+                  for (final m in _mappings) ...[
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
@@ -210,6 +273,9 @@ class _MasterCategoryPanelState extends State<MasterCategoryPanel> {
                         ),
                       ),
                     ),
+                    if (m.platform == 'COUPANG' && m.grandTotalOmitted)
+                      _grandTotalMark(m.platformCategoryId),
+                  ],
                 ],
               )
             else
@@ -236,9 +302,17 @@ class _MasterCategoryPanelState extends State<MasterCategoryPanel> {
               for (final own in _owns.where((o) => o.platform == platform))
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    ownPlatformCategoryText(own),
-                    style: const TextStyle(fontSize: 12),
+                  child: Wrap(
+                    spacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        ownPlatformCategoryText(own),
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      if (own.platform == 'COUPANG' && own.grandTotalOmitted)
+                        _grandTotalMark(own.platformCategoryId),
+                    ],
                   ),
                 ),
             const SizedBox(height: 12),

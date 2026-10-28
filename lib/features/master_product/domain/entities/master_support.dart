@@ -109,10 +109,15 @@ class CategoryMapping {
   final String platformCategoryId;
   final String? platformCategoryName;
 
+  /// FEATURE_2610_34 / D20: new Coupang registrations of this category leave
+  /// 총 수량 out.
+  final bool grandTotalOmitted;
+
   const CategoryMapping({
     required this.platform,
     required this.platformCategoryId,
     this.platformCategoryName,
+    this.grandTotalOmitted = false,
   });
 }
 

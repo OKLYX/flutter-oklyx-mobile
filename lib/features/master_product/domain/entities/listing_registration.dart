@@ -149,10 +149,15 @@ class ListingRegisterResult {
   final String status;
   final String? platformProductId;
 
+  /// FEATURE_2610_34 / D9 · D18: one line for the upload success notice;
+  /// null unless the registration went out without 총 수량.
+  final String? grandTotalNotice;
+
   const ListingRegisterResult({
     required this.productListingId,
     required this.status,
     this.platformProductId,
+    this.grandTotalNotice,
   });
 }
 
