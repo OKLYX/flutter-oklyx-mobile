@@ -234,6 +234,10 @@ class MatrixCell {
   final bool? usesOwnCategory;
   final bool? needsMarketSync;
 
+  /// FEATURE_2610_36 / D14: the Coupang bundle type this listing has on the
+  /// market (`SINGLE` · `AB`); null = not known yet.
+  final String? marketBundleType;
+
   const MatrixCell({
     required this.productListingId,
     required this.name,
@@ -246,6 +250,7 @@ class MatrixCell {
     this.categoryName,
     this.usesOwnCategory,
     this.needsMarketSync,
+    this.marketBundleType,
   });
 }
 
