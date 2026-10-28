@@ -90,6 +90,9 @@ _MetaFill _applyQtyToMeta({
   required Map<String, String> attrValues,
   required Map<String, String> noticeValues,
   bool hideCategoryAttrs = false,
+  // FEATURE_2610_37 / D23: two or more component kinds — the measure notice
+  // stays a field the user writes.
+  bool manualMeasureNotice = false,
   String measured = '',
   String axis = '',
   Set<String> skipAttrs = const {},
@@ -97,8 +100,10 @@ _MetaFill _applyQtyToMeta({
 }) {
   final value = total > 0 ? '$total' : '';
   // Whether the measure notice is auto-composed = a composing source exists
-  // and attributes are sent.
-  final autoMeasureNotice = !hideCategoryAttrs && hasMeasureAttr(attrs);
+  // and attributes are sent. Hidden attributes and two or more component kinds
+  // (FEATURE_2610_37 / D23) leave it a field the user writes.
+  final autoMeasureNotice =
+      !hideCategoryAttrs && !manualMeasureNotice && hasMeasureAttr(attrs);
   final attrNames = hideCategoryAttrs
       ? const <String>[]
       : attrs
@@ -135,8 +140,13 @@ _MetaFill _applyQtyToMeta({
           // Derived value (read-only on screen) → always overwrite, and
           // clear it when composing is no longer possible.
           nextNotices[n.key] = composed;
-        } else if (composed.isNotEmpty && !skipNotices.contains(n.key)) {
-          // Not composable = user-input field → keep the guard.
+        } else if (composed.isNotEmpty &&
+            !skipNotices.contains(n.key) &&
+            !(manualMeasureNotice &&
+                (nextNotices[n.key] ?? '').trim().isNotEmpty)) {
+          // Not composable = user-input field → keep the guard. With two or
+          // more component kinds a non-blank value is kept on every path —
+          // only a blank field takes the composed text (FEATURE_2610_37 / D23).
           nextNotices[n.key] = composed;
         }
       } else {
@@ -503,6 +513,7 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
               attrValues: _optAttrValues,
               noticeValues: _optNoticeValues,
               hideCategoryAttrs: widget.hideCategoryAttrs,
+              manualMeasureNotice: comps.length >= 2,
               measured: measured,
               axis: derivedAxis(comps),
               skipAttrs: _unionKeys(_touchedAttrs, _seededAttrKeys),
@@ -537,6 +548,7 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
       attrValues: _optAttrValues,
       noticeValues: _optNoticeValues,
       hideCategoryAttrs: widget.hideCategoryAttrs,
+      manualMeasureNotice: _components.length >= 2,
       measured: measured,
       axis: derivedAxis(_components),
       skipAttrs: skipAttrs,
@@ -1194,6 +1206,7 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
               onMeasureUnit: _handleOptMeasureUnit,
               disabled: _isSubmitting,
               hideCategoryAttrs: widget.hideCategoryAttrs,
+              manualMeasureNotice: _components.length >= 2,
               noticeGroup: widget.masterNoticeGroup,
             ),
           ] else
