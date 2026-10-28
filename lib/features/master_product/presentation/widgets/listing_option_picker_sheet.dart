@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_product.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/listing_registration.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/master_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
@@ -24,6 +25,29 @@ const String kUploadSuccessMessage =
 
 const String _unsavedNameMessage =
     '노출상품명을 바꿨습니다. 옆의 [저장]을 먼저 눌러 주세요.';
+
+/// FEATURE_2610_36 / D12: the line at the top of a one-option sheet.
+const String kCoupangOneOptionNotice = '쿠팡은 혼합 구성 상품에 옵션 1개만 올릴 수 있습니다.';
+
+/// FEATURE_2610_36 / D14: whether this listing's sheet allows one option only
+/// — the same rule the server sends by. A Coupang listing not on the market
+/// yet follows the master's composition ([isBundle]); one on the market
+/// follows its stored bundle type, and the master's composition while that
+/// type is not known. Web `isCoupangOneOption`.
+bool isCoupangOneOption(
+  String platform,
+  MatrixCell? cell, {
+  required bool isBundle,
+}) {
+  if (platform != 'COUPANG') {
+    return false;
+  }
+  final type = cell?.marketBundleType;
+  if ((cell?.platformProductId ?? '').isEmpty || type == null) {
+    return isBundle;
+  }
+  return type == 'AB';
+}
 
 /// Opens the "options to upload" sheet — **the same sheet before and after
 /// the first upload** (FEATURE_2609_77, UX D43 · D57) — FEATURE_2609_80 / 08.
@@ -51,6 +75,7 @@ const String _unsavedNameMessage =
 /// ```dart
 /// if (await showListingOptionPickerSheet(context,
 ///     mode: 'upload', listingId: id, channelLabel: label,
+///     oneOption: isCoupangOneOption(platform, cell, isBundle: isBundle),
 ///     displayName: cell.name, onDisplayNameSaved: onReload)) {
 ///   onReload();
 /// }
@@ -58,6 +83,10 @@ const String _unsavedNameMessage =
 ///
 /// ⚠️ Options on the market (`onMarket && active`) cannot be switched off.
 /// ⚠️ At least one option must be picked (the backend also answers 400).
+/// ⚠️ [oneOption] (FEATURE_2610_36 / D12 · D13): a notice line on top;
+///    picking an option replaces the pick; with two or more active options
+///    nothing but the 🔒 ones is picked on open; while a 🔒 option exists no
+///    other can be picked.
 /// ❌ Prices are not edited here — [⋯ > 가격 설정] does that.
 /// ❌ Do not chain the name save into [올리기] — they are separate actions.
 Future<bool> showListingOptionPickerSheet(
@@ -65,6 +94,7 @@ Future<bool> showListingOptionPickerSheet(
   required String mode,
   required int listingId,
   required String channelLabel,
+  required bool oneOption,
   String displayName = '',
   VoidCallback? onDisplayNameSaved,
 }) async {
@@ -74,6 +104,7 @@ Future<bool> showListingOptionPickerSheet(
       mode: mode,
       listingId: listingId,
       channelLabel: channelLabel,
+      oneOption: oneOption,
       displayName: displayName,
       onDisplayNameSaved: onDisplayNameSaved,
     ),
@@ -86,6 +117,9 @@ class _ListingOptionPickerSheet extends StatefulWidget {
   final int listingId;
   final String channelLabel;
 
+  /// FEATURE_2610_36 / D12: one option only (a Coupang mixed composition).
+  final bool oneOption;
+
   /// Current display name (upload mode prefill).
   final String displayName;
 
@@ -96,6 +130,7 @@ class _ListingOptionPickerSheet extends StatefulWidget {
     required this.mode,
     required this.listingId,
     required this.channelLabel,
+    required this.oneOption,
     required this.displayName,
     required this.onDisplayNameSaved,
   });
@@ -146,6 +181,10 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
 
   bool get _hasLocked =>
       _prices.any((p) => p.onMarket == true && p.active != false);
+
+  // FEATURE_2610_36 / D12: a 🔒 option is the one option — no other can be
+  // picked.
+  bool get _pickBlocked => widget.oneOption && _hasLocked;
 
   bool get _canConfirm =>
       _gen != null &&
@@ -201,16 +240,25 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
         (failure) => _loadError = failureText(failure, '옵션을 불러오지 못했습니다.'),
         (gen) {
           _gen = gen;
-          _selected = gen.optionPrices
-              .where((p) => p.active != false)
-              .map((p) => p.optionId)
-              .toSet();
+          final active = gen.optionPrices.where((p) => p.active != false);
+          // FEATURE_2610_36 / D13: one option only + two or more active →
+          // only the 🔒 (on-market) ones stay picked.
+          final initial = widget.oneOption && active.length >= 2
+              ? active.where((p) => p.onMarket == true)
+              : active;
+          _selected = initial.map((p) => p.optionId).toSet();
         },
       );
     });
   }
 
   void _toggle(int optionId) => setState(() {
+        // FEATURE_2610_36 / D12: one option only — picking another replaces
+        // the pick.
+        if (widget.oneOption && !_selected.contains(optionId)) {
+          _selected = {optionId};
+          return;
+        }
         final next = {..._selected};
         if (!next.remove(optionId)) {
           next.add(optionId);
@@ -312,6 +360,24 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [
+                if (widget.oneOption) ...[
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.warningSurface,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      kCoupangOneOptionNotice,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.warningForeground,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 Text(
                   _isUpload
                       ? '고른 옵션으로 마켓에 상품을 올립니다. 올린 뒤 승인 결과는 ⋯ 메뉴의 [승인 새로고침]으로 확인합니다.'
@@ -462,8 +528,9 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
         Expanded(
           child: CheckboxListTile(
             value: checked,
-            onChanged:
-                _busy || locked ? null : (_) => _toggle(p.optionId),
+            onChanged: _busy || locked || _pickBlocked
+                ? null
+                : (_) => _toggle(p.optionId),
             controlAffinity: ListTileControlAffinity.leading,
             dense: true,
             contentPadding: EdgeInsets.zero,

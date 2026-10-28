@@ -265,6 +265,10 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
 
   int get _id => widget.masterId;
 
+  // Mixed composition = 2+ component kinds (backend 63 mirror). The basic tab
+  // and the option picker (FEATURE_2610_36 / D14) both read it.
+  bool get _isBundle => (_master?.components.length ?? 0) >= 2;
+
   @override
   void initState() {
     super.initState();
@@ -779,6 +783,11 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
       mode: 'upload',
       listingId: added.productListingId,
       channelLabel: channelLabel,
+      oneOption: isCoupangOneOption(
+        platform,
+        addedCell,
+        isBundle: _isBundle,
+      ),
       displayName: addedCell?.name ?? '',
       onDisplayNameSaved: () => unawaited(_load()),
     );
@@ -1777,6 +1786,11 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
               onCellRemoved: (message) =>
                   unawaited(_handleCellRemoved(message)),
               hasMasterCategory: _category != null,
+              oneOption: isCoupangOneOption(
+                row.platform,
+                cell,
+                isBundle: _isBundle,
+              ),
             ),
         ],
       ),
@@ -1905,8 +1919,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
   Widget _buildBasicTab(BuildContext context, MasterProduct master) {
     final scheme = Theme.of(context).colorScheme;
     final category = _category;
-    // Mixed composition = 2+ component kinds (backend 63 mirror).
-    final isBundle = master.components.length >= 2;
+    final isBundle = _isBundle;
     // Coupang is the only platform today → always selected.
     const coupangSelected = true;
     final hideCategoryAttrs = coupangSelected && isBundle;

@@ -150,6 +150,10 @@ class ListingRow extends StatefulWidget {
   /// The master has a standard category (D18 (f) — none = nothing blocks).
   final bool hasMasterCategory;
 
+  /// FEATURE_2610_36 / D12 · D14: this listing's option picker allows one
+  /// option only — handed to [CellActions].
+  final bool oneOption;
+
   const ListingRow({
     required this.masterId,
     required this.cell,
@@ -169,6 +173,7 @@ class ListingRow extends StatefulWidget {
     required this.masterCategoryName,
     required this.onCellRemoved,
     required this.hasMasterCategory,
+    required this.oneOption,
     super.key,
   });
 
@@ -471,6 +476,7 @@ class _ListingRowState extends State<ListingRow> {
                       onCellRemoved: widget.onCellRemoved,
                       needsMarketSync: needsSync,
                       categoryBlocked: categoryBlocked,
+                      oneOption: widget.oneOption,
                     ),
                   ],
                 ),

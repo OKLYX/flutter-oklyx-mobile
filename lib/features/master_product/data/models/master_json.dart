@@ -158,6 +158,7 @@ MatrixCell matrixCellFromJson(Json j) => MatrixCell(
       categoryName: _strN(j['categoryName']),
       usesOwnCategory: _boolN(j['usesOwnCategory']),
       needsMarketSync: _boolN(j['needsMarketSync']),
+      marketBundleType: _strN(j['marketBundleType']),
     );
 
 MatrixRow matrixRowFromJson(Json j) => MatrixRow(
