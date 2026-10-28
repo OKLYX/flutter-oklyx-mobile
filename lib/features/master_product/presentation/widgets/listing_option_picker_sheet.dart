@@ -22,6 +22,9 @@ const String kShippingBlockedReason =
 const String kUploadSuccessMessage =
     '마켓에 올렸습니다. 승인 결과는 ⋯ 메뉴의 [승인 새로고침]으로 확인하세요.';
 
+const String _unsavedNameMessage =
+    '노출상품명을 바꿨습니다. 옆의 [저장]을 먼저 눌러 주세요.';
+
 /// Opens the "options to upload" sheet — **the same sheet before and after
 /// the first upload** (FEATURE_2609_77, UX D43 · D57) — FEATURE_2609_80 / 08.
 ///
@@ -37,7 +40,9 @@ const String kUploadSuccessMessage =
 ///   own [저장] — the same save as the listing detail panel
 ///   (`updateDisplayName`, blank cannot be saved). It is separate from
 ///   [올리기]; on success [onDisplayNameSaved] runs (the caller reloads, like
-///   the panel's `onSaved`).
+///   the panel's `onSaved`). [올리기] stays enabled; pressing it with an
+///   unsaved edit is refused with an error under the field (focus moves
+///   there) — registration sends the SAVED name (same as the web dialog).
 ///
 /// Returns `true` on success (web `onDone` — the caller reloads), `false` on
 /// cancel / dismiss (web `onClose`).
@@ -110,11 +115,19 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
 
   // Display name (upload mode)
   final TextEditingController _nameController = TextEditingController();
+  final FocusNode _nameFocus = FocusNode();
+  String _savedName = '';
   bool _savingName = false;
+  String? _nameError;
 
   bool get _isUpload => widget.mode == 'upload';
 
   String get _trimmedName => _nameController.text.trim();
+
+  // Registration sends the SAVED name, so an unsaved edit would silently not
+  // reach the market — _handleConfirm refuses it with an alert at the field.
+  bool get _nameUnsaved =>
+      _isUpload && _trimmedName.isNotEmpty && _trimmedName != _savedName;
 
   List<OptionPrice> get _prices => _gen?.optionPrices ?? const [];
 
@@ -145,12 +158,14 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
   void initState() {
     super.initState();
     _nameController.text = widget.displayName;
+    _savedName = widget.displayName;
     unawaited(_load());
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _nameFocus.dispose();
     super.dispose();
   }
 
@@ -169,6 +184,7 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
     res.fold(
       (_) => showErrorToast(context, '노출상품명 저장에 실패했습니다.'),
       (_) {
+        setState(() => _savedName = _trimmedName);
         showSuccessToast(context, '노출상품명을 저장했습니다.');
         widget.onDisplayNameSaved?.call();
       },
@@ -204,6 +220,11 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
 
   Future<void> _handleConfirm() async {
     if (!_canConfirm) {
+      return;
+    }
+    if (_nameUnsaved) {
+      setState(() => _nameError = _unsavedNameMessage);
+      _nameFocus.requestFocus();
       return;
     }
     if (!_isUpload && !_changed) {
@@ -377,13 +398,18 @@ class _ListingOptionPickerSheetState extends State<_ListingOptionPickerSheet> {
             Expanded(
               child: TextField(
                 controller: _nameController,
+                focusNode: _nameFocus,
                 enabled: !_savingName && !_busy,
-                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(errorText: _nameError),
+                onChanged: (_) => setState(() => _nameError = null),
               ),
             ),
             const SizedBox(width: 8),
             OutlinedButton(
-              onPressed: _savingName || _busy || _trimmedName.isEmpty
+              onPressed: _savingName ||
+                      _busy ||
+                      _trimmedName.isEmpty ||
+                      _trimmedName == _savedName
                   ? null
                   : _saveName,
               child: _savingName
