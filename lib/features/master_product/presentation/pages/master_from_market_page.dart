@@ -96,7 +96,7 @@ String _lookupErrorMessage(Failure f) {
   return message;
 }
 
-/// 「마켓 상품으로 시작」 (FEATURE_2609_80 / 11) — port of web
+/// 「마켓 상품으로 등록」 (FEATURE_2609_80 / 11) — port of web
 /// `master-products/new-from-channel/page.tsx` +
 /// `components/MasterFromChannelForm.tsx` (@09208a0, UX D64 · D72~D81).
 ///
@@ -681,7 +681,7 @@ class _MasterFromMarketPageState extends State<MasterFromMarketPage> {
         !_looking;
 
     return ScaffoldWithNavBar(
-      title: '마켓 상품으로 시작',
+      title: '마켓 상품으로 등록',
       navBarIndex: 2,
       showAppBarDrawerButton: false,
       body: AppPageBody.scroll(
