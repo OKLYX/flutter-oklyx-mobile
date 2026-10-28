@@ -828,9 +828,6 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
         packageId: _defaultPackageId,
       );
 
-  // Bundle = component kinds ≥ 2 (backend 63). Today Coupang only.
-  bool get _hideCategoryAttrs => _selectedIds.length >= 2;
-
   String? get _masterNoticeGroup {
     final entry = _metaByPlatform['COUPANG'];
     return entry == null
@@ -875,7 +872,7 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
       gate?.attrValues ?? const {},
       gate?.notices ?? const [],
       gate?.noticeValues ?? const {},
-      _hideCategoryAttrs,
+      false,
       gate?.noticeGroup,
     )) {
       return '필수 카테고리 속성을 입력하세요.';
@@ -1570,7 +1567,6 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
             onChanged: (next) => _handleMetaChange('COUPANG', next),
             onSchemaLoad: (attrs, notices) =>
                 _handleMetaSchemaLoad('COUPANG', attrs, notices),
-            hideCategoryAttrs: _hideCategoryAttrs,
             elevenstActive: _activePlatforms.contains('ELEVENST'),
             esmActive: _activePlatforms.contains('ESM'),
           )
@@ -1584,7 +1580,6 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
               onChanged: (next) => _handleMetaChange(platform, next),
               onSchemaLoad: (attrs, notices) =>
                   _handleMetaSchemaLoad(platform, attrs, notices),
-              hideCategoryAttrs: _hideCategoryAttrs,
             ),
           ),
         // D74: shown even without template fields — the notice texts are always there.
@@ -1728,7 +1723,6 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
           masterNoticeValues:
               _metaByPlatform['COUPANG']?.noticeValues ?? const {},
           masterNoticeGroup: _masterNoticeGroup,
-          hideCategoryAttrs: _hideCategoryAttrs,
           onFormOpenChange: (open) => setState(() => _optionFormOpen = open),
           marketLocked: _isMarket,
         ),

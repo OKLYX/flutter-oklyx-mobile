@@ -57,6 +57,11 @@ class CategoryMetaOverrideFields extends StatefulWidget {
   final void Function(MeasurePair pair, String unit) onMeasureUnit;
   final bool disabled;
   final bool hideCategoryAttrs;
+
+  /// FEATURE_2610_37 / D23: two or more component kinds — the measure notice
+  /// stays an input field (not read-only); the composed text fills it only
+  /// while it is blank.
+  final bool manualMeasureNotice;
   final String? noticeGroup;
 
   const CategoryMetaOverrideFields({
@@ -70,6 +75,7 @@ class CategoryMetaOverrideFields extends StatefulWidget {
     super.key,
     this.disabled = false,
     this.hideCategoryAttrs = false,
+    this.manualMeasureNotice = false,
     this.noticeGroup,
   });
 
@@ -132,7 +138,9 @@ class _CategoryMetaOverrideFieldsState
         : <_AttrCell>[];
 
     final hasNoticeFields = visibleNoticeFields.isNotEmpty;
-    final autoMeasureNotice = !hide && hasMeasureAttr(widget.attributes);
+    final autoMeasureNotice = !hide &&
+        !widget.manualMeasureNotice &&
+        hasMeasureAttr(widget.attributes);
     final hasAnyOption =
         pairs.isNotEmpty || singles.isNotEmpty || noticeFields.isNotEmpty;
     final hasOptional = optionalPairs.isNotEmpty ||
