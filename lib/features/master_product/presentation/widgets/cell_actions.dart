@@ -112,6 +112,10 @@ class CellActions extends StatefulWidget {
   /// primary button hidden + notice (D25).
   final bool categoryBlocked;
 
+  /// FEATURE_2610_36 / D12 · D14: this listing's option picker allows one
+  /// option only (`isCoupangOneOption`).
+  final bool oneOption;
+
   const CellActions({
     required this.masterId,
     required this.listingId,
@@ -131,6 +135,7 @@ class CellActions extends StatefulWidget {
     required this.onCellRemoved,
     required this.needsMarketSync,
     required this.categoryBlocked,
+    required this.oneOption,
     super.key,
   });
 
@@ -460,6 +465,7 @@ class _CellActionsState extends State<CellActions> {
       mode: mode,
       listingId: _listingId,
       channelLabel: widget.channelLabel,
+      oneOption: widget.oneOption,
       // Upload mode only: prefill + reload after a display name save.
       displayName: widget.cells
               .where((c) => c.productListingId == _listingId)
