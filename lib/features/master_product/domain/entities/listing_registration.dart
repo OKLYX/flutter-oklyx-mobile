@@ -191,6 +191,49 @@ class ListingStatusResult {
   });
 }
 
+/// Web `MasterApprovalRefreshResult` — one picked listing's line of the
+/// master-wide approval refresh (FEATURE_2610_38 / D10). [outcome] =
+/// 'REFRESHED' | 'SKIPPED' | 'FAILED'. [status] · [reviewNote] ·
+/// [reviewNoteState] are filled on REFRESHED only, [message] on SKIPPED ·
+/// FAILED only.
+class MasterApprovalRefreshLine {
+  final int productListingId;
+  final String platform;
+  final String outcome;
+  final String? status;
+  final String? reviewNote;
+  final String? reviewNoteState;
+  final String? message;
+
+  const MasterApprovalRefreshLine({
+    required this.productListingId,
+    required this.platform,
+    required this.outcome,
+    this.status,
+    this.reviewNote,
+    this.reviewNoteState,
+    this.message,
+  });
+}
+
+/// Web `MasterApprovalRefreshResponse` (FEATURE_2610_38 / D10). [requested] =
+/// ids received; [results] = one line per id, in the order received.
+class MasterApprovalRefreshResult {
+  final int requested;
+  final int refreshed;
+  final int skipped;
+  final int failed;
+  final List<MasterApprovalRefreshLine> results;
+
+  const MasterApprovalRefreshResult({
+    required this.requested,
+    required this.refreshed,
+    required this.skipped,
+    required this.failed,
+    required this.results,
+  });
+}
+
 /// Web `PropagateResponse`.
 class PropagateResult {
   final int propagated;

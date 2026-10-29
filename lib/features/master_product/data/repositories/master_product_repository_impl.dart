@@ -564,6 +564,11 @@ class MasterProductRepositoryImpl implements MasterProductRepository {
           price: price, site: site));
 
   @override
+  Future<Either<Failure, MasterApprovalRefreshResult>> fetchMasterStatus(
+          int masterId, List<int> listingIds) =>
+      _guard(() => listingDataSource.fetchMasterStatus(masterId, listingIds));
+
+  @override
   Future<Either<Failure, Unit>> clearGrandTotalOmitted(String code) =>
       _guard(() async {
         await supportDataSource.clearGrandTotalOmitted(code);
