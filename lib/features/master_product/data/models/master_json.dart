@@ -320,6 +320,26 @@ ListingStatusResult listingStatusResultFromJson(Json j) => ListingStatusResult(
       reviewNoteState: _strN(j['reviewNoteState']),
     );
 
+MasterApprovalRefreshLine masterApprovalRefreshLineFromJson(Json j) =>
+    MasterApprovalRefreshLine(
+      productListingId: _int(j['productListingId']),
+      platform: _str(j['platform']),
+      outcome: _str(j['outcome']),
+      status: _strN(j['status']),
+      reviewNote: _strN(j['reviewNote']),
+      reviewNoteState: _strN(j['reviewNoteState']),
+      message: _strN(j['message']),
+    );
+
+MasterApprovalRefreshResult masterApprovalRefreshResultFromJson(Json j) =>
+    MasterApprovalRefreshResult(
+      requested: _int(j['requested']),
+      refreshed: _int(j['refreshed']),
+      skipped: _int(j['skipped']),
+      failed: _int(j['failed']),
+      results: _list(j['results'], masterApprovalRefreshLineFromJson),
+    );
+
 PropagateResult propagateResultFromJson(Json j) => PropagateResult(
       propagated: _int(j['propagated']),
       skipped: _int(j['skipped']),
