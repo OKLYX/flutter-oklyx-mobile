@@ -368,6 +368,10 @@ abstract class MasterProductRepository {
   Future<Either<Failure, SiteMargin>> previewMargin(int listingId, int optionId,
       {required num price, required String site});
 
+  /// L42 — FEATURE_2610_38 / D2 · D9.
+  Future<Either<Failure, MasterApprovalRefreshResult>> fetchMasterStatus(
+      int masterId, List<int> listingIds);
+
   /// S28 — FEATURE_2610_34 / D20.
   Future<Either<Failure, Unit>> clearGrandTotalOmitted(String code);
 }

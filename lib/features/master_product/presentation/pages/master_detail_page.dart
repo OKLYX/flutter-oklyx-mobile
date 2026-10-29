@@ -21,6 +21,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_route_args.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_tool_args.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/bulk_approval_refresh_sheet.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/category_meta_panel.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/channel_option_table.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/channel_preview_sheet.dart';
@@ -139,6 +140,14 @@ List<T> _stableSorted<T>(List<T> items, int Function(T a, T b) compare) {
 List<MatrixCell> _sortedCells(List<MatrixCell> cells) =>
     _stableSorted(cells, (a, b) => cellActionCount(b) - cellActionCount(a));
 
+/// Accounts needing action first (two groups, response order inside). The
+/// list and the 「전체 승인 새로고침」 lines share it (FEATURE_2610_38 / D19).
+List<MatrixRow> _sortedRows(List<MatrixRow> rows) => _stableSorted(
+      rows,
+      (a, b) =>
+          (_rowActionCount(b) > 0 ? 1 : 0) - (_rowActionCount(a) > 0 ? 1 : 0),
+    );
+
 int _rowActionCount(MatrixRow row) =>
     _rowCellsOf(row).fold(0, (sum, c) => sum + cellActionCount(c));
 
@@ -152,6 +161,9 @@ class _Notice {
 class _BatchSummary {
   final String text;
   final bool green;
+
+  /// The lines under the summary: the failed channels of the batch add, or
+  /// every picked listing of the 「전체 승인 새로고침」 (FEATURE_2610_38 / D5).
   final List<String> failures;
 
   const _BatchSummary({
@@ -243,6 +255,8 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
   _BatchSummary? _batchSummary;
 
   bool _isPropagating = false;
+  // FEATURE_2610_38 / D12: the 「전체 승인 새로고침」 run.
+  bool _isBulkRefreshing = false;
   _Notice? _banner;
   String? _createNotice;
   ChannelSyncPreview? _syncPreview;
@@ -629,7 +643,9 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
       _selectableRows.isNotEmpty &&
       _effectiveSelected.length == _selectableRows.length;
 
-  bool get _busy => _isBatchAdding || _rowBusyId != null;
+  // FEATURE_2610_38 / D12: the 「전체 승인 새로고침」 run counts as busy too —
+  // it and the buttons gated on `_busy` block each other.
+  bool get _busy => _isBatchAdding || _rowBusyId != null || _isBulkRefreshing;
 
   // Every cell (not the first per account) — the force-apply list.
   List<ForceApplyChannel> get _forceApplyChannels =>
@@ -645,6 +661,23 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
             overrideLoaded: gen != null,
           );
         });
+      }).toList();
+
+  // FEATURE_2610_38 / D3 · D6 · D16 · D19: the listings the 「전체 승인 새로고침」
+  // can pick, in list order.
+  List<BulkRefreshCandidate> get _refreshCandidates =>
+      _sortedRows(_matrix?.rows ?? const <MatrixRow>[]).expand((r) {
+        if (!kRefreshablePlatforms.contains(r.platform)) {
+          return const <BulkRefreshCandidate>[];
+        }
+        return _sortedCells(_rowCellsOf(r))
+            .where((c) => kRefreshableStatuses.contains(cellStatus(c)))
+            .map((c) => BulkRefreshCandidate(
+                  productListingId: c.productListingId,
+                  label:
+                      '${r.sellerName}/${platformName(r.platform)} — ${kListingStatusLabel[cellStatus(c)] ?? cellStatus(c)}',
+                  status: cellStatus(c),
+                ));
       }).toList();
 
   // ---------------------------------------------------------------- actions
@@ -885,6 +918,70 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
     await _load();
     if (mounted) {
       setState(() => _isPropagating = false);
+    }
+  }
+
+  // FEATURE_2610_38 / D12: the picking sheet; closing it calls nothing.
+  Future<void> _openBulkRefresh() async {
+    final ids = await showBulkApprovalRefreshSheet(
+      context,
+      candidates: _refreshCandidates,
+    );
+    if (ids == null || !mounted) {
+      return;
+    }
+    await _handleBulkRefresh(ids);
+  }
+
+  // FEATURE_2610_38 / D12 · D13: the picked listings → one server call → the
+  // result box, then one reload. A failed request shows the server message
+  // (or the fallback) in the same box.
+  Future<void> _handleBulkRefresh(List<int> listingIds) async {
+    setState(() {
+      _isBulkRefreshing = true;
+      _batchSummary = null;
+    });
+    final result = await _useCase.fetchMasterStatus(_id, listingIds);
+    if (!mounted) {
+      return;
+    }
+    final res = result.fold((_) => null, (r) => r);
+    if (res == null) {
+      setState(() {
+        _batchSummary = _BatchSummary(
+          text: result.fold(
+            (f) => failureText(f, '전체 승인 새로고침에 실패했습니다.'),
+            (_) => '',
+          ),
+          green: false,
+          failures: const [],
+        );
+        _isBulkRefreshing = false;
+      });
+      return;
+    }
+    String sellerNameOf(int listingId) {
+      for (final row in _matrix?.rows ?? const <MatrixRow>[]) {
+        if (_rowCellsOf(row).any((c) => c.productListingId == listingId)) {
+          return row.sellerName;
+        }
+      }
+      return '$listingId';
+    }
+
+    setState(() {
+      _batchSummary = _BatchSummary(
+        text: bulkRefreshSummaryText(res),
+        green: res.failed <= 0,
+        failures: res.results
+            .map((r) =>
+                bulkRefreshResultLine(sellerNameOf(r.productListingId), r))
+            .toList(),
+      );
+    });
+    await _load();
+    if (mounted) {
+      setState(() => _isBulkRefreshing = false);
     }
   }
 
@@ -1295,6 +1392,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
     final preview = _syncPreview;
     final inSync = preview?.inSync == true;
     final selectedCount = _effectiveSelected.length;
+    final refreshCount = _refreshCandidates.length;
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -1320,6 +1418,12 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
             ),
             if (inSync) const InfoBubbleIcon(message: '반영할 변경이 없습니다'),
           ],
+        ),
+        OutlinedButton(
+          onPressed: _busy || refreshCount == 0 ? null : _openBulkRefresh,
+          child: _isBulkRefreshing
+              ? const AppBusyLabel('새로고침 중...')
+              : Text('전체 승인 새로고침 ($refreshCount)'),
         ),
         if (inSync)
           Text(
@@ -1472,12 +1576,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
         ),
       );
     } else {
-      // Accounts needing action first (two groups, response order inside).
-      final sortedRows = _stableSorted(
-        matrix.rows,
-        (a, b) =>
-            (_rowActionCount(b) > 0 ? 1 : 0) - (_rowActionCount(a) > 0 ? 1 : 0),
-      );
+      final sortedRows = _sortedRows(matrix.rows);
       body = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

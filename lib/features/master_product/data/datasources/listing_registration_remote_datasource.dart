@@ -384,4 +384,14 @@ class ListingRegistrationRemoteDataSource {
         body: {'price': price, 'site': site});
     return siteMarginFromJson(data as Json);
   }
+
+  /// L42 — FEATURE_2610_38 / D9: the picked listings of one master, refreshed
+  /// one by one on the server.
+  Future<MasterApprovalRefreshResult> fetchMasterStatus(
+      int masterId, List<int> listingIds) async {
+    final data = await api.post(
+        '/api/admin/master-products/$masterId/fetch-status',
+        body: {'productListingIds': listingIds});
+    return masterApprovalRefreshResultFromJson(data as Json);
+  }
 }

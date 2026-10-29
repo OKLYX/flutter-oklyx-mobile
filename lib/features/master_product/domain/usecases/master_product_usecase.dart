@@ -481,6 +481,11 @@ class MasterProductUseCase {
           {required num price, required String site}) =>
       repository.previewMargin(listingId, optionId, price: price, site: site);
 
+  /// L42 — FEATURE_2610_38 / D2 · D9.
+  Future<Either<Failure, MasterApprovalRefreshResult>> fetchMasterStatus(
+          int masterId, List<int> listingIds) =>
+      repository.fetchMasterStatus(masterId, listingIds);
+
   /// S28 — FEATURE_2610_34 / D20.
   Future<Either<Failure, Unit>> clearGrandTotalOmitted(String code) =>
       repository.clearGrandTotalOmitted(code);
