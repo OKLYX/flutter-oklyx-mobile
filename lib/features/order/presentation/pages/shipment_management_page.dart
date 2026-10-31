@@ -805,6 +805,36 @@ class _LoadedBody extends StatelessWidget {
                               },
                         child: Text(s.isSearching ? '조회 중...' : '조회'),
                       ),
+                      const SizedBox(width: 4),
+                      // Icon-only [동기화] — the name shows on long press.
+                      // 채널 미선택이면 전 채널, 선택돼 있으면 그 채널만(D7).
+                      IconButton.outlined(
+                        tooltip: '동기화',
+                        onPressed: busy
+                            ? null
+                            : () {
+                                // 조회 범위는 서버가 정한다(기본 preset = QUICK) — 화면이
+                                // 범위를 선언하지 않는다(FEATURE_2609_49).
+                                onClearSelection();
+                                if (accountValue == null) {
+                                  bloc.add(SyncOrders());
+                                  return;
+                                }
+                                bloc.add(SyncSelectedChannels(
+                                  targets: targets
+                                      .where((t) => t.accountId == accountValue)
+                                      .toList(),
+                                ));
+                              },
+                        icon: s.isSyncing
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.sync, size: 20),
+                      ),
                     ],
                   ),
                   // The server processes sheet/confirm by sellerId, so the channel
@@ -836,114 +866,74 @@ class _LoadedBody extends StatelessWidget {
                     },
                   ),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          // 채널 미선택이면 전 채널, 선택돼 있으면 그 채널만(D7).
-                          onPressed: busy
-                              ? null
-                              : () {
-                                  // 조회 범위는 서버가 정한다(기본 preset = QUICK) — 화면이
-                                  // 범위를 선언하지 않는다(FEATURE_2609_49).
-                                  onClearSelection();
-                                  if (accountValue == null) {
-                                    bloc.add(SyncOrders());
-                                    return;
-                                  }
-                                  bloc.add(SyncSelectedChannels(
-                                    targets: targets
-                                        .where(
-                                            (t) => t.accountId == accountValue)
-                                        .toList(),
-                                  ));
-                                },
-                          icon: s.isSyncing
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Icon(Icons.sync, size: 18),
-                          label: Text(s.isSyncing ? '동기화 중...' : '동기화'),
+                  // Four actions in one row (2026-10-30). None of them is
+                  // gated by OrderListBloc.busy — each opens its own page/dialog.
+                  // IntrinsicHeight bounds the row so `stretch` can give all
+                  // four the same height — inside the scroll view a bare
+                  // stretched Row gets infinite height and the page fails.
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // 발주 목록: preview 페이지에서 택배수량 편집 후 다운로드.
+                        Expanded(
+                          child: _ShipmentActionTile(
+                            icon: Icons.download,
+                            label: '발주 목록',
+                            onPressed: () =>
+                                context.push(Routes.shippingLabelPreviewPath),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // 주문목록 다운로드: preview 페이지에서 택배수량 편집 후 다운로드.
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () =>
-                              context.push(Routes.shippingLabelPreviewPath),
-                          icon: const Icon(Icons.download, size: 18),
-                          label: const Text('주문목록 다운로드'),
+                        const SizedBox(width: 6),
+                        // 「내부 상품준비중」 접수시트(FEATURE_2609_75 / D25·D26).
+                        Expanded(
+                          child: _ShipmentActionTile(
+                            icon: Icons.download,
+                            label: '내부 발주 목록',
+                            onPressed: () => context
+                                .push(Routes.shippingLabelPreviewInternalPath),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // 「내부 상품준비중」 접수시트(FEATURE_2609_75 / D25·D26) — 기존 버튼과 별개.
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => context
-                              .push(Routes.shippingLabelPreviewInternalPath),
-                          icon: const Icon(Icons.download, size: 18),
-                          label: const Text('내부 상품준비중 접수시트'),
+                        const SizedBox(width: 6),
+                        // Shipment (label upload): carrier result xlsx → the
+                        // marketplace invoice upload batch (Coupang · 11st,
+                        // FEATURE_2610_17 / D2).
+                        Expanded(
+                          child: _ShipmentActionTile(
+                            icon: Icons.upload_file,
+                            label: '발송처리',
+                            onPressed: () async {
+                              final uploaded =
+                                  await showShipmentConfirmDialog(context);
+                              // Guard isClosed: the page can be popped while
+                              // the dialog is open.
+                              if (uploaded == true && !bloc.isClosed) {
+                                // 백엔드가 배송지시로 바꾼 상태를 즉시 반영 —
+                                // 판매자 필터를 유지하는 SearchOrders 를 쓴다.
+                                onClearSelection();
+                                bloc.add(SearchOrders());
+                              }
+                            },
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Shipment (label upload): carrier result xlsx → the
-                  // marketplace invoice upload batch (Coupang · 11st,
-                  // FEATURE_2610_17 / D2). Unrelated to OrderListBloc.busy —
-                  // its own BLoC and dialog.
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            final uploaded =
-                                await showShipmentConfirmDialog(context);
-                            // Guard isClosed: the page can be popped while the
-                            // dialog is open.
-                            if (uploaded == true && !bloc.isClosed) {
-                              // 백엔드가 배송지시로 바꾼 상태를 즉시 반영 —
-                              // 판매자 필터를 유지하는 SearchOrders 를 쓴다.
-                              onClearSelection();
-                              bloc.add(SearchOrders());
-                            }
-                          },
-                          icon: const Icon(Icons.upload_file, size: 18),
-                          label: const Text('발송처리'),
+                        const SizedBox(width: 6),
+                        // 예약 발송 현황(D15·D16·D21) — 돌아오면 배지·목록이
+                        // 바뀌었을 수 있어 늘 다시 조회한다.
+                        Expanded(
+                          child: _ShipmentActionTile(
+                            icon: Icons.schedule,
+                            label: '예약 발송 현황',
+                            onPressed: () async {
+                              await context.push(Routes.reservedShipmentPath);
+                              if (!bloc.isClosed) {
+                                onClearSelection();
+                                bloc.add(SearchOrders());
+                              }
+                            },
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // 예약 발송 현황(D15·D16·D21) — 돌아오면 배지·목록이 바뀌었을 수 있어 늘 다시 조회한다.
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            await context.push(Routes.reservedShipmentPath);
-                            if (!bloc.isClosed) {
-                              onClearSelection();
-                              bloc.add(SearchOrders());
-                            }
-                          },
-                          icon: const Icon(Icons.schedule, size: 18),
-                          label: const Text('예약 발송 현황'),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -1159,4 +1149,40 @@ class _LoadedBody extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Icon-over-label button for the 출고관리 action row — four share one line,
+/// so the label wraps to two lines instead of being cut off.
+class _ShipmentActionTile extends StatelessWidget {
+  const _ShipmentActionTile({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+          minimumSize: const Size(0, 64),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 20),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              style: const TextStyle(fontSize: 12, height: 1.2),
+            ),
+          ],
+        ),
+      );
 }
