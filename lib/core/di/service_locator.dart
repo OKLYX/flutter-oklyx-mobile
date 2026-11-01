@@ -163,6 +163,7 @@ import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/get_
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/create_receipt_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/get_receipt_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/update_receipt_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/domain/usecases/attach_receipt_photo_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_setting_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/sales/data/datasources/sales_remote_datasource.dart';
@@ -194,6 +195,8 @@ import 'package:flutter_oklyn_mobile/features/stock_daily/data/datasources/stock
 import 'package:flutter_oklyn_mobile/features/stock_daily/data/repositories/stock_daily_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/repositories/stock_daily_repository.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/assign_receipt_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/assign_without_receipt_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/change_seller_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/get_stock_daily_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/bloc/stock_daily_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/claim/data/datasources/claim_remote_datasource.dart';
@@ -1093,6 +1096,9 @@ void _registerPurchaseListServices() {
   getIt.registerSingleton<UpdateReceiptUseCase>(
     UpdateReceiptUseCase(repository: getIt<PurchaseListRepository>()),
   );
+  getIt.registerSingleton<AttachReceiptPhotoUseCase>(
+    AttachReceiptPhotoUseCase(repository: getIt<PurchaseListRepository>()),
+  );
 
   // 🔴 Singleton like AlertSummaryBloc (FEATURE_2610_09 D71): the drawer is
   // rebuilt on every opening and must not start from null again.
@@ -1168,9 +1174,9 @@ void _registerStockLedgerServices() {
   );
 }
 
-/// 「일별 입출고 내역」 (FEATURE_2610_19 D119 · D121). Sellers come from the
-/// seller feature's [GetSellersUseCase], cards from the purchase list's
-/// [GetSellerCardsUseCase].
+/// 「일별 입출고 내역」 (FEATURE_2610_19 D119 · D121 · FEATURE_2611_01 D2 ·
+/// D7). Sellers come from the seller feature's [GetSellersUseCase], cards
+/// from the purchase list's [GetSellerCardsUseCase].
 void _registerStockDailyServices() {
   getIt.registerSingleton<StockDailyRemoteDataSource>(
     StockDailyRemoteDataSource(dio: getIt<DioClient>().dio),
@@ -1185,6 +1191,12 @@ void _registerStockDailyServices() {
   );
   getIt.registerSingleton<AssignReceiptUseCase>(
     AssignReceiptUseCase(repository: getIt<StockDailyRepository>()),
+  );
+  getIt.registerSingleton<AssignWithoutReceiptUseCase>(
+    AssignWithoutReceiptUseCase(repository: getIt<StockDailyRepository>()),
+  );
+  getIt.registerSingleton<ChangeSellerUseCase>(
+    ChangeSellerUseCase(repository: getIt<StockDailyRepository>()),
   );
   getIt.registerFactory<StockDailyBloc>(
     () => StockDailyBloc(getStockDailyUseCase: getIt<GetStockDailyUseCase>()),

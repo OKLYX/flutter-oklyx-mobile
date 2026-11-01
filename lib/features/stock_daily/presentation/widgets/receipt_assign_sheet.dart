@@ -14,6 +14,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import '../../domain/entities/stock_daily.dart';
 import '../../domain/usecases/assign_receipt_usecase.dart';
+import '../../domain/usecases/assign_without_receipt_usecase.dart';
 
 /// Receipt assignment sheet of 「일별 입출고 내역」 (FEATURE_2610_19 D118 ·
 /// D121 · D87 · D135), shown with `showAppSheet`.
@@ -21,22 +22,32 @@ import '../../domain/usecases/assign_receipt_usecase.dart';
 /// - Photo (camera or album, required), 「결제 카드」 = visible cards +
 ///   「카드로 알 수 없음」 (then 「결제 판매자」), 「구매일」 starting at the screen
 ///   day — the same fields as the receipt check-in sheet.
-/// - Every undecided product of the screen day with its 「남은 미등록」 count:
-///   the person types how many this receipt covers (0 = not on it, more than
-///   left is refused) and the amount (total or unit, blank = the registered
-///   price).
+/// - The given products (every undecided product of the screen day, or the
+///   checked ones — FEATURE_2611_01 D14) with their 「남은 미등록」 count: the
+///   person types how many this receipt covers (0 = not on it, more than left
+///   is refused) and the amount (total or unit, blank = the registered price).
 /// - [저장] calls `AssignReceiptUseCase` from the sheet and pops `true`.
+/// - [withoutReceipt] = 「영수증 없이 판매자 정하기」 (FEATURE_2611_01 D2 · D4 ·
+///   D8): no photo, card or purchase day — 「영수증 나중에」 / 「영수증 없음(발견
+///   재고 등)」 and 「판매자」 instead; [저장] calls
+///   `AssignWithoutReceiptUseCase`.
+/// - [prefillRemaining] = opened from checked rows (D14): each count starts at
+///   the remaining unregistered quantity instead of 0.
 ///
 /// ⚠️ Show toasts with this sheet's context (`showAppSheet` owns a messenger).
 class ReceiptAssignSheet extends StatefulWidget {
   final String date;
   final List<UnregisteredProduct> products;
   final List<Seller> sellers;
+  final bool withoutReceipt;
+  final bool prefillRemaining;
 
   const ReceiptAssignSheet({
     required this.date,
     required this.products,
     required this.sellers,
+    this.withoutReceipt = false,
+    this.prefillRemaining = false,
     super.key,
   });
 
@@ -47,10 +58,13 @@ class ReceiptAssignSheet extends StatefulWidget {
 const String _unknownCard = 'UNKNOWN';
 
 class _LineInput {
-  final TextEditingController quantity = TextEditingController(text: '0');
+  final TextEditingController quantity;
   final TextEditingController amount = TextEditingController();
   bool unitMode = false;
   bool reflect = true;
+
+  _LineInput(int initialQuantity)
+      : quantity = TextEditingController(text: '$initialQuantity');
 }
 
 class _ReceiptAssignSheetState extends State<ReceiptAssignSheet> {
@@ -61,14 +75,20 @@ class _ReceiptAssignSheetState extends State<ReceiptAssignSheet> {
   int? _payerSellerId;
   late DateTime _purchasedOn = DateTime.parse(widget.date);
   late final Map<int, _LineInput> _lines = {
-    for (final p in widget.products) p.productId: _LineInput(),
+    for (final p in widget.products)
+      p.productId: _LineInput(widget.prefillRemaining ? p.remainingQty : 0),
   };
+  // FEATURE_2611_01 D4: `RECEIPT_LATER` or `NO_RECEIPT`, null = not picked yet.
+  String? _receiptMode;
+  int? _sellerId;
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    _loadCards();
+    if (!widget.withoutReceipt) {
+      _loadCards();
+    }
   }
 
   @override
@@ -119,23 +139,34 @@ class _ReceiptAssignSheetState extends State<ReceiptAssignSheet> {
 
   Future<void> _save() async {
     final photo = _photo;
-    if (photo == null) {
-      showInputNoticeToast(context, '영수증 사진을 올리세요.');
-      return;
-    }
     int? cardId;
     int? payerSellerId;
-    if (_cardChoice == null) {
-      showInputNoticeToast(context, '결제 카드를 고르세요.');
-      return;
-    } else if (_cardChoice == _unknownCard) {
-      if (_payerSellerId == null) {
-        showInputNoticeToast(context, '결제 판매자를 선택하세요.');
+    if (widget.withoutReceipt) {
+      if (_receiptMode == null) {
+        showInputNoticeToast(context, '영수증 처리를 고르세요.');
         return;
       }
-      payerSellerId = _payerSellerId;
+      if (_sellerId == null) {
+        showInputNoticeToast(context, '판매자를 선택하세요.');
+        return;
+      }
     } else {
-      cardId = int.parse(_cardChoice!);
+      if (photo == null) {
+        showInputNoticeToast(context, '영수증 사진을 올리세요.');
+        return;
+      }
+      if (_cardChoice == null) {
+        showInputNoticeToast(context, '결제 카드를 고르세요.');
+        return;
+      } else if (_cardChoice == _unknownCard) {
+        if (_payerSellerId == null) {
+          showInputNoticeToast(context, '결제 판매자를 선택하세요.');
+          return;
+        }
+        payerSellerId = _payerSellerId;
+      } else {
+        cardId = int.parse(_cardChoice!);
+      }
     }
     final lines = <ReceiptLineParams>[];
     for (final p in widget.products) {
@@ -164,20 +195,27 @@ class _ReceiptAssignSheetState extends State<ReceiptAssignSheet> {
       ));
     }
     if (lines.isEmpty) {
-      showInputNoticeToast(context, '이 영수증으로 처리한 상품의 개수를 입력하세요.');
+      showInputNoticeToast(
+          context,
+          widget.withoutReceipt
+              ? '판매자를 정할 상품의 개수를 입력하세요.'
+              : '이 영수증으로 처리한 상품의 개수를 입력하세요.');
       return;
     }
     setState(() => _saving = true);
-    final result = await getIt<AssignReceiptUseCase>()(
-      widget.date,
-      photo,
-      CreateReceiptParams(
-        purchasedOn: DateFormat('yyyy-MM-dd').format(_purchasedOn),
-        cardId: cardId,
-        payerSellerId: payerSellerId,
-        lines: lines,
-      ),
-    );
+    final result = widget.withoutReceipt
+        ? await getIt<AssignWithoutReceiptUseCase>()(
+            widget.date, _receiptMode!, _sellerId!, lines)
+        : await getIt<AssignReceiptUseCase>()(
+            widget.date,
+            photo!,
+            CreateReceiptParams(
+              purchasedOn: DateFormat('yyyy-MM-dd').format(_purchasedOn),
+              cardId: cardId,
+              payerSellerId: payerSellerId,
+              lines: lines,
+            ),
+          );
     if (!mounted) {
       return;
     }
@@ -205,10 +243,11 @@ class _ReceiptAssignSheetState extends State<ReceiptAssignSheet> {
           padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
           child: Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  '영수증 올리기',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  widget.withoutReceipt ? '영수증 없이 판매자 정하기' : '영수증 올리기',
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
               IconButton(
@@ -222,94 +261,45 @@ class _ReceiptAssignSheetState extends State<ReceiptAssignSheet> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              const Text('영수증 사진',
-                  style: TextStyle(fontWeight: FontWeight.w500)),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed:
-                          _saving ? null : () => _pickPhoto(ImageSource.camera),
-                      icon: const Icon(Icons.photo_camera, size: 18),
-                      label: const Text('촬영'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _saving
-                          ? null
-                          : () => _pickPhoto(ImageSource.gallery),
-                      icon: const Icon(Icons.photo_library, size: 18),
-                      label: const Text('앨범'),
-                    ),
-                  ),
-                ],
-              ),
-              if (_photo != null) ...[
+              if (widget.withoutReceipt) ...[
+                const Text('영수증 처리',
+                    style: TextStyle(fontWeight: FontWeight.w500)),
                 const SizedBox(height: 8),
-                Image.file(_photo!, height: 200, fit: BoxFit.contain),
-              ],
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _cardChoice,
-                isExpanded: true,
-                hint: const Text('선택'),
-                decoration: const InputDecoration(
-                  labelText: '결제 카드',
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                items: [
-                  ..._cards.map(
-                    (card) => DropdownMenuItem<String>(
-                      value: card.id.toString(),
-                      child: Text(
-                        '${card.sellerName} · ${card.alias} '
-                        '(${card.maskedNumber})',
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('영수증 나중에'),
+                      selected: _receiptMode == 'RECEIPT_LATER',
+                      onSelected: _saving
+                          ? null
+                          : (_) =>
+                              setState(() => _receiptMode = 'RECEIPT_LATER'),
                     ),
-                  ),
-                  const DropdownMenuItem<String>(
-                    value: _unknownCard,
-                    child: Text('카드로 알 수 없음'),
-                  ),
-                ],
-                onChanged: _saving
-                    ? null
-                    : (value) => setState(() => _cardChoice = value),
-              ),
-              if (pickedCard != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    '결제 판매자: ${pickedCard.sellerName}',
-                    style: TextStyle(fontSize: 12, color: muted),
-                  ),
+                    ChoiceChip(
+                      label: const Text('영수증 없음(발견 재고 등)'),
+                      selected: _receiptMode == 'NO_RECEIPT',
+                      onSelected: _saving
+                          ? null
+                          : (_) => setState(() => _receiptMode = 'NO_RECEIPT'),
+                    ),
+                  ],
                 ),
-              if (_cardChoice == _unknownCard) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 SellerFilterDropdown(
                   sellers: widget.sellers,
-                  selectedSellerId: _payerSellerId,
+                  selectedSellerId: _sellerId,
                   includeAll: false,
-                  labelText: '결제 판매자',
                   enabled: !_saving,
-                  onChanged: (value) => setState(() => _payerSellerId = value),
+                  onChanged: (value) => setState(() => _sellerId = value),
                 ),
-              ],
+              ] else ..._receiptFields(muted, pickedCard),
               const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: _saving ? null : _pickDate,
-                icon: const Icon(Icons.calendar_today, size: 16),
-                label: Text(
-                    '구매일 ${DateFormat('yyyy-MM-dd').format(_purchasedOn)}'),
-              ),
-              const SizedBox(height: 16),
-              const Text('이 영수증으로 처리한 상품',
-                  style: TextStyle(fontWeight: FontWeight.w500)),
+              Text(
+                  widget.withoutReceipt
+                      ? '판매자를 정할 상품'
+                      : '이 영수증으로 처리한 상품',
+                  style: const TextStyle(fontWeight: FontWeight.w500)),
               for (final p in widget.products) _productInput(p, muted),
             ],
           ),
@@ -327,6 +317,95 @@ class _ReceiptAssignSheetState extends State<ReceiptAssignSheet> {
       ],
     );
   }
+
+  /// Photo · 「결제 카드」 · 「결제 판매자」 · 「구매일」 of [영수증 올리기].
+  List<Widget> _receiptFields(Color muted, SellerCard? pickedCard) => [
+        const Text('영수증 사진',
+            style: TextStyle(fontWeight: FontWeight.w500)),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed:
+                    _saving ? null : () => _pickPhoto(ImageSource.camera),
+                icon: const Icon(Icons.photo_camera, size: 18),
+                label: const Text('촬영'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _saving
+                    ? null
+                    : () => _pickPhoto(ImageSource.gallery),
+                icon: const Icon(Icons.photo_library, size: 18),
+                label: const Text('앨범'),
+              ),
+            ),
+          ],
+        ),
+        if (_photo != null) ...[
+          const SizedBox(height: 8),
+          Image.file(_photo!, height: 200, fit: BoxFit.contain),
+        ],
+        const SizedBox(height: 16),
+        DropdownButtonFormField<String>(
+          initialValue: _cardChoice,
+          isExpanded: true,
+          hint: const Text('선택'),
+          decoration: const InputDecoration(
+            labelText: '결제 카드',
+            contentPadding:
+                EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          ),
+          items: [
+            ..._cards.map(
+              (card) => DropdownMenuItem<String>(
+                value: card.id.toString(),
+                child: Text(
+                  '${card.sellerName} · ${card.alias} '
+                  '(${card.maskedNumber})',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+            const DropdownMenuItem<String>(
+              value: _unknownCard,
+              child: Text('카드로 알 수 없음'),
+            ),
+          ],
+          onChanged: _saving
+              ? null
+              : (value) => setState(() => _cardChoice = value),
+        ),
+        if (pickedCard != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              '결제 판매자: ${pickedCard.sellerName}',
+              style: TextStyle(fontSize: 12, color: muted),
+            ),
+          ),
+        if (_cardChoice == _unknownCard) ...[
+          const SizedBox(height: 12),
+          SellerFilterDropdown(
+            sellers: widget.sellers,
+            selectedSellerId: _payerSellerId,
+            includeAll: false,
+            labelText: '결제 판매자',
+            enabled: !_saving,
+            onChanged: (value) => setState(() => _payerSellerId = value),
+          ),
+        ],
+        const SizedBox(height: 16),
+        OutlinedButton.icon(
+          onPressed: _saving ? null : _pickDate,
+          icon: const Icon(Icons.calendar_today, size: 16),
+          label: Text(
+              '구매일 ${DateFormat('yyyy-MM-dd').format(_purchasedOn)}'),
+        ),
+      ];
 
   Widget _productInput(UnregisteredProduct p, Color muted) {
     final input = _lines[p.productId]!;

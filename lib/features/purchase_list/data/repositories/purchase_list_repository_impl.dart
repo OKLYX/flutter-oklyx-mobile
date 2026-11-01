@@ -272,6 +272,22 @@ class PurchaseListRepositoryImpl implements PurchaseListRepository {
     }
   }
 
+  @override
+  Future<Either<Failure, ReceiptDetail>> attachReceiptPhoto(
+    int receiptId,
+    File photo,
+  ) async {
+    try {
+      return Right(await remoteDataSource.attachReceiptPhoto(receiptId, photo));
+    } on ServerException catch (e) {
+      return Left(_serverFailure(e, 'Failed to add the receipt photo'));
+    } on DioException catch (e) {
+      return Left(_failure(e, 'Failed to add the receipt photo'));
+    } on Exception catch (e) {
+      return Left(ServerFailure(e.toString()));
+    }
+  }
+
   /// A 4xx turned into [ServerException] by the data source — the server
   /// message first, [fallback] when it is empty.
   ServerFailure _serverFailure(ServerException e, String fallback) {

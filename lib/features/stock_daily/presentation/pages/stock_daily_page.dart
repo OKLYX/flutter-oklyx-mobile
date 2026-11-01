@@ -16,6 +16,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/stock_daily.dart';
 import '../bloc/stock_daily_bloc.dart';
 import '../widgets/receipt_assign_sheet.dart';
+import '../widgets/seller_change_sheet.dart';
 
 /// 「일별 입출고 내역」 (`/stock/daily`, FEATURE_2610_19 D119 · D122 · D123 ·
 /// D124 · D128 · D130 · D147), shown in the drawer right after 「재고 조회」
@@ -27,7 +28,15 @@ import '../widgets/receipt_assign_sheet.dart';
 ///   남음」; outbound rows show the order seller and 「{seller} 재고 사용」 ·
 ///   「영수증 미등록 재고 사용」.
 /// - 「영수증 미등록 N건」 + [영수증 올리기] opens [ReceiptAssignSheet] for that
-///   day (D118 · D121 ⑨).
+///   day (D118 · D121 ⑨); [영수증 없이 판매자 정하기] opens the same sheet
+///   without a photo (FEATURE_2611_01 D2 · D4).
+/// - One check per card for three buttons (FEATURE_2611_01 D14): an undecided
+///   row with a quantity left, a decided incoming row without a receipt and
+///   each 「영수증 없음」 share (a line under its undecided row). Only undecided
+///   rows checked → the receipt buttons open with those products at their
+///   remaining quantity · only the others → [판매자 바꾸기] ([SellerChangeSheet],
+///   D7 · D15) · both kinds → every button is off · nothing checked → the
+///   receipt buttons open with every product of the day at 0.
 class StockDailyPage extends StatelessWidget {
   const StockDailyPage({super.key});
 
@@ -82,7 +91,11 @@ class _StockDailyViewState extends State<_StockDailyView> {
     context.read<StockDailyBloc>().add(LoadStockDaily(_day));
   }
 
-  Future<void> _openAssign(List<UnregisteredProduct> products) async {
+  Future<void> _openAssign(
+    List<UnregisteredProduct> products, {
+    required bool withoutReceipt,
+    required bool prefillRemaining,
+  }) async {
     final bloc = context.read<StockDailyBloc>();
     final saved = await showAppSheet<bool>(
       context,
@@ -90,10 +103,34 @@ class _StockDailyViewState extends State<_StockDailyView> {
         date: _day,
         products: products,
         sellers: _sellers,
+        withoutReceipt: withoutReceipt,
+        prefillRemaining: prefillRemaining,
       ),
     );
     if (saved == true && mounted) {
-      showSuccessToast(context, '영수증을 배정했습니다.');
+      showSuccessToast(
+          context, withoutReceipt ? '판매자를 정했습니다.' : '영수증을 배정했습니다.');
+      bloc.add(LoadStockDaily(_day));
+    }
+  }
+
+  Future<void> _openChange(
+    List<int> movementIds,
+    List<int> shareRecordIds,
+    List<String> labels,
+  ) async {
+    final bloc = context.read<StockDailyBloc>();
+    final saved = await showAppSheet<bool>(
+      context,
+      builder: (sheetContext) => SellerChangeSheet(
+        movementIds: movementIds,
+        shareRecordIds: shareRecordIds,
+        labels: labels,
+        sellers: _sellers,
+      ),
+    );
+    if (saved == true && mounted) {
+      showSuccessToast(context, '판매자를 바꿨습니다.');
       bloc.add(LoadStockDaily(_day));
     }
   }
@@ -123,19 +160,54 @@ class _StockDailyViewState extends State<_StockDailyView> {
                 ],
               );
             }
-            final daily = (state as StockDailyLoaded).daily;
+            final loaded = state as StockDailyLoaded;
+            final daily = loaded.daily;
+            final checked = loaded.checked;
+            // D14: the checked rows and shares, split by kind.
+            final checkedRows =
+                daily.rows.where((row) => checked.contains(_rowKey(row)));
+            final checkedShares = [
+              for (final row in daily.rows)
+                for (final share in row.noReceiptShares)
+                  if (checked.contains(_shareKey(share))) (row, share),
+            ];
+            final undecidedChecked = checkedRows
+                .where((row) => (row.undecidedLeft ?? 0) > 0)
+                .toList();
+            final changeRowsChecked =
+                checkedRows.where((row) => row.sellerChangeable).toList();
+            final canAssign = checked.isEmpty ||
+                undecidedChecked.length == checked.length;
+            final canChange = checked.isNotEmpty &&
+                changeRowsChecked.length + checkedShares.length ==
+                    checked.length;
+            final assignProducts = checked.isEmpty
+                ? daily.unregistered
+                : daily.unregistered
+                    .where((p) => undecidedChecked
+                        .any((row) => row.productId == p.productId))
+                    .toList();
+            final changeLabels = [
+              for (final row in changeRowsChecked)
+                _changeLabel(row.productName, row.quantity,
+                    row.sellerName ?? '판매자 미정'),
+              for (final (row, share) in checkedShares)
+                _changeLabel(row.productName, share.quantity,
+                    '${share.sellerName} (영수증 없음)'),
+            ];
             return AppPageBody(
               children: [
                 AppCard(
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       OutlinedButton.icon(
                         onPressed: _pickDate,
                         icon: const Icon(Icons.calendar_today, size: 16),
                         label: Text(_day),
                       ),
-                      const Spacer(),
                       if (daily.unregisteredProductCount > 0) ...[
+                        const SizedBox(height: 8),
                         Text(
                           '영수증 미등록 ${daily.unregisteredProductCount}건',
                           style: const TextStyle(
@@ -143,12 +215,52 @@ class _StockDailyViewState extends State<_StockDailyView> {
                             color: AppColors.warningForeground,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        FilledButton(
-                          onPressed: () => _openAssign(daily.unregistered),
-                          child: const Text('영수증 올리기'),
-                        ),
                       ],
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          if (daily.unregisteredProductCount > 0) ...[
+                            FilledButton(
+                              onPressed: canAssign
+                                  ? () => _openAssign(
+                                        assignProducts,
+                                        withoutReceipt: false,
+                                        prefillRemaining: checked.isNotEmpty,
+                                      )
+                                  : null,
+                              child: const Text('영수증 올리기'),
+                            ),
+                            OutlinedButton(
+                              onPressed: canAssign
+                                  ? () => _openAssign(
+                                        assignProducts,
+                                        withoutReceipt: true,
+                                        prefillRemaining: checked.isNotEmpty,
+                                      )
+                                  : null,
+                              child: const Text('영수증 없이 판매자 정하기'),
+                            ),
+                          ],
+                          OutlinedButton(
+                            onPressed: canChange
+                                ? () => _openChange(
+                                      [
+                                        for (final row in changeRowsChecked)
+                                          row.movementId,
+                                      ],
+                                      [
+                                        for (final (_, share) in checkedShares)
+                                          share.recordId,
+                                      ],
+                                      changeLabels,
+                                    )
+                                : null,
+                            child: const Text('판매자 바꾸기'),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -156,14 +268,27 @@ class _StockDailyViewState extends State<_StockDailyView> {
                 if (daily.rows.isEmpty)
                   const AppEmpty('그날 입출고가 없습니다.')
                 else
-                  for (final row in daily.rows) _rowCard(context, row),
+                  for (final row in daily.rows)
+                    _rowCard(context, row, checked),
               ],
             );
           },
         ),
       );
 
-  Widget _rowCard(BuildContext context, StockDailyRow row) {
+  static String _rowKey(StockDailyRow row) => 'row-${row.movementId}';
+
+  static String _shareKey(NoReceiptShare share) => 'share-${share.recordId}';
+
+  /// One 「판매자 바꾸기」 target as the sheet lists it: 「양말 2개 · A상사」.
+  static String _changeLabel(String product, int quantity, String owner) =>
+      '$product $quantity개 · $owner';
+
+  Widget _rowCard(
+    BuildContext context,
+    StockDailyRow row,
+    Set<String> checked,
+  ) {
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     final type =
         StockMovementType.fromCode(row.movementType)?.label ?? row.movementType;
@@ -177,12 +302,20 @@ class _StockDailyViewState extends State<_StockDailyView> {
     final amount = row.amount == null
         ? '미기입'
         : '₩${NumberFormat('#,##0', 'ko_KR').format(row.amount)}';
+    final checkable = (row.undecidedLeft ?? 0) > 0 || row.sellerChangeable;
+    final bloc = context.read<StockDailyBloc>();
     return AppCard.row(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
+              if (checkable)
+                Checkbox(
+                  value: checked.contains(_rowKey(row)),
+                  onChanged: (_) =>
+                      bloc.add(ToggleStockDailyCheck(_rowKey(row))),
+                ),
               Expanded(
                 child: Text(
                   row.productName,
@@ -206,6 +339,23 @@ class _StockDailyViewState extends State<_StockDailyView> {
               row.tags.join(' · '),
               style: const TextStyle(
                   fontSize: 12, color: AppColors.warningForeground),
+            ),
+          // FEATURE_2611_01 D15: each 「영수증 없음」 share is its own target.
+          for (final share in row.noReceiptShares)
+            Row(
+              children: [
+                Checkbox(
+                  value: checked.contains(_shareKey(share)),
+                  onChanged: (_) =>
+                      bloc.add(ToggleStockDailyCheck(_shareKey(share))),
+                ),
+                Expanded(
+                  child: Text(
+                    '└ ${share.sellerName} ${share.quantity}개 · 영수증 없음',
+                    style: TextStyle(fontSize: 12, color: muted),
+                  ),
+                ),
+              ],
             ),
         ],
       ),
