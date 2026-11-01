@@ -20,6 +20,7 @@ import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_register_state.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/purchase_place_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/purchase_place_event.dart';
+import 'package:flutter_oklyn_mobile/features/product/presentation/widgets/product_image_gallery.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/widgets/purchase_place_checkboxes.dart';
 
 class ProductRegisterPage extends StatefulWidget {
@@ -47,6 +48,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
   Unit? _selectedUnit;
   String? _selectedCountUnit;
   List<int> _selectedPlaceIds = [];
+  List<File> _imageFiles = [];
 
   bool _barcodeChecked = false;
   bool _barcodeAvailable = false;
@@ -133,6 +135,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
       _selectedUnit = null;
       _selectedCountUnit = null;
       _selectedPlaceIds = [];
+      _imageFiles = [];
       _heightController.clear();
       _lengthController.clear();
       _widthController.clear();
@@ -180,6 +183,7 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
       netContent: _netContentController.text.isEmpty ? null : double.tryParse(_netContentController.text),
       countQuantity: int.tryParse(_countQuantityController.text.trim()),
       countUnit: _selectedCountUnit,
+      images: _imageFiles,
     ));
   }
 
@@ -202,7 +206,11 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
                 current is ProductRegisterError,
             listener: (context, state) {
               if (state is ProductRegisterSuccess) {
-                showSuccessToast(context, '상품이 등록되었습니다');
+                if (state.imageUploadFailed) {
+                  showErrorToast(context, '상품은 등록되었으나 이미지 일부 업로드에 실패했습니다.');
+                } else {
+                  showSuccessToast(context, '상품이 등록되었습니다');
+                }
                 context.go(Routes.productSearchPath);
               } else if (state is ProductRegisterError) {
                 showErrorToast(context, state.message);
@@ -282,6 +290,11 @@ class _ProductRegisterPageState extends State<ProductRegisterPage> {
                       _buildTextField('길이', _lengthController, keyboardType: const TextInputType.numberWithOptions(decimal: true)),
                       const SizedBox(height: 12),
                       _buildTextField('너비', _widthController, keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                      const SizedBox(height: 24),
+                      ProductImageGallery.buffer(
+                        files: _imageFiles,
+                        onChanged: (files) => setState(() => _imageFiles = files),
+                      ),
                       const SizedBox(height: 32),
                       SizedBox(
                         width: double.infinity,

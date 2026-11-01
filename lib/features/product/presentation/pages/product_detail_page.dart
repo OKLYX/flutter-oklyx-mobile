@@ -1,14 +1,9 @@
-import 'dart:io';
-import 'dart:typed_data';
 
-import 'package:dio/dio.dart';
-import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
@@ -17,10 +12,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
-import 'package:flutter_oklyn_mobile/shared/widgets/zoomable_image_viewer.dart';
-import 'package:flutter_oklyn_mobile/core/constants/app_constants.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
-import 'package:flutter_oklyn_mobile/core/network/dio_client.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/count_unit.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/purchase_place.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/unit.dart';
@@ -29,6 +21,7 @@ import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_detail_state.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/purchase_place_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/purchase_place_event.dart';
+import 'package:flutter_oklyn_mobile/features/product/presentation/widgets/product_image_gallery.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/widgets/purchase_place_checkboxes.dart';
 
 class ProductDetailPage extends StatefulWidget {
@@ -168,8 +161,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           current is ProductDetailLoaded ||
           current is ProductDetailEditing ||
           current is ProductDetailDeleteSuccess ||
-          current is ProductDetailDeleteError ||
-          current is ProductDetailImageError,
+          current is ProductDetailDeleteError,
       listener: (context, state) {
         if (state is ProductDetailLoaded) {
           _populateControllers(state.product);
@@ -185,9 +177,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
           context.go(Routes.productSearchPath);
         }
         if (state is ProductDetailDeleteError) {
-          showErrorToast(context, state.message);
-        }
-        if (state is ProductDetailImageError) {
           showErrorToast(context, state.message);
         }
         _previousState = state;
@@ -255,7 +244,10 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                                   ),
                                 ],
                         ),
-                        _ImageSection(product: product),
+                        // Photos save on their own — not tied to [편집]/[저장] (same as web).
+                        AppCard(
+                          child: ProductImageGallery.server(productId: product.id),
+                        ),
                         const SizedBox(height: 12),
                         _EditableBasicInfoCard(
                           product: product,
@@ -314,20 +306,14 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
             BlocBuilder<ProductDetailBloc, ProductDetailState>(
               buildWhen: (previous, current) {
                 final isLoadingOrDeleting = current is ProductDetailUpdating ||
-                    current is ProductDetailDeleting ||
-                    current is ProductDetailImageUploading ||
-                    current is ProductDetailImageDeleting;
+                    current is ProductDetailDeleting;
                 final wasLoadingOrDeleting = previous is ProductDetailUpdating ||
-                    previous is ProductDetailDeleting ||
-                    previous is ProductDetailImageUploading ||
-                    previous is ProductDetailImageDeleting;
+                    previous is ProductDetailDeleting;
                 return isLoadingOrDeleting || (wasLoadingOrDeleting && !isLoadingOrDeleting);
               },
               builder: (context, state) {
                 if (state is ProductDetailUpdating ||
-                    state is ProductDetailDeleting ||
-                    state is ProductDetailImageUploading ||
-                    state is ProductDetailImageDeleting) {
+                    state is ProductDetailDeleting) {
                   return Container(
                     color: Theme.of(context)
                         .colorScheme
@@ -346,249 +332,6 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       ),
     ),
   );
-}
-
-class _ImageSection extends StatefulWidget {
-  final dynamic product;
-
-  const _ImageSection({required this.product});
-
-  @override
-  State<_ImageSection> createState() => _ImageSectionState();
-}
-
-class _ImageSectionState extends State<_ImageSection> {
-  final _picker = ImagePicker();
-  bool _isDownloading = false;
-
-  Future<Uint8List?> _loadProductImage(int productId) async {
-    try {
-      final response = await getIt<DioClient>().get(
-        '/api/products/$productId/image',
-        options: Options(responseType: ResponseType.bytes),
-      );
-
-      if (response.statusCode == 200) {
-        return response.data as Uint8List;
-      }
-      return null;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  Future<void> _pickAndUpload(BuildContext context) async {
-    try {
-      final xFile = await _picker.pickImage(source: ImageSource.gallery);
-      if (xFile == null) return;
-      if (!context.mounted) return;
-      context.read<ProductDetailBloc>().add(UploadImageRequested(File(xFile.path)));
-    } catch (e) {
-      if (!context.mounted) return;
-      showErrorToast(context, '이미지 선택 실패: $e');
-    }
-  }
-
-  /// Save the original image to a user-picked location.
-  ///
-  /// saveAs opens the system dialog so the file lands where the user can find it
-  /// (saveFile writes to the app-private dir on Android). Cancel returns null → no toast.
-  Future<void> _downloadImage(BuildContext context, dynamic product) async {
-    setState(() => _isDownloading = true);
-    try {
-      final bytes = await _loadProductImage(product.id as int);
-      if (bytes == null) {
-        if (context.mounted) {
-          showErrorToast(context, '이미지를 불러오지 못했습니다.');
-        }
-        return;
-      }
-      final isPng = product.imageUrl
-          .toString()
-          .toLowerCase()
-          .split('?')
-          .first
-          .endsWith('.png');
-      final path = await FileSaver.instance.saveAs(
-        name: '상품이미지_${product.id}',
-        bytes: bytes,
-        ext: isPng ? 'png' : 'jpg',
-        mimeType: isPng ? MimeType.png : MimeType.jpeg,
-      );
-      if (path == null || path.isEmpty) return;
-      if (context.mounted) {
-        showSuccessToast(context, '이미지를 저장했습니다.');
-      }
-    } catch (_) {
-      if (context.mounted) {
-        showErrorToast(context, '이미지 저장에 실패했습니다.');
-      }
-    } finally {
-      if (mounted) setState(() => _isDownloading = false);
-    }
-  }
-
-  Widget _buildPlaceholder({bool showPlus = false}) {
-    return Container(
-      width: 200,
-      height: 200,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.outlineVariant,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Icon(
-        showPlus ? Icons.add : Icons.image,
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-        size: 60,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ProductDetailBloc, ProductDetailState>(
-      buildWhen: (previous, current) =>
-          current is ProductDetailLoaded ||
-          current is ProductDetailEditing ||
-          current is ProductDetailImageUploading ||
-          current is ProductDetailImageDeleting,
-      builder: (context, state) {
-        final product = state is ProductDetailLoaded
-            ? state.product
-            : state is ProductDetailEditing
-                ? state.product
-                : widget.product;
-
-        final isLoading = state is ProductDetailImageUploading ||
-            state is ProductDetailImageDeleting;
-        final hasImage = product?.imageUrl != null &&
-            product!.imageUrl.toString().isNotEmpty &&
-            product.imageUrl != 'null';
-
-        return SizedBox(
-          width: 200,
-          height: 200,
-          child: Stack(
-            children: [
-              if (hasImage)
-                FutureBuilder<Uint8List?>(
-                  future: _loadProductImage(product!.id),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          color: Theme.of(context).colorScheme.outlineVariant,
-                          child: const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                        ),
-                      );
-                    }
-
-                    if (snapshot.hasData && snapshot.data != null) {
-                      return ImageWithZoomButton(
-                        image: MemoryImage(snapshot.data!),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.memory(
-                            snapshot.data!,
-                            width: 200,
-                            height: 200,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      );
-                    }
-
-                    return ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: _buildPlaceholder(),
-                    );
-                  },
-                )
-              else
-                GestureDetector(
-                  onTap: isLoading ? null : () => _pickAndUpload(context),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: _buildPlaceholder(showPlus: true),
-                  ),
-                ),
-              if (hasImage && !isLoading)
-                Positioned(
-                  top: 4,
-                  right: 4,
-                  child: GestureDetector(
-                    onTap: () => context
-                        .read<ProductDetailBloc>()
-                        .add(const DeleteImageRequested()),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        shape: BoxShape.circle,
-                      ),
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(
-                        Icons.delete,
-                        color: Theme.of(context).colorScheme.surface,
-                        size: 18,
-                      ),
-                    ),
-                  ),
-                ),
-              if (hasImage && !isLoading)
-                Positioned(
-                  top: 36,
-                  right: 4,
-                  child: GestureDetector(
-                    onTap: _isDownloading
-                        ? null
-                        : () => _downloadImage(context, product),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        shape: BoxShape.circle,
-                      ),
-                      padding: const EdgeInsets.all(4),
-                      child: _isDownloading
-                          ? SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Theme.of(context).colorScheme.surface,
-                              ),
-                            )
-                          : Icon(
-                              Icons.download,
-                              color: Theme.of(context).colorScheme.surface,
-                              size: 18,
-                            ),
-                    ),
-                  ),
-                ),
-              if (isLoading)
-                Positioned.fill(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .scrim
-                          .withValues(alpha: 0.38),
-                      child: const Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
 }
 
 class _EditableBasicInfoCard extends StatelessWidget {

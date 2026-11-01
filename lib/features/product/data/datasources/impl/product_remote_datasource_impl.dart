@@ -5,6 +5,7 @@ import 'package:http_parser/http_parser.dart';
 import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
 import 'package:flutter_oklyn_mobile/core/network/dio_client.dart';
 import 'package:flutter_oklyn_mobile/features/product/data/models/barcode_scan_result_model.dart';
+import 'package:flutter_oklyn_mobile/features/product/data/models/product_image_model.dart';
 import 'package:flutter_oklyn_mobile/features/product/data/models/product_model.dart';
 import 'package:flutter_oklyn_mobile/features/product/data/models/product_page_model.dart';
 import 'package:flutter_oklyn_mobile/features/product/data/models/purchase_place_model.dart';
@@ -176,41 +177,6 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
   }
 
   @override
-  Future<void> uploadProductImage(int productId, File imageFile) async {
-    try {
-      final fileName = imageFile.path.split('/').last;
-      final formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(
-          imageFile.path,
-          filename: fileName,
-        ),
-      });
-
-      final response = await dioClient.put(
-        '/api/products/$productId/image',
-        data: formData,
-        options: Options(
-          contentType: 'multipart/form-data',
-        ),
-      );
-
-      if (response.statusCode != 200 && response.statusCode != 201) {
-        throw ServerException(
-          'Failed to upload image',
-          statusCode: response.statusCode,
-        );
-      }
-    } on DioException catch (e) {
-      throw ServerException(
-        e.message ?? 'Failed to upload image',
-        statusCode: e.response?.statusCode,
-      );
-    } catch (e) {
-      throw ServerException(e.toString());
-    }
-  }
-
-  @override
   Future<ProductModel> updateProduct(UpdateProductParams params) async {
     try {
       final response = await dioClient.patch(
@@ -258,26 +224,104 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
     }
   }
 
-  @override
-  Future<void> deleteProductImage(int productId) async {
-    try {
-      final response = await dioClient.delete('/api/products/$productId/image');
+  String _imagesPath(int productId) =>
+      '/api/admin/products/$productId/images';
 
-      if (response.statusCode != 200 && response.statusCode != 204) {
-        throw ServerException(
-          'Failed to delete image',
-          statusCode: response.statusCode,
-        );
-      }
+  /// `image/jpeg` or `image/png` from the file name — the server checks the
+  /// part's Content-Type, not only the bytes.
+  Future<MultipartFile> _imagePart(File file) {
+    final name = file.path.split('/').last;
+    final isPng = name.toLowerCase().endsWith('.png');
+    return MultipartFile.fromFile(
+      file.path,
+      filename: name,
+      contentType: MediaType('image', isPng ? 'png' : 'jpeg'),
+    );
+  }
+
+  /// 4xx arrives as a response (validateStatus < 500): keep the server
+  /// message so the screen can show it (e.g. the 409 "in use" text).
+  dynamic _imageData(Response<dynamic> response) {
+    final body = response.data;
+    if (response.statusCode != 200) {
+      final message = body is Map && body['message'] is String
+          ? body['message'] as String
+          : '';
+      throw ServerException(message, statusCode: response.statusCode);
+    }
+    return body is Map ? body['data'] : null;
+  }
+
+  List<ProductImageModel> _imageList(dynamic data) =>
+      (data as List? ?? const [])
+          .map((e) => ProductImageModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+
+  // FormData bodies carry no manual Content-Type — Dio adds the boundary.
+  Future<T> _imageCall<T>(Future<T> Function() call) async {
+    try {
+      return await call();
+    } on ServerException {
+      rethrow;
     } on DioException catch (e) {
-      throw ServerException(
-        e.message ?? 'Failed to delete image',
-        statusCode: e.response?.statusCode,
-      );
-    } catch (e) {
-      throw ServerException(e.toString());
+      throw ServerException('', statusCode: e.response?.statusCode);
+    } on Object {
+      // Includes malformed payload (TypeError) so the screen never hangs.
+      throw ServerException('');
     }
   }
+
+  @override
+  Future<List<ProductImageModel>> listProductImages(int productId) =>
+      _imageCall(() async =>
+          _imageList(_imageData(await dioClient.get(_imagesPath(productId)))));
+
+  @override
+  Future<List<ProductImageModel>> addProductImages(
+    int productId,
+    List<File> files,
+  ) =>
+      _imageCall(() async {
+        final formData = FormData();
+        for (final file in files) {
+          formData.files.add(MapEntry('files', await _imagePart(file)));
+        }
+        final response =
+            await dioClient.post(_imagesPath(productId), data: formData);
+        return _imageList(_imageData(response));
+      });
+
+  @override
+  Future<void> replaceProductImage(int productId, int imageId, File file) =>
+      _imageCall(() async {
+        final formData = FormData.fromMap({'file': await _imagePart(file)});
+        final response = await dioClient.put(
+          '${_imagesPath(productId)}/$imageId',
+          data: formData,
+        );
+        _imageData(response);
+      });
+
+  @override
+  Future<List<ProductImageModel>> reorderProductImages(
+    int productId,
+    List<int> imageIds,
+  ) =>
+      _imageCall(() async {
+        final response = await dioClient.put(
+          '${_imagesPath(productId)}/reorder',
+          data: {'imageIds': imageIds},
+        );
+        return _imageList(_imageData(response));
+      });
+
+  @override
+  Future<void> removeProductImage(int productId, int imageId) =>
+      _imageCall(() async {
+        final response =
+            await dioClient.delete('${_imagesPath(productId)}/$imageId');
+        _imageData(response);
+      });
 
   @override
   Future<List<PurchasePlaceModel>> getPurchasePlaces() async {

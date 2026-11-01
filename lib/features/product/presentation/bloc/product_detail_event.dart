@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:equatable/equatable.dart';
 
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/unit.dart';
@@ -84,22 +82,6 @@ class UpdateProductRequested extends ProductDetailEvent {
 
 class DeleteProductRequested extends ProductDetailEvent {
   const DeleteProductRequested();
-
-  @override
-  List<Object?> get props => [];
-}
-
-class UploadImageRequested extends ProductDetailEvent {
-  final File imageFile;
-
-  const UploadImageRequested(this.imageFile);
-
-  @override
-  List<Object?> get props => [imageFile];
-}
-
-class DeleteImageRequested extends ProductDetailEvent {
-  const DeleteImageRequested();
 
   @override
   List<Object?> get props => [];
