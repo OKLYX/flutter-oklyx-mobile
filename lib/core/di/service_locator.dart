@@ -190,6 +190,12 @@ import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/usecases/get_o
 import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/usecases/get_stock_candidates_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/usecases/record_movement_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/presentation/bloc/stock_ledger_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/data/datasources/stock_daily_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/data/repositories/stock_daily_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/domain/repositories/stock_daily_repository.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/assign_receipt_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/get_stock_daily_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/bloc/stock_daily_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/claim/data/datasources/claim_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/claim/data/repositories/claim_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/claim/domain/repositories/claim_repository.dart';
@@ -243,6 +249,7 @@ void setupServiceLocator() {
   _registerAlertServices();
   _registerPurchaseListServices();
   _registerStockLedgerServices();
+  _registerStockDailyServices();
   _registerSettlementServices();
   _registerSalesServices();
   _registerDashboardServices();
@@ -1158,6 +1165,29 @@ void _registerStockLedgerServices() {
       confirmOutboundUseCase: getIt<ConfirmOutboundUseCase>(),
       getSellersUseCase: getIt<GetSellersUseCase>(),
     ),
+  );
+}
+
+/// 「그날 입출고 내역」 (FEATURE_2610_19 D119 · D121). Sellers come from the
+/// seller feature's [GetSellersUseCase], cards from the purchase list's
+/// [GetSellerCardsUseCase].
+void _registerStockDailyServices() {
+  getIt.registerSingleton<StockDailyRemoteDataSource>(
+    StockDailyRemoteDataSource(dio: getIt<DioClient>().dio),
+  );
+  getIt.registerSingleton<StockDailyRepository>(
+    StockDailyRepositoryImpl(
+      remoteDataSource: getIt<StockDailyRemoteDataSource>(),
+    ),
+  );
+  getIt.registerSingleton<GetStockDailyUseCase>(
+    GetStockDailyUseCase(repository: getIt<StockDailyRepository>()),
+  );
+  getIt.registerSingleton<AssignReceiptUseCase>(
+    AssignReceiptUseCase(repository: getIt<StockDailyRepository>()),
+  );
+  getIt.registerFactory<StockDailyBloc>(
+    () => StockDailyBloc(getStockDailyUseCase: getIt<GetStockDailyUseCase>()),
   );
 }
 

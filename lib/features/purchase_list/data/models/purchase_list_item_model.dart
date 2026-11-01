@@ -12,6 +12,7 @@ class PurchaseListItemModel extends PurchaseListItem {
     required List<PurchaseShareModel> shares,
     required List<PurchaseLineModel> lines,
     String? brand,
+    int unregisteredQty = 0,
   }) : super(
           productId: productId,
           productName: productName,
@@ -21,6 +22,7 @@ class PurchaseListItemModel extends PurchaseListItem {
           remainingQty: remainingQty,
           shares: shares,
           lines: lines,
+          unregisteredQty: unregisteredQty,
         );
 
   factory PurchaseListItemModel.fromJson(Map<String, dynamic> json) {
@@ -39,6 +41,7 @@ class PurchaseListItemModel extends PurchaseListItem {
       lines: linesJson
           .map((e) => PurchaseLineModel.fromJson(e as Map<String, dynamic>))
           .toList(),
+      unregisteredQty: json['unregisteredQty'] as int? ?? 0,
     );
   }
 }

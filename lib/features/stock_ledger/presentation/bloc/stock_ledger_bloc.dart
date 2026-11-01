@@ -272,7 +272,7 @@ class StockLedgerBloc extends Bloc<StockLedgerEvent, StockLedgerState> {
         clearActionInProgress: true,
         actionError: failure.message,
       )),
-      (_) {
+      (movements) {
         final updated = <OutboundOrder>[];
         for (final order in current.outbound) {
           if (order.orderLineId != event.orderLineId) {
@@ -291,7 +291,12 @@ class StockLedgerBloc extends Bloc<StockLedgerEvent, StockLedgerState> {
         emit(current.copyWith(
           clearActionInProgress: true,
           outbound: updated,
-          actionMessage: '출고 ${event.quantity}건 확인했습니다',
+          // FEATURE_2610_19 D49 · D137: the borrowed-goods lines ride on the
+          // same toast, one per line.
+          actionMessage: [
+            '출고 ${event.quantity}건 확인했습니다',
+            ...movements.expand((m) => m.notices),
+          ].join('\n'),
         ));
       },
     );

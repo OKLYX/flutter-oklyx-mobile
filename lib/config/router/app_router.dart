@@ -55,6 +55,7 @@ import 'package:flutter_oklyn_mobile/features/product/presentation/pages/product
 import 'package:flutter_oklyn_mobile/features/stock_ledger/presentation/pages/stock_balance_page.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/presentation/pages/stock_entry_page.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/presentation/pages/stock_outbound_page.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/pages/stock_daily_page.dart';
 import 'package:flutter_oklyn_mobile/features/user/domain/entities/user.dart';
 import 'package:flutter_oklyn_mobile/features/user/presentation/pages/user_edit_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/dashboard_page.dart';
@@ -250,6 +251,13 @@ class AppRouter {
       path: Routes.stockSearchPath,
       pageBuilder: (context, state) => const NoTransitionPage(
         child: StockBalancePage(),
+      ),
+    ),
+    GoRoute(
+      name: Routes.stockDaily,
+      path: Routes.stockDailyPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: StockDailyPage(),
       ),
     ),
     GoRoute(
