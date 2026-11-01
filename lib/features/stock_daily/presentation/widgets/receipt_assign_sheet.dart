@@ -15,7 +15,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import '../../domain/entities/stock_daily.dart';
 import '../../domain/usecases/assign_receipt_usecase.dart';
 
-/// Receipt assignment sheet of 「그날 입출고 내역」 (FEATURE_2610_19 D118 ·
+/// Receipt assignment sheet of 「일별 입출고 내역」 (FEATURE_2610_19 D118 ·
 /// D121 · D87 · D135), shown with `showAppSheet`.
 ///
 /// - Photo (camera or album, required), 「결제 카드」 = visible cards +

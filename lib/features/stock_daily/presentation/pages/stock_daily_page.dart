@@ -17,7 +17,7 @@ import '../../domain/entities/stock_daily.dart';
 import '../bloc/stock_daily_bloc.dart';
 import '../widgets/receipt_assign_sheet.dart';
 
-/// 「그날 입출고 내역」 (`/stock/daily`, FEATURE_2610_19 D119 · D122 · D123 ·
+/// 「일별 입출고 내역」 (`/stock/daily`, FEATURE_2610_19 D119 · D122 · D123 ·
 /// D124 · D128 · D130 · D147), shown in the drawer right after 「재고 조회」
 /// while the stock link is on (D148 ①).
 ///
@@ -100,7 +100,7 @@ class _StockDailyViewState extends State<_StockDailyView> {
 
   @override
   Widget build(BuildContext context) => ScaffoldWithNavBar(
-        title: '그날 입출고 내역',
+        title: '일별 입출고 내역',
         navBarIndex: 2,
         showAppBarDrawerButton: false,
         body: BlocBuilder<StockDailyBloc, StockDailyState>(
