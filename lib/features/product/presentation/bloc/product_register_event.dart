@@ -23,6 +23,10 @@ class RegisterProductRequested extends ProductRegisterEvent {
   final int? countQuantity;
   final String? countUnit;
 
+  /// Photos picked before saving; uploaded right after the product is
+  /// created (in this order — the first is the representative one).
+  final List<File> images;
+
   const RegisterProductRequested({
     required this.productName,
     this.barcodeId,
@@ -37,10 +41,12 @@ class RegisterProductRequested extends ProductRegisterEvent {
     this.netContent,
     this.countQuantity,
     this.countUnit,
+    this.images = const [],
   });
 
   @override
   List<Object?> get props => [
+    images.map((f) => f.path).toList(),
     productName,
     barcodeId,
     brand,

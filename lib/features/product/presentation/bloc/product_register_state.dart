@@ -37,10 +37,13 @@ class BarcodeUnavailable extends ProductRegisterState {
 class ProductRegisterSuccess extends ProductRegisterState {
   final Product product;
 
-  const ProductRegisterSuccess(this.product);
+  /// The product was created but its photos were not (all) uploaded.
+  final bool imageUploadFailed;
+
+  const ProductRegisterSuccess(this.product, {this.imageUploadFailed = false});
 
   @override
-  List<Object?> get props => [product];
+  List<Object?> get props => [product, imageUploadFailed];
 }
 
 class ProductRegisterError extends ProductRegisterState {

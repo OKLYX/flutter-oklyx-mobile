@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/check_barcode_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/usecases/product_image_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/register_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/scan_barcode_from_image_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_register_event.dart';
@@ -10,11 +11,13 @@ class ProductRegisterBloc extends Bloc<ProductRegisterEvent, ProductRegisterStat
   final RegisterProductUseCase registerProductUseCase;
   final CheckBarcodeUseCase checkBarcodeUseCase;
   final ScanBarcodeFromImageUseCase scanBarcodeFromImageUseCase;
+  final ProductImageUseCase productImageUseCase;
 
   ProductRegisterBloc({
     required this.registerProductUseCase,
     required this.checkBarcodeUseCase,
     required this.scanBarcodeFromImageUseCase,
+    required this.productImageUseCase,
   }) : super(ProductRegisterInitial()) {
     on<CheckBarcodeRequested>(_onCheckBarcode);
     on<ScanBarcodeFromImageRequested>(_onScanBarcodeFromImage);
@@ -90,9 +93,19 @@ class ProductRegisterBloc extends Bloc<ProductRegisterEvent, ProductRegisterStat
     );
 
     final result = await registerProductUseCase(params);
-    result.fold(
-      (failure) => emit(ProductRegisterError(failure.message)),
-      (product) => emit(ProductRegisterSuccess(product)),
-    );
+    final failure = result.getLeft().toNullable();
+    if (failure != null) {
+      emit(ProductRegisterError(failure.message));
+      return;
+    }
+    final product = result.toNullable()!;
+    if (event.images.isEmpty) {
+      emit(ProductRegisterSuccess(product));
+      return;
+    }
+    // Same as the web: the product already exists, so a photo failure only
+    // warns — it does not undo the registration.
+    final uploaded = await productImageUseCase.add(product.id, event.images);
+    emit(ProductRegisterSuccess(product, imageUploadFailed: uploaded.isLeft()));
   }
 }
