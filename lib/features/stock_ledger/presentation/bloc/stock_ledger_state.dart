@@ -51,6 +51,10 @@ class StockLedgerLoaded extends StockLedgerState {
   final String? actionError;
   final String? actionMessage;
 
+  /// The lit 「미기입 N줄」 of the 「재고 조회」 amount box; null = the whole
+  /// list (FEATURE_2611_02 D35 · D37).
+  final String? amountFilterKey;
+
   StockLedgerLoaded({
     this.sellers = const [],
     this.sellerId,
@@ -66,6 +70,7 @@ class StockLedgerLoaded extends StockLedgerState {
     this.actionInProgressKey,
     this.actionError,
     this.actionMessage,
+    this.amountFilterKey,
   });
 
   StockLedgerLoaded copyWith({
@@ -87,6 +92,8 @@ class StockLedgerLoaded extends StockLedgerState {
     bool clearActionError = false,
     String? actionMessage,
     bool clearActionMessage = false,
+    String? amountFilterKey,
+    bool clearAmountFilter = false,
   }) {
     return StockLedgerLoaded(
       sellers: sellers ?? this.sellers,
@@ -106,6 +113,9 @@ class StockLedgerLoaded extends StockLedgerState {
       actionError: clearActionError ? null : (actionError ?? this.actionError),
       actionMessage:
           clearActionMessage ? null : (actionMessage ?? this.actionMessage),
+      amountFilterKey: clearAmountFilter
+          ? null
+          : (amountFilterKey ?? this.amountFilterKey),
     );
   }
 }
