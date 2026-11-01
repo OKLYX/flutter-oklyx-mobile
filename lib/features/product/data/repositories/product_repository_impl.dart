@@ -5,6 +5,7 @@ import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/barcode_scan_result.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/product.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/entities/product_image.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/product_page.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/entities/purchase_place.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/repositories/product_repository.dart';
@@ -97,20 +98,6 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
-  Future<Either<Failure, void>> uploadProductImage(int productId, File imageFile) async {
-    try {
-      await remoteDataSource.uploadProductImage(productId, imageFile);
-      return Right(null);
-    } on ServerException catch (e) {
-      return Left(ServerFailure(e.message, statusCode: e.statusCode));
-    } on NetworkException catch (e) {
-      return Left(NetworkFailure(e.message));
-    } on Exception catch (e) {
-      return Left(UnknownFailure(e.toString()));
-    }
-  }
-
-  @override
   Future<Either<Failure, Product>> updateProduct(UpdateProductParams params) async {
     try {
       final productModel = await remoteDataSource.updateProduct(params);
@@ -138,11 +125,9 @@ class ProductRepositoryImpl implements ProductRepository {
     }
   }
 
-  @override
-  Future<Either<Failure, void>> deleteProductImage(int productId) async {
+  Future<Either<Failure, T>> _guardImage<T>(Future<T> Function() call) async {
     try {
-      await remoteDataSource.deleteProductImage(productId);
-      return Right(null);
+      return Right(await call());
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message, statusCode: e.statusCode));
     } on NetworkException catch (e) {
@@ -151,6 +136,42 @@ class ProductRepositoryImpl implements ProductRepository {
       return Left(UnknownFailure(e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, List<ProductImage>>> listProductImages(
+    int productId,
+  ) =>
+      _guardImage(() => remoteDataSource.listProductImages(productId));
+
+  @override
+  Future<Either<Failure, List<ProductImage>>> addProductImages(
+    int productId,
+    List<File> files,
+  ) =>
+      _guardImage(() => remoteDataSource.addProductImages(productId, files));
+
+  @override
+  Future<Either<Failure, void>> replaceProductImage(
+    int productId,
+    int imageId,
+    File file,
+  ) =>
+      _guardImage(
+        () => remoteDataSource.replaceProductImage(productId, imageId, file),
+      );
+
+  @override
+  Future<Either<Failure, List<ProductImage>>> reorderProductImages(
+    int productId,
+    List<int> imageIds,
+  ) =>
+      _guardImage(
+        () => remoteDataSource.reorderProductImages(productId, imageIds),
+      );
+
+  @override
+  Future<Either<Failure, void>> removeProductImage(int productId, int imageId) =>
+      _guardImage(() => remoteDataSource.removeProductImage(productId, imageId));
 
   @override
   Future<Either<Failure, List<PurchasePlace>>> getPurchasePlaces() async {

@@ -26,11 +26,11 @@ import 'package:flutter_oklyn_mobile/features/product/domain/usecases/get_produc
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/register_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/update_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/delete_product_usecase.dart';
-import 'package:flutter_oklyn_mobile/features/product/domain/usecases/upload_product_image_usecase.dart';
-import 'package:flutter_oklyn_mobile/features/product/domain/usecases/delete_product_image_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/usecases/product_image_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/get_purchase_places_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_detail_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_image_gallery_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_register_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/purchase_place_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/user/data/datasources/user_remote_datasource.dart';
@@ -349,11 +349,8 @@ void _registerProductServices() {
   getIt.registerSingleton<DeleteProductUseCase>(
     DeleteProductUseCase(getIt<ProductRepository>()),
   );
-  getIt.registerSingleton<UploadProductImageUseCase>(
-    UploadProductImageUseCase(getIt<ProductRepository>()),
-  );
-  getIt.registerSingleton<DeleteProductImageUseCase>(
-    DeleteProductImageUseCase(getIt<ProductRepository>()),
+  getIt.registerSingleton<ProductImageUseCase>(
+    ProductImageUseCase(getIt<ProductRepository>()),
   );
   getIt.registerSingleton<GetPurchasePlacesUseCase>(
     GetPurchasePlacesUseCase(getIt<ProductRepository>()),
@@ -370,8 +367,13 @@ void _registerProductServices() {
       getProductDetailUseCase: getIt<GetProductDetailUseCase>(),
       updateProductUseCase: getIt<UpdateProductUseCase>(),
       deleteProductUseCase: getIt<DeleteProductUseCase>(),
-      uploadProductImageUseCase: getIt<UploadProductImageUseCase>(),
-      deleteProductImageUseCase: getIt<DeleteProductImageUseCase>(),
+    ),
+  );
+
+  // ProductImageGalleryBloc as factory — one per product detail screen.
+  getIt.registerFactory<ProductImageGalleryBloc>(
+    () => ProductImageGalleryBloc(
+      productImageUseCase: getIt<ProductImageUseCase>(),
     ),
   );
 
@@ -388,6 +390,7 @@ void _registerProductServices() {
       registerProductUseCase: getIt<RegisterProductUseCase>(),
       checkBarcodeUseCase: getIt<CheckBarcodeUseCase>(),
       scanBarcodeFromImageUseCase: getIt<ScanBarcodeFromImageUseCase>(),
+      productImageUseCase: getIt<ProductImageUseCase>(),
     ),
   );
 }
