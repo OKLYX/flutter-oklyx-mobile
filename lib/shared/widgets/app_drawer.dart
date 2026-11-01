@@ -245,14 +245,14 @@ class _AppDrawerState extends State<AppDrawer> {
                       )
                     : const SizedBox.shrink(),
               ),
-              // FEATURE_2610_19 D148 ①: 「그날 입출고 내역」 follows 「재고 조회」
+              // FEATURE_2610_19 D148 ①: 「일별 입출고 내역」 follows 「재고 조회」
               // under the same stock link condition.
               BlocBuilder<PurchaseSettingBloc, PurchaseSettingState>(
                 builder: (context, setting) => setting.stockLinked == true
                     ? Padding(
                         padding: const EdgeInsets.only(left: 16),
                         child: ListTile(
-                          title: const Text('그날 입출고 내역'),
+                          title: const Text('일별 입출고 내역'),
                           onTap: () {
                             Navigator.pop(context);
                             context.go(Routes.stockDailyPath);

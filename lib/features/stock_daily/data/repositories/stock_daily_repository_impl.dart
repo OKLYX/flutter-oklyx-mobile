@@ -16,7 +16,7 @@ class StockDailyRepositoryImpl implements StockDailyRepository {
 
   @override
   Future<Either<Failure, StockDaily>> getDaily(String date) =>
-      _guard(() => remoteDataSource.getDaily(date), '그날 입출고 내역을 불러오지 못했습니다.');
+      _guard(() => remoteDataSource.getDaily(date), '일별 입출고 내역을 불러오지 못했습니다.');
 
   @override
   Future<Either<Failure, Unit>> assign(
