@@ -26,6 +26,10 @@ class StockMovement {
   final String movedOn;
   final String? createdBy;
 
+  /// Outbound confirm only: 「○○ 재고 N개 사용(채무 ₩M)」 lines
+  /// (FEATURE_2610_19 D49 · D137). Empty elsewhere.
+  final List<String> notices;
+
   const StockMovement({
     required this.id,
     required this.productId,
@@ -42,5 +46,6 @@ class StockMovement {
     this.purchaseRecordId,
     required this.movedOn,
     this.createdBy,
+    this.notices = const [],
   });
 }

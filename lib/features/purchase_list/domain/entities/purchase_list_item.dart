@@ -19,6 +19,10 @@ class PurchaseListItem {
   final List<PurchaseShare> shares;
   final List<PurchaseLine> lines;
 
+  /// 「영수증 미등록 N개」 (FEATURE_2610_19 D115 · D129): intake-work purchases
+  /// no receipt took yet — both tabs, whatever seller is chosen. 0 = hidden.
+  final int unregisteredQty;
+
   PurchaseListItem({
     required this.productId,
     required this.productName,
@@ -28,5 +32,6 @@ class PurchaseListItem {
     required this.shares,
     required this.lines,
     this.brand,
+    this.unregisteredQty = 0,
   });
 }

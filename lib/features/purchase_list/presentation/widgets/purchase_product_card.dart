@@ -109,6 +109,17 @@ class PurchaseProductCard extends StatelessWidget {
                         item.purchasedQty,
                         Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
+                      // FEATURE_2610_19 D115 · D129: bought but not yet on a
+                      // receipt — so nobody buys it again.
+                      if (item.unregisteredQty > 0)
+                        Text(
+                          '영수증 미등록 ${item.unregisteredQty}개',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.warningForeground,
+                          ),
+                        ),
                     ],
                   ),
                 ],
