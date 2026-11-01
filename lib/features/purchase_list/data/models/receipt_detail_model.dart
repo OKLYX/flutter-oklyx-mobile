@@ -23,7 +23,7 @@ class ReceiptDetailModel extends ReceiptDetail {
       cardId: json['cardId'] as int?,
       cardAlias: json['cardAlias'] as String?,
       cardMaskedNumber: json['cardMaskedNumber'] as String?,
-      photoUrl: json['photoUrl'] as String? ?? '',
+      photoUrl: json['photoUrl'] as String?,
       lines: lines.map((e) {
         final line = e as Map<String, dynamic>;
         return ReceiptLine(

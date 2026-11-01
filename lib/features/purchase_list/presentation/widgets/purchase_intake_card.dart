@@ -519,7 +519,8 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
   }
 
   /// 「09-09 · A상사 · +3 · 6,000원 (@2,000) · 기준가 미반영」 + [영수증] when the
-  /// purchase came with a receipt (FEATURE_2610_18 D93 ①).
+  /// purchase came with a receipt (FEATURE_2610_18 D93 ①). A found-stock row
+  /// reads 「09-09 · A상사 · 발견 재고 · +3 …」 (FEATURE_2611_01 D12).
   /// No amount → 「미기입」 (D68) — never 「0원」 (PLAN 2609_28 D1).
   Widget _recordText(PurchaseRecord r) {
     final scheme = Theme.of(context).colorScheme;
@@ -531,10 +532,14 @@ class _PurchaseIntakeCardState extends State<PurchaseIntakeCard> {
       TextSpan(
         style: TextStyle(fontSize: 12, color: baseColor),
         children: [
-          TextSpan(
-            text: '$date · ${r.sellerName} · '
-                '${r.quantity > 0 ? '+' : ''}${r.quantity}',
-          ),
+          TextSpan(text: '$date · ${r.sellerName}'),
+          // FEATURE_2611_01 D12: assigned with 「영수증 없음」.
+          if (r.foundStock)
+            const TextSpan(
+              text: ' · 발견 재고',
+              style: TextStyle(color: AppColors.warningForeground),
+            ),
+          TextSpan(text: ' · ${r.quantity > 0 ? '+' : ''}${r.quantity}'),
           if (r.totalAmount == null)
             TextSpan(text: ' · 미기입', style: TextStyle(color: mutedColor))
           else

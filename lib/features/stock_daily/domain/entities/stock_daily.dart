@@ -30,10 +30,15 @@ class UnregisteredProduct {
 }
 
 /// One ledger row of the day.
+///
+/// [sellerChangeable] = a decided incoming row without a receipt and
+/// [noReceiptShares] = the 「영수증 없음」 shares of an undecided intake row —
+/// the 「판매자 바꾸기」 targets (FEATURE_2611_01 D15).
 class StockDailyRow {
   final int movementId;
   final String movementType;
   final String? reason;
+  final int productId;
   final String productName;
   final int quantity;
   final String? sellerName;
@@ -42,11 +47,14 @@ class StockDailyRow {
   final String? orderNumber;
   final List<String> tags;
   final double? amount;
+  final bool sellerChangeable;
+  final List<NoReceiptShare> noReceiptShares;
 
   const StockDailyRow({
     required this.movementId,
     required this.movementType,
     required this.reason,
+    required this.productId,
     required this.productName,
     required this.quantity,
     required this.sellerName,
@@ -55,5 +63,20 @@ class StockDailyRow {
     required this.orderNumber,
     required this.tags,
     required this.amount,
+    required this.sellerChangeable,
+    required this.noReceiptShares,
+  });
+}
+
+/// One 「영수증 없음」 share of an undecided intake row (FEATURE_2611_01 D15).
+class NoReceiptShare {
+  final int recordId;
+  final String sellerName;
+  final int quantity;
+
+  const NoReceiptShare({
+    required this.recordId,
+    required this.sellerName,
+    required this.quantity,
   });
 }

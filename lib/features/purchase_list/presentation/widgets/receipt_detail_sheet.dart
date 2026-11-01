@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
@@ -6,6 +9,7 @@ import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart
 import '../../data/models/update_receipt_params.dart';
 import '../../domain/entities/receipt_detail.dart';
 import '../../domain/entities/seller_card.dart';
+import '../../domain/usecases/attach_receipt_photo_usecase.dart';
 import '../../domain/usecases/get_receipt_usecase.dart';
 import '../../domain/usecases/get_seller_cards_usecase.dart';
 import '../../domain/usecases/update_receipt_usecase.dart';
@@ -19,13 +23,17 @@ import 'package:flutter_oklyn_mobile/shared/widgets/zoomable_image_viewer.dart';
 ///
 /// Loads the receipt itself (`GetReceiptUseCase`). Tapping the photo opens
 /// [ZoomableImageViewer]. A non-`http` photo value (local server path) shows
-/// 「이 기기에서 볼 수 없는 사진입니다.」 instead of the image.
+/// 「이 기기에서 볼 수 없는 사진입니다.」 instead of the image; no photo (a 「영수증
+/// 나중에」 receipt, FEATURE_2611_01 D4) shows 「사진 없음」.
 ///
 /// [수정] switches the sheet to the header edit (D100 · D102): 「결제 카드」
 /// (visible cards + the receipt's own hidden card + 「카드로 알 수 없음」) ·
 /// 「결제 판매자」 (only for 「카드로 알 수 없음」) · 「구매일」. One seller →
-/// only 「구매일」 (D53). [저장] calls `UpdateReceiptUseCase` **from the
-/// sheet**, shows the saved receipt and calls [onEdited].
+/// only 「구매일」 (D53). A receipt without a photo also gets 「영수증 사진」
+/// (camera or album, FEATURE_2611_01 D4). [저장] calls
+/// `AttachReceiptPhotoUseCase` first when a photo was picked, then
+/// `UpdateReceiptUseCase` **from the sheet**, shows the saved receipt and
+/// calls [onEdited].
 ///
 /// Usage:
 /// ```dart
@@ -40,7 +48,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/zoomable_image_viewer.dart';
 /// ```
 ///
 /// ⚠️ Show toasts with this sheet's context (`showAppSheet` owns a messenger).
-/// ❌ The photo and the lines are not editable (D100).
+/// ❌ The lines are not editable and a saved photo is never replaced (D100).
 class ReceiptDetailSheet extends StatefulWidget {
   final int receiptId;
 
@@ -77,6 +85,8 @@ class _ReceiptDetailSheetState extends State<ReceiptDetailSheet> {
   String? _cardChoice;
   int? _payerSellerId;
   DateTime _purchasedOn = DateTime.now();
+  final ImagePicker _picker = ImagePicker();
+  File? _photo;
 
   bool get _soleSeller => widget.sellers.length == 1;
 
@@ -101,6 +111,7 @@ class _ReceiptDetailSheetState extends State<ReceiptDetailSheet> {
       _cardChoice = detail.cardId?.toString() ?? _unknownCard;
       _payerSellerId = detail.payerSellerId;
       _purchasedOn = DateTime.parse(detail.purchasedOn);
+      _photo = null;
     });
     if (!_soleSeller) _loadCards();
   }
@@ -112,6 +123,20 @@ class _ReceiptDetailSheetState extends State<ReceiptDetailSheet> {
       (failure) => showErrorToast(context, failure.message),
       (cards) => setState(() => _cards = cards),
     );
+  }
+
+  Future<void> _pickPhoto(ImageSource source) async {
+    // Same downscale as the receipt check-in sheet.
+    final picked = await _picker.pickImage(
+      source: source,
+      maxWidth: 2048,
+      maxHeight: 2048,
+      imageQuality: 90,
+    );
+    if (picked == null || !mounted) {
+      return;
+    }
+    setState(() => _photo = File(picked.path));
   }
 
   Future<void> _pickDate() async {
@@ -143,6 +168,22 @@ class _ReceiptDetailSheetState extends State<ReceiptDetailSheet> {
       cardId = int.parse(_cardChoice!);
     }
     setState(() => _saving = true);
+    // FEATURE_2611_01 D4: the photo of a 「영수증 나중에」 receipt goes first,
+    // then the header (a card may move the seller).
+    final photo = _photo;
+    if (photo != null) {
+      final attached =
+          await getIt<AttachReceiptPhotoUseCase>()(detail.id, photo);
+      if (!mounted) {
+        return;
+      }
+      final failure = attached.fold((f) => f, (_) => null);
+      if (failure != null) {
+        setState(() => _saving = false);
+        showErrorToast(context, failure.message);
+        return;
+      }
+    }
     final result = await getIt<UpdateReceiptUseCase>()(
       detail.id,
       UpdateReceiptParams(
@@ -245,6 +286,36 @@ class _ReceiptDetailSheetState extends State<ReceiptDetailSheet> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        if (detail.photoUrl == null) ...[
+          const Text('영수증 사진', style: TextStyle(fontWeight: FontWeight.w500)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed:
+                      _saving ? null : () => _pickPhoto(ImageSource.camera),
+                  icon: const Icon(Icons.photo_camera, size: 18),
+                  label: const Text('촬영'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed:
+                      _saving ? null : () => _pickPhoto(ImageSource.gallery),
+                  icon: const Icon(Icons.photo_library, size: 18),
+                  label: const Text('앨범'),
+                ),
+              ),
+            ],
+          ),
+          if (_photo != null) ...[
+            const SizedBox(height: 8),
+            Image.file(_photo!, height: 200, fit: BoxFit.contain),
+          ],
+          const SizedBox(height: 16),
+        ],
         if (!_soleSeller) ...[
           DropdownButtonFormField<String>(
             value: _cardChoice,
@@ -332,6 +403,7 @@ class _ReceiptDetailSheetState extends State<ReceiptDetailSheet> {
       );
     }
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    final photoUrl = detail.photoUrl;
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -341,14 +413,16 @@ class _ReceiptDetailSheetState extends State<ReceiptDetailSheet> {
           style: TextStyle(fontSize: 13, color: muted),
         ),
         const SizedBox(height: 12),
-        if (detail.photoUrl.startsWith('http'))
+        if (photoUrl == null)
+          const Text('사진 없음 — [수정]에서 사진을 붙일 수 있습니다.')
+        else if (photoUrl.startsWith('http'))
           GestureDetector(
             onTap: () => ZoomableImageViewer.show(
               context,
-              image: NetworkImage(detail.photoUrl),
+              image: NetworkImage(photoUrl),
             ),
             child: Image.network(
-              detail.photoUrl,
+              photoUrl,
               height: 280,
               fit: BoxFit.contain,
               errorBuilder: (_, __, ___) => const Text('사진을 불러오지 못했습니다.'),
