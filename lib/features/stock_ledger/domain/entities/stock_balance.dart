@@ -9,11 +9,16 @@ class StockBalance {
   final String sellerName;
   final int onHand;
 
+  /// Purchase-price value of what is on hand; null = 「미기입」
+  /// (FEATURE_2611_02 D24 · D25 · D28).
+  final double? amount;
+
   const StockBalance({
     required this.productId,
     required this.productName,
     required this.sellerId,
     required this.sellerName,
     required this.onHand,
+    this.amount,
   });
 }

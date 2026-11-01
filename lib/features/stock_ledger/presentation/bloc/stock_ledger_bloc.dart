@@ -48,6 +48,7 @@ class StockLedgerBloc extends Bloc<StockLedgerEvent, StockLedgerState> {
     on<LoadOutbound>(_onLoadOutbound);
     on<ConfirmOutbound>(_onConfirmOutbound);
     on<ClearStockLedgerNotice>(_onClearNotice);
+    on<ToggleStockAmountFilter>(_onToggleAmountFilter);
   }
 
   /// 판매자 목록은 세 화면이 다 쓰고 거의 변하지 않는다 — 한 번만 받아 상태에 남긴다.
@@ -128,6 +129,8 @@ class StockLedgerBloc extends Bloc<StockLedgerEvent, StockLedgerState> {
         keyword: keyword,
         balances: balances,
         isRefreshing: false,
+        // FEATURE_2611_02 D37: a list received again turns the filter off.
+        clearAmountFilter: true,
       )),
     );
   }
@@ -310,6 +313,21 @@ class StockLedgerBloc extends Bloc<StockLedgerEvent, StockLedgerState> {
     if (current == null) return;
     if (current.actionError == null && current.actionMessage == null) return;
     emit(current.copyWith(clearActionError: true, clearActionMessage: true));
+  }
+
+  /// FEATURE_2611_02 D35 · D37: one 「미기입 N줄」 at a time — the lit one
+  /// goes off, another one switches.
+  void _onToggleAmountFilter(
+    ToggleStockAmountFilter event,
+    Emitter<StockLedgerState> emit,
+  ) {
+    final current = _loaded();
+    if (current == null) {
+      return;
+    }
+    emit(current.amountFilterKey == event.key
+        ? current.copyWith(clearAmountFilter: true)
+        : current.copyWith(amountFilterKey: event.key));
   }
 
   /// 출고 확인 줄의 진행 키 — 화면이 스피너를 어느 줄에 띄울지 이 값으로 판단한다.

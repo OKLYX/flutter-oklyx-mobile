@@ -84,3 +84,11 @@ class ConfirmOutbound extends StockLedgerEvent {
 
 /// 일회성 안내(SnackBar) 소비 완료 — 안 보내면 다음 리빌드에 또 뜬다.
 class ClearStockLedgerNotice extends StockLedgerEvent {}
+
+/// 「미기입 N줄」 tapped on the 「재고 조회」 amount box (FEATURE_2611_02
+/// D35 · D37): [key] lights up, or goes off when it is the lit one.
+class ToggleStockAmountFilter extends StockLedgerEvent {
+  final String key;
+
+  ToggleStockAmountFilter(this.key);
+}

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/product_thumbnail.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/usecases/get_sellers_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/entities/stock_enums.dart';
@@ -316,6 +317,8 @@ class _StockDailyViewState extends State<_StockDailyView> {
                   onChanged: (_) =>
                       bloc.add(ToggleStockDailyCheck(_rowKey(row))),
                 ),
+              ProductThumbnail(productId: row.productId, size: 40),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   row.productName,
