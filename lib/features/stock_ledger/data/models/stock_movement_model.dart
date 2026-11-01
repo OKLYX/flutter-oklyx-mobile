@@ -18,6 +18,7 @@ class StockMovementModel extends StockMovement {
     super.purchaseRecordId,
     required super.movedOn,
     super.createdBy,
+    super.notices,
   });
 
   factory StockMovementModel.fromJson(Map<String, dynamic> json) {
@@ -26,7 +27,9 @@ class StockMovementModel extends StockMovement {
       productId: json['productId'] as int,
       productName: json['productName'] as String? ?? '',
       sellerId: json['sellerId'] as int? ?? 0,
-      sellerName: json['sellerName'] as String? ?? '',
+      // FEATURE_2610_19 D116 ② · D124: no seller = an undecided intake row or a
+      // row that used one.
+      sellerName: json['sellerName'] as String? ?? '판매자 미정',
       // 모르는 코드는 null 로 둔다 — 임의 유형으로 바꾸면 부호 해석이 틀어진다.
       movementType: StockMovementType.fromCode(json['movementType'] as String?),
       // 저장된 부호 그대로다(폐기·출고는 음수).
@@ -39,6 +42,9 @@ class StockMovementModel extends StockMovement {
       purchaseRecordId: json['purchaseRecordId'] as int?,
       movedOn: json['movedOn'] as String? ?? '',
       createdBy: json['createdBy'] as String?,
+      notices: ((json['notices'] as List<dynamic>?) ?? const [])
+          .map((e) => e as String)
+          .toList(),
     );
   }
 }

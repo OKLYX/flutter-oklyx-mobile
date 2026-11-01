@@ -11,6 +11,7 @@ class Routes {
   static const String stockInOut = 'stockInOut';
   static const String stockSearch = 'stockSearch';
   static const String stockOutbound = 'stockOutbound';
+  static const String stockDaily = 'stockDaily';
   static const String settlementPayouts = 'settlementPayouts';
   static const String settlementPayoutDetail = 'settlementPayoutDetail';
   static const String salesSummary = 'salesSummary';
@@ -76,6 +77,8 @@ class Routes {
   static const String stockInOutPath = '/stock/in-out';
   static const String stockSearchPath = '/stock/search';
   static const String stockOutboundPath = '/stock/outbound';
+  // FEATURE_2610_19 D119 · D148 ①: 「그날 입출고 내역」.
+  static const String stockDailyPath = '/stock/daily';
   static const String settlementPayoutsPath = '/settlement/payouts';
   static const String salesSummaryPath = '/sales/summary';
 

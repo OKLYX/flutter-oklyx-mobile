@@ -154,7 +154,9 @@ class _StockBalanceViewState extends State<_StockBalanceView> {
     );
   }
 
-  /// 행 탭 → 그 물품의 이력 시트. 판매자 필터는 그 행의 판매자로 좁힌다.
+  /// Row tap → that product's history sheet, narrowed to the row's seller.
+  /// The 「판매자 미정」 row (sellerId 0 from the model) is not narrowed — it
+  /// shows every seller's rows, as on the web (FEATURE_2610_19 R14).
   void _showHistory(
     BuildContext context,
     StockLedgerBloc bloc,
@@ -162,7 +164,7 @@ class _StockBalanceViewState extends State<_StockBalanceView> {
   ) {
     bloc.add(LoadMovements(
       productId: balance.productId,
-      sellerId: balance.sellerId,
+      sellerId: balance.sellerId == 0 ? null : balance.sellerId,
     ));
     showAppSheet<void>(
       context,
