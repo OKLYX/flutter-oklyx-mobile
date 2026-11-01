@@ -1168,7 +1168,7 @@ void _registerStockLedgerServices() {
   );
 }
 
-/// 「그날 입출고 내역」 (FEATURE_2610_19 D119 · D121). Sellers come from the
+/// 「일별 입출고 내역」 (FEATURE_2610_19 D119 · D121). Sellers come from the
 /// seller feature's [GetSellersUseCase], cards from the purchase list's
 /// [GetSellerCardsUseCase].
 void _registerStockDailyServices() {

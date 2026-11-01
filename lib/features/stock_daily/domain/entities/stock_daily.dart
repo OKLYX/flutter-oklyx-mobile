@@ -1,4 +1,4 @@
-/// 「그날 입출고 내역」 (FEATURE_2610_19 D119 · D123 · D124 · D128 · D130 ·
+/// 「일별 입출고 내역」 (FEATURE_2610_19 D119 · D123 · D124 · D128 · D130 ·
 /// D147). An `amount` of null is 「미기입」, never drawn as 0.
 class StockDaily {
   final String date;

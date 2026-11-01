@@ -77,7 +77,7 @@ class Routes {
   static const String stockInOutPath = '/stock/in-out';
   static const String stockSearchPath = '/stock/search';
   static const String stockOutboundPath = '/stock/outbound';
-  // FEATURE_2610_19 D119 · D148 ①: 「그날 입출고 내역」.
+  // FEATURE_2610_19 D119 · D148 ①: 「일별 입출고 내역」.
   static const String stockDailyPath = '/stock/daily';
   static const String settlementPayoutsPath = '/settlement/payouts';
   static const String salesSummaryPath = '/sales/summary';

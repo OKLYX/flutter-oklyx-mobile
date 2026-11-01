@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../domain/entities/stock_daily.dart';
 import '../../domain/usecases/get_stock_daily_usecase.dart';
 
-/// 「그날 입출고 내역」 state (FEATURE_2610_19 D119).
+/// 「일별 입출고 내역」 state (FEATURE_2610_19 D119).
 ///
 /// One event: [LoadStockDaily] (screen entry, date change, after an
 /// assignment).
