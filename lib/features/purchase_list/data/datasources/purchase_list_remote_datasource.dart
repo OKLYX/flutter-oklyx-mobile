@@ -59,6 +59,10 @@ abstract class PurchaseListRemoteDataSource {
     int receiptId,
     UpdateReceiptParams params,
   );
+
+  /// `POST /api/admin/purchase-receipts/{id}/photo` (multipart `photo`) — the
+  /// photo of a 「영수증 나중에」 receipt (FEATURE_2611_01 D4).
+  Future<ReceiptDetailModel> attachReceiptPhoto(int receiptId, File photo);
 }
 
 class PurchaseListRemoteDataSourceImpl implements PurchaseListRemoteDataSource {
@@ -246,6 +250,28 @@ class PurchaseListRemoteDataSourceImpl implements PurchaseListRemoteDataSource {
     final response = _ensureOk(await dio.put(
       '/api/admin/purchase-receipts/$receiptId',
       data: params.toJson(),
+    ));
+    return ReceiptDetailModel.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+    );
+  }
+
+  @override
+  Future<ReceiptDetailModel> attachReceiptPhoto(
+    int receiptId,
+    File photo,
+  ) async {
+    final form = FormData.fromMap({
+      // The file name extension sets the part type (jpg → image/jpeg).
+      'photo': await MultipartFile.fromFile(
+        photo.path,
+        filename: photo.path.split('/').last,
+      ),
+    });
+    final response = _ensureOk(await dio.post(
+      '/api/admin/purchase-receipts/$receiptId/photo',
+      data: form,
+      options: Options(contentType: 'multipart/form-data'),
     ));
     return ReceiptDetailModel.fromJson(
       response.data['data'] as Map<String, dynamic>,

@@ -5,7 +5,8 @@ import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/data/models/create_receipt_params.dart';
 import '../entities/stock_daily.dart';
 
-/// 「일별 입출고 내역」 data (FEATURE_2610_19 D119 · D121).
+/// 「일별 입출고 내역」 data (FEATURE_2610_19 D119 · D121 · FEATURE_2611_01 D2 ·
+/// D7).
 abstract class StockDailyRepository {
   Future<Either<Failure, StockDaily>> getDaily(String date);
 
@@ -13,5 +14,20 @@ abstract class StockDailyRepository {
     String movedOn,
     File photo,
     CreateReceiptParams params,
+  );
+
+  /// 「영수증 없이 판매자 정하기」 — [mode] `RECEIPT_LATER` or `NO_RECEIPT`.
+  Future<Either<Failure, Unit>> assignWithoutReceipt(
+    String movedOn,
+    String mode,
+    int sellerId,
+    List<ReceiptLineParams> lines,
+  );
+
+  /// 「판매자 바꾸기」 of incoming rows and 「영수증 없음」 shares.
+  Future<Either<Failure, Unit>> changeSeller(
+    int sellerId,
+    List<int> movementIds,
+    List<int> shareRecordIds,
   );
 }

@@ -10,6 +10,7 @@ class PurchaseRecordModel extends PurchaseRecord {
     bool reflectToBasePrice = true,
     String sellerName = '',
     int? receiptId,
+    bool foundStock = false,
   }) : super(
           id: id,
           purchasedOn: purchasedOn,
@@ -19,6 +20,7 @@ class PurchaseRecordModel extends PurchaseRecord {
           reflectToBasePrice: reflectToBasePrice,
           sellerName: sellerName,
           receiptId: receiptId,
+          foundStock: foundStock,
         );
 
   factory PurchaseRecordModel.fromJson(Map<String, dynamic> json) {
@@ -32,6 +34,7 @@ class PurchaseRecordModel extends PurchaseRecord {
       reflectToBasePrice: json['reflectToBasePrice'] as bool? ?? true,
       sellerName: json['sellerName'] as String? ?? '',
       receiptId: json['receiptId'] as int?,
+      foundStock: json['foundStock'] as bool? ?? false,
     );
   }
 }

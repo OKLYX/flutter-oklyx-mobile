@@ -19,7 +19,8 @@ class ReceiptLine {
 /// One receipt with its photo and lines (FEATURE_2610_18 D93 ①).
 ///
 /// [photoUrl] = the stored value: an `http` URL on dev/prod, a server disk
-/// path on local (not viewable on the phone). [cardId] / [cardAlias] null =
+/// path on local (not viewable on the phone); null = a 「영수증 나중에」 receipt
+/// without its photo yet (FEATURE_2611_01 D4). [cardId] / [cardAlias] null =
 /// the card was unknown (「카드 없음」). [payerSellerId] · [cardId] ·
 /// [cardMaskedNumber] start the header edit (D100); a hidden card keeps its
 /// alias and number here (D91 · D100 ⑥).
@@ -31,7 +32,7 @@ class ReceiptDetail {
   final int? cardId;
   final String? cardAlias;
   final String? cardMaskedNumber;
-  final String photoUrl;
+  final String? photoUrl;
   final List<ReceiptLine> lines;
 
   const ReceiptDetail({
