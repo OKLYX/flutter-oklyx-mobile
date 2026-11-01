@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import '../../domain/entities/stock_enums.dart';
 import '../../domain/entities/stock_movement.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/product_thumbnail.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 
-/// 원장 이력 1줄.
+/// One ledger history line.
 ///
-/// 예: `09-07  삼다수 2L  입고  +3  매입  hong`
+/// e.g. 「09-07  (photo)  삼다수 2L  입고 · 매입 · hong  +3」
 ///
-/// ⚠️ 수량 부호는 서버가 저장한 그대로 보여준다 — 화면에서 뒤집지 않는다(PLAN 2609_28 D6).
+/// The product photo sits left of the name (`ProductThumbnail` 40, no
+/// zoom — FEATURE_2611_02 D13 · D14 · D21) in both places that use this
+/// tile: the 「재고 조회」 history sheet and the 「입고·조정」 recent history.
+///
+/// ⚠️ The quantity sign is shown as the server stored it — the screen never
+/// flips it (PLAN 2609_28 D6).
 class MovementTile extends StatelessWidget {
   final StockMovement movement;
 
@@ -38,6 +44,8 @@ class MovementTile extends StatelessWidget {
               ),
             ),
           ),
+          ProductThumbnail(productId: movement.productId, size: 40),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

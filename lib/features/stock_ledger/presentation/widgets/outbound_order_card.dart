@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../domain/entities/outbound_order.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/product_thumbnail.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
@@ -117,6 +118,8 @@ class _OutboundOrderCardState extends State<OutboundOrderCard> {
         children: [
           Row(
             children: [
+              ProductThumbnail(productId: line.productId, size: 40),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   line.productName,

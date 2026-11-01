@@ -2,9 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/product_thumbnail.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
+import '../../domain/entities/stock_amount_summary.dart';
 import '../../domain/entities/stock_balance.dart';
 import '../bloc/stock_ledger_bloc.dart';
 import '../bloc/stock_ledger_event.dart';
@@ -96,6 +99,16 @@ class _StockBalanceViewState extends State<_StockBalanceView> {
           }
           final loaded = state as StockLedgerLoaded;
           final bloc = context.read<StockLedgerBloc>();
+          // FEATURE_2611_02 D35 · D37: a lit 「미기입 N줄」 shows only that
+          // line's rows without an amount.
+          final filterKey = loaded.amountFilterKey;
+          final rows = filterKey == null
+              ? loaded.balances
+              : loaded.balances
+                  .where((b) =>
+                      b.amount == null &&
+                      StockAmountLine.contains(filterKey, b))
+                  .toList();
 
           return AppPageBody.slivers(
             slivers: [
@@ -135,16 +148,25 @@ class _StockBalanceViewState extends State<_StockBalanceView> {
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 8)),
-              if (loaded.balances.isEmpty)
+              if (loaded.balances.isNotEmpty) ...[
+                SliverToBoxAdapter(
+                  child: _AmountSummary(
+                    lines: StockAmountLine.of(loaded.balances),
+                    activeKey: filterKey,
+                    onToggle: (key) => bloc.add(ToggleStockAmountFilter(key)),
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 8)),
+              ],
+              if (rows.isEmpty)
                 const SliverToBoxAdapter(child: AppEmpty('재고 데이터가 없습니다.'))
               else
                 SliverList.separated(
-                  itemCount: loaded.balances.length,
+                  itemCount: rows.length,
                   separatorBuilder: (_, __) => const AppRowGap(),
                   itemBuilder: (context, index) => _BalanceRow(
-                    balance: loaded.balances[index],
-                    onTap: () =>
-                        _showHistory(context, bloc, loaded.balances[index]),
+                    balance: rows[index],
+                    onTap: () => _showHistory(context, bloc, rows[index]),
                   ),
                 ),
             ],
@@ -182,6 +204,67 @@ class _StockBalanceViewState extends State<_StockBalanceView> {
   }
 }
 
+/// FEATURE_2611_02 D29: the 「일별 입출고 내역」 amount text — 「₩#,##0」,
+/// null = 「미기입」.
+String _wonOrUnknown(double? amount) => amount == null
+    ? '미기입'
+    : '₩${NumberFormat('#,##0', 'ko_KR').format(amount)}';
+
+/// The amount box above the list (FEATURE_2611_02 D26 · D34 ~ D38):
+/// 「전체」 and one line per seller (「판매자 미정」 last) with the total of
+/// the rows received. 「미기입 N줄」 = that line's rows left out of its
+/// total; a tap shows only those rows, a second tap turns it off. The
+/// totals stay as received while the list is filtered (D35).
+class _AmountSummary extends StatelessWidget {
+  final List<StockAmountLine> lines;
+  final String? activeKey;
+  final ValueChanged<String> onToggle;
+
+  const _AmountSummary({
+    required this.lines,
+    required this.activeKey,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) => AppCard(
+        child: Column(
+          children: [
+            for (final line in lines)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        line.label,
+                        style: TextStyle(
+                          fontWeight: line.key == StockAmountLine.allKey
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                    if (line.unknownCount > 0) ...[
+                      FilterChip(
+                        label: Text('미기입 ${line.unknownCount}줄'),
+                        selected: activeKey == line.key,
+                        onSelected: (_) => onToggle(line.key),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Text(
+                      _wonOrUnknown(line.total),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      );
+}
+
 /// 잔량 1행 — 음수는 빨강으로 드러낸다.
 class _BalanceRow extends StatelessWidget {
   final StockBalance balance;
@@ -197,6 +280,7 @@ class _BalanceRow extends StatelessWidget {
       child: ListTile(
       dense: true,
       contentPadding: EdgeInsets.zero,
+      leading: ProductThumbnail(productId: balance.productId, size: 40),
       title: Text(
         balance.productName,
         maxLines: 1,
@@ -218,6 +302,13 @@ class _BalanceRow extends StatelessWidget {
               color: negative
                   ? Theme.of(context).colorScheme.error
                   : Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+          Text(
+            _wonOrUnknown(balance.amount),
+            style: TextStyle(
+              fontSize: 11,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           if (negative)
