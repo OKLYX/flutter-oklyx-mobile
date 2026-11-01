@@ -48,6 +48,7 @@ class StockDailyRowModel extends StockDailyRow {
     required super.movementId,
     required super.movementType,
     required super.reason,
+    required super.productId,
     required super.productName,
     required super.quantity,
     required super.sellerName,
@@ -56,6 +57,8 @@ class StockDailyRowModel extends StockDailyRow {
     required super.orderNumber,
     required super.tags,
     required super.amount,
+    required super.sellerChangeable,
+    required super.noReceiptShares,
   });
 
   factory StockDailyRowModel.fromJson(Map<String, dynamic> json) =>
@@ -63,6 +66,7 @@ class StockDailyRowModel extends StockDailyRow {
         movementId: json['movementId'] as int,
         movementType: json['movementType'] as String? ?? '',
         reason: json['reason'] as String?,
+        productId: json['productId'] as int,
         productName: json['productName'] as String? ?? '',
         quantity: json['quantity'] as int,
         sellerName: json['sellerName'] as String?,
@@ -75,5 +79,16 @@ class StockDailyRowModel extends StockDailyRow {
             .map((e) => e as String)
             .toList(),
         amount: (json['amount'] as num?)?.toDouble(),
+        sellerChangeable: json['sellerChangeable'] as bool? ?? false,
+        noReceiptShares: ((json['noReceiptShares'] as List<dynamic>?) ??
+                const [])
+            .map((e) {
+          final share = e as Map<String, dynamic>;
+          return NoReceiptShare(
+            recordId: share['recordId'] as int,
+            sellerName: share['sellerName'] as String? ?? '',
+            quantity: share['quantity'] as int,
+          );
+        }).toList(),
       );
 }

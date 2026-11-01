@@ -28,6 +28,9 @@ class PurchaseRecord {
   /// D93 ①). null = per-product check-in.
   final int? receiptId;
 
+  /// true = 「발견 재고」 — assigned with 「영수증 없음」 (FEATURE_2611_01 D12).
+  final bool foundStock;
+
   PurchaseRecord({
     required this.id,
     required this.purchasedOn,
@@ -37,5 +40,6 @@ class PurchaseRecord {
     this.reflectToBasePrice = true,
     this.sellerName = '',
     this.receiptId,
+    this.foundStock = false,
   });
 }

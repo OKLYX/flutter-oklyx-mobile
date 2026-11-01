@@ -100,4 +100,11 @@ abstract class PurchaseListRepository {
     int receiptId,
     UpdateReceiptParams params,
   );
+
+  /// Photo of a 「영수증 나중에」 receipt (FEATURE_2611_01 D4). Right = the
+  /// receipt as saved.
+  Future<Either<Failure, ReceiptDetail>> attachReceiptPhoto(
+    int receiptId,
+    File photo,
+  );
 }
