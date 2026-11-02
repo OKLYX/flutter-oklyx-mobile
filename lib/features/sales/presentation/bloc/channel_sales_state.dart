@@ -25,6 +25,9 @@ class ChannelSalesState extends Equatable {
   final bool hideCanceled;
   final bool hidePending;
 
+  /// 「출고 전 주문 제외」 switch (FEATURE_2611_04 / D2) — sent to the server.
+  final bool excludeUnshipped;
+
   const ChannelSalesState({
     required this.from,
     required this.to,
@@ -41,6 +44,7 @@ class ChannelSalesState extends Equatable {
     this.recordsError = '',
     this.hideCanceled = false,
     this.hidePending = false,
+    this.excludeUnshipped = false,
   });
 
   bool get invalidRange =>
@@ -72,6 +76,7 @@ class ChannelSalesState extends Equatable {
     String? recordsError,
     bool? hideCanceled,
     bool? hidePending,
+    bool? excludeUnshipped,
   }) =>
       ChannelSalesState(
         from: from ?? this.from,
@@ -89,6 +94,7 @@ class ChannelSalesState extends Equatable {
         recordsError: recordsError ?? this.recordsError,
         hideCanceled: hideCanceled ?? this.hideCanceled,
         hidePending: hidePending ?? this.hidePending,
+        excludeUnshipped: excludeUnshipped ?? this.excludeUnshipped,
       );
 
   @override
@@ -108,5 +114,6 @@ class ChannelSalesState extends Equatable {
         recordsError,
         hideCanceled,
         hidePending,
+        excludeUnshipped,
       ];
 }

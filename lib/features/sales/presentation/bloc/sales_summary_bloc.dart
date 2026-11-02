@@ -27,10 +27,32 @@ class SalesSummaryBloc extends Bloc<SalesSummaryEvent, SalesSummaryState> {
       {required this.salesUseCase, required this.settlementUseCase})
       : super(SalesSummaryState(
             from: currentMonthRange().from, to: currentMonthRange().to)) {
-    on<SalesSummaryStarted>(_onLoad);
+    on<SalesSummaryStarted>((event, emit) async {
+      emit(state.copyWith(excludeUnshipped: event.excludeUnshipped));
+      await _onLoad(event, emit);
+    });
     on<SalesSummaryRetried>(_onLoad);
     on<SalesSummaryPeriodChanged>(_onPeriodChanged);
+    on<SalesSummaryExcludeUnshippedChanged>(_onExcludeUnshippedChanged);
     on<SalesSellerToggled>(_onSellerToggled);
+  }
+
+  Future<void> _onExcludeUnshippedChanged(
+      SalesSummaryExcludeUnshippedChanged event,
+      Emitter<SalesSummaryState> emit) async {
+    _sellerRequest++;
+    emit(state.copyWith(
+      excludeUnshipped: event.excludeUnshipped,
+      clearExpanded: true,
+      channels: const [],
+      channelsError: '',
+      payouts: const [],
+      payoutsError: '',
+    ));
+    if (state.from.isEmpty || state.to.isEmpty || state.invalidRange) {
+      return;
+    }
+    await _loadRows(emit);
   }
 
   Future<void> _onPeriodChanged(
@@ -59,8 +81,10 @@ class SalesSummaryBloc extends Bloc<SalesSummaryEvent, SalesSummaryState> {
   Future<void> _loadRows(Emitter<SalesSummaryState> emit) async {
     final request = ++_rowsRequest;
     emit(state.copyWith(loading: true, error: ''));
-    final result =
-        await salesUseCase.getSellerSummary(from: state.from, to: state.to);
+    final result = await salesUseCase.getSellerSummary(
+        from: state.from,
+        to: state.to,
+        excludeUnshipped: state.excludeUnshipped);
     if (emit.isDone || request != _rowsRequest) {
       return;
     }
@@ -117,7 +141,10 @@ class SalesSummaryBloc extends Bloc<SalesSummaryEvent, SalesSummaryState> {
       payoutsLoading: true,
     ));
     final channelsCall = salesUseCase.getChannelSales(
-        from: state.from, to: state.to, sellerId: event.sellerId);
+        from: state.from,
+        to: state.to,
+        sellerId: event.sellerId,
+        excludeUnshipped: state.excludeUnshipped);
     final payoutsCall = settlementUseCase.getPayoutsByRecognition(
         from: state.from, to: state.to, sellerId: event.sellerId);
     final channels = (await channelsCall).fold((_) => null, (value) => value);

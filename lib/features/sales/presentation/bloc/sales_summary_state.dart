@@ -28,6 +28,9 @@ class SalesSummaryState extends Equatable {
   final bool savingsLoading;
   final String savingsError;
 
+  /// 「출고 전 주문 제외」 switch (FEATURE_2611_04 / D2).
+  final bool excludeUnshipped;
+
   const SalesSummaryState({
     required this.from,
     required this.to,
@@ -46,6 +49,7 @@ class SalesSummaryState extends Equatable {
     this.boxSavings = const [],
     this.savingsLoading = false,
     this.savingsError = '',
+    this.excludeUnshipped = false,
   });
 
   bool get invalidRange =>
@@ -71,6 +75,7 @@ class SalesSummaryState extends Equatable {
     List<BoxSaving>? boxSavings,
     bool? savingsLoading,
     String? savingsError,
+    bool? excludeUnshipped,
   }) =>
       SalesSummaryState(
         from: from ?? this.from,
@@ -91,6 +96,7 @@ class SalesSummaryState extends Equatable {
         boxSavings: boxSavings ?? this.boxSavings,
         savingsLoading: savingsLoading ?? this.savingsLoading,
         savingsError: savingsError ?? this.savingsError,
+        excludeUnshipped: excludeUnshipped ?? this.excludeUnshipped,
       );
 
   @override
@@ -112,5 +118,6 @@ class SalesSummaryState extends Equatable {
         boxSavings,
         savingsLoading,
         savingsError,
+        excludeUnshipped,
       ];
 }

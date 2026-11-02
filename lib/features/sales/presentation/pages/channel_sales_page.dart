@@ -5,12 +5,14 @@ import 'package:flutter_oklyn_mobile/features/sales/domain/entities/sales.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/channel_sales_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/channel_sales_event.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/channel_sales_state.dart';
+import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/sales_shipped_only_cubit.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/utils/sales_format.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/widgets/channel_product_list.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/widgets/channel_sale_records.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/widgets/channel_summary_card.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/widgets/sales_period_filter.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/widgets/sales_tab_bar.dart';
+import 'package:flutter_oklyn_mobile/features/sales/presentation/widgets/shipped_only_switch.dart';
 import 'package:flutter_oklyn_mobile/features/settlement/presentation/utils/settlement_format.dart';
 import 'package:flutter_oklyn_mobile/features/settlement/presentation/widgets/settlement_message_box.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
@@ -40,11 +42,12 @@ class ChannelSalesPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final range = currentMonthRange();
     return BlocProvider(
-      create: (_) => getIt<ChannelSalesBloc>(
+      create: (context) => getIt<ChannelSalesBloc>(
         param1: ChannelSalesState(
           from: _date(from) ?? range.from,
           to: _date(to) ?? range.to,
           accountId: accountId,
+          excludeUnshipped: context.read<SalesShippedOnlyCubit>().state,
         ),
       )..add(const ChannelSalesStarted()),
       child: const _ChannelSalesView(),
@@ -96,6 +99,15 @@ class _ChannelSalesView extends StatelessWidget {
                                 bloc.add(ChannelSalesChannelChanged(id));
                               }
                             },
+                    ),
+                    ShippedOnlySwitch(
+                      value: state.excludeUnshipped,
+                      disabled: state.loading,
+                      onChanged: (value) {
+                        context.read<SalesShippedOnlyCubit>().set(value: value);
+                        bloc.add(ChannelSalesExcludeUnshippedChanged(
+                            excludeUnshipped: value));
+                      },
                     ),
                   ],
                 ),

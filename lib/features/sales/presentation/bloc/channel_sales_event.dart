@@ -27,6 +27,13 @@ class ChannelSalesRetried extends ChannelSalesEvent {
   const ChannelSalesRetried();
 }
 
+/// 「출고 전 주문 제외」 switch (FEATURE_2611_04) — everything is called again,
+/// the chosen channel stays.
+class ChannelSalesExcludeUnshippedChanged extends ChannelSalesEvent {
+  final bool excludeUnshipped;
+  const ChannelSalesExcludeUnshippedChanged({required this.excludeUnshipped});
+}
+
 /// 「취소확정(환불완료) 제거」 checkbox — display only, never sent to the server.
 class ChannelSalesHideCanceledChanged extends ChannelSalesEvent {
   final bool hide;

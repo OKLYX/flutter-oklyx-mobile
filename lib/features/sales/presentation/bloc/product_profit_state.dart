@@ -24,6 +24,9 @@ class ProductProfitState extends Equatable {
   final List<OptionSaving> optionSavings;
   final int? expandedSavingsMasterId;
 
+  /// 「출고 전 주문 제외」 switch (FEATURE_2611_04 / D2).
+  final bool excludeUnshipped;
+
   const ProductProfitState({
     required this.from,
     required this.to,
@@ -38,6 +41,7 @@ class ProductProfitState extends Equatable {
     this.sortDescending = true,
     this.optionSavings = const [],
     this.expandedSavingsMasterId,
+    this.excludeUnshipped = false,
   });
 
   bool get invalidRange =>
@@ -86,6 +90,7 @@ class ProductProfitState extends Equatable {
     List<OptionSaving>? optionSavings,
     int? expandedSavingsMasterId,
     bool clearExpanded = false,
+    bool? excludeUnshipped,
   }) =>
       ProductProfitState(
         from: from ?? this.from,
@@ -103,6 +108,7 @@ class ProductProfitState extends Equatable {
         expandedSavingsMasterId: clearExpanded
             ? null
             : (expandedSavingsMasterId ?? this.expandedSavingsMasterId),
+        excludeUnshipped: excludeUnshipped ?? this.excludeUnshipped,
       );
 
   @override
@@ -120,5 +126,6 @@ class ProductProfitState extends Equatable {
         sortDescending,
         optionSavings,
         expandedSavingsMasterId,
+        excludeUnshipped,
       ];
 }
