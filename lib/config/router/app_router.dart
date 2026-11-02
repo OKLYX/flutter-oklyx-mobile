@@ -56,6 +56,8 @@ import 'package:flutter_oklyn_mobile/features/stock_ledger/presentation/pages/st
 import 'package:flutter_oklyn_mobile/features/stock_ledger/presentation/pages/stock_entry_page.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/presentation/pages/stock_outbound_page.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/pages/stock_daily_page.dart';
+import 'package:flutter_oklyn_mobile/features/packing/presentation/pages/packing_history_page.dart';
+import 'package:flutter_oklyn_mobile/features/packing/presentation/pages/packing_page.dart';
 import 'package:flutter_oklyn_mobile/features/user/domain/entities/user.dart';
 import 'package:flutter_oklyn_mobile/features/user/presentation/pages/user_edit_page.dart';
 import 'package:flutter_oklyn_mobile/shared/pages/dashboard_page.dart';
@@ -198,6 +200,20 @@ class AppRouter {
       path: Routes.stockOutboundPath,
       pageBuilder: (context, state) => const NoTransitionPage(
         child: StockOutboundPage(),
+      ),
+    ),
+    GoRoute(
+      name: Routes.stockPacking,
+      path: Routes.stockPackingPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: PackingPage(),
+      ),
+    ),
+    GoRoute(
+      name: Routes.stockPackingHistory,
+      path: Routes.stockPackingHistoryPath,
+      pageBuilder: (context, state) => const NoTransitionPage(
+        child: PackingHistoryPage(),
       ),
     ),
     GoRoute(

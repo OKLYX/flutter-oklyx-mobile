@@ -231,6 +231,27 @@ class _AppDrawerState extends State<AppDrawer> {
                   },
                 ),
               ),
+              // FEATURE_2611_03 D25 · D31: packing screens, no stock-link gate.
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('포장 작업'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.stockPackingPath);
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 16),
+                child: ListTile(
+                  title: const Text('포장 이력'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.go(Routes.stockPackingHistoryPath);
+                  },
+                ),
+              ),
               BlocBuilder<PurchaseSettingBloc, PurchaseSettingState>(
                 builder: (context, setting) => setting.stockLinked == true
                     ? Padding(
