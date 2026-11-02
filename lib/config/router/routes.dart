@@ -12,6 +12,8 @@ class Routes {
   static const String stockSearch = 'stockSearch';
   static const String stockOutbound = 'stockOutbound';
   static const String stockDaily = 'stockDaily';
+  static const String stockPacking = 'stockPacking';
+  static const String stockPackingHistory = 'stockPackingHistory';
   static const String settlementPayouts = 'settlementPayouts';
   static const String settlementPayoutDetail = 'settlementPayoutDetail';
   static const String salesSummary = 'salesSummary';
@@ -79,6 +81,9 @@ class Routes {
   static const String stockOutboundPath = '/stock/outbound';
   // FEATURE_2610_19 D119 · D148 ①: 「일별 입출고 내역」.
   static const String stockDailyPath = '/stock/daily';
+  // FEATURE_2611_03 D25 · D31: 「포장 작업」 · 「포장 이력」.
+  static const String stockPackingPath = '/stock/packing';
+  static const String stockPackingHistoryPath = '/stock/packing-history';
   static const String settlementPayoutsPath = '/settlement/payouts';
   static const String salesSummaryPath = '/sales/summary';
 
