@@ -199,6 +199,19 @@ import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/assign
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/change_seller_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/get_stock_daily_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/bloc/stock_daily_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/packing/data/datasources/packing_remote_datasource.dart';
+import 'package:flutter_oklyn_mobile/features/packing/data/repositories/packing_repository_impl.dart';
+import 'package:flutter_oklyn_mobile/features/packing/domain/repositories/packing_repository.dart';
+import 'package:flutter_oklyn_mobile/features/packing/domain/usecases/complete_parcel_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/packing/domain/usecases/get_box_candidates_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/packing/domain/usecases/get_packing_history_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/packing/domain/usecases/get_pending_parcels_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/packing/domain/usecases/lookup_packing_barcode_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/packing/domain/usecases/mark_parcel_unused_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/packing/domain/usecases/restore_parcel_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/packing/domain/usecases/scan_parcel_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/packing/presentation/bloc/packing_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/packing/presentation/bloc/packing_history_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/claim/data/datasources/claim_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/claim/data/repositories/claim_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/claim/domain/repositories/claim_repository.dart';
@@ -253,6 +266,7 @@ void setupServiceLocator() {
   _registerPurchaseListServices();
   _registerStockLedgerServices();
   _registerStockDailyServices();
+  _registerPackingServices();
   _registerSettlementServices();
   _registerSalesServices();
   _registerDashboardServices();
@@ -1203,6 +1217,60 @@ void _registerStockDailyServices() {
   );
   getIt.registerFactory<StockDailyBloc>(
     () => StockDailyBloc(getStockDailyUseCase: getIt<GetStockDailyUseCase>()),
+  );
+}
+
+/// 「포장 작업」 · 「포장 이력」 (FEATURE_2611_03 / PLAN D27). Boxes come from
+/// the package feature's [GetPackagesUseCase].
+void _registerPackingServices() {
+  getIt.registerSingleton<PackingRemoteDataSource>(
+    PackingRemoteDataSource(dio: getIt<DioClient>().dio),
+  );
+  getIt.registerSingleton<PackingRepository>(
+    PackingRepositoryImpl(
+      remoteDataSource: getIt<PackingRemoteDataSource>(),
+    ),
+  );
+  getIt.registerSingleton<ScanParcelUseCase>(
+    ScanParcelUseCase(repository: getIt<PackingRepository>()),
+  );
+  getIt.registerSingleton<GetPendingParcelsUseCase>(
+    GetPendingParcelsUseCase(repository: getIt<PackingRepository>()),
+  );
+  getIt.registerSingleton<LookupPackingBarcodeUseCase>(
+    LookupPackingBarcodeUseCase(repository: getIt<PackingRepository>()),
+  );
+  getIt.registerSingleton<GetBoxCandidatesUseCase>(
+    GetBoxCandidatesUseCase(repository: getIt<PackingRepository>()),
+  );
+  getIt.registerSingleton<CompleteParcelUseCase>(
+    CompleteParcelUseCase(repository: getIt<PackingRepository>()),
+  );
+  getIt.registerSingleton<MarkParcelUnusedUseCase>(
+    MarkParcelUnusedUseCase(repository: getIt<PackingRepository>()),
+  );
+  getIt.registerSingleton<RestoreParcelUseCase>(
+    RestoreParcelUseCase(repository: getIt<PackingRepository>()),
+  );
+  getIt.registerSingleton<GetPackingHistoryUseCase>(
+    GetPackingHistoryUseCase(repository: getIt<PackingRepository>()),
+  );
+  getIt.registerFactory<PackingBloc>(
+    () => PackingBloc(
+      getPendingParcelsUseCase: getIt<GetPendingParcelsUseCase>(),
+      getPackagesUseCase: getIt<GetPackagesUseCase>(),
+      scanParcelUseCase: getIt<ScanParcelUseCase>(),
+      lookupPackingBarcodeUseCase: getIt<LookupPackingBarcodeUseCase>(),
+      getBoxCandidatesUseCase: getIt<GetBoxCandidatesUseCase>(),
+      completeParcelUseCase: getIt<CompleteParcelUseCase>(),
+      markParcelUnusedUseCase: getIt<MarkParcelUnusedUseCase>(),
+      restoreParcelUseCase: getIt<RestoreParcelUseCase>(),
+    ),
+  );
+  getIt.registerFactory<PackingHistoryBloc>(
+    () => PackingHistoryBloc(
+      getPackingHistoryUseCase: getIt<GetPackingHistoryUseCase>(),
+    ),
   );
 }
 
