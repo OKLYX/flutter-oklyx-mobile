@@ -50,57 +50,97 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
+import 'package:flutter_oklyn_mobile/features/packing/domain/entities/packing.dart';
+import 'package:flutter_oklyn_mobile/features/packing/presentation/widgets/box_change_sheet.dart';
+import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/product_thumbnail.dart';
+import '../../domain/entities/order_detail.dart';
+import '../bloc/order_detail_cubit.dart';
 
-/// 주문 상세 페이지
+/// Shared order detail page (FEATURE_2611_07).
 ///
-/// **용도**: 주문내역 목록에서 선택한 단일 주문 항목의 전체 정보를 표시.
-/// 프론트엔드 주문관리 > 주문내역의 `OrderDetailsModal`(읽기 전용)을 모바일로 이식.
+/// **Entries** (one screen, two constructors — D21 · D30):
+/// - [OrderDetailPage.new] = order history card → `/orders/history/detail`
+///   with the tapped [OrderItem] as go_router `extra`.
+/// - [OrderDetailPage.packing] = a 「오늘 완료」 row of 「포장 작업」 →
+///   `/stock/packing/order-detail` with the parcel id as `extra`.
 ///
-/// **데이터 출처**:
-/// 프론트와 동일하게 주문 상세 API는 존재하지 않으므로 별도 조회(BLoC) 없이
-/// 목록에서 받은 [OrderItem]을 go_router `extra`로 전달받아 그대로 표시한다.
-/// → 새로고침/딥링크 등으로 [order]가 null이면 목록으로 복귀.
+/// **Data**: the order is read from the server on open (`OrderDetailCubit`,
+/// D18 — replaces the old "no detail API, draw the list row as is"). A
+/// missing `extra` (deep link / restart) shows a way back.
 ///
-/// **표시 필드(프론트 OrderDetailsModal과 동일)**:
-/// 플랫폼 / 주문번호 / 박스 ID / 아이템 ID / 상품명 / 주문자 / 수취인 /
-/// 주문수량 / 취소수량 / 보류수량 / 구매가능수량 / 상태 / 결제일 / 마켓 계정 ID
+/// **Content**: cards 「주문 정보」 · 「기본 정보」 · 「수량 정보」 (D34), then
+/// 「상품 목록」 (every line of the order) and 「송장 목록」 (parcel chips, D29).
+/// The packing entry draws only 「주문 정보」 + 「상품 목록」 + 「송장 목록」 and
+/// adds [상자 변경] to packed parcels (D14 · D27).
 ///
-/// **UI**: 다른 상세 페이지(ProductListingDetailPage 등)와 동일한
-/// `_InfoCard` / `_InfoRow` 카드 레이아웃을 따른다.
+/// **UI**: the same `_InfoCard` / `_InfoRow` card layout as other detail
+/// pages.
 class OrderDetailPage extends StatelessWidget {
   final OrderItem? order;
 
-  const OrderDetailPage({super.key, this.order});
+  /// Parcel id of the packing entry — null when `extra` was missing.
+  final int? parcelId;
+
+  final bool _packing;
+
+  const OrderDetailPage({super.key, this.order})
+      : parcelId = null,
+        _packing = false;
+
+  const OrderDetailPage.packing({required this.parcelId, super.key})
+      : order = null,
+        _packing = true;
 
   @override
   Widget build(BuildContext context) {
+    if (_packing) {
+      final id = parcelId;
+      return ScaffoldWithNavBar(
+        title: '주문 상세',
+        navBarIndex: 2,
+        // Back to the packing screen (D19).
+        onBackPressed: () => context.canPop()
+            ? context.pop()
+            : context.go(Routes.stockPackingPath),
+        body: id == null
+            ? _buildMissing(context,
+                label: '포장 작업으로',
+                onPressed: () => context.go(Routes.stockPackingPath))
+            : _PackingOrderDetail(parcelId: id),
+      );
+    }
     return ScaffoldWithNavBar(
       title: '주문 상세',
       navBarIndex: 2,
       showDrawer: true,
       onBackPressed: () => context.go(Routes.orderHistoryPath),
       body: order == null
-          ? _buildMissing(context)
+          ? _buildMissing(context,
+              label: '주문내역으로',
+              onPressed: () => context.go(Routes.orderHistoryPath))
           : _buildContent(context, order!),
     );
   }
 
-  // extra 로 전달된 주문 정보가 없는 경우(딥링크/새로고침) 목록 복귀를 유도한다.
-  Widget _buildMissing(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text('주문 정보를 찾을 수 없습니다.'),
-          const SizedBox(height: 12),
-          FilledButton(
-            onPressed: () => context.go(Routes.orderHistoryPath),
-            child: const Text('주문내역으로'),
-          ),
-        ],
-      ),
-    );
-  }
+  // No order passed as extra (deep link / restart) — offer the way back.
+  Widget _buildMissing(
+    BuildContext context, {
+    required String label,
+    required VoidCallback onPressed,
+  }) =>
+      Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('주문 정보를 찾을 수 없습니다.'),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: onPressed,
+              child: Text(label),
+            ),
+          ],
+        ),
+      );
 
   // 송장 접수시트/발송처리 섹션이 BLoC 을 필요로 하므로 BuildContext 를 받는다.
   // order == null 분기는 조회할 order.id 가 없어 BlocProvider 자체를 만들지 않는다.
@@ -114,6 +154,10 @@ class OrderDetailPage extends StatelessWidget {
     final isMarketOrder = isCoupang || isElevenst;
     return MultiBlocProvider(
       providers: [
+        // The order read on open (FEATURE_2611_07 / D18).
+        BlocProvider<OrderDetailCubit>(
+          create: (_) => getIt<OrderDetailCubit>()..loadByLine(o.id),
+        ),
         BlocProvider<OrderSheetBloc>(create: (_) => getIt<OrderSheetBloc>()),
         // ⚠️ Made only for Coupang · 11st orders — gating only the render would
         // call the ADMIN-only carrier API for nothing on every other order.
@@ -177,28 +221,43 @@ class OrderDetailPage extends StatelessWidget {
             // 슬롯을 새로 뚫지 않는다. 🔴 발주·발송이 있는 하단 액션 영역에도 두지 않는다 —
             // 그쪽은 마켓에 쓰는 작업 자리이고 상태 갱신은 읽기다.
             if (isCoupang) _RefreshRow(order: o),
-            // ⚠️ BlocBuilder wraps only this one card — wrapping the Column or
-            // AppPageBody.scroll would rebuild even the shipping-label sheet
-            // section on every send and the edited parcel count would jump.
-            _buildInfoCard(o,
-                isCoupang: isCoupang, isMarketOrder: isMarketOrder),
-            const SizedBox(height: 12),
-            _InfoCard(
-              title: '수량 정보',
-              rows: [
-                _InfoRow('주문수량', '${o.orderCount}'),
-                _InfoRow('취소수량', '${o.cancelCount}'),
-                _InfoRow('보류수량', '${o.holdCount}'),
-                _InfoRow('구매가능수량', '${o.purchasableQty}'),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _InfoCard(
-              title: '기타',
-              rows: [
-                _InfoRow('결제일', formatOrderDateTime(o.paidAt)),
-                _InfoRow('마켓 계정 ID', '${o.marketplaceAccountId}'),
-              ],
+            // ⚠️ These BlocBuilders wrap only the cards and the two lists —
+            // wrapping the Column or AppPageBody.scroll would rebuild even the
+            // shipping-label sheet section on every send and the edited parcel
+            // count would jump. While reading / failed, one text takes the
+            // place of all of them (D18).
+            BlocBuilder<OrderDetailCubit, OrderDetailState>(
+              builder: (context, detailState) {
+                final detail = detailState.detail;
+                if (detail == null) {
+                  return _DetailStatusText(state: detailState);
+                }
+                // The tapped line as the server returned it (fallback = the
+                // list row).
+                final line = _lineOf(detail, o);
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildInfoCard(line, detail,
+                        isCoupang: isCoupang, isMarketOrder: isMarketOrder),
+                    const SizedBox(height: 12),
+                    _InfoCard(
+                      title: '수량 정보',
+                      rows: [
+                        _InfoRow('주문수량', '${line.orderCount}'),
+                        _InfoRow('취소수량', '${line.cancelCount}'),
+                        _InfoRow('보류수량', '${line.holdCount}'),
+                        _InfoRow('구매가능수량', '${line.purchasableQty}'),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _ProductListCard(detail: detail, highlightLineId: o.id),
+                    const SizedBox(height: 12),
+                    // No [상자 변경] from the order history (D27).
+                    _ParcelListCard(state: detailState),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 12),
             // 11st only — cancel requests and the seller return (D19 · D35).
@@ -263,40 +322,43 @@ class OrderDetailPage extends StatelessWidget {
   }
 }
 
-/// Basic info card. For a Coupang · 11st order only the `상태` row follows the
+/// 「주문 정보」 + 「기본 정보」 cards in one [Column] (FEATURE_2611_07 / D34).
+/// For a Coupang · 11st order only the `상태` row and the badge follow the
 /// sends made on this screen — shipment gets `resultStatus: SHIPPED` from the
 /// server (2609_11 D4), and a successful order confirmation reads as
 /// [OrderStatus.preparing]. Both show without a refetch.
 Widget _buildInfoCard(
-  OrderItem o, {
+  OrderItem o,
+  OrderDetail detail, {
   required bool isCoupang,
   required bool isMarketOrder,
 }) {
-  // [stage] = 주문번호 옆 내부 단계 배지(FEATURE_2609_75 / D9 — 웹 상세 머리 띠의 주문번호 옆과 같은 자리).
-  // null 이면 배지 없음. 글자만 있는 별도 행은 두지 않는다(D9).
-  List<_InfoRow> rows(OrderStatus status, InternalStage? stage) => [
-        _InfoRow('플랫폼', o.platform),
-        _InfoRow(
-          '주문번호',
-          o.externalOrderId,
-          trailing: stage == null ? null : InternalStageBadge(stage: stage),
-        ),
-        _InfoRow('박스 ID', o.externalBoxId ?? '-'),
-        _InfoRow('아이템 ID', o.externalItemId),
-        _InfoRow('상품명', o.itemName ?? '-'),
-        _InfoRow('주문자', o.ordererName ?? '-'),
-        _InfoRow('수취인', o.receiverName ?? '-'),
-        // 목록과 같은 한글 라벨 SSOT 를 쓴다(라벨표 사본 금지).
-        _InfoRow('상태', _statusText(o, status)),
-        // 주문 시점 금액 스냅샷 — 백필되지 않은 과거 주문은 '—' 다(0 으로 표시 금지, D9·D10).
-        _InfoRow('단가', _amountText(o.unitPrice)),
-        _InfoRow('상품금액', _amountText(o.lineAmount)),
-        _InfoRow('할인금액', _amountText(o.discountAmount)),
-        _InfoRow('플랫폼 부담 할인', _amountText(o.platformDiscountAmount)),
-      ];
+  // [stage] = internal stage badge next to 「주문번호」 (FEATURE_2609_75 / D9).
+  // null = no badge. Never a text-only row of its own (D9).
+  Widget rows(OrderStatus status, InternalStage? stage) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _orderInfoCard(detail, stage: stage),
+          const SizedBox(height: 12),
+          _InfoCard(
+            title: '기본 정보',
+            rows: [
+              _InfoRow('아이템 ID', o.externalItemId),
+              // Same Korean label SSOT as the list (no copied label table).
+              _InfoRow('상태', _statusText(o, status)),
+              // Amount snapshot at order time — '—' for old orders not
+              // backfilled (never 0, D9 · D10).
+              _InfoRow('단가', _amountText(o.unitPrice)),
+              _InfoRow('상품금액', _amountText(o.lineAmount)),
+              _InfoRow('할인금액', _amountText(o.discountAmount)),
+              _InfoRow('플랫폼 부담 할인', _amountText(o.platformDiscountAmount)),
+            ],
+          ),
+        ],
+      );
 
   if (!isMarketOrder) {
-    return _InfoCard(title: '기본 정보', rows: rows(o.status, o.internalStage));
+    return rows(o.status, o.internalStage);
   }
   if (!isCoupang) {
     // 11st has no cancel / internal-stage BLoC (FEATURE_2610_17 / D12) — only
@@ -308,8 +370,7 @@ Widget _buildInfoCard(
           final acknowledged = ack.result != null && ack.result!.succeeded > 0;
           final status = manual.result?.resultStatus ??
               (acknowledged ? OrderStatus.preparing : o.status);
-          return _InfoCard(
-              title: '기본 정보', rows: rows(status, o.internalStage));
+          return rows(status, o.internalStage);
         },
       ),
     );
@@ -339,7 +400,7 @@ Widget _buildInfoCard(
                 : _AcknowledgeSection._internalMarked(internal)
                     ? InternalStage.internalPreparing
                     : o.internalStage;
-            return _InfoCard(title: '기본 정보', rows: rows(status, shownStage));
+            return rows(status, shownStage);
           },
         ),
       ),
@@ -462,6 +523,322 @@ class _InfoRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// 「주문 정보」 card (FEATURE_2611_07 / R17 · D34 · D35) — [stage] = the
+/// internal stage badge next to 「주문번호」, null = no badge (packing entry).
+_InfoCard _orderInfoCard(OrderDetail detail, {InternalStage? stage}) =>
+    _InfoCard(
+      title: '주문 정보',
+      rows: [
+        _InfoRow(
+          '주문번호',
+          detail.externalOrderId,
+          trailing: stage == null ? null : InternalStageBadge(stage: stage),
+        ),
+        _InfoRow('판매자', detail.sellerName ?? '-'),
+        _InfoRow('판매처', detail.salesChannel),
+        _InfoRow('주문자', detail.ordererName ?? '-'),
+        _InfoRow('수취인', detail.receiverName ?? '-'),
+        _InfoRow('결제일', formatOrderDateTime(detail.paidAt)),
+      ],
+    );
+
+/// The tapped line inside the server answer, or the list row when missing.
+OrderItem _lineOf(OrderDetail detail, OrderItem order) {
+  for (final line in detail.lines) {
+    if (line.id == order.id) {
+      return line;
+    }
+  }
+  return order;
+}
+
+/// The one text drawn instead of the cards while reading (only before the
+/// first answer) or after a failed read (D18 · R8).
+class _DetailStatusText extends StatelessWidget {
+  final OrderDetailState state;
+
+  const _DetailStatusText({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final failed = !state.loading && state.error.isNotEmpty;
+    return AppCard(
+      child: Text(
+        failed ? state.error : '불러오는 중...',
+        style: failed
+            ? TextStyle(color: Theme.of(context).colorScheme.error)
+            : null,
+      ),
+    );
+  }
+}
+
+/// Photo 40×40 — gray box when there is no product (R11).
+class _Thumb extends StatelessWidget {
+  final int? productId;
+
+  const _Thumb({required this.productId});
+
+  static const double _size = 40;
+
+  @override
+  Widget build(BuildContext context) {
+    final id = productId;
+    if (id != null) {
+      return ProductThumbnail(productId: id, size: _size);
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        width: _size,
+        height: _size,
+        color: Theme.of(context).colorScheme.outlineVariant,
+      ),
+    );
+  }
+}
+
+/// 「상품 목록」 card — every line of the order (D13 · R10). Only the line
+/// with [highlightLineId] gets the highlight background (D33 · R9); null = no
+/// highlighted line (packing entry).
+class _ProductListCard extends StatelessWidget {
+  final OrderDetail detail;
+  final int? highlightLineId;
+
+  const _ProductListCard({required this.detail, this.highlightLineId});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            '상품 목록',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          for (final line in detail.lines)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: line.id == highlightLineId
+                    ? scheme.primaryContainer
+                    : null,
+                border: Border.all(color: scheme.outlineVariant),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _Thumb(productId: line.thumbnailProductId),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          line.itemName ?? '-',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '수량 ${line.orderCount}',
+                          style: TextStyle(
+                              fontSize: 12, color: scheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    getOrderStatusLabel(line.status),
+                    style:
+                        TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 「송장 목록」 card — parcel chips, the shown chip's content below (D23 ·
+/// D25 · D28 · D29 · D36 · R10). [onChangeBox] set = packing entry: a
+/// 「포장 완료」 parcel gets [상자 변경] (D27).
+class _ParcelListCard extends StatelessWidget {
+  final OrderDetailState state;
+  final void Function(OrderDetailParcel parcel)? onChangeBox;
+
+  const _ParcelListCard({required this.state, this.onChangeBox});
+
+  @override
+  Widget build(BuildContext context) {
+    final parcels = state.detail?.parcels ?? const <OrderDetailParcel>[];
+    final shown = state.shownParcel;
+    final changeBox = onChangeBox;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            '송장 목록',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          if (parcels.isEmpty || shown == null)
+            const Text('송장이 없습니다')
+          else ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final parcel in parcels)
+                  ChoiceChip(
+                    label: Text(parcel.chipLabel),
+                    selected: parcel.parcelId == shown.parcelId,
+                    onSelected: (_) => context
+                        .read<OrderDetailCubit>()
+                        .selectParcel(parcel.parcelId),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _InfoRow('송장번호', shown.invoiceNumber),
+            _InfoRow('택배사', shown.carrierName ?? '-'),
+            _InfoRow('상태', shown.statusLabel),
+            _InfoRow(
+              '처리 시각',
+              shown.packedAt == null
+                  ? '-'
+                  : formatOrderDateTime(shown.packedAt),
+            ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _InfoRow('상자', shown.boxName ?? '-')),
+                if (changeBox != null && shown.status == ParcelStatus.packed)
+                  OutlinedButton(
+                    onPressed: () => changeBox(shown),
+                    child: const Text('상자 변경'),
+                  ),
+              ],
+            ),
+            _ParcelItems(items: shown.items),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// 「담은 물품」 of the shown parcel — photo · name · 「수량 {n}」, 「-」 when
+/// empty (D23 · D37).
+class _ParcelItems extends StatelessWidget {
+  final List<OrderDetailParcelItem> items;
+
+  const _ParcelItems({required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '담은 물품',
+          style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 2),
+        if (items.isEmpty)
+          const Text(
+            '-',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          )
+        else
+          for (final item in items)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Row(
+                children: [
+                  _Thumb(productId: item.productId),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      item.productName ?? '-',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '수량 ${item.quantity}',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+      ],
+    );
+  }
+}
+
+/// Packing entry body (FEATURE_2611_07 / D14 · R16): 「주문 정보」 (no badge)
+/// + 「상품 목록」 (no highlighted line) + 「송장 목록」 opened on [parcelId]
+/// (D28). None of the order history action BLoCs are made here.
+class _PackingOrderDetail extends StatelessWidget {
+  final int parcelId;
+
+  const _PackingOrderDetail({required this.parcelId});
+
+  @override
+  Widget build(BuildContext context) => BlocProvider<OrderDetailCubit>(
+        create: (_) => getIt<OrderDetailCubit>()..loadByParcel(parcelId),
+        child: AppPageBody.scroll(
+          child: BlocBuilder<OrderDetailCubit, OrderDetailState>(
+            builder: (context, state) {
+              final detail = state.detail;
+              if (detail == null) {
+                return _DetailStatusText(state: state);
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _orderInfoCard(detail),
+                  const SizedBox(height: 12),
+                  _ProductListCard(detail: detail),
+                  const SizedBox(height: 12),
+                  _ParcelListCard(
+                    state: state,
+                    onChangeBox: (parcel) => _changeBox(context, parcel),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      );
+
+  /// [상자 변경] → the shared box sheet → on success the toast here and the
+  /// same read again with the picked chip kept (D7 · D28 · R15).
+  Future<void> _changeBox(
+    BuildContext context,
+    OrderDetailParcel parcel,
+  ) async {
+    final cubit = context.read<OrderDetailCubit>();
+    final box = await showBoxChangeSheet(context,
+        parcelId: parcel.parcelId, selectedPackageId: parcel.boxPackageId);
+    if (box == null || !context.mounted) {
+      return;
+    }
+    showSuccessToast(context, '상자를 바꿨습니다 — ${box.type}');
+    await cubit.reload();
   }
 }
 

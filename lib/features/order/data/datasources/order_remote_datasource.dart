@@ -7,6 +7,7 @@ import '../models/elevenst_delivery_line.dart';
 import '../models/internal_stage_result.dart';
 import '../models/order_acknowledge_result.dart';
 import '../models/order_cancel_result.dart';
+import '../models/order_detail_model.dart';
 import '../models/order_model.dart';
 import '../models/order_refresh_result.dart';
 import '../models/order_setting.dart';
@@ -129,6 +130,15 @@ abstract class OrderRemoteDataSource {
 
   /// POST /api/admin/orders/{orderItemId}/elevenst-stock-confirm (D67).
   Future<void> confirmElevenstStock(int orderItemId);
+
+  /// GET /api/orders/lines/{orderLineId}/detail — the shared order detail of
+  /// the order this line belongs to (FEATURE_2611_07 / D30 ①, any logged-in
+  /// user). Errors are thrown as [DioException].
+  Future<OrderDetailModel> getOrderDetail(int orderLineId);
+
+  /// GET /api/admin/packing/parcels/{id}/order — the same detail by a parcel
+  /// (D30 ②, ADMIN only). Errors are thrown as [DioException].
+  Future<OrderDetailModel> getParcelOrderDetail(int parcelId);
 }
 
 class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
@@ -546,5 +556,20 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
             const Duration(seconds: AppConstants.coupangReceiveTimeout),
       ),
     );
+  }
+
+  @override
+  Future<OrderDetailModel> getOrderDetail(int orderLineId) async {
+    final response = await dio.get('/api/orders/lines/$orderLineId/detail');
+    return OrderDetailModel.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<OrderDetailModel> getParcelOrderDetail(int parcelId) async {
+    final response =
+        await dio.get('/api/admin/packing/parcels/$parcelId/order');
+    return OrderDetailModel.fromJson(
+        response.data['data'] as Map<String, dynamic>);
   }
 }

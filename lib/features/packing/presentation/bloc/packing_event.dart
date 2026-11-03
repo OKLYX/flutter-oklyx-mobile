@@ -62,13 +62,9 @@ class PackingTabSelected extends PackingEvent {
   PackingTabSelected(this.tab);
 }
 
-/// The box sheet changed the box of a 「오늘 완료」 row to [boxName]
-/// (FEATURE_2611_06 / D19 · D21).
-class PackingDoneBoxChanged extends PackingEvent {
-  final String boxName;
-
-  PackingDoneBoxChanged(this.boxName);
-}
+/// Back from the order detail of a 「오늘 완료」 row — loads 「오늘 완료」
+/// again (FEATURE_2611_07 / D7).
+class PackingDoneReloaded extends PackingEvent {}
 
 /// The box sheet handed a box back for the box being packed — loads the box
 /// list again so a box registered in the sheet is there (FEATURE_2611_06 /

@@ -9,6 +9,7 @@ import '../../data/models/order_acknowledge_result.dart';
 import '../../data/models/order_cancel_result.dart';
 import '../../data/models/order_refresh_result.dart';
 import '../../data/models/order_setting.dart';
+import '../entities/order_detail.dart';
 import '../entities/order_item.dart';
 import '../entities/order_period.dart';
 import '../entities/order_sync_result.dart';
@@ -147,4 +148,11 @@ abstract class OrderRepository {
 
   /// [입고완료 처리] (D67).
   Future<Either<Failure, Unit>> confirmElevenstStock(int orderItemId);
+
+  /// Shared order detail of the order the tapped line belongs to
+  /// (FEATURE_2611_07 / D18 · D30).
+  Future<Either<Failure, OrderDetail>> getOrderDetail(int orderLineId);
+
+  /// The same order detail by a parcel (「포장 작업」 「오늘 완료」, D30).
+  Future<Either<Failure, OrderDetail>> getParcelOrderDetail(int parcelId);
 }

@@ -14,6 +14,7 @@ class Routes {
   static const String stockDaily = 'stockDaily';
   static const String stockPacking = 'stockPacking';
   static const String stockPackingHistory = 'stockPackingHistory';
+  static const String stockPackingOrderDetail = 'stockPackingOrderDetail';
   static const String settlementPayouts = 'settlementPayouts';
   static const String settlementPayoutDetail = 'settlementPayoutDetail';
   static const String salesSummary = 'salesSummary';
@@ -84,6 +85,8 @@ class Routes {
   // FEATURE_2611_03 D25 · D31: 「포장 작업」 · 「포장 이력」.
   static const String stockPackingPath = '/stock/packing';
   static const String stockPackingHistoryPath = '/stock/packing-history';
+  // FEATURE_2611_07 D19 · D30: shared order detail from a 「오늘 완료」 row.
+  static const String stockPackingOrderDetailPath = '/stock/packing/order-detail';
   static const String settlementPayoutsPath = '/settlement/payouts';
   static const String salesSummaryPath = '/sales/summary';
 
