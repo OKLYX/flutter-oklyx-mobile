@@ -173,6 +173,7 @@ import 'package:flutter_oklyn_mobile/features/sales/domain/usecases/sales_usecas
 import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/channel_sales_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/channel_sales_state.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/product_profit_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/sales_shipped_only_cubit.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/sales_summary_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/settlement/data/datasources/settlement_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/settlement/data/repositories/settlement_repository_impl.dart';
@@ -1335,6 +1336,8 @@ void _registerSalesServices() {
       getSellersUseCase: getIt<GetSellersUseCase>(),
     ),
   );
+  // One switch value per visit of the three sales routes (ShellRoute).
+  getIt.registerFactory<SalesShippedOnlyCubit>(SalesShippedOnlyCubit.new);
 }
 
 /// Dashboard cards (FEATURE_2610_29 / D6). The card data come from the use

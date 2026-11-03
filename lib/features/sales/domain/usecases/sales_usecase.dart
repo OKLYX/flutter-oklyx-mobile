@@ -11,16 +11,33 @@ class SalesUseCase {
   SalesUseCase({required this.repository});
 
   Future<Either<Failure, List<SellerSales>>> getSellerSummary(
-          {required String from, required String to}) =>
-      repository.getSellerSummary(from: from, to: to);
+          {required String from,
+          required String to,
+          bool excludeUnshipped = false}) =>
+      repository.getSellerSummary(
+          from: from, to: to, excludeUnshipped: excludeUnshipped);
 
   Future<Either<Failure, List<ChannelSales>>> getChannelSales(
-          {required String from, required String to, int? sellerId}) =>
-      repository.getChannelSales(from: from, to: to, sellerId: sellerId);
+          {required String from,
+          required String to,
+          int? sellerId,
+          bool excludeUnshipped = false}) =>
+      repository.getChannelSales(
+          from: from,
+          to: to,
+          sellerId: sellerId,
+          excludeUnshipped: excludeUnshipped);
 
   Future<Either<Failure, List<SalesLine>>> getSalesLines(
-          {required String from, required String to, required int accountId}) =>
-      repository.getSalesLines(from: from, to: to, accountId: accountId);
+          {required String from,
+          required String to,
+          required int accountId,
+          bool excludeUnshipped = false}) =>
+      repository.getSalesLines(
+          from: from,
+          to: to,
+          accountId: accountId,
+          excludeUnshipped: excludeUnshipped);
 
   Future<Either<Failure, List<DailySales>>> getDailySales(
           {required String from, required String to, int? sellerId}) =>
@@ -31,9 +48,14 @@ class SalesUseCase {
     required String to,
     required bool crossChannel,
     int? sellerId,
+    bool excludeUnshipped = false,
   }) =>
       repository.getProductProfit(
-          from: from, to: to, crossChannel: crossChannel, sellerId: sellerId);
+          from: from,
+          to: to,
+          crossChannel: crossChannel,
+          sellerId: sellerId,
+          excludeUnshipped: excludeUnshipped);
 
   Future<Either<Failure, SavingsSummary>> getSavingsSummary(
           {required String from, required String to}) =>

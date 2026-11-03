@@ -5,7 +5,9 @@ sealed class SalesSummaryEvent {
 
 /// Screen entry — seller summary + packing savings of this month.
 class SalesSummaryStarted extends SalesSummaryEvent {
-  const SalesSummaryStarted();
+  /// The shared 「출고 전 주문 제외」 value on entry (FEATURE_2611_04 / D9).
+  final bool excludeUnshipped;
+  const SalesSummaryStarted({this.excludeUnshipped = false});
 }
 
 /// Sale-date range `yyyy-MM-dd`. Folds the open seller (its rows belong to the
@@ -19,6 +21,13 @@ class SalesSummaryPeriodChanged extends SalesSummaryEvent {
 /// [다시 시도] — the same period again.
 class SalesSummaryRetried extends SalesSummaryEvent {
   const SalesSummaryRetried();
+}
+
+/// 「출고 전 주문 제외」 switch (FEATURE_2611_04) — folds the open seller and
+/// reloads the seller rows only (packing savings do not depend on it).
+class SalesSummaryExcludeUnshippedChanged extends SalesSummaryEvent {
+  final bool excludeUnshipped;
+  const SalesSummaryExcludeUnshippedChanged({required this.excludeUnshipped});
 }
 
 /// A seller row tapped — opens it (channels + payouts of the period), or folds

@@ -42,6 +42,13 @@ class ProductProfitBloc extends Bloc<ProductProfitEvent, ProductProfitState> {
           crossChannel: event.crossChannel, clearExpanded: true));
       await _loadRows(emit);
     });
+    on<ProductProfitExcludeUnshippedChanged>((event, emit) async {
+      emit(state.copyWith(excludeUnshipped: event.excludeUnshipped));
+      if (state.from.isEmpty || state.to.isEmpty || state.invalidRange) {
+        return;
+      }
+      await _loadRows(emit);
+    });
     on<ProductProfitSortChanged>(_onSortChanged);
     on<ProductProfitSavingsToggled>((event, emit) => emit(
         state.expandedSavingsMasterId == event.masterProductId
@@ -57,7 +64,8 @@ class ProductProfitBloc extends Bloc<ProductProfitEvent, ProductProfitState> {
     if (emit.isDone) {
       return;
     }
-    emit(state.copyWith(sellers: sellers));
+    emit(state.copyWith(
+        sellers: sellers, excludeUnshipped: event.excludeUnshipped));
     await _onLoad(event, emit);
   }
 
@@ -86,6 +94,7 @@ class ProductProfitBloc extends Bloc<ProductProfitEvent, ProductProfitState> {
       to: state.to,
       crossChannel: state.crossChannel,
       sellerId: state.sellerId,
+      excludeUnshipped: state.excludeUnshipped,
     );
     if (emit.isDone || request != _rowsRequest) {
       return;

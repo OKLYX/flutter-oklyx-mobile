@@ -26,6 +26,10 @@ class ChannelSalesBloc extends Bloc<ChannelSalesEvent, ChannelSalesState> {
     on<ChannelSalesRetried>(_onLoad);
     on<ChannelSalesPeriodChanged>(_onPeriodChanged);
     on<ChannelSalesChannelChanged>(_onChannelChanged);
+    on<ChannelSalesExcludeUnshippedChanged>((event, emit) async {
+      emit(state.copyWith(excludeUnshipped: event.excludeUnshipped));
+      await _onLoad(event, emit);
+    });
     on<ChannelSalesHideCanceledChanged>(
         (event, emit) => emit(state.copyWith(hideCanceled: event.hide)));
     on<ChannelSalesHidePendingChanged>(
@@ -52,10 +56,15 @@ class ChannelSalesBloc extends Bloc<ChannelSalesEvent, ChannelSalesState> {
     final request = ++_channelsRequest;
     emit(state.copyWith(
         loading: true, productsLoading: true, error: '', productsError: ''));
-    final channelsCall =
-        salesUseCase.getChannelSales(from: state.from, to: state.to);
+    final channelsCall = salesUseCase.getChannelSales(
+        from: state.from,
+        to: state.to,
+        excludeUnshipped: state.excludeUnshipped);
     final productsCall = salesUseCase.getProductProfit(
-        from: state.from, to: state.to, crossChannel: false);
+        from: state.from,
+        to: state.to,
+        crossChannel: false,
+        excludeUnshipped: state.excludeUnshipped);
     final channelsResult = await channelsCall;
     final productsResult = await productsCall;
     if (emit.isDone || request != _channelsRequest) {
@@ -97,7 +106,10 @@ class ChannelSalesBloc extends Bloc<ChannelSalesEvent, ChannelSalesState> {
     final request = ++_recordsRequest;
     emit(state.copyWith(recordsLoading: true, recordsError: ''));
     final result = await salesUseCase.getSalesLines(
-        from: state.from, to: state.to, accountId: accountId);
+        from: state.from,
+        to: state.to,
+        accountId: accountId,
+        excludeUnshipped: state.excludeUnshipped);
     if (emit.isDone || request != _recordsRequest) {
       return;
     }

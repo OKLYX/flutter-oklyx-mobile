@@ -7,7 +7,9 @@ sealed class ProductProfitEvent {
 
 /// Screen entry — sellers, product rows and option savings of this month.
 class ProductProfitStarted extends ProductProfitEvent {
-  const ProductProfitStarted();
+  /// The shared 「출고 전 주문 제외」 value on entry (FEATURE_2611_04 / D9).
+  final bool excludeUnshipped;
+  const ProductProfitStarted({this.excludeUnshipped = false});
 }
 
 /// Sale-date range `yyyy-MM-dd`. Folds the open savings row.
@@ -40,6 +42,13 @@ class ProductProfitSortChanged extends ProductProfitEvent {
 class ProductProfitSavingsToggled extends ProductProfitEvent {
   final int masterProductId;
   const ProductProfitSavingsToggled(this.masterProductId);
+}
+
+/// 「출고 전 주문 제외」 switch (FEATURE_2611_04) — reloads the product rows only
+/// (option savings do not depend on it).
+class ProductProfitExcludeUnshippedChanged extends ProductProfitEvent {
+  final bool excludeUnshipped;
+  const ProductProfitExcludeUnshippedChanged({required this.excludeUnshipped});
 }
 
 /// [다시 시도].

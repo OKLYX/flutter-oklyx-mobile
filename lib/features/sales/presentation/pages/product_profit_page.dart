@@ -4,10 +4,12 @@ import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/product_profit_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/product_profit_event.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/product_profit_state.dart';
+import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/sales_shipped_only_cubit.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/utils/sales_format.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/widgets/product_profit_list.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/widgets/sales_period_filter.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/widgets/sales_tab_bar.dart';
+import 'package:flutter_oklyn_mobile/features/sales/presentation/widgets/shipped_only_switch.dart';
 import 'package:flutter_oklyn_mobile/features/settlement/presentation/widgets/settlement_message_box.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_filter_chip.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
@@ -25,8 +27,9 @@ class ProductProfitPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => BlocProvider(
-        create: (_) =>
-            getIt<ProductProfitBloc>()..add(const ProductProfitStarted()),
+        create: (context) => getIt<ProductProfitBloc>()
+          ..add(ProductProfitStarted(
+              excludeUnshipped: context.read<SalesShippedOnlyCubit>().state)),
         child: const _ProductProfitView(),
       );
 }
@@ -105,6 +108,15 @@ class _ProductProfitView extends StatelessWidget {
                       ],
                       onSelected: (key) =>
                           bloc.add(ProductProfitSortChanged(key)),
+                    ),
+                    ShippedOnlySwitch(
+                      value: state.excludeUnshipped,
+                      disabled: state.loading,
+                      onChanged: (value) {
+                        context.read<SalesShippedOnlyCubit>().set(value: value);
+                        bloc.add(ProductProfitExcludeUnshippedChanged(
+                            excludeUnshipped: value));
+                      },
                     ),
                   ],
                 ),

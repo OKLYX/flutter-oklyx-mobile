@@ -11,6 +11,7 @@ import 'package:flutter_oklyn_mobile/features/claim/presentation/pages/claim_det
 import 'package:flutter_oklyn_mobile/features/inquiry/domain/entities/inquiry.dart';
 import 'package:flutter_oklyn_mobile/features/inquiry/presentation/pages/inquiry_list_page.dart';
 import 'package:flutter_oklyn_mobile/features/inquiry/presentation/pages/inquiry_detail_page.dart';
+import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/sales_shipped_only_cubit.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/pages/channel_sales_page.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/pages/product_profit_page.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/pages/sales_summary_page.dart';
@@ -216,33 +217,45 @@ class AppRouter {
         child: PackingHistoryPage(),
       ),
     ),
-    GoRoute(
-      name: Routes.salesSummary,
-      path: Routes.salesSummaryPath,
-      pageBuilder: (context, state) => const NoTransitionPage(
-        child: SalesSummaryPage(),
+    // The three sales tabs share one 「출고 전 주문 제외」 Cubit; leaving them
+    // drops it, so coming back starts off (FEATURE_2611_04 / D9).
+    ShellRoute(
+      pageBuilder: (context, state, child) => NoTransitionPage(
+        child: BlocProvider(
+          create: (_) => getIt<SalesShippedOnlyCubit>(),
+          child: child,
+        ),
       ),
-    ),
-    GoRoute(
-      name: Routes.salesByChannel,
-      path: Routes.salesByChannelPath,
-      pageBuilder: (context, state) {
-        final query = state.uri.queryParameters;
-        return NoTransitionPage(
-          child: ChannelSalesPage(
-            from: query['from'],
-            to: query['to'],
-            accountId: int.tryParse(query['accountId'] ?? ''),
+      routes: [
+        GoRoute(
+          name: Routes.salesSummary,
+          path: Routes.salesSummaryPath,
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: SalesSummaryPage(),
           ),
-        );
-      },
-    ),
-    GoRoute(
-      name: Routes.salesByProduct,
-      path: Routes.salesByProductPath,
-      pageBuilder: (context, state) => const NoTransitionPage(
-        child: ProductProfitPage(),
-      ),
+        ),
+        GoRoute(
+          name: Routes.salesByChannel,
+          path: Routes.salesByChannelPath,
+          pageBuilder: (context, state) {
+            final query = state.uri.queryParameters;
+            return NoTransitionPage(
+              child: ChannelSalesPage(
+                from: query['from'],
+                to: query['to'],
+                accountId: int.tryParse(query['accountId'] ?? ''),
+              ),
+            );
+          },
+        ),
+        GoRoute(
+          name: Routes.salesByProduct,
+          path: Routes.salesByProductPath,
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: ProductProfitPage(),
+          ),
+        ),
+      ],
     ),
     GoRoute(
       name: Routes.settlementPayouts,
