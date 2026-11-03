@@ -159,12 +159,18 @@ class CategoryAttribute {
   final List<String> options;
   final String? basicUnit;
 
+  /// Coupang choice-group number (web `groupNumber`, backend 2026-08-30).
+  /// Required attributes sharing one number are satisfied by any one of them.
+  /// `null` = no group (the backend turns "NONE" and blank into null).
+  final String? groupNumber;
+
   const CategoryAttribute({
     required this.name,
     required this.required,
     required this.inputType,
     required this.options,
     this.basicUnit,
+    this.groupNumber,
   });
 }
 

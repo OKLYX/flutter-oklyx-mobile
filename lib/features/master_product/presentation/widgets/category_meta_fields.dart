@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_product.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_support.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/basic_unit.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/choice_groups.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/elevenst_notice.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/esm_notice.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/measure_attributes.dart';
@@ -156,15 +157,40 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
     final paired = pairMeasureAttributes(masterAttributes);
     final pairs = paired.pairs;
     final singles = paired.singles;
+    // FEATURE_2611_08: choice groups over the whole schema (option-owned
+    // members must be known). D12 targets = master-owned members of a group
+    // with an option-owned member; boxes = all-master groups of two or more.
+    final choiceGroups = requiredChoiceGroups(widget.attributes);
+    final optionGroupOf = <String, ChoiceGroup>{
+      for (final g in choiceGroups.where(isOptionGroup))
+        for (final m in g.members)
+          if (!isOptionField(m.name)) m.name: g,
+    };
+    final boxGroups = choiceGroups
+        .where((g) => !isOptionGroup(g) && g.members.length >= 2)
+        .toList();
+    final boxMemberNames = {
+      for (final g in boxGroups)
+        for (final m in g.members) m.name,
+    };
 
+    // R7: a box counts once; D12 targets are not counted (D13).
     final requiredCount = (widget.hideCategoryAttrs
             ? 0
-            : singles.where((a) => a.required).length +
+            : singles
+                    .where((a) =>
+                        a.required &&
+                        !optionGroupOf.containsKey(a.name) &&
+                        !boxMemberNames.contains(a.name))
+                    .length +
+                boxGroups.length +
                 pairs.where(isPairRequired).length) +
         activeGroupNotices.where((n) => n.required).length;
-    final visibleSingles = widget.onlyRequired
-        ? singles.where((a) => a.required).toList()
-        : singles;
+    final visibleSingles = (widget.onlyRequired
+            ? singles.where((a) => a.required).toList()
+            : singles)
+        .where((a) => !boxMemberNames.contains(a.name))
+        .toList();
     final visiblePairs =
         widget.onlyRequired ? pairs.where(isPairRequired).toList() : pairs;
     final visibleNotices = widget.onlyRequired
@@ -259,16 +285,22 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
             ),
           )
         else if (showAttributes &&
-            (visibleSingles.isNotEmpty || visiblePairs.isNotEmpty))
+            (boxGroups.isNotEmpty ||
+                visibleSingles.isNotEmpty ||
+                visiblePairs.isNotEmpty))
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              for (final g in boxGroups) ...[
+                _choiceBox(context, g),
+                const SizedBox(height: 12),
+              ],
               for (final p in visiblePairs) ...[
                 _buildPair(context, p),
                 const SizedBox(height: 12),
               ],
               for (final a in visibleSingles) ...[
-                _buildSingle(context, a),
+                _buildSingle(context, a, optionGroup: optionGroupOf[a.name]),
                 const SizedBox(height: 12),
               ],
             ],
@@ -563,7 +595,47 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
     );
   }
 
-  Widget _buildSingle(BuildContext context, CategoryAttribute a) {
+  // One all-master choice group: a single required mark before the guide
+  // line, then the members without their own marks (FEATURE_2611_08 / D8).
+  Widget _choiceBox(BuildContext context, ChoiceGroup g) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: '* ', style: TextStyle(color: scheme.error)),
+                TextSpan(text: choiceGroupGuide(g)),
+              ],
+            ),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          ),
+          for (final m in g.members) ...[
+            const SizedBox(height: 12),
+            _buildSingle(context, m, inBox: true),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// [inBox] = drawn inside a choice-group box · [optionGroup] = the option
+  /// group this master field belongs to (D12): both drop the required mark;
+  /// [optionGroup] also adds the note under the field (D9).
+  Widget _buildSingle(
+    BuildContext context,
+    CategoryAttribute a, {
+    bool inBox = false,
+    ChoiceGroup? optionGroup,
+  }) {
     final scheme = Theme.of(context).colorScheme;
     final suffix = unitSuffix(a);
     final current = widget.attrValues[a.name] ?? '';
@@ -580,11 +652,31 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
                 color: scheme.onSurfaceVariant,
               ),
             ),
-          if (a.required)
+          if (a.required && !inBox && optionGroup == null)
             TextSpan(text: ' *', style: TextStyle(color: scheme.error)),
         ],
       ),
     );
+    final field = _buildSingleInput(context, a, label, current, hint);
+    if (optionGroup == null) {
+      return field;
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        field,
+        _note(context, optionGroupMasterNote(optionGroup)),
+      ],
+    );
+  }
+
+  Widget _buildSingleInput(
+    BuildContext context,
+    CategoryAttribute a,
+    Widget label,
+    String current,
+    String hint,
+  ) {
     if (a.inputType == 'SELECT') {
       return _select(
         context,

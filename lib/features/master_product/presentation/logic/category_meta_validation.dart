@@ -5,24 +5,19 @@
 // File: lib/features/master_product/presentation/logic/category_meta_validation.dart
 //
 // Option-owned physical fields are excluded from the master gate and
-// validated per option only.
+// validated per option only. Required attributes sharing a Coupang group
+// number (`choice_groups.dart`) are satisfied by any one member; a group with
+// an option-owned member is validated by the option gate only
+// (FEATURE_2611_08).
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_product.dart';
-import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/measure_attributes.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/choice_groups.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/notice_templates.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/option_meta_fields.dart';
 
-bool _pairFilled(MeasurePair p, Map<String, String> values) {
-  final u = derivedUnit(p, values);
-  final name = u == '용량'
-      ? p.volume.name
-      : u == '중량'
-          ? p.weight.name
-          : '';
-  return name.isNotEmpty && (values[name] ?? '').trim().isNotEmpty;
-}
-
-/// True when any MASTER-owned required field is still missing. A
-/// weight/volume pair is satisfied by the chosen side (one-of).
+/// True when any MASTER-owned required field is still missing. Required
+/// attributes without a group number are each required; a choice group whose
+/// members are all master-owned is satisfied by any one filled member. Groups
+/// with an option-owned member are left to [computeMissingOptionRequired].
 bool computeMissingRequired(
   List<CategoryAttribute> attributes,
   Map<String, String> attrValues,
@@ -33,19 +28,20 @@ bool computeMissingRequired(
   bool hideCategoryAttrs = false,
   String? noticeGroup,
 ]) {
-  final masterAttributes =
-      attributes.where((a) => !isOptionField(a.name)).toList();
-  final paired = pairMeasureAttributes(masterAttributes);
   final masterNotices = notices.where((n) => !isOptionNotice(n)).toList();
   final group = resolveNoticeGroup(masterNotices, noticeValues, noticeGroup);
   final groupNotices =
       masterNotices.where((n) => noticeGroupName(n) == group).toList();
   final refAll = isNoticeRefAll(groupNotices, noticeValues);
+  String valueOf(String name) => (attrValues[name] ?? '').trim();
   final missingAttr = !hideCategoryAttrs &&
-      (paired.singles.any(
-              (a) => a.required && (attrValues[a.name] ?? '').trim().isEmpty) ||
-          paired.pairs
-              .any((p) => isPairRequired(p) && !_pairFilled(p, attrValues)));
+      (attributes.any((a) =>
+              !isOptionField(a.name) &&
+              a.required &&
+              requiredGroupNumber(a).isEmpty &&
+              valueOf(a.name).isEmpty) ||
+          requiredChoiceGroups(attributes)
+              .any((g) => !isOptionGroup(g) && !isGroupFilled(g, valueOf)));
   return missingAttr ||
       (!refAll &&
           groupNotices.any(
@@ -96,9 +92,23 @@ class OptionNoticeCtx {
   });
 }
 
+/// Web `attrCtx` object of [computeMissingOptionRequired]. Named field so the
+/// master attribute values cannot be swapped with the option values (same
+/// map type) by position.
+class OptionAttrCtx {
+  /// Blank option value = inherit → a master value also satisfies.
+  final Map<String, String> masterAttrValues;
+
+  const OptionAttrCtx({required this.masterAttrValues});
+}
+
 /// True when a schema-required OPTION-owned attribute or notice is still
-/// missing for this option. ⚠️ [hideCategoryAttrs] skips attributes only —
-/// notices are still validated.
+/// missing for this option. Each attribute is judged by its option value,
+/// falling back to the master value when blank ([attrCtx]). Ungrouped
+/// required option-owned attributes are each required; a choice group with
+/// an option-owned member is satisfied by any one member, master-owned
+/// members included. ⚠️ [hideCategoryAttrs] skips attributes only — notices
+/// are still validated.
 bool computeMissingOptionRequired(
   List<CategoryAttribute> attributes,
   Map<String, String> optAttrValues, [
@@ -106,15 +116,24 @@ bool computeMissingOptionRequired(
   // ignore: avoid_positional_boolean_parameters
   bool hideCategoryAttrs = false,
   OptionNoticeCtx? noticeCtx,
+  OptionAttrCtx? attrCtx,
 ]) {
-  final optionAttributes =
-      attributes.where((a) => isOptionField(a.name)).toList();
-  final paired = pairMeasureAttributes(optionAttributes);
+  String valueOf(String name) {
+    final own = (optAttrValues[name] ?? '').trim();
+    if (own.isNotEmpty) {
+      return own;
+    }
+    return ((attrCtx?.masterAttrValues ?? const {})[name] ?? '').trim();
+  }
+
   final missingAttrs = !hideCategoryAttrs &&
-      (paired.singles.any((a) =>
-              a.required && (optAttrValues[a.name] ?? '').trim().isEmpty) ||
-          paired.pairs
-              .any((p) => isPairRequired(p) && !_pairFilled(p, optAttrValues)));
+      (attributes.any((a) =>
+              isOptionField(a.name) &&
+              a.required &&
+              requiredGroupNumber(a).isEmpty &&
+              valueOf(a.name).isEmpty) ||
+          requiredChoiceGroups(attributes)
+              .any((g) => isOptionGroup(g) && !isGroupFilled(g, valueOf)));
   final missingNotices = noticeCtx != null &&
       noticeCtx.notices
           .where(isOptionNotice)

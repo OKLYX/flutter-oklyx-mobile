@@ -119,6 +119,7 @@ CategoryAttribute categoryAttributeFromJson(Json j) => CategoryAttribute(
       inputType: _str(j['inputType']),
       options: _strList(j['options']),
       basicUnit: _strN(j['basicUnit']),
+      groupNumber: _strN(j['groupNumber']),
     );
 
 CategoryNotice categoryNoticeFromJson(Json j) => CategoryNotice(
