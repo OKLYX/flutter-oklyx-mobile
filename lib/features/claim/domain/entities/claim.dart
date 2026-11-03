@@ -281,7 +281,8 @@ class ClaimActionResult {
   });
 }
 
-/// 클레임 1건. 목록·상세가 같은 객체를 쓴다(상세 API 재조회 없음 — 주문 상세와 동일).
+/// One claim. The list and the detail use the same object (no detail API
+/// re-read).
 class Claim {
   final int id;
 

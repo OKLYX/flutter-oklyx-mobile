@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
+import '../../domain/entities/order_detail.dart';
 import '../../domain/entities/order_item.dart';
 import '../../domain/entities/order_period.dart';
 import '../../domain/entities/order_sync_result.dart';
@@ -399,6 +400,16 @@ class OrderRepositoryImpl implements OrderRepository {
         await remoteDataSource.confirmElevenstStock(orderItemId);
         return unit;
       }, 'Failed to confirm the stock');
+
+  @override
+  Future<Either<Failure, OrderDetail>> getOrderDetail(int orderLineId) =>
+      _call(() => remoteDataSource.getOrderDetail(orderLineId),
+          '주문 상세를 불러오지 못했습니다.');
+
+  @override
+  Future<Either<Failure, OrderDetail>> getParcelOrderDetail(int parcelId) =>
+      _call(() => remoteDataSource.getParcelOrderDetail(parcelId),
+          '주문 상세를 불러오지 못했습니다.');
 
   /// One call of the 11st order-detail actions (FEATURE_2610_17 / D61 ~ D67):
   /// a [DioException] keeps the server message and status code like the

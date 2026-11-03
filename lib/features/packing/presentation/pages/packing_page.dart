@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
+import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 import 'package:flutter_oklyn_mobile/features/package/domain/entities/package.dart';
@@ -28,8 +30,10 @@ import '../widgets/box_change_sheet.dart';
 ///   below the input field while waiting). 「오늘 완료」 is picked on entry
 ///   and after a completion, a cancel or an unused close (FEATURE_2611_06 /
 ///   D24).
-/// - 「오늘 완료」: today's packed boxes; a tap opens the box change sheet for
-///   that parcel (`showBoxChangeSheet`, D21).
+/// - 「오늘 완료」: today's packed boxes; a tap opens the shared order detail
+///   of that parcel (`/stock/packing/order-detail`, FEATURE_2611_07 / D1 ·
+///   D6) — its [상자 변경] opens the box sheet; coming back reloads the list
+///   (D7).
 /// - 「작업 대상」: the work list; a tap opens that invoice only while no box
 ///   is open (R15).
 /// - Packing: invoice card, lines with −/+, box recommendation with
@@ -220,7 +224,7 @@ class _PackingViewState extends State<_PackingView> {
     final changedAt = entry.changedAt;
     final time = changedAt.length >= 16 ? changedAt.substring(11, 16) : '-';
     return AppCard.row(
-      onTap: state.busy ? null : () => _changeDoneBox(entry),
+      onTap: state.busy ? null : () => _openDoneDetail(entry),
       child: _doneCells(
         Text('$no', textAlign: TextAlign.right),
         Text(time),
@@ -243,16 +247,13 @@ class _PackingViewState extends State<_PackingView> {
         ],
       );
 
-  Future<void> _changeDoneBox(PackingHistoryEntry entry) async {
+  /// Opens the order detail of the row, then reloads 「오늘 완료」 on the way
+  /// back (FEATURE_2611_07 / D1 · D6 · D7).
+  Future<void> _openDoneDetail(PackingHistoryEntry entry) async {
     final bloc = context.read<PackingBloc>();
-    final box = await showBoxChangeSheet(
-      context,
-      parcelId: entry.parcelId,
-      selectedPackageId: entry.boxPackageId,
-    );
-    if (box != null) {
-      bloc.add(PackingDoneBoxChanged(box.type));
-    }
+    await context.push(Routes.stockPackingOrderDetailPath,
+        extra: entry.parcelId);
+    bloc.add(PackingDoneReloaded());
   }
 
   /// [박스 변경] for the box being packed — picks only, no server change

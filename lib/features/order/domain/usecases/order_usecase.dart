@@ -9,6 +9,7 @@ import '../../data/models/order_acknowledge_result.dart';
 import '../../data/models/order_cancel_result.dart';
 import '../../data/models/order_refresh_result.dart';
 import '../../data/models/order_setting.dart';
+import '../entities/order_detail.dart';
 import '../entities/order_item.dart';
 import '../entities/order_period.dart';
 import '../entities/order_sync_result.dart';
@@ -189,4 +190,12 @@ class OrderUseCase {
   /// [입고완료 처리] (D67) — cannot be undone.
   Future<Either<Failure, Unit>> confirmElevenstStock(int orderItemId) =>
       repository.confirmElevenstStock(orderItemId);
+
+  /// Shared order detail by the tapped order line (FEATURE_2611_07 / D30).
+  Future<Either<Failure, OrderDetail>> getOrderDetail(int orderLineId) =>
+      repository.getOrderDetail(orderLineId);
+
+  /// Shared order detail by a parcel (「오늘 완료」, D30).
+  Future<Either<Failure, OrderDetail>> getParcelOrderDetail(int parcelId) =>
+      repository.getParcelOrderDetail(parcelId);
 }
