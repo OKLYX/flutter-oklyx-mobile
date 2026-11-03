@@ -4,7 +4,7 @@ import 'package:flutter_oklyn_mobile/features/sales/presentation/utils/sales_for
 import 'package:flutter_oklyn_mobile/features/settlement/presentation/utils/settlement_format.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 
-/// Nine numbers of the chosen channel (FEATURE_2610_20 / D26) — the web
+/// Ten numbers of the chosen channel (FEATURE_2610_20 / D26) — the web
 /// `ChannelSummaryCard`, two per row. A cell hint (web `title`) shows on long
 /// press.
 class ChannelSummaryCard extends StatelessWidget {
@@ -31,6 +31,11 @@ class ChannelSummaryCard extends StatelessWidget {
         value: formatProfit(channel.estNetProfit,
             costBasisReady: channel.costBasisReady),
         hint: channel.costBasisReady ? null : kProfitPendingHint,
+      ),
+      (
+        label: '정산 추정 금액',
+        value: formatMoney(channel.estSettlement),
+        hint: channel.estSettlement == null ? kSettlementPendingHint : null,
       ),
       (
         label: '취소수량',

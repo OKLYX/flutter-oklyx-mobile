@@ -2,11 +2,11 @@
 /// `SalesSummary.ts` and `PackingSavingsEntity.ts`. Field names = the server
 /// JSON names.
 ///
-/// 🔴 Two axes are mixed: `grossSales` · `discount` · `estFee` · `estNetProfit`
-/// are sale-date sums of the period; `pendingPayout` is the recognition-date
-/// total regardless of the period — every screen labels it 「기간 무관 · 미지급 잔액」.
+/// 🔴 The sales amounts are sale-date sums of the period — `estSettlement`
+/// (「정산 추정 금액」) too (FEATURE_2611_05 D2 · D6); `ChannelSales.paidAmount`
+/// is the one cash-basis value (paid in the period).
 /// 🔴 `estNetProfit == null` (`costBasisReady == false`) means "not known yet"
-/// — never draw it as 0.
+/// — never draw it as 0. `estSettlement == null` is the same (D7).
 library;
 
 /// One seller row — `GET /api/admin/sales/summary`.
@@ -20,7 +20,11 @@ class SellerSales {
   final num estFee;
   final num? estNetProfit;
   final bool costBasisReady;
-  final num pendingPayout;
+
+  /// 「정산 추정 금액」 of the period's sales (FEATURE_2611_05 D12): sales −
+  /// (discount − platform discount) − estimated fee − [fixedCost]. null = some
+  /// line has no commission base (D7) — shown as `—`, never 0.
+  final num? estSettlement;
 
   /// Monthly fixed cost of the seller's channels in the period — already taken
   /// out of [estNetProfit].
@@ -36,7 +40,7 @@ class SellerSales {
     required this.estFee,
     required this.estNetProfit,
     required this.costBasisReady,
-    required this.pendingPayout,
+    required this.estSettlement,
     required this.fixedCost,
   });
 }
@@ -58,7 +62,9 @@ class ChannelSales {
   final num cancelQty;
   final num refundedAmount;
   final num pendingRefundAmount;
-  final num pendingPayout;
+
+  /// Same as [SellerSales.estSettlement], for one channel.
+  final num? estSettlement;
 
   /// Cash basis (paid in the period) — channel only.
   final num paidAmount;
@@ -85,7 +91,7 @@ class ChannelSales {
     required this.cancelQty,
     required this.refundedAmount,
     required this.pendingRefundAmount,
-    required this.pendingPayout,
+    required this.estSettlement,
     required this.paidAmount,
     required this.lastSettlementSyncAt,
     required this.fixedCost,

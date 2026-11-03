@@ -114,9 +114,10 @@ class SellerChannelRows extends StatelessWidget {
           hint: channel.costBasisReady ? null : kProfitPendingHint,
         ),
         SalesValueRow(
-            label: '정산 추정 금액',
-            sub: '기간 무관 · 미지급 잔액',
-            value: formatMoney(channel.pendingPayout)),
+          label: '정산 추정 금액',
+          value: formatMoney(channel.estSettlement),
+          hint: channel.estSettlement == null ? kSettlementPendingHint : null,
+        ),
         SalesValueRow(
             label: '지급확정',
             sub: '기간 내 입금',
