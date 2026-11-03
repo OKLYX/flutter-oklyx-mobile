@@ -12,6 +12,9 @@ import 'package:flutter_oklyn_mobile/features/sales/domain/entities/sales.dart';
 ///   non-2xx status into a [ServerException] with the envelope `message` and
 ///   the status code (403 is read from it).
 /// - An empty filter value is never sent.
+/// - `excludeUnshipped` = the 「출고 전 주문 제외」 switch (FEATURE_2611_04 D1 · D2):
+///   sent as `excludeUnshipped=true` only when on — off sends nothing, so the
+///   home cards keep the numbers as before (D4).
 class SalesRemoteDataSource {
   final Dio dio;
 
@@ -19,10 +22,13 @@ class SalesRemoteDataSource {
 
   /// GET /api/admin/sales/summary — one row per seller.
   Future<List<SellerSales>> getSellerSummary(
-      {required String from, required String to}) async {
+      {required String from,
+      required String to,
+      bool excludeUnshipped = false}) async {
     final response = _ensureOk(await dio.get<dynamic>(
       '/api/admin/sales/summary',
-      queryParameters: _query(from: from, to: to),
+      queryParameters:
+          _query(from: from, to: to, excludeUnshipped: excludeUnshipped),
     ));
     return listFromJson(_data(response), sellerSalesFromJson);
   }
@@ -30,10 +36,17 @@ class SalesRemoteDataSource {
   /// GET /api/admin/sales/by-channel — one row per channel ([sellerId] narrows
   /// to one seller).
   Future<List<ChannelSales>> getChannelSales(
-      {required String from, required String to, int? sellerId}) async {
+      {required String from,
+      required String to,
+      int? sellerId,
+      bool excludeUnshipped = false}) async {
     final response = _ensureOk(await dio.get<dynamic>(
       '/api/admin/sales/by-channel',
-      queryParameters: _query(from: from, to: to, sellerId: sellerId),
+      queryParameters: _query(
+          from: from,
+          to: to,
+          sellerId: sellerId,
+          excludeUnshipped: excludeUnshipped),
     ));
     return listFromJson(_data(response), channelSalesFromJson);
   }
@@ -42,12 +55,13 @@ class SalesRemoteDataSource {
   Future<List<SalesLine>> getSalesLines(
       {required String from,
       required String to,
-      required int accountId}) async {
+      required int accountId,
+      bool excludeUnshipped = false}) async {
     final response = _ensureOk(await dio.get<dynamic>(
       '/api/admin/sales/lines',
       queryParameters: <String, dynamic>{
         'accountId': accountId,
-        ..._query(from: from, to: to)
+        ..._query(from: from, to: to, excludeUnshipped: excludeUnshipped)
       },
     ));
     return listFromJson(_data(response), salesLineFromJson);
@@ -71,11 +85,16 @@ class SalesRemoteDataSource {
     required String to,
     required bool crossChannel,
     int? sellerId,
+    bool excludeUnshipped = false,
   }) async {
     final response = _ensureOk(await dio.get<dynamic>(
       '/api/admin/sales/by-product',
       queryParameters: <String, dynamic>{
-        ..._query(from: from, to: to, sellerId: sellerId),
+        ..._query(
+            from: from,
+            to: to,
+            sellerId: sellerId,
+            excludeUnshipped: excludeUnshipped),
         'crossChannel': crossChannel,
       },
     ));
@@ -114,11 +133,15 @@ class SalesRemoteDataSource {
   }
 
   static Map<String, dynamic> _query(
-          {required String from, required String to, int? sellerId}) =>
+          {required String from,
+          required String to,
+          int? sellerId,
+          bool excludeUnshipped = false}) =>
       <String, dynamic>{
         if (from.isNotEmpty) 'from': from,
         if (to.isNotEmpty) 'to': to,
         if (sellerId != null) 'sellerId': sellerId,
+        if (excludeUnshipped) 'excludeUnshipped': true,
       };
 
   static Object? _data(Response<dynamic> response) {

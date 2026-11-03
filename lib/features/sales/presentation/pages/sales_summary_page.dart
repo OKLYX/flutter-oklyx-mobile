@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
+import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/sales_shipped_only_cubit.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/sales_summary_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/sales_summary_event.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/bloc/sales_summary_state.dart';
@@ -12,6 +13,7 @@ import 'package:flutter_oklyn_mobile/features/sales/presentation/widgets/packing
 import 'package:flutter_oklyn_mobile/features/sales/presentation/widgets/sales_period_filter.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/widgets/sales_tab_bar.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/widgets/seller_sales_list.dart';
+import 'package:flutter_oklyn_mobile/features/sales/presentation/widgets/shipped_only_switch.dart';
 import 'package:flutter_oklyn_mobile/features/settlement/presentation/widgets/settlement_message_box.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
@@ -29,8 +31,9 @@ class SalesSummaryPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => BlocProvider(
-        create: (_) =>
-            getIt<SalesSummaryBloc>()..add(const SalesSummaryStarted()),
+        create: (context) => getIt<SalesSummaryBloc>()
+          ..add(SalesSummaryStarted(
+              excludeUnshipped: context.read<SalesShippedOnlyCubit>().state)),
         child: const _SalesSummaryView(),
       );
 }
@@ -64,6 +67,17 @@ class _SalesSummaryView extends StatelessWidget {
                   disabled: state.loading,
                   onChanged: (from, to) =>
                       bloc.add(SalesSummaryPeriodChanged(from: from, to: to)),
+                  extra: [
+                    ShippedOnlySwitch(
+                      value: state.excludeUnshipped,
+                      disabled: state.loading,
+                      onChanged: (value) {
+                        context.read<SalesShippedOnlyCubit>().set(value: value);
+                        bloc.add(SalesSummaryExcludeUnshippedChanged(
+                            excludeUnshipped: value));
+                      },
+                    ),
+                  ],
                 ),
                 if (state.invalidRange) ...[
                   const SizedBox(height: 8),

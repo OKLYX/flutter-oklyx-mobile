@@ -18,20 +18,35 @@ class SalesRepositoryImpl implements SalesRepository {
 
   @override
   Future<Either<Failure, List<SellerSales>>> getSellerSummary(
-          {required String from, required String to}) =>
-      _guard(() => remoteDataSource.getSellerSummary(from: from, to: to));
+          {required String from,
+          required String to,
+          bool excludeUnshipped = false}) =>
+      _guard(() => remoteDataSource.getSellerSummary(
+          from: from, to: to, excludeUnshipped: excludeUnshipped));
 
   @override
   Future<Either<Failure, List<ChannelSales>>> getChannelSales(
-          {required String from, required String to, int? sellerId}) =>
+          {required String from,
+          required String to,
+          int? sellerId,
+          bool excludeUnshipped = false}) =>
       _guard(() => remoteDataSource.getChannelSales(
-          from: from, to: to, sellerId: sellerId));
+          from: from,
+          to: to,
+          sellerId: sellerId,
+          excludeUnshipped: excludeUnshipped));
 
   @override
   Future<Either<Failure, List<SalesLine>>> getSalesLines(
-          {required String from, required String to, required int accountId}) =>
+          {required String from,
+          required String to,
+          required int accountId,
+          bool excludeUnshipped = false}) =>
       _guard(() => remoteDataSource.getSalesLines(
-          from: from, to: to, accountId: accountId));
+          from: from,
+          to: to,
+          accountId: accountId,
+          excludeUnshipped: excludeUnshipped));
 
   @override
   Future<Either<Failure, List<DailySales>>> getDailySales(
@@ -45,9 +60,14 @@ class SalesRepositoryImpl implements SalesRepository {
     required String to,
     required bool crossChannel,
     int? sellerId,
+    bool excludeUnshipped = false,
   }) =>
       _guard(() => remoteDataSource.getProductProfit(
-          from: from, to: to, crossChannel: crossChannel, sellerId: sellerId));
+          from: from,
+          to: to,
+          crossChannel: crossChannel,
+          sellerId: sellerId,
+          excludeUnshipped: excludeUnshipped));
 
   @override
   Future<Either<Failure, SavingsSummary>> getSavingsSummary(
