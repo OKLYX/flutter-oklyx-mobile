@@ -8,9 +8,11 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_filter_chip.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_search_field.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/packing_history.dart';
 import '../bloc/packing_history_bloc.dart';
+import '../widgets/box_change_sheet.dart';
 
 /// App 「포장 이력」 screen (`/stock/packing-history`, FEATURE_2611_03 /
 /// PLAN D29 ~ D32): read-only rows of packing actions of a period (today ·
@@ -18,7 +20,10 @@ import '../bloc/packing_history_bloc.dart';
 /// **File**: lib/features/packing/presentation/pages/packing_history_page.dart
 ///
 /// ⚠️ The time is the server KST wall clock — printed as is (D40).
-/// ❌ No row tap, no edit, no delete (D32) · no date picker (D29).
+/// ❌ No row tap, no edit, no delete on the rows themselves (D32 ·
+///    FEATURE_2611_06 / D18) · no date picker (D29). The only action is
+///    [상자 변경] at the bottom of a 「포장 완료」 card — it opens the box
+///    change sheet for that parcel (FEATURE_2611_06 / D15 · D19).
 class PackingHistoryPage extends StatelessWidget {
   const PackingHistoryPage({super.key});
 
@@ -133,10 +138,33 @@ class _PackingHistoryViewState extends State<_PackingHistoryView> {
             _field('주문번호', entry.externalOrderId),
             _field('판매자', entry.sellerName ?? '-'),
             _field('동작', entry.actionLabel),
+            _field('상자', entry.boxName ?? '-'),
             _field('처리자', entry.changedBy ?? '-'),
+            if (entry.isPackedRow) ...[
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: () => _changeBox(entry),
+                child: const Text('상자 변경'),
+              ),
+            ],
           ],
         ),
       );
+
+  /// The sheet changes the box on the server and closes — reload the same
+  /// period and search text, then the toast (FEATURE_2611_06 / D19 · D20).
+  Future<void> _changeBox(PackingHistoryEntry entry) async {
+    final box = await showBoxChangeSheet(
+      context,
+      parcelId: entry.parcelId,
+      selectedPackageId: entry.boxPackageId,
+    );
+    if (box == null || !mounted) {
+      return;
+    }
+    _load(context.read<PackingHistoryBloc>().state.days);
+    showSuccessToast(context, '상자를 바꿨습니다 — ${box.type}');
+  }
 
   Widget _field(String label, String value) => Padding(
         padding: const EdgeInsets.only(top: 2),

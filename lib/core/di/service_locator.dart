@@ -203,6 +203,7 @@ import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/bloc/stoc
 import 'package:flutter_oklyn_mobile/features/packing/data/datasources/packing_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/packing/data/repositories/packing_repository_impl.dart';
 import 'package:flutter_oklyn_mobile/features/packing/domain/repositories/packing_repository.dart';
+import 'package:flutter_oklyn_mobile/features/packing/domain/usecases/change_parcel_box_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/packing/domain/usecases/complete_parcel_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/packing/domain/usecases/get_box_candidates_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/packing/domain/usecases/get_packing_history_usecase.dart';
@@ -211,6 +212,7 @@ import 'package:flutter_oklyn_mobile/features/packing/domain/usecases/lookup_pac
 import 'package:flutter_oklyn_mobile/features/packing/domain/usecases/mark_parcel_unused_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/packing/domain/usecases/restore_parcel_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/packing/domain/usecases/scan_parcel_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/packing/presentation/bloc/box_change_cubit.dart';
 import 'package:flutter_oklyn_mobile/features/packing/presentation/bloc/packing_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/packing/presentation/bloc/packing_history_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/claim/data/datasources/claim_remote_datasource.dart';
@@ -1256,6 +1258,9 @@ void _registerPackingServices() {
   getIt.registerSingleton<GetPackingHistoryUseCase>(
     GetPackingHistoryUseCase(repository: getIt<PackingRepository>()),
   );
+  getIt.registerSingleton<ChangeParcelBoxUseCase>(
+    ChangeParcelBoxUseCase(repository: getIt<PackingRepository>()),
+  );
   getIt.registerFactory<PackingBloc>(
     () => PackingBloc(
       getPendingParcelsUseCase: getIt<GetPendingParcelsUseCase>(),
@@ -1266,11 +1271,20 @@ void _registerPackingServices() {
       completeParcelUseCase: getIt<CompleteParcelUseCase>(),
       markParcelUnusedUseCase: getIt<MarkParcelUnusedUseCase>(),
       restoreParcelUseCase: getIt<RestoreParcelUseCase>(),
+      getPackingHistoryUseCase: getIt<GetPackingHistoryUseCase>(),
     ),
   );
   getIt.registerFactory<PackingHistoryBloc>(
     () => PackingHistoryBloc(
       getPackingHistoryUseCase: getIt<GetPackingHistoryUseCase>(),
+    ),
+  );
+  // One per sheet (FEATURE_2611_06 / D16).
+  getIt.registerFactory<BoxChangeCubit>(
+    () => BoxChangeCubit(
+      getPackagesUseCase: getIt<GetPackagesUseCase>(),
+      createPackageUseCase: getIt<CreatePackageUseCase>(),
+      changeParcelBoxUseCase: getIt<ChangeParcelBoxUseCase>(),
     ),
   );
 }
