@@ -11,27 +11,33 @@ import '../../domain/entities/claim.dart';
 import '../widgets/claim_action_sheet.dart';
 import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
-/// 클레임 상세 페이지 (FEATURE_2609_18).
+/// Claim detail page (FEATURE_2609_18).
 ///
-/// **데이터 출처**: 주문 상세와 동일하게 목록에서 받은 [Claim] 을 go_router `extra` 로
-/// 전달받아 그대로 표시한다(상세 API 재조회 없음).
-/// → 딥링크·핫리로드로 [claim] 이 null 이면 목록 복귀 안내 패널을 띄운다.
+/// **Data**: shows the [Claim] received from the list as go_router `extra` as
+/// it is (no detail API re-read).
+/// → When [claim] is null (deep link · hot reload) a panel offers the way back
+/// to the list.
 ///
-/// ⚠️ `build` 중에 `context.go`/`pop` 으로 **자동 이동하지 않는다** — 빌드 중 네비게이션은
-/// 예외를 던진다. 사용자가 버튼을 눌러 돌아간다.
-/// ⚠️ 반품/교환은 8할이 같아 **페이지를 나누지 않는다** — [Claim.claimType] 한 축으로만 분기한다.
+/// ⚠️ Never **navigate automatically** with `context.go` / `pop` during
+/// `build` — navigating while building throws. The user taps a button to go
+/// back.
+/// ⚠️ Returns and exchanges are 80% the same, so the page is **not split** —
+/// it branches only on [Claim.claimType].
 ///
-/// **처리 액션**(FEATURE_2609_21): 상세 하단의 [ClaimActionSheet] 가 서버의
-/// [Claim.availableActions] 를 버튼으로 그린다 — 무엇을 보여줄지는 **서버가 정한다**(D1).
-/// 액션 뒤 단건 재조회 결과를 담을 소유자가 필요해 이 페이지는 [StatefulWidget] 이고,
-/// 카드·액션 영역 전부 로컬 [_claim] 을 읽는다.
-/// **회수송장 표시**(FEATURE_2609_70): 우리 장부에만 있는 값에는 「우리 기록」 뱃지를 붙이고,
-/// 고객이 직접 보내 **넣을 송장이 아예 없는** 반품에는 값 대신 회색 안내를 그린다(D3).
-/// 🔴 판정은 여기서 하지 않는다 — 서버가 준 `collectInvoiceSource`·`returnDeliveryType` 을
-/// 그대로 읽을 뿐이고, 무엇을 누를 수 있는지는 여전히 `availableActions` 가 정한다(D1).
+/// **Actions** (FEATURE_2609_21): the [ClaimActionSheet] at the bottom draws
+/// the server's [Claim.availableActions] as buttons — **the server decides**
+/// what shows (D1). An owner is needed for the single re-read after an
+/// action, so this page is a [StatefulWidget] and every card and the action
+/// area read the local [_claim].
+/// **Return invoice** (FEATURE_2609_70): a value only in our own ledger gets
+/// the 「우리 기록」 badge, and a return the customer sends themselves (**no
+/// invoice to enter at all**) gets a gray notice instead of a value (D3).
+/// 🔴 No decision here — it only reads the server's `collectInvoiceSource` ·
+/// `returnDeliveryType`; what can be tapped is still `availableActions` (D1).
 ///
-/// ⚠️ 목록(`ClaimListBloc`)은 건드리지 않는다 — 상세에서 그 인스턴스에 닿을 수 없고, 액션이
-/// 바꾸는 값(`availableActions`)은 목록 카드가 그리지 않는다(04 Step 5).
+/// ⚠️ The list (`ClaimListBloc`) is not touched — the detail cannot reach that
+/// instance, and the list card does not draw the value an action changes
+/// (`availableActions`) (04 Step 5).
 class ClaimDetailPage extends StatefulWidget {
   final Claim? claim;
 

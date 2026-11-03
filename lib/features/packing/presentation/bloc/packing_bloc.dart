@@ -60,7 +60,7 @@ class PackingBloc extends Bloc<PackingEvent, PackingState> {
     on<PackingUnusedRequested>(_onUnusedRequested);
     on<PackingRestoreRequested>(_onRestoreRequested);
     on<PackingTabSelected>(_onTabSelected);
-    on<PackingDoneBoxChanged>(_onDoneBoxChanged);
+    on<PackingDoneReloaded>(_onDoneReloaded);
     on<PackingPackagesReloaded>(_onPackagesReloaded);
   }
 
@@ -104,20 +104,13 @@ class PackingBloc extends Bloc<PackingEvent, PackingState> {
     emit(state.copyWith(tab: event.tab));
   }
 
-  /// The sheet already changed the box on the server and closed — reload
-  /// 「오늘 완료」, then the toast (FEATURE_2611_06 / D19 · D20).
-  Future<void> _onDoneBoxChanged(
-    PackingDoneBoxChanged event,
+  /// Back from the order detail — reload 「오늘 완료」 only; the box change
+  /// toast is shown by the order detail screen (FEATURE_2611_07 / D7 · R15).
+  Future<void> _onDoneReloaded(
+    PackingDoneReloaded event,
     Emitter<PackingState> emit,
-  ) async {
-    await _reloadDone(emit);
-    emit(state.copyWith(
-      notice: PackingNotice(
-        PackingNoticeKind.success,
-        '상자를 바꿨습니다 — ${event.boxName}',
-      ),
-    ));
-  }
+  ) =>
+      _reloadDone(emit);
 
   Future<void> _onPackagesReloaded(
     PackingPackagesReloaded event,

@@ -125,6 +125,7 @@ import 'package:flutter_oklyn_mobile/features/order/domain/usecases/order_usecas
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/elevenst_order_action_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_acknowledge_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_cancel_bloc.dart';
+import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_detail_cubit.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_internal_stage_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_list_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_refresh_bloc.dart';
@@ -961,6 +962,12 @@ void _registerOrderServices() {
   // BLoC (주문관리 설정, FEATURE_2609_75 / D12) as factory.
   getIt.registerFactory<OrderSettingBloc>(
     () => OrderSettingBloc(useCase: getIt<OrderUseCase>()),
+  );
+
+  // Cubit (shared order detail read + picked parcel chip, FEATURE_2611_07 /
+  // D18) as factory — a new instance every time the detail opens.
+  getIt.registerFactory<OrderDetailCubit>(
+    () => OrderDetailCubit(useCase: getIt<OrderUseCase>()),
   );
 }
 

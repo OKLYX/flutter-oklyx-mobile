@@ -209,6 +209,16 @@ class AppRouter {
       pageBuilder: (context, state) => const NoTransitionPage(
         child: PackingPage(),
       ),
+      routes: [
+        GoRoute(
+          name: Routes.stockPackingOrderDetail,
+          path: 'order-detail',
+          pageBuilder: (context, state) => NoTransitionPage(
+            // extra = the tapped parcel id (FEATURE_2611_07 / D30).
+            child: OrderDetailPage.packing(parcelId: state.extra as int?),
+          ),
+        ),
+      ],
     ),
     GoRoute(
       name: Routes.stockPackingHistory,
@@ -566,7 +576,8 @@ class AppRouter {
           name: Routes.orderHistoryDetail,
           path: 'detail',
           pageBuilder: (context, state) {
-            // 목록에서 extra 로 전달한 OrderItem 사용 (상세 API 없음, 프론트와 동일).
+            // Takes the tapped OrderItem as extra; the page reads the order by
+            // that line (FEATURE_2611_07 / D18).
             final order = state.extra as OrderItem?;
             return NoTransitionPage(
               child: OrderDetailPage(order: order),
@@ -586,7 +597,7 @@ class AppRouter {
           name: Routes.claimDetail,
           path: 'detail',
           pageBuilder: (context, state) {
-            // 목록에서 extra 로 전달한 Claim 사용 (상세 재조회 없음, 주문 상세와 동일).
+            // Uses the Claim passed as extra from the list (no detail re-read).
             final claim = state.extra as Claim?;
             return NoTransitionPage(
               child: ClaimDetailPage(claim: claim),

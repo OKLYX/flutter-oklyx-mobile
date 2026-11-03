@@ -3,18 +3,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import '../../domain/entities/order_item.dart';
 
-/// 내부 단계 배지 — 「내부 상품준비중」·「발송대기중」(FEATURE_2609_75 / D9·D10·D11).
+/// Internal stage badge — 「내부 상품준비중」 · 「발송대기중」 (FEATURE_2609_75 /
+/// D9 · D10 · D11).
 ///
-/// **용도**: 주문 카드(주문내역·출고관리 공용 [OrderCard])와 주문 상세(기본 정보 카드 `주문번호` 행)의 주문번호 옆에 붙인다.
-/// **파일**: lib/features/order/presentation/widgets/internal_stage_badge.dart
+/// **Purpose**: placed next to the order number on the order card (the
+/// [OrderCard] shared by order history and outbound) and on the order detail
+/// (「주문 정보」 card 「주문번호」 row, FEATURE_2611_07 / D34).
+/// **File**: lib/features/order/presentation/widgets/internal_stage_badge.dart
 ///
-/// **사용 예제**:
+/// **Example**:
 /// ```dart
 /// InternalStageBadge(stage: order.internalStage)
 /// ```
 ///
-/// ⚠️ 문구는 [kInternalStageLabels] 에서만 온다 — 여기서 글자를 새로 쓰지 않는다.
-/// ❌ `status`(쿠팡 상태)로 판정하지 않는다. [stage] 가 null 이면 아무것도 그리지 않는다.
+/// ⚠️ The text comes only from [kInternalStageLabels] — never write new text
+/// here.
+/// ❌ Never decide by `status` (the Coupang status). Draws nothing when
+/// [stage] is null.
 class InternalStageBadge extends StatelessWidget {
   final InternalStage? stage;
 
