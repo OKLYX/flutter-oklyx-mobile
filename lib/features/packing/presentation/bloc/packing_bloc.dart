@@ -1,9 +1,11 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/package/domain/usecases/get_packages_usecase.dart';
 import '../../domain/entities/packing.dart';
 import '../../domain/usecases/complete_parcel_usecase.dart';
 import '../../domain/usecases/get_box_candidates_usecase.dart';
+import '../../domain/usecases/get_packing_history_usecase.dart';
 import '../../domain/usecases/get_pending_parcels_usecase.dart';
 import '../../domain/usecases/lookup_packing_barcode_usecase.dart';
 import '../../domain/usecases/mark_parcel_unused_usecase.dart';
@@ -23,6 +25,9 @@ import 'packing_state.dart';
 /// ⚠️ Every judgement (remaining quantity, last box, full-quantity check) is
 ///    the server's (D27). The app draws the values it gets and counts the
 ///    packed quantity only — a refused completion shows the server message.
+/// ⚠️ 「오늘 완료」 = today (phone date) 「포장 완료」 rows of the packing
+///    history, loaded on entry and after a completion — no auto refresh
+///    (FEATURE_2611_06 / D21).
 class PackingBloc extends Bloc<PackingEvent, PackingState> {
   final GetPendingParcelsUseCase getPendingParcelsUseCase;
   final GetPackagesUseCase getPackagesUseCase;
@@ -32,6 +37,7 @@ class PackingBloc extends Bloc<PackingEvent, PackingState> {
   final CompleteParcelUseCase completeParcelUseCase;
   final MarkParcelUnusedUseCase markParcelUnusedUseCase;
   final RestoreParcelUseCase restoreParcelUseCase;
+  final GetPackingHistoryUseCase getPackingHistoryUseCase;
 
   PackingBloc({
     required this.getPendingParcelsUseCase,
@@ -42,6 +48,7 @@ class PackingBloc extends Bloc<PackingEvent, PackingState> {
     required this.completeParcelUseCase,
     required this.markParcelUnusedUseCase,
     required this.restoreParcelUseCase,
+    required this.getPackingHistoryUseCase,
   }) : super(const PackingState()) {
     on<PackingStarted>(_onStarted);
     on<PackingInputSubmitted>(_onInputSubmitted);
@@ -52,6 +59,9 @@ class PackingBloc extends Bloc<PackingEvent, PackingState> {
     on<PackingCancelled>(_onCancelled);
     on<PackingUnusedRequested>(_onUnusedRequested);
     on<PackingRestoreRequested>(_onRestoreRequested);
+    on<PackingTabSelected>(_onTabSelected);
+    on<PackingDoneBoxChanged>(_onDoneBoxChanged);
+    on<PackingPackagesReloaded>(_onPackagesReloaded);
   }
 
   Future<void> _onStarted(
@@ -59,11 +69,61 @@ class PackingBloc extends Bloc<PackingEvent, PackingState> {
     Emitter<PackingState> emit,
   ) async {
     await _reloadPending(emit);
+    await _reloadDone(emit);
+    await _reloadPackages(emit);
+  }
+
+  /// Every box — a failure leaves it empty without a toast.
+  Future<void> _reloadPackages(Emitter<PackingState> emit) async {
     final packages = await getPackagesUseCase();
     emit(state.copyWith(
       packages: packages.fold((_) => const [], (list) => list),
     ));
   }
+
+  /// 「오늘 완료」 — today's (phone date) 「포장 완료」 rows in the server
+  /// order (latest first). A failure leaves it empty without a toast (web
+  /// `loadDone`).
+  Future<void> _reloadDone(Emitter<PackingState> emit) async {
+    emit(state.copyWith(doneLoading: true));
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final result = await getPackingHistoryUseCase(today, today, '');
+    emit(state.copyWith(
+      done: result.fold(
+        (_) => const [],
+        (entries) => [
+          for (final entry in entries)
+            if (entry.isPackedRow) entry,
+        ],
+      ),
+      doneLoading: false,
+    ));
+  }
+
+  void _onTabSelected(PackingTabSelected event, Emitter<PackingState> emit) {
+    emit(state.copyWith(tab: event.tab));
+  }
+
+  /// The sheet already changed the box on the server and closed — reload
+  /// 「오늘 완료」, then the toast (FEATURE_2611_06 / D19 · D20).
+  Future<void> _onDoneBoxChanged(
+    PackingDoneBoxChanged event,
+    Emitter<PackingState> emit,
+  ) async {
+    await _reloadDone(emit);
+    emit(state.copyWith(
+      notice: PackingNotice(
+        PackingNoticeKind.success,
+        '상자를 바꿨습니다 — ${event.boxName}',
+      ),
+    ));
+  }
+
+  Future<void> _onPackagesReloaded(
+    PackingPackagesReloaded event,
+    Emitter<PackingState> emit,
+  ) =>
+      _reloadPackages(emit);
 
   /// Work list — a failure leaves it empty without a toast.
   Future<void> _reloadPending(Emitter<PackingState> emit) async {
@@ -368,6 +428,7 @@ class PackingBloc extends Bloc<PackingEvent, PackingState> {
       notice: PackingNotice(PackingNoticeKind.success, message),
     ));
     await _reloadPending(emit);
+    await _reloadDone(emit);
   }
 
   void _onCancelled(PackingCancelled event, Emitter<PackingState> emit) {
@@ -439,9 +500,11 @@ class PackingBloc extends Bloc<PackingEvent, PackingState> {
     await _reloadPending(emit);
   }
 
-  /// Back to waiting for an invoice.
+  /// Back to waiting for an invoice, on the 「오늘 완료」 tab (FEATURE_2611_06
+  /// / D24).
   PackingState _closed() => state.copyWith(
         clearScan: true,
+        tab: PackingTab.done,
         packed: const {},
         candidates: const [],
         candidatesLoading: false,

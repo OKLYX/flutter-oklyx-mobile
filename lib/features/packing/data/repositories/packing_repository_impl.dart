@@ -52,6 +52,14 @@ class PackingRepositoryImpl implements PackingRepository {
       _guard(() => remoteDataSource.restore(parcelId), '미사용 처리를 되돌리지 못했습니다');
 
   @override
+  Future<Either<Failure, PackingCompleteResult>> changeBox(
+    int parcelId,
+    int boxPackageId,
+  ) =>
+      _guard(() => remoteDataSource.changeBox(parcelId, boxPackageId),
+          '상자를 바꾸지 못했습니다');
+
+  @override
   Future<Either<Failure, List<PackingHistoryEntry>>> history(
     String from,
     String to,
