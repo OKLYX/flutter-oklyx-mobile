@@ -100,10 +100,13 @@ _MetaFill _applyQtyToMeta({
 }) {
   final value = total > 0 ? '$total' : '';
   // Whether the measure notice is auto-composed = a composing source exists
-  // and attributes are sent. Hidden attributes and two or more component kinds
-  // (FEATURE_2610_37 / D23) leave it a field the user writes.
-  final autoMeasureNotice =
-      !hideCategoryAttrs && !manualMeasureNotice && hasMeasureAttr(attrs);
+  // and attributes are sent. Hidden attributes, two or more component kinds
+  // (FEATURE_2610_37 / D23) and no measure value (FEATURE_2611_08 / D10)
+  // leave it a field the user writes.
+  final autoMeasureNotice = !hideCategoryAttrs &&
+      !manualMeasureNotice &&
+      hasMeasureAttr(attrs) &&
+      measured.trim().isNotEmpty;
   final attrNames = hideCategoryAttrs
       ? const <String>[]
       : attrs
@@ -137,14 +140,16 @@ _MetaFill _applyQtyToMeta({
     for (final n in noticeTargets) {
       if (isMeasureNotice(n.key)) {
         if (autoMeasureNotice) {
-          // Derived value (read-only on screen) → always overwrite, and
-          // clear it when composing is no longer possible.
+          // Derived value (read-only on screen) → overwrite while a measure
+          // value exists. Once it is blank the field is user input again and
+          // the written text is kept (FEATURE_2611_08 / D10).
           nextNotices[n.key] = composed;
         } else if (composed.isNotEmpty &&
             !skipNotices.contains(n.key) &&
             !(manualMeasureNotice &&
                 (nextNotices[n.key] ?? '').trim().isNotEmpty)) {
-          // Not composable = user-input field → keep the guard. With two or
+          // Not composable (no measure value · mixed composition · no measure
+          // attribute) = user-input field → keep the guard. With two or
           // more component kinds a non-blank value is kept on every path —
           // only a blank field takes the composed text (FEATURE_2610_37 / D23).
           nextNotices[n.key] = composed;
@@ -776,7 +781,16 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
           masterNoticeValues: widget.masterNoticeValues,
           noticeGroup: widget.masterNoticeGroup,
         ),
+        OptionAttrCtx(masterAttrValues: widget.masterAttrValues),
       );
+
+  // Same measure value as the auto-fill (`_applyItemQtyToMeta`) — the option
+  // fields use it to decide whether the measure notice is composed (R6).
+  bool get _hasMeasureValue {
+    final read = readMeasureValue(_attributes, _optAttrValues);
+    final measured = read.isNotEmpty ? read : deriveMeasured(_components);
+    return measured.trim().isNotEmpty;
+  }
 
   Future<void> _handleSubmit() async {
     setState(() {
@@ -1207,6 +1221,7 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
               disabled: _isSubmitting,
               hideCategoryAttrs: widget.hideCategoryAttrs,
               manualMeasureNotice: _components.length >= 2,
+              hasMeasureValue: _hasMeasureValue,
               noticeGroup: widget.masterNoticeGroup,
             ),
           ] else

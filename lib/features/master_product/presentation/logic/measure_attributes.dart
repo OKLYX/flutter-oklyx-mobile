@@ -5,7 +5,9 @@
 //
 // Coupang sends weight and volume as separate attributes that may both be
 // MANDATORY, while a product only carries one of them. Pairs are rendered as
-// "axis pick + one value" and validated as one-of.
+// "axis pick + one value". The name pairing is for display and auto-fill
+// only — requiredness follows the Coupang group number (`choice_groups.dart`,
+// FEATURE_2611_08).
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_product.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/option_meta_fields.dart';
 

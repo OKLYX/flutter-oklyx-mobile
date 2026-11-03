@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_product.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/basic_unit.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/choice_groups.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/measure_attributes.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/net_content_unit.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/notice_templates.dart';
@@ -20,6 +21,10 @@ class _AttrCell {
   const _AttrCell.single(CategoryAttribute a)
       : pair = null,
         single = a;
+
+  // Attribute names this cell renders (a pair = weight and volume).
+  List<String> get names =>
+      pair != null ? [pair!.weight.name, pair!.volume.name] : [single!.name];
 }
 
 /// Per-option category field inputs — render only. Port of web
@@ -62,6 +67,12 @@ class CategoryMetaOverrideFields extends StatefulWidget {
   /// stays an input field (not read-only); the composed text fills it only
   /// while it is blank.
   final bool manualMeasureNotice;
+
+  /// FEATURE_2611_08 / D10 · R6: the option has a measure value (stored or
+  /// typed measure attribute value, else the value derived from the component
+  /// net content) — computed by the option editor with the same expression as
+  /// the auto-fill. Without it the measure notice is a user-input field.
+  final bool hasMeasureValue;
   final String? noticeGroup;
 
   const CategoryMetaOverrideFields({
@@ -76,6 +87,7 @@ class CategoryMetaOverrideFields extends StatefulWidget {
     this.disabled = false,
     this.hideCategoryAttrs = false,
     this.manualMeasureNotice = false,
+    this.hasMeasureValue = false,
     this.noticeGroup,
   });
 
@@ -137,10 +149,33 @@ class _CategoryMetaOverrideFieldsState
           ]
         : <_AttrCell>[];
 
+    // FEATURE_2611_08 / R4 · R5: one bordered box per required choice group
+    // with two or more option-owned members. A required cell joins the box of
+    // the group that holds any of its attribute names; box order = group order.
+    final boxGroups = hide
+        ? <ChoiceGroup>[]
+        : requiredChoiceGroups(widget.attributes)
+            .where((g) =>
+                isOptionGroup(g) &&
+                g.members.where((m) => isOptionField(m.name)).length >= 2)
+            .toList();
+    final boxCells = [
+      for (final g in boxGroups)
+        requiredCells
+            .where((c) => c.names.any((n) => g.members.any((m) => m.name == n)))
+            .toList(),
+    ];
+    final restRequiredCells = requiredCells
+        .where((c) => !boxCells.any((cells) => cells.contains(c)))
+        .toList();
+
     final hasNoticeFields = visibleNoticeFields.isNotEmpty;
+    // Same condition as the auto-fill: without a measure value the notice is
+    // a user-input field (FEATURE_2611_08 / D10).
     final autoMeasureNotice = !hide &&
         !widget.manualMeasureNotice &&
-        hasMeasureAttr(widget.attributes);
+        hasMeasureAttr(widget.attributes) &&
+        widget.hasMeasureValue;
     final hasAnyOption =
         pairs.isNotEmpty || singles.isNotEmpty || noticeFields.isNotEmpty;
     final hasOptional = optionalPairs.isNotEmpty ||
@@ -168,7 +203,9 @@ class _CategoryMetaOverrideFieldsState
           dense: true,
           contentPadding: EdgeInsets.zero,
         ),
-      if (requiredCells.isNotEmpty) _cellColumn(context, requiredCells),
+      for (var i = 0; i < boxGroups.length; i++)
+        _choiceBox(context, boxGroups[i], boxCells[i]),
+      if (restRequiredCells.isNotEmpty) _cellColumn(context, restRequiredCells),
       if (optionalCells.isNotEmpty)
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,15 +263,56 @@ class _CategoryMetaOverrideFieldsState
     );
   }
 
-  Widget _cellColumn(BuildContext context, List<_AttrCell> cells) => Column(
+  Widget _cellColumn(
+    BuildContext context,
+    List<_AttrCell> cells, {
+    bool inBox = false,
+  }) =>
+      Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           for (var i = 0; i < cells.length; i++) ...[
             if (i > 0) const SizedBox(height: 12),
-            _buildCell(context, cells[i]),
+            _buildCell(context, cells[i], inBox: inBox),
           ],
         ],
       );
+
+  // One choice group: a single required mark before the guide line, then the
+  // group's cells without their own marks (FEATURE_2611_08 / D8).
+  Widget _choiceBox(
+    BuildContext context,
+    ChoiceGroup g,
+    List<_AttrCell> cells,
+  ) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: '* ', style: TextStyle(color: scheme.error)),
+                TextSpan(text: choiceGroupGuide(g)),
+              ],
+            ),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          ),
+          if (cells.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _cellColumn(context, cells, inBox: true),
+          ],
+        ],
+      ),
+    );
+  }
 
   Widget _buildNotice(
       BuildContext context, CategoryNotice n, bool autoMeasure) {
@@ -356,7 +434,8 @@ class _CategoryMetaOverrideFieldsState
     ];
   }
 
-  Widget _buildCell(BuildContext context, _AttrCell cell) {
+  Widget _buildCell(BuildContext context, _AttrCell cell,
+      {bool inBox = false}) {
     final scheme = Theme.of(context).colorScheme;
     final p = cell.pair;
     if (p != null) {
@@ -374,7 +453,7 @@ class _CategoryMetaOverrideFieldsState
             TextSpan(
               text: p.base.isNotEmpty ? p.base : '중량/용량',
               children: [
-                if (isPairRequired(p))
+                if (!inBox && isPairRequired(p))
                   TextSpan(text: ' *', style: TextStyle(color: scheme.error)),
                 TextSpan(
                   text: ' (중량·용량 중 택1)',
@@ -481,7 +560,7 @@ class _CategoryMetaOverrideFieldsState
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
-              if (a.required)
+              if (!inBox && a.required)
                 TextSpan(text: ' *', style: TextStyle(color: scheme.error)),
               if (autoQty)
                 TextSpan(
