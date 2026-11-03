@@ -3,8 +3,9 @@ import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
 import '../../domain/entities/packing.dart';
 import '../models/packing_models.dart';
 
-/// `/api/admin/packing/...` (FEATURE_2611_03 / PLAN D13 · D27 · D34) — the
-/// same calls as the web `PackingRepositoryImpl`. All are ADMIN only.
+/// `/api/admin/packing/...` (FEATURE_2611_03 / PLAN D13 · D27 · D34 ·
+/// FEATURE_2611_06 / PLAN D8 · D19) — the same calls as the web
+/// `PackingRepositoryImpl`. All are ADMIN only.
 ///
 /// `DioClient` lets every status below 500 through — [_ensureOk] turns a
 /// non-2xx status into a [ServerException] with the envelope `message`
@@ -97,6 +98,22 @@ class PackingRemoteDataSource {
       await dio.post<dynamic>('/api/admin/packing/parcels/$parcelId/restore'),
     );
     return PackingCloseResultModel.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+    );
+  }
+
+  /// Changes the box of a packed parcel (FEATURE_2611_06 / D8) — the complete
+  /// response with the costs after the change. A refusal (not packed ·
+  /// unknown box) is a 400 with the server text.
+  Future<PackingCompleteResultModel> changeBox(
+    int parcelId,
+    int boxPackageId,
+  ) async {
+    final response = _ensureOk(await dio.post<dynamic>(
+      '/api/admin/packing/parcels/$parcelId/box',
+      data: <String, dynamic>{'boxPackageId': boxPackageId},
+    ));
+    return PackingCompleteResultModel.fromJson(
       response.data['data'] as Map<String, dynamic>,
     );
   }

@@ -177,6 +177,8 @@ class PackingHistoryEntryModel extends PackingHistoryEntry {
     required super.fromStatus,
     required super.toStatus,
     required super.changedBy,
+    required super.boxName,
+    required super.boxPackageId,
   });
 
   factory PackingHistoryEntryModel.fromJson(Map<String, dynamic> json) =>
@@ -191,5 +193,7 @@ class PackingHistoryEntryModel extends PackingHistoryEntry {
         fromStatus: ParcelStatus.parse(json['fromStatus'] as String?),
         toStatus: ParcelStatus.parse(json['toStatus'] as String?),
         changedBy: json['changedBy'] as String?,
+        boxName: json['boxName'] as String?,
+        boxPackageId: json['boxPackageId'] as int?,
       );
 }

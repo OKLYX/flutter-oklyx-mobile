@@ -13,17 +13,28 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/packing.dart';
+import '../../domain/entities/packing_history.dart';
 import '../bloc/packing_bloc.dart';
 import '../bloc/packing_event.dart';
 import '../bloc/packing_state.dart';
+import '../widgets/box_change_sheet.dart';
 
 /// App 「포장 작업」 screen (`/stock/packing`, FEATURE_2611_03 / PLAN D10 ·
-/// D22 · D23 · D26).
+/// D22 · D23 · D26 · FEATURE_2611_06 / PLAN D21 · D22 · D24).
 ///
 /// - One input field (no camera, no new package, no permission — D22): an
 ///   invoice number while no box is open, a product barcode while packing.
-/// - Waiting: the work list; a tap opens that invoice.
-/// - Packing: invoice card, lines with −/+, box recommendation, buttons
+/// - Tabs 「오늘 완료」 · 「작업 대상」 always show below the open box (or
+///   below the input field while waiting). 「오늘 완료」 is picked on entry
+///   and after a completion, a cancel or an unused close (FEATURE_2611_06 /
+///   D24).
+/// - 「오늘 완료」: today's packed boxes; a tap opens the box change sheet for
+///   that parcel (`showBoxChangeSheet`, D21).
+/// - 「작업 대상」: the work list; a tap opens that invoice only while no box
+///   is open (R15).
+/// - Packing: invoice card, lines with −/+, box recommendation with
+///   [박스 변경] (the sheet only picks the box being packed — no server
+///   change, D22) and the 「고른 상자」 line, buttons
 ///   [송장 미사용 처리] · [취소] · [이 박스 완료].
 /// - Closed box: an unused box shows [미사용 되돌리기] (restore card, D26);
 ///   both kinds show [다음 송장 스캔].
@@ -126,12 +137,19 @@ class _PackingViewState extends State<_PackingView> {
               children: [
                 _inputField(state),
                 const SizedBox(height: 16),
-                if (scan == null)
-                  ..._waiting(context, state)
-                else if (scan.parcel.status == ParcelStatus.pending)
-                  ..._packing(context, state, scan)
+                if (scan != null) ...[
+                  if (scan.parcel.status == ParcelStatus.pending)
+                    ..._packing(context, state, scan)
+                  else
+                    _closed(context, state, scan),
+                  const SizedBox(height: 16),
+                ],
+                _tabs(context, state),
+                const SizedBox(height: 8),
+                if (state.tab == PackingTab.done)
+                  ..._done(context, state)
                 else
-                  _closed(context, state, scan),
+                  ..._waiting(context, state),
               ],
             );
           },
@@ -156,11 +174,109 @@ class _PackingViewState extends State<_PackingView> {
     );
   }
 
+  Widget _tabs(BuildContext context, PackingState state) {
+    final bloc = context.read<PackingBloc>();
+    return SizedBox(
+      width: double.infinity,
+      child: SegmentedButton<PackingTab>(
+        segments: const [
+          ButtonSegment(value: PackingTab.done, label: Text('오늘 완료')),
+          ButtonSegment(value: PackingTab.pending, label: Text('작업 대상')),
+        ],
+        selected: {state.tab},
+        showSelectedIcon: false,
+        onSelectionChanged: (set) => bloc.add(PackingTabSelected(set.first)),
+      ),
+    );
+  }
+
+  /// 「오늘 완료」 list (FEATURE_2611_06 / D21).
+  List<Widget> _done(BuildContext context, PackingState state) {
+    if (state.doneLoading && state.done.isEmpty) {
+      return const [AppLoading()];
+    }
+    if (state.done.isEmpty) {
+      return const [AppEmpty('오늘 완료한 박스가 없습니다')];
+    }
+    return [
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: _doneCells(
+          const Text('No', textAlign: TextAlign.right),
+          const Text('시각'),
+          const Text('송장'),
+          const Text('상자'),
+        ),
+      ),
+      const SizedBox(height: 4),
+      for (var i = 0; i < state.done.length; i++) ...[
+        if (i > 0) const AppRowGap(),
+        _doneRow(state, state.done[i], state.done.length - i),
+      ],
+    ];
+  }
+
+  Widget _doneRow(PackingState state, PackingHistoryEntry entry, int no) {
+    final changedAt = entry.changedAt;
+    final time = changedAt.length >= 16 ? changedAt.substring(11, 16) : '-';
+    return AppCard.row(
+      onTap: state.busy ? null : () => _changeDoneBox(entry),
+      child: _doneCells(
+        Text('$no', textAlign: TextAlign.right),
+        Text(time),
+        Text(entry.invoiceNumber),
+        Text(entry.boxName ?? '-'),
+      ),
+    );
+  }
+
+  /// The same column widths for the head row and every row.
+  Widget _doneCells(Widget no, Widget time, Widget invoice, Widget box) => Row(
+        children: [
+          SizedBox(width: 32, child: no),
+          const SizedBox(width: 12),
+          SizedBox(width: 48, child: time),
+          const SizedBox(width: 8),
+          Expanded(flex: 3, child: invoice),
+          const SizedBox(width: 8),
+          Expanded(flex: 2, child: box),
+        ],
+      );
+
+  Future<void> _changeDoneBox(PackingHistoryEntry entry) async {
+    final bloc = context.read<PackingBloc>();
+    final box = await showBoxChangeSheet(
+      context,
+      parcelId: entry.parcelId,
+      selectedPackageId: entry.boxPackageId,
+    );
+    if (box != null) {
+      bloc.add(PackingDoneBoxChanged(box.type));
+    }
+  }
+
+  /// [박스 변경] for the box being packed — picks only, no server change
+  /// (FEATURE_2611_06 / D22).
+  Future<void> _changePackingBox(int? selectedBoxId) async {
+    final bloc = context.read<PackingBloc>();
+    final box = await showBoxChangeSheet(
+      context,
+      parcelId: null,
+      selectedPackageId: selectedBoxId,
+    );
+    if (box != null) {
+      bloc
+        ..add(PackingBoxSelected(box.id))
+        ..add(PackingPackagesReloaded());
+    }
+  }
+
+  /// 「작업 대상」 list — a row opens its invoice only while no box is open
+  /// (R15).
   List<Widget> _waiting(BuildContext context, PackingState state) {
     final bloc = context.read<PackingBloc>();
+    final locked = state.busy || state.scan != null;
     return [
-      Text('작업 대상 박스', style: Theme.of(context).textTheme.titleMedium),
-      const SizedBox(height: 8),
       if (state.pendingLoading && state.pending.isEmpty)
         const AppLoading()
       else if (state.pending.isEmpty)
@@ -168,7 +284,7 @@ class _PackingViewState extends State<_PackingView> {
       else
         for (var i = 0; i < state.pending.length; i++) ...[
           if (i > 0) const AppRowGap(),
-          _pendingRow(context, state.pending[i], state.busy, bloc),
+          _pendingRow(context, state.pending[i], locked, bloc),
         ],
     ];
   }
@@ -176,12 +292,12 @@ class _PackingViewState extends State<_PackingView> {
   Widget _pendingRow(
     BuildContext context,
     PendingParcel parcel,
-    bool busy,
+    bool locked,
     PackingBloc bloc,
   ) {
     final textTheme = Theme.of(context).textTheme;
     return AppCard.row(
-      onTap: busy
+      onTap: locked
           ? null
           : () => bloc.add(PackingParcelOpened(parcel.invoiceNumber)),
       child: Row(
@@ -277,7 +393,21 @@ class _PackingViewState extends State<_PackingView> {
         _lineRow(context, state, scan.remaining[i], bloc),
       ],
       const SizedBox(height: 16),
-      Text('박스 추천', style: textTheme.titleMedium),
+      Row(
+        children: [
+          Expanded(child: Text('박스 추천', style: textTheme.titleMedium)),
+          OutlinedButton(
+            onPressed: state.busy
+                ? null
+                : () => _changePackingBox(state.selectedBoxId),
+            child: const Text('박스 변경'),
+          ),
+        ],
+      ),
+      if (_selectedBox(state) case final box?) ...[
+        const SizedBox(height: 4),
+        Text('고른 상자: ${box.type} · ${box.sizeLabel} · ${box.boxKind.label}'),
+      ],
       const SizedBox(height: 8),
       ..._boxChoices(state, bloc),
       const SizedBox(height: 16),
@@ -351,6 +481,21 @@ class _PackingViewState extends State<_PackingView> {
         ],
       ),
     );
+  }
+
+  /// The picked box from every box, null when none is picked or it is not in
+  /// the list (FEATURE_2611_06 / D22).
+  Package? _selectedBox(PackingState state) {
+    final id = state.selectedBoxId;
+    if (id == null) {
+      return null;
+    }
+    for (final package in state.packages) {
+      if (package.id == id) {
+        return package;
+      }
+    }
+    return null;
   }
 
   List<Widget> _boxChoices(PackingState state, PackingBloc bloc) {

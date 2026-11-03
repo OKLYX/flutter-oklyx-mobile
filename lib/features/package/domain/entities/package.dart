@@ -1,3 +1,23 @@
+/// Bought or recycled box (FEATURE_2611_06 / PLAN D16) — the server `BoxKind`,
+/// the same labels as the web `BOX_KIND_LABEL`.
+///
+/// ⚠️ A missing or unknown code reads as [purchased] — the server's default.
+enum BoxKind {
+  purchased('PURCHASED', '구매 상자'),
+  recycled('RECYCLED', '재활용 상자');
+
+  /// The value the server sends and takes.
+  final String code;
+
+  /// The screen label.
+  final String label;
+
+  const BoxKind(this.code, this.label);
+
+  static BoxKind parse(String? code) =>
+      code == recycled.code ? recycled : purchased;
+}
+
 class Package {
   final int id;
   final String type;
@@ -7,6 +27,9 @@ class Package {
   final double lengthCm;
   final double heightCm;
 
+  /// Bought or recycled (FEATURE_2611_06 / D16).
+  final BoxKind boxKind;
+
   Package({
     required this.id,
     required this.type,
@@ -15,6 +38,7 @@ class Package {
     required this.widthCm,
     required this.lengthCm,
     required this.heightCm,
+    this.boxKind = BoxKind.purchased,
   });
 
   Package copyWith({
@@ -25,6 +49,7 @@ class Package {
     double? widthCm,
     double? lengthCm,
     double? heightCm,
+    BoxKind? boxKind,
   }) {
     return Package(
       id: id ?? this.id,
@@ -34,20 +59,22 @@ class Package {
       widthCm: widthCm ?? this.widthCm,
       lengthCm: lengthCm ?? this.lengthCm,
       heightCm: heightCm ?? this.heightCm,
+      boxKind: boxKind ?? this.boxKind,
     );
   }
 }
 
-/// 상자 사이즈 표기 헬퍼. `22 × 19 × 9 cm` 형태로 만든다.
+/// Box size label helper — `22 × 19 × 9 cm`.
 ///
-/// **용도**: 목록/상세/수정 세 화면이 같은 문자열을 쓰도록 한 곳에 둔다.
-/// **규칙**: 셋 다 0 이면 '미지정' — 사이즈가 없던 시절에 만든 상자다
-/// (0 백필, PLAN 2609_38 D4·D8).
+/// **Purpose**: one place so the list / detail / edit screens of 「상자비」
+/// and the box change sheet (FEATURE_2611_06 / D16) show the same text.
+/// **Rule**: all three 0 → '미지정' — a box made before sizes existed
+/// (backfilled with 0, PLAN 2609_38 D4 · D8).
 ///
-/// **사용 예제**:
+/// **Usage**:
 /// ```dart
 /// Text('사이즈: ${package.sizeLabel}');            // 22 × 19 × 9 cm
-/// if (package.isSizeUnset) { /* 옅은 색으로 표시 */ }
+/// if (package.isSizeUnset) { /* show it in a lighter color */ }
 /// ```
 extension PackageSizeLabel on Package {
   bool get isSizeUnset => widthCm == 0 && lengthCm == 0 && heightCm == 0;

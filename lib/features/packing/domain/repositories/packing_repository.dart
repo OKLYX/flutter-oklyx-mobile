@@ -29,6 +29,12 @@ abstract class PackingRepository {
 
   Future<Either<Failure, PackingCloseResult>> restore(int parcelId);
 
+  /// Changes the box of a packed parcel (FEATURE_2611_06 / D19).
+  Future<Either<Failure, PackingCompleteResult>> changeBox(
+    int parcelId,
+    int boxPackageId,
+  );
+
   /// [from] · [to] = `yyyy-MM-dd`, both inclusive.
   Future<Either<Failure, List<PackingHistoryEntry>>> history(
     String from,

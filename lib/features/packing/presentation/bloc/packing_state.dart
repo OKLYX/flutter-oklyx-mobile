@@ -1,5 +1,7 @@
 import 'package:flutter_oklyn_mobile/features/package/domain/entities/package.dart';
 import '../../domain/entities/packing.dart';
+import '../../domain/entities/packing_history.dart';
+import 'packing_event.dart';
 
 /// Shown both as the error toast and as the error text of the box card.
 const String packingUnexpandedMessage =
@@ -21,6 +23,14 @@ class PackingState {
   final List<PendingParcel> pending;
   final bool pendingLoading;
 
+  /// 「오늘 완료」 rows — today's 「포장 완료」 history rows, latest first
+  /// (FEATURE_2611_06 / D21).
+  final List<PackingHistoryEntry> done;
+  final bool doneLoading;
+
+  /// The tab below the input field (FEATURE_2611_06 / D24).
+  final PackingTab tab;
+
   /// Every box for a manual pick when there is no candidate.
   final List<Package> packages;
 
@@ -41,6 +51,9 @@ class PackingState {
   const PackingState({
     this.pending = const [],
     this.pendingLoading = false,
+    this.done = const [],
+    this.doneLoading = false,
+    this.tab = PackingTab.done,
     this.packages = const [],
     this.scan,
     this.packed = const {},
@@ -65,6 +78,9 @@ class PackingState {
   PackingState copyWith({
     List<PendingParcel>? pending,
     bool? pendingLoading,
+    List<PackingHistoryEntry>? done,
+    bool? doneLoading,
+    PackingTab? tab,
     List<Package>? packages,
     PackingScan? scan,
     bool clearScan = false,
@@ -79,6 +95,9 @@ class PackingState {
       PackingState(
         pending: pending ?? this.pending,
         pendingLoading: pendingLoading ?? this.pendingLoading,
+        done: done ?? this.done,
+        doneLoading: doneLoading ?? this.doneLoading,
+        tab: tab ?? this.tab,
         packages: packages ?? this.packages,
         scan: clearScan ? null : (scan ?? this.scan),
         packed: packed ?? this.packed,
