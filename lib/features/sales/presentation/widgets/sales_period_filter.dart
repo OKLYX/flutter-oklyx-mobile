@@ -10,8 +10,8 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_filter_chip.dart';
 /// range picker). [extra] chips (seller · channel · view mode) follow in the
 /// same row. Pure controlled — the BLoC owns the values.
 ///
-/// ⚠️ This is the SALE-date axis; 「정산 추정 금액」 does not follow it (its label says
-/// so).
+/// ⚠️ This is the SALE-date axis; every sales number, 「정산 추정 금액」 included,
+/// follows it (FEATURE_2611_05 D6).
 class SalesPeriodFilter extends StatelessWidget {
   final String from;
   final String to;

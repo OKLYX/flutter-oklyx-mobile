@@ -11,10 +11,11 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 /// Seller rows of 「통합 매출 조회」 + the total row (FEATURE_2610_20 / D26) — the web
 /// `SellerSummaryTable`.
 ///
-/// 🔴 「정산 추정 금액」 always carries 「기간 무관 · 미지급 잔액」 — it does not follow the
-/// period.
+/// 🔴 「정산 추정 금액」 follows the period like 「매출액」, so it has no small line
+/// under its name (FEATURE_2611_05 D6 · D15).
 /// 🔴 The total profit is `—` when any row has no cost basis (a partial sum
-/// would read as the total).
+/// would read as the total); the total 「정산 추정 금액」 is `—` when any row is
+/// `—` (FEATURE_2611_05 D7 · D12).
 /// ⚠️ The first load shows the spinner; a reload keeps the old rows under a
 /// 「조회 중...」 line.
 class SellerSalesList extends StatelessWidget {
@@ -69,6 +70,7 @@ class SellerSalesList extends StatelessWidget {
     num sum(num Function(SellerSales) pick) =>
         rows.fold<num>(0, (total, row) => total + pick(row));
     final totalProfitReady = rows.every((row) => row.costBasisReady);
+    final totalSettlementReady = rows.every((row) => row.estSettlement != null);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -112,8 +114,10 @@ class SellerSalesList extends StatelessWidget {
               ),
               SalesValueRow(
                 label: '정산 추정 금액',
-                sub: '기간 무관 · 미지급 잔액',
-                value: formatMoney(sum((r) => r.pendingPayout)),
+                value: totalSettlementReady
+                    ? formatMoney(sum((r) => r.estSettlement ?? 0))
+                    : '—',
+                hint: totalSettlementReady ? null : kSettlementPendingHint,
                 bold: true,
               ),
             ],
@@ -155,9 +159,10 @@ class SellerSalesList extends StatelessWidget {
             hint: row.costBasisReady ? null : kProfitPendingHint,
           ),
           SalesValueRow(
-              label: '정산 추정 금액',
-              sub: '기간 무관 · 미지급 잔액',
-              value: formatMoney(row.pendingPayout)),
+            label: '정산 추정 금액',
+            value: formatMoney(row.estSettlement),
+            hint: row.estSettlement == null ? kSettlementPendingHint : null,
+          ),
           if (expanded)
             SellerChannelRows(
               channels: channels,

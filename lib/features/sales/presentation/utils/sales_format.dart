@@ -37,6 +37,10 @@ String fixedCostHintFor(String? platform) =>
 const String kProfitPendingHint =
     '순이익 추정치는 상품 단가와 비용(택배비, 상자비 등)이 모두 작성 완료되어야 표시가능합니다.';
 
+/// Why an estimated settlement is `—` — attached only when the value is `—`
+/// (web `SETTLEMENT_PENDING_HINT`).
+const String kSettlementPendingHint = '수수료 기준이 없는 주문이 있어 정산 추정 금액을 계산할 수 없습니다.';
+
 /// Saving in won with 「원」; null = `—` (no record, not 0).
 String formatSaving(num? value) =>
     value == null ? '—' : '${formatMoney(value)}원';

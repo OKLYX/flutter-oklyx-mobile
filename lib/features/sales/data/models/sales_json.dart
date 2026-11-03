@@ -1,7 +1,7 @@
 // JSON -> sales entities — the only file of this feature that knows JSON keys
 // (keys = web `SalesSummary.ts` · `PackingSavingsEntity.ts` field names). A
-// missing profit reads as null (unknown, not 0); other missing numbers read as
-// 0.
+// missing profit or estimated settlement reads as null (unknown, not 0); other
+// missing numbers read as 0.
 import 'package:flutter_oklyn_mobile/features/sales/domain/entities/sales.dart';
 
 typedef Json = Map<String, dynamic>;
@@ -28,7 +28,7 @@ SellerSales sellerSalesFromJson(Json j) => SellerSales(
       estFee: _num(j['estFee']),
       estNetProfit: _numN(j['estNetProfit']),
       costBasisReady: _bool(j['costBasisReady']),
-      pendingPayout: _num(j['pendingPayout']),
+      estSettlement: _numN(j['estSettlement']),
       fixedCost: _num(j['fixedCost']),
     );
 
@@ -48,7 +48,7 @@ ChannelSales channelSalesFromJson(Json j) => ChannelSales(
       cancelQty: _num(j['cancelQty']),
       refundedAmount: _num(j['refundedAmount']),
       pendingRefundAmount: _num(j['pendingRefundAmount']),
-      pendingPayout: _num(j['pendingPayout']),
+      estSettlement: _numN(j['estSettlement']),
       paidAmount: _num(j['paidAmount']),
       lastSettlementSyncAt: _strN(j['lastSettlementSyncAt']),
       fixedCost: _num(j['fixedCost']),
