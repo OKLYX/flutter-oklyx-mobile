@@ -64,6 +64,12 @@ class OrderItem {
   /// option etc.) — the card draws an empty box.
   final int? thumbnailProductId;
 
+  /// Real products of the line (FEATURE_2611_15 / D16 · D18): every
+  /// component product of the line's master option, BOM order, quantity =
+  /// per-set quantity × purchasableQty. Empty when the server could not
+  /// expand the line.
+  final List<OrderComponentQuantity> components;
+
   const OrderItem({
     required this.id,
     required this.marketplaceAccountId,
@@ -91,8 +97,32 @@ class OrderItem {
     this.reservedSale = false,
     this.stockConfirmSent = false,
     this.thumbnailProductId,
+    this.components = const [],
   });
 }
+
+/// One component product of an order line and how many go out
+/// (FEATURE_2611_15 / D16 · D18).
+class OrderComponentQuantity {
+  final String productName;
+  final int quantity;
+
+  const OrderComponentQuantity({
+    required this.productName,
+    required this.quantity,
+  });
+}
+
+/// The order list's real product quantity text (FEATURE_2611_15 / D16):
+/// 「{name} × {quantity}」 joined by 「 · 」, e.g.
+/// 「노란 수세미 × 3 · 초록 수세미 × 6」; 「-」 when the line has no components
+/// (a broken link).
+String componentQuantitiesLabel(List<OrderComponentQuantity> components) =>
+    components.isEmpty
+        ? '-'
+        : components
+            .map((c) => '${c.productName} × ${c.quantity}')
+            .join(' · ');
 
 /// The reserved-sale label beside the status (FEATURE_2610_17 / D67) — one
 /// source for the order card and the order detail.

@@ -15,7 +15,9 @@ import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets
 /// **Purpose**: one row of the order list. The shown items are the same as the
 /// columns of the front-end `OrderTable`
 /// (order number / customer name / product name / ordered quantity /
-/// cancelled / paid date).
+/// cancelled / real product quantity / paid date). The real product quantity
+/// (「실제 상품 수량」) is `componentQuantitiesLabel(order.components)` — text
+/// only, no link (FEATURE_2611_15 / D15 · D16 · D17).
 /// **Required rule**: a new screen that draws an order list uses this widget.
 /// Do not build the card again per screen.
 /// **File**: lib/features/order/presentation/widgets/order_card.dart
@@ -74,8 +76,9 @@ class OrderCard extends StatelessWidget {
     return AppCard.row(
       // 항목 탭 → 주문 상세 페이지로 이동 (선택한 OrderItem 을 extra 로 전달).
       onTap: () => context.push(Routes.orderHistoryDetailPath, extra: order),
-      // 카드 항목은 프론트 OrderTable 컬럼과 동일:
-      // 주문번호 / 고객명 / 상품명 / 주문수량 / 취소 / 결제일.
+      // Card items match the front-end OrderTable columns:
+      // order number / customer name / product name / ordered quantity /
+      // cancelled / real product quantity / paid date.
       child: _withCheckbox(_withThumbnail(
             context,
             Column(
@@ -134,6 +137,14 @@ class OrderCard extends StatelessWidget {
                     _metric(context, '주문수량', order.orderCount),
                     _metric(context, '취소', order.cancelCount),
                   ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '실제 상품 수량 ${componentQuantitiesLabel(order.components)}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(

@@ -30,6 +30,7 @@ class OrderModel extends OrderItem {
     super.reservedSale,
     super.stockConfirmSent,
     super.thumbnailProductId,
+    super.components,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
@@ -66,8 +67,20 @@ class OrderModel extends OrderItem {
       stockConfirmSent: json['stockConfirmSent'] as bool? ?? false,
       // Missing on an older server = null (empty box).
       thumbnailProductId: (json['thumbnailProductId'] as num?)?.toInt(),
+      // FEATURE_2611_15 / D16 — missing on an older server = empty (「-」).
+      components: _components(json['components']),
     );
   }
+
+  static List<OrderComponentQuantity> _components(Object? raw) => raw is List
+      ? raw
+          .map((e) => e as Map<String, dynamic>)
+          .map((e) => OrderComponentQuantity(
+                productName: e['productName'] as String? ?? '',
+                quantity: (e['quantity'] as num?)?.toInt() ?? 0,
+              ))
+          .toList()
+      : const [];
 }
 
 class OrderSyncResultModel extends OrderSyncResult {

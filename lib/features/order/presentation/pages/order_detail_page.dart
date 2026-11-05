@@ -53,6 +53,9 @@ import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 import 'package:flutter_oklyn_mobile/features/packing/domain/entities/packing.dart';
 import 'package:flutter_oklyn_mobile/features/packing/presentation/widgets/box_change_sheet.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/product_thumbnail.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_route_args.dart';
+import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/entities/stock_enums.dart'
+    show unexpandedReasonLabel;
 import '../../domain/entities/order_detail.dart';
 import '../bloc/order_detail_cubit.dart';
 
@@ -72,6 +75,12 @@ import '../bloc/order_detail_cubit.dart';
 /// 「상품 목록」 (every line of the order) and 「송장 목록」 (parcel chips, D29).
 /// The packing entry draws only 「주문 정보」 + 「상품 목록」 + 「송장 목록」 and
 /// adds [상자 변경] to packed parcels (D14 · D27).
+/// Each 「상품 목록」 line also shows, under its quantity, the master product ·
+/// master option and the component products (photo · name · count), or only
+/// the broken link's reason; the master name links to the master detail for
+/// an ADMIN only (server `admin`), every component name to the product detail
+/// — both pushed so their back button returns here (FEATURE_2611_15 / D1 ·
+/// D3 · D5 · D7 · D8 · D19 · D20).
 ///
 /// **UI**: the same `_InfoCard` / `_InfoRow` card layout as other detail
 /// pages.
@@ -652,6 +661,11 @@ class _ProductListCard extends StatelessWidget {
                           style: TextStyle(
                               fontSize: 12, color: scheme.onSurfaceVariant),
                         ),
+                        if (detail.lineMasterOf(line.id) case final master?)
+                          _LineMasterInfo(
+                            master: master,
+                            admin: detail.admin,
+                          ),
                       ],
                     ),
                   ),
@@ -668,6 +682,124 @@ class _ProductListCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Where one 「상품 목록」 line comes from (FEATURE_2611_15 / D3 · D5 · D8 ·
+/// D19 · D20): linked = 「판매상품 마스터 {master} · {option}」 + 「구성상품」 +
+/// one row per component (photo · name · 「× {count}」); broken = the reason
+/// text only. The master name is a link only when [admin]; component names
+/// are links for everyone. Links push (no `go`) so back returns here (D7).
+class _LineMasterInfo extends StatelessWidget {
+  final OrderLineMaster master;
+  final bool admin;
+
+  const _LineMasterInfo({required this.master, required this.admin});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final gray = TextStyle(fontSize: 12, color: scheme.onSurfaceVariant);
+    final link = TextStyle(
+      fontSize: 12,
+      color: scheme.primary,
+      decoration: TextDecoration.underline,
+      decorationColor: scheme.primary,
+    );
+    final reason = master.unexpandedReason;
+    if (reason != null) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Text(
+          unexpandedReasonLabel(reason),
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppColors.warningForeground,
+          ),
+        ),
+      );
+    }
+    final masterName = master.masterProductName ?? '-';
+    final masterId = master.masterProductId;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 4),
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text('판매상품 마스터 ', style: gray),
+            if (admin && masterId != null)
+              _LinkText(
+                text: masterName,
+                style: link,
+                onTap: () => context.pushNamed(
+                  Routes.masterProductDetail,
+                  pathParameters: {'id': '$masterId'},
+                  extra: const MasterDetailArgs(fromOrderDetail: true),
+                ),
+              )
+            else
+              Text(masterName, style: gray),
+            Text(' · ${master.masterOptionName ?? '-'}', style: gray),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text('구성상품', style: gray),
+        for (final product in master.products)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Row(
+              children: [
+                _Thumb(productId: product.productId),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: _LinkText(
+                      text: product.productName,
+                      style: link,
+                      onTap: () => context.pushNamed(
+                        Routes.productDetail,
+                        pathParameters: {'productId': '${product.productId}'},
+                        extra: true,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text('× ${product.quantity}', style: gray),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Tappable link text of [_LineMasterInfo] — no button padding so it sits in
+/// the line like plain text.
+class _LinkText extends StatelessWidget {
+  final String text;
+  final TextStyle style;
+  final VoidCallback onTap;
+
+  const _LinkText({
+    required this.text,
+    required this.style,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => TextButton(
+        style: TextButton.styleFrom(
+          padding: EdgeInsets.zero,
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          visualDensity: VisualDensity.compact,
+        ),
+        onPressed: onTap,
+        child: Text(text, style: style),
+      );
 }
 
 /// 「송장 목록」 card — parcel chips, the shown chip's content below (D23 ·

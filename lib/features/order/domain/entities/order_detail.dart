@@ -28,6 +28,14 @@ class OrderDetail {
   /// empty = no invoice yet (D26).
   final List<OrderDetailParcel> parcels;
 
+  /// Where each line comes from — one per line, the order of [lines]
+  /// (FEATURE_2611_15 / D1 · D3 · D5).
+  final List<OrderLineMaster> lineMasters;
+
+  /// true = the viewer is an ADMIN — draw the master product link only then
+  /// (FEATURE_2611_15 / D8 · D20). The server decides it; the app has no role.
+  final bool admin;
+
   const OrderDetail({
     required this.externalOrderId,
     this.sellerName,
@@ -38,7 +46,19 @@ class OrderDetail {
     this.paidAt,
     this.lines = const [],
     this.parcels = const [],
+    this.lineMasters = const [],
+    this.admin = false,
   });
+
+  /// The [OrderLineMaster] of the line, null when the server sent none.
+  OrderLineMaster? lineMasterOf(int orderLineId) {
+    for (final master in lineMasters) {
+      if (master.orderLineId == orderLineId) {
+        return master;
+      }
+    }
+    return null;
+  }
 
   /// 「판매처」 text (D35): 「{channel} · {alias}」, or only 「{channel}」 when
   /// the alias is blank.
@@ -104,6 +124,48 @@ class OrderDetailParcelItem {
     required this.productId,
     required this.quantity,
     this.productName,
+    this.imageUrl,
+  });
+}
+
+/// The master product, master option and component products of one order
+/// line (FEATURE_2611_15 / D1 · D3 · D5). [unexpandedReason] null = linked;
+/// otherwise the broken link's code — show `unexpandedReasonLabel(code)` only.
+class OrderLineMaster {
+  final int orderLineId;
+  final int? masterProductId;
+  final String? masterProductName;
+  final String? masterOptionName;
+
+  /// BOM order — empty when [unexpandedReason] is set.
+  final List<OrderLineProduct> products;
+
+  /// `UNMAPPED_OPTION` · `NO_MASTER_OPTION` · `EMPTY_BOM`, null = linked.
+  final String? unexpandedReason;
+
+  const OrderLineMaster({
+    required this.orderLineId,
+    this.masterProductId,
+    this.masterProductName,
+    this.masterOptionName,
+    this.products = const [],
+    this.unexpandedReason,
+  });
+}
+
+/// One component product: quantity = per-set quantity × the line's
+/// purchasable quantity (FEATURE_2611_15 / D4 · D18). Draw its photo with
+/// the order detail page's `_Thumb` (`ProductThumbnail`).
+class OrderLineProduct {
+  final int productId;
+  final String productName;
+  final String? imageUrl;
+  final int quantity;
+
+  const OrderLineProduct({
+    required this.productId,
+    required this.productName,
+    required this.quantity,
     this.imageUrl,
   });
 }

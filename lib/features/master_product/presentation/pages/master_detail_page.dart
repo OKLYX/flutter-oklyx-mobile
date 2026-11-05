@@ -1230,7 +1230,11 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
     return ScaffoldWithNavBar(
       title: matrix?.masterName ?? '커버리지 매트릭스',
       navBarIndex: 2,
-      onBackPressed: () => context.go(Routes.masterProductsPath),
+      // Opened from an order detail line: back pops there (FEATURE_2611_15 /
+      // D7); every other entry keeps going to the master list.
+      onBackPressed: () => widget.args.fromOrderDetail && context.canPop()
+          ? context.pop()
+          : context.go(Routes.masterProductsPath),
       // A single scroll (not a lazy ListView) so offstage sections are never
       // disposed while scrolled away (R9 — unsaved input).
       body: AppPageBody.scroll(

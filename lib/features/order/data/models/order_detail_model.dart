@@ -16,11 +16,14 @@ class OrderDetailModel extends OrderDetail {
     super.paidAt,
     super.lines,
     super.parcels,
+    super.lineMasters,
+    super.admin,
   });
 
   factory OrderDetailModel.fromJson(Map<String, dynamic> json) {
     final lines = json['lines'];
     final parcels = json['parcels'];
+    final lineMasters = json['lineMasters'];
     return OrderDetailModel(
       externalOrderId: json['externalOrderId'] as String? ?? '',
       sellerName: json['sellerName'] as String?,
@@ -37,8 +40,40 @@ class OrderDetailModel extends OrderDetail {
       parcels: parcels is List
           ? parcels.map((e) => _parcel(e as Map<String, dynamic>)).toList()
           : const [],
+      lineMasters: lineMasters is List
+          ? lineMasters
+              .map((e) => _lineMaster(e as Map<String, dynamic>))
+              .toList()
+          : const [],
+      // FEATURE_2611_15 / D20 — missing or not true = not an admin (no master
+      // product link), the same reading as `dashboard_json.dart`.
+      admin: json['admin'] == true,
     );
   }
+
+  static OrderLineMaster _lineMaster(Map<String, dynamic> json) {
+    final products = json['products'];
+    return OrderLineMaster(
+      orderLineId: (json['orderLineId'] as num).toInt(),
+      masterProductId: (json['masterProductId'] as num?)?.toInt(),
+      masterProductName: json['masterProductName'] as String?,
+      masterOptionName: json['masterOptionName'] as String?,
+      products: products is List
+          ? products
+              .map((e) => _lineProduct(e as Map<String, dynamic>))
+              .toList()
+          : const [],
+      unexpandedReason: json['unexpandedReason'] as String?,
+    );
+  }
+
+  static OrderLineProduct _lineProduct(Map<String, dynamic> json) =>
+      OrderLineProduct(
+        productId: (json['productId'] as num).toInt(),
+        productName: json['productName'] as String? ?? '',
+        imageUrl: json['imageUrl'] as String?,
+        quantity: (json['quantity'] as num?)?.toInt() ?? 0,
+      );
 
   static OrderDetailParcel _parcel(Map<String, dynamic> json) {
     final items = json['items'];
