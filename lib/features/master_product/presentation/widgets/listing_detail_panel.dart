@@ -14,6 +14,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/widget
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/info_bubble_icon.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 
 const String _channelOnlyReason = '마스터 옵션이 없는 채널 전용 옵션입니다';
 const String _optionLinkUnknownReason =
@@ -183,8 +184,6 @@ class _ListingDetailPanelState extends State<ListingDetailPanel> {
 
   // 「마켓 기준으로 맞추기」 (FEATURE_2611_11 / D9 · D11 · D35)
   bool _syncing = false;
-  String _syncDone = '';
-  String _syncNotice = '';
   String _syncError = '';
 
   // Channel raw tags
@@ -333,8 +332,6 @@ class _ListingDetailPanelState extends State<ListingDetailPanel> {
   Future<void> _syncFromMarket() async {
     setState(() {
       _syncing = true;
-      _syncDone = '';
-      _syncNotice = '';
       _syncError = '';
     });
     final res = await _useCase.syncFromMarket(widget.listingId);
@@ -347,11 +344,14 @@ class _ListingDetailPanelState extends State<ListingDetailPanel> {
         _syncing = false;
       }),
       (result) {
-        setState(() {
-          _syncDone = '마켓 기준으로 맞췄습니다.';
-          _syncNotice = result.imageNotice ?? '';
-          _syncing = false;
-        });
+        setState(() => _syncing = false);
+        // PLAN R24: onSaved() reloads the list and removes this panel, so the
+        // success result is shown as a toast before calling it.
+        showSuccessToast(context, '마켓 기준으로 맞췄습니다.');
+        final notice = result.imageNotice;
+        if (notice != null && notice.isNotEmpty) {
+          showErrorToast(context, notice);
+        }
         widget.onSaved();
       },
     );
@@ -561,22 +561,6 @@ class _ListingDetailPanelState extends State<ListingDetailPanel> {
               ? const AppBusyLabel('맞추는 중')
               : const Text('마켓 기준으로 맞추기'),
         ),
-        if (_syncDone.isNotEmpty)
-          Text(
-            _syncDone,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.successForeground,
-            ),
-          ),
-        if (_syncNotice.isNotEmpty)
-          Text(
-            _syncNotice,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.warningForeground,
-            ),
-          ),
         if (_syncError.isNotEmpty)
           Text(_syncError, style: TextStyle(fontSize: 12, color: scheme.error)),
       ],
