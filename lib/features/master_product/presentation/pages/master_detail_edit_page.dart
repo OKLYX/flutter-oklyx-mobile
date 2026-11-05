@@ -111,6 +111,8 @@ class _MasterDetailEditPageState extends State<MasterDetailEditPage> {
     final template = _template;
     final source = generated?.source;
     final isManual = source == GeneratedSourceCode.manualOverride;
+    // FEATURE_2611_11 / D23: the detail was taken from the market.
+    final isMarket = source == GeneratedSourceCode.market;
     return ScaffoldWithNavBar(
       title: _masterName.isEmpty ? '상세 편집' : _masterName,
       navBarIndex: 2,
@@ -136,17 +138,25 @@ class _MasterDetailEditPageState extends State<MasterDetailEditPage> {
                   decoration: BoxDecoration(
                     color: isManual
                         ? AppColors.warningSurface
-                        : AppColors.successSurface,
+                        : isMarket
+                            ? AppColors.infoSurface
+                            : AppColors.successSurface,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    isManual ? '수동 수정됨' : '자동생성',
+                    isManual
+                        ? '수동 수정됨'
+                        : isMarket
+                            ? '마켓 상세'
+                            : '자동생성',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                       color: isManual
                           ? AppColors.warningForeground
-                          : AppColors.successForeground,
+                          : isMarket
+                              ? AppColors.infoForeground
+                              : AppColors.successForeground,
                     ),
                   ),
                 ),

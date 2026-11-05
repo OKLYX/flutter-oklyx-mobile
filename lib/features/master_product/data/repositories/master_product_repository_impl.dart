@@ -215,6 +215,19 @@ class MasterProductRepositoryImpl implements MasterProductRepository {
       });
 
   @override
+  Future<Either<Failure, Unit>> updateRegistrationName(
+          int listingId, String? registrationName) =>
+      _guard(() async {
+        await listingDataSource.updateRegistrationName(
+            listingId, registrationName);
+        return unit;
+      });
+
+  @override
+  Future<Either<Failure, MarketSyncResult>> syncFromMarket(int listingId) =>
+      _guard(() => listingDataSource.syncFromMarket(listingId));
+
+  @override
   Future<Either<Failure, GeneratedProduct>> updateListingTags(
           int listingId, List<String> tags) =>
       _guard(() => listingDataSource.updateListingTags(listingId, tags));
