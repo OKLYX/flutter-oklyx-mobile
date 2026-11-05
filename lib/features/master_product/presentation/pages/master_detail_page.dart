@@ -990,8 +990,10 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
     await _load();
   }
 
-  Future<void> _handleImportDone(String? categoryWarning) async {
-    showSuccessToast(context, '쿠팡 상품을 가져왔습니다.');
+  /// [platform] = the platform of the row that opened the add page.
+  Future<void> _handleImportDone(
+      String platform, String? categoryWarning) async {
+    showSuccessToast(context, '${platformName(platform)} 상품을 가져왔습니다.');
     setState(() {
       _banner = categoryWarning != null
           ? _Notice(text: categoryWarning, green: false)
@@ -1014,7 +1016,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
       ),
     );
     if (r != null && mounted) {
-      await _handleImportDone(r.categoryWarning);
+      await _handleImportDone(row.platform, r.categoryWarning);
     }
   }
 
@@ -1636,6 +1638,8 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
     // 11st and ESM upload through the option picker.
     final canUpload =
         isCoupang || row.platform == 'ELEVENST' || row.platform == 'ESM';
+    // FEATURE_2611_12 / R11: Coupang and 11st rows can attach a market product.
+    final canImport = isCoupang || row.platform == 'ELEVENST';
     final rowBusy = _rowBusyId == row.accountId;
     final smallButton = OutlinedButton.styleFrom(
       visualDensity: VisualDensity.compact,
@@ -1786,8 +1790,8 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
                         ),
                       ),
                     // 2609_22: attach a product already on the market (no
-                    // shipping guard — it is already selling).
-                    if (isCoupang)
+                    // shipping guard — it is already selling). Coupang · 11st.
+                    if (canImport)
                       OutlinedButton(
                         style: smallButton,
                         onPressed:
