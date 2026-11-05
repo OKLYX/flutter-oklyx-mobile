@@ -228,6 +228,10 @@ class MatrixCell {
   final int productListingId;
   final String name;
   final String registrationName;
+
+  /// FEATURE_2611_11 / D24: true = [registrationName] is the automatic name
+  /// (the panel shows 「자동」).
+  final bool registrationNameAuto;
   final String? platformProductId;
   final num? sellingPrice;
 
@@ -248,6 +252,7 @@ class MatrixCell {
     required this.productListingId,
     required this.name,
     required this.registrationName,
+    this.registrationNameAuto = true,
     this.platformProductId,
     this.sellingPrice,
     this.auctionSellingPrice,

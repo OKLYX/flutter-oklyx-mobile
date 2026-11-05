@@ -16,6 +16,30 @@ abstract final class ListingStatusCode {
 abstract final class GeneratedSourceCode {
   static const auto = 'AUTO';
   static const manualOverride = 'MANUAL_OVERRIDE';
+
+  /// FEATURE_2611_11 / D7 · D23: taken from the market (thumbnail 「마켓 이미지」 ·
+  /// detail 「마켓 상세」). Only `source` / `thumbnailSource` carry it.
+  static const market = 'MARKET';
+}
+
+/// Web `MarketSyncResponse` — 「마켓 기준으로 맞추기」 result
+/// (FEATURE_2611_11 / D9 · D11 · D35).
+class MarketSyncResult {
+  /// 「노출상품명」 after the sync.
+  final String name;
+
+  /// Stored 「등록상품명」 after the sync; null = the automatic name is used.
+  final String? registrationName;
+
+  /// Why the photos were left as they were (the server's guidance text, e.g.
+  /// the 11st photo read notice); null = no notice.
+  final String? imageNotice;
+
+  const MarketSyncResult({
+    required this.name,
+    this.registrationName,
+    this.imageNotice,
+  });
 }
 
 /// Web `OptionPrice`.

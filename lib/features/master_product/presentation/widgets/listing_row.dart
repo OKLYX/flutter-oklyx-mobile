@@ -488,6 +488,7 @@ class _ListingRowState extends State<ListingRow> {
               listingId: listingId,
               name: cell.name,
               registrationName: cell.registrationName,
+              registrationNameAuto: cell.registrationNameAuto,
               tags: gen?.tags ?? const [],
               onMarket: pid != null,
               platform: widget.platform,

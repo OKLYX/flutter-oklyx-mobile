@@ -141,6 +141,13 @@ abstract class MasterProductRepository {
   /// L11
   Future<Either<Failure, Unit>> updateDisplayName(int listingId, String name);
 
+  /// FEATURE_2611_11 / D5: null clears the stored 「등록상품명」.
+  Future<Either<Failure, Unit>> updateRegistrationName(
+      int listingId, String? registrationName);
+
+  /// FEATURE_2611_11 / D9 · D11: 「마켓 기준으로 맞추기」.
+  Future<Either<Failure, MarketSyncResult>> syncFromMarket(int listingId);
+
   /// L12
   Future<Either<Failure, GeneratedProduct>> updateListingTags(
       int listingId, List<String> tags);
