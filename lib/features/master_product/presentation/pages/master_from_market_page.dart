@@ -32,11 +32,12 @@ const Map<String, String> _statusLabel = {
   'SUSPENDED': '판매 중지',
 };
 
-/// Supported platforms — Coupang only today (D17 · UX D64: one more record per
+/// Supported platforms — Coupang · 11st (D17 · UX D64: one more record per
 /// platform). (value, label, idLabel, idNumeric)
 /// ⚠️ Never write a platform name directly in the widget tree.
 final List<(String, String, String, bool)> _platforms = [
   ('COUPANG', platformName('COUPANG'), '쿠팡 상품 ID', true),
+  ('ELEVENST', platformName('ELEVENST'), '11번가 상품 ID', true),
 ];
 
 /// Tokens taken from the product name · candidates shown · size of one search (UX D79).
@@ -75,7 +76,8 @@ List<String> _nameTokens(String name) {
 /// Uses the backend text as is and appends one actionable line only.
 /// Decided by HTTP status + substring (no exception class names reach the app).
 /// ⚠️ Texts are owned by backend `DetachedCellPolicy` · `MarketProductAccess`.
-String _lookupErrorMessage(Failure f) {
+/// [platform] = the looked-up sales channel (names the market in the hints).
+String _lookupErrorMessage(Failure f, String platform) {
   final status = f is ServerFailure ? f.statusCode : null;
   final message = failureText(f, '상품을 조회하지 못했습니다.');
   if (status == 429) return '잠시 후 다시 시도하세요.';
@@ -86,12 +88,13 @@ String _lookupErrorMessage(Failure f) {
     return '$message 위에서 판매자를 바꿔 다시 조회하세요.';
   }
   if (status == 400 && message.contains('계정')) {
-    return '$message 판매자 관리에서 쿠팡 계정을 먼저 등록·활성화하세요.';
+    return '$message 판매자 관리에서 ${platformName(platform)} 계정을 먼저 등록·활성화하세요.';
   }
   if (status == 404) {
     // 🔴 Never decide 404 by substring — the backend sends English. On this
     // screen a 404 is only seller / account.
-    return '이 판매자의 쿠팡 계정을 찾을 수 없습니다. 판매자 관리에서 먼저 등록·활성화하세요.';
+    return '이 판매자의 ${platformName(platform)} 계정을 찾을 수 없습니다. '
+        '판매자 관리에서 먼저 등록·활성화하세요.';
   }
   return message;
 }
@@ -283,7 +286,7 @@ class _MasterFromMarketPageState extends State<MasterFromMarketPage> {
     if (!mounted) return;
     await result.fold(
       (f) async {
-        setState(() => _error = _lookupErrorMessage(f));
+        setState(() => _error = _lookupErrorMessage(f, target.platform));
         final status = f is ServerFailure ? f.statusCode : null;
         if (status == 400 && failureText(f, '').contains(_alreadyLinked)) {
           // Tell which master it is attached to — the master list search
