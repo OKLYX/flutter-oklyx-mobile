@@ -151,6 +151,7 @@ MatrixCell matrixCellFromJson(Json j) => MatrixCell(
       productListingId: _int(j['productListingId']),
       name: _str(j['name']),
       registrationName: _str(j['registrationName']),
+      registrationNameAuto: _boolN(j['registrationNameAuto']) ?? true,
       platformProductId: _strN(j['platformProductId']),
       sellingPrice: _numN(j['sellingPrice']),
       auctionSellingPrice: _numN(j['auctionSellingPrice']),
@@ -273,6 +274,12 @@ GeneratedProduct generatedProductFromJson(Json j) => GeneratedProduct(
       shippingReady: _boolN(j['shippingReady']),
       detailTemplateId: _intN(j['detailTemplateId']),
       priceRecalcFailedCount: _intN(j['priceRecalcFailedCount']) ?? 0,
+    );
+
+MarketSyncResult marketSyncResultFromJson(Json j) => MarketSyncResult(
+      name: _str(j['name']),
+      registrationName: _strN(j['registrationName']),
+      imageNotice: _strN(j['imageNotice']),
     );
 
 ChannelAddResult channelAddResultFromJson(Json j) => ChannelAddResult(

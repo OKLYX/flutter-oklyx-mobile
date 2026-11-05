@@ -98,6 +98,21 @@ class ListingRegistrationRemoteDataSource {
         body: {'name': name});
   }
 
+  /// FEATURE_2611_11 / D5: store this listing's own 「등록상품명」; null clears it
+  /// ([자동 이름으로 되돌리기]).
+  Future<void> updateRegistrationName(
+      int listingId, String? registrationName) async {
+    await api.patch('/api/admin/product-listings/$listingId/registration-name',
+        body: {'registrationName': registrationName});
+  }
+
+  /// FEATURE_2611_11 / D9 · D11: 「마켓 기준으로 맞추기」.
+  Future<MarketSyncResult> syncFromMarket(int listingId) async {
+    final data =
+        await api.post('/api/admin/product-listings/$listingId/market-sync');
+    return marketSyncResultFromJson(data as Json);
+  }
+
   /// L12
   Future<GeneratedProduct> updateListingTags(
       int listingId, List<String> tags) async {

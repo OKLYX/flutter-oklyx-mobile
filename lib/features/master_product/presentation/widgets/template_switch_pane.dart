@@ -61,6 +61,9 @@ class _TemplateSwitchPaneState extends State<TemplateSwitchPane> {
   bool get _isOverridden =>
       widget.generated.source == GeneratedSourceCode.manualOverride;
 
+  /// FEATURE_2611_11 / D23: the detail was taken from the market.
+  bool get _isMarket => widget.generated.source == GeneratedSourceCode.market;
+
   bool get _isDirty => _selectedId != widget.generated.detailTemplateId;
 
   bool get _busy => _isLoadingList || _isPreviewing || _isSaving;
@@ -148,6 +151,17 @@ class _TemplateSwitchPaneState extends State<TemplateSwitchPane> {
         return;
       }
     }
+    if (_isMarket) {
+      final ok = await showAppConfirmDialog(
+        context,
+        message: '마켓 상세가 사라지고 선택한 템플릿의 자동생성본으로 대체됩니다. 계속하시겠습니까?',
+        confirmText: '저장',
+        isDangerous: true,
+      );
+      if (!ok || !mounted) {
+        return;
+      }
+    }
     setState(() {
       _isSaving = true;
       _error = '';
@@ -201,6 +215,14 @@ class _TemplateSwitchPaneState extends State<TemplateSwitchPane> {
           const SizedBox(height: 12),
           _notice(
             '이 셀은 HTML 직접수정 상태입니다. 템플릿을 저장하면 수정본이 사라집니다.',
+            AppColors.warningSurface,
+            AppColors.warningForeground,
+          ),
+        ],
+        if (_isMarket) ...[
+          const SizedBox(height: 12),
+          _notice(
+            '이 셀은 마켓 상세를 쓰는 중입니다. 템플릿을 저장하면 마켓 상세가 사라집니다.',
             AppColors.warningSurface,
             AppColors.warningForeground,
           ),

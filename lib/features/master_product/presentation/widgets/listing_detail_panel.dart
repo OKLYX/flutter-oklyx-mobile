@@ -98,7 +98,10 @@ class ListingOptionView {
 ///
 /// - Display name: [수정] toggles view ↔ edit (blank cannot be saved). Local
 ///   save only — the market gets it on [수정 요청].
-/// - Registration name: auto value, read-only.
+/// - Registration name (FEATURE_2611_11 / D5 · D19 · D24): [수정] stores a
+///   name, [자동 이름으로 되돌리기] clears it (「자동」 = automatic name). Not
+///   drawn on an 11st or ESM listing. [마켓 기준으로 맞추기] (on market only)
+///   takes the names · thumbnail · detail from the market (D9 · D11 · D35).
 /// - Option cards: the **only** place that shows option · price · stock. No
 ///   active checkbox (2609_77/D57) — unused options are dimmed with `(미사용)`.
 ///   [수정] sends to the master option editor (does not edit here). An empty
@@ -117,6 +120,9 @@ class ListingDetailPanel extends StatefulWidget {
   final int listingId;
   final String name;
   final String registrationName;
+
+  /// FEATURE_2611_11 / D24: true = [registrationName] is the automatic name.
+  final bool registrationNameAuto;
   final List<String> tags;
 
   /// The listing is on a market (has a product ID) (2609_74/D13).
@@ -141,6 +147,7 @@ class ListingDetailPanel extends StatefulWidget {
     required this.listingId,
     required this.name,
     required this.registrationName,
+    required this.registrationNameAuto,
     required this.tags,
     required this.onMarket,
     required this.platform,
@@ -166,6 +173,19 @@ class _ListingDetailPanelState extends State<ListingDetailPanel> {
   String _nameDraft = '';
   bool _savingName = false;
   String _nameError = '';
+
+  // Registration name (FEATURE_2611_11 / D5)
+  final TextEditingController _regNameController = TextEditingController();
+  bool _isEditingRegName = false;
+  String _regNameDraft = '';
+  bool _savingRegName = false;
+  String _regNameError = '';
+
+  // 「마켓 기준으로 맞추기」 (FEATURE_2611_11 / D9 · D11 · D35)
+  bool _syncing = false;
+  String _syncDone = '';
+  String _syncNotice = '';
+  String _syncError = '';
 
   // Channel raw tags
   bool _isEditingTags = false;
@@ -232,6 +252,7 @@ class _ListingDetailPanelState extends State<ListingDetailPanel> {
   @override
   void dispose() {
     _nameController.dispose();
+    _regNameController.dispose();
     super.dispose();
   }
 
@@ -265,6 +286,71 @@ class _ListingDetailPanelState extends State<ListingDetailPanel> {
         setState(() {
           _isEditingName = false;
           _savingName = false;
+        });
+        widget.onSaved();
+      },
+    );
+  }
+
+  /// Registration name is not drawn on 11st · ESM listings (D19).
+  bool get _showRegName =>
+      widget.platform != 'ELEVENST' && widget.platform != 'ESM';
+
+  String get _trimmedRegName => _regNameDraft.trim();
+
+  void _startEditRegName() => setState(() {
+        _regNameDraft = widget.registrationName;
+        _regNameController.text = widget.registrationName;
+        _regNameError = '';
+        _isEditingRegName = true;
+      });
+
+  /// [value] null = back to the automatic name.
+  Future<void> _saveRegName(String? value) async {
+    setState(() {
+      _savingRegName = true;
+      _regNameError = '';
+    });
+    final res = await _useCase.updateRegistrationName(widget.listingId, value);
+    if (!mounted) {
+      return;
+    }
+    res.fold(
+      (_) => setState(() {
+        _regNameError = '등록상품명 저장에 실패했습니다.';
+        _savingRegName = false;
+      }),
+      (_) {
+        setState(() {
+          _isEditingRegName = false;
+          _savingRegName = false;
+        });
+        widget.onSaved();
+      },
+    );
+  }
+
+  Future<void> _syncFromMarket() async {
+    setState(() {
+      _syncing = true;
+      _syncDone = '';
+      _syncNotice = '';
+      _syncError = '';
+    });
+    final res = await _useCase.syncFromMarket(widget.listingId);
+    if (!mounted) {
+      return;
+    }
+    res.fold(
+      (failure) => setState(() {
+        _syncError = failureText(failure, '마켓 기준으로 맞추지 못했습니다.');
+        _syncing = false;
+      }),
+      (result) {
+        setState(() {
+          _syncDone = '마켓 기준으로 맞췄습니다.';
+          _syncNotice = result.imageNotice ?? '';
+          _syncing = false;
         });
         widget.onSaved();
       },
@@ -328,20 +414,14 @@ class _ListingDetailPanelState extends State<ListingDetailPanel> {
         children: [
           _nameRow(context),
           const SizedBox(height: 12),
-          // Registration name (67/68): read-only auto value.
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              const _FieldLabel('등록상품명'),
-              Text(
-                widget.registrationName,
-                style: const TextStyle(fontSize: 14),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
+          if (_showRegName) ...[
+            _regNameRow(context),
+            const SizedBox(height: 12),
+          ],
+          if (widget.onMarket) ...[
+            _marketSyncRow(context),
+            const SizedBox(height: 12),
+          ],
           _optionsBox(context),
           const SizedBox(height: 12),
           _extras(context),
@@ -390,6 +470,115 @@ class _ListingDetailPanelState extends State<ListingDetailPanel> {
         ],
         if (_nameError.isNotEmpty)
           Text(_nameError, style: TextStyle(fontSize: 12, color: scheme.error)),
+      ],
+    );
+  }
+
+  /// Registration name line (FEATURE_2611_11 / D5 · D24) — same shape as
+  /// [_nameRow].
+  Widget _regNameRow(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        const _FieldLabel('등록상품명'),
+        if (_isEditingRegName) ...[
+          TextField(
+            controller: _regNameController,
+            enabled: !_savingRegName,
+            onChanged: (next) => setState(() => _regNameDraft = next),
+          ),
+          OutlinedButton(
+            onPressed: _savingRegName || _trimmedRegName.isEmpty
+                ? null
+                : () => _saveRegName(_trimmedRegName),
+            style: _smallOutlined(foreground: AppColors.infoForeground),
+            child:
+                _savingRegName ? const AppBusyLabel('저장 중') : const Text('저장'),
+          ),
+          OutlinedButton(
+            onPressed: _savingRegName
+                ? null
+                : () => setState(() => _isEditingRegName = false),
+            style: _smallOutlined(),
+            child: const Text('취소'),
+          ),
+        ] else ...[
+          Text(
+            widget.registrationName,
+            style: const TextStyle(fontSize: 14),
+          ),
+          if (widget.registrationNameAuto)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                '자동',
+                style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
+              ),
+            ),
+          OutlinedButton(
+            onPressed: _savingRegName ? null : _startEditRegName,
+            style: _smallOutlined(),
+            child: const Text('수정'),
+          ),
+          if (!widget.registrationNameAuto)
+            OutlinedButton(
+              onPressed: _savingRegName ? null : () => _saveRegName(null),
+              style: _smallOutlined(),
+              child: _savingRegName
+                  ? const AppBusyLabel('자동 이름으로 되돌리기')
+                  : const Text('자동 이름으로 되돌리기'),
+            ),
+        ],
+        if (_regNameError.isNotEmpty)
+          Text(
+            _regNameError,
+            style: TextStyle(fontSize: 12, color: scheme.error),
+          ),
+      ],
+    );
+  }
+
+  /// [마켓 기준으로 맞추기] line (FEATURE_2611_11 / D9 · D11 · D35) — no
+  /// confirm dialog (PLAN R20).
+  Widget _marketSyncRow(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        OutlinedButton(
+          onPressed: _syncing ? null : _syncFromMarket,
+          style: _smallOutlined(),
+          child: _syncing
+              ? const AppBusyLabel('맞추는 중')
+              : const Text('마켓 기준으로 맞추기'),
+        ),
+        if (_syncDone.isNotEmpty)
+          Text(
+            _syncDone,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.successForeground,
+            ),
+          ),
+        if (_syncNotice.isNotEmpty)
+          Text(
+            _syncNotice,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.warningForeground,
+            ),
+          ),
+        if (_syncError.isNotEmpty)
+          Text(_syncError, style: TextStyle(fontSize: 12, color: scheme.error)),
       ],
     );
   }

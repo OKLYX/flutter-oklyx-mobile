@@ -74,6 +74,10 @@ class _ThumbnailPaneState extends State<ThumbnailPane> {
   bool get _isOverridden =>
       widget.generated.thumbnailSource == GeneratedSourceCode.manualOverride;
 
+  /// FEATURE_2611_11 / D7: the thumbnail was taken from the market.
+  bool get _isMarket =>
+      widget.generated.thumbnailSource == GeneratedSourceCode.market;
+
   // Reserved keys (brandName/productName) are always editable, even if the
   // template omits them; template-defined fields override the label and add
   // custom keys.
@@ -211,7 +215,9 @@ class _ThumbnailPaneState extends State<ThumbnailPane> {
   Future<void> _handleClear() async {
     final ok = await showAppConfirmDialog(
       context,
-      message: '수동 썸네일을 삭제하고 자동 생성으로 되돌립니다.',
+      message: _isMarket
+          ? '마켓 이미지 대신 자동 생성 썸네일을 씁니다. 마켓의 추가 사진은 그대로 남습니다.'
+          : '수동 썸네일을 삭제하고 자동 생성으로 되돌립니다.',
       confirmText: '되돌리기',
       isDangerous: true,
     );
@@ -245,6 +251,7 @@ class _ThumbnailPaneState extends State<ThumbnailPane> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final isOverridden = _isOverridden;
+    final isMarket = _isMarket;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -287,25 +294,37 @@ class _ThumbnailPaneState extends State<ThumbnailPane> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: isOverridden
-                        ? AppColors.warningSurface
-                        : AppColors.successSurface,
+                    color: isMarket
+                        ? AppColors.infoSurface
+                        : isOverridden
+                            ? AppColors.warningSurface
+                            : AppColors.successSurface,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    isOverridden ? '수동 교체됨' : '자동 생성',
+                    isMarket
+                        ? '마켓 이미지'
+                        : isOverridden
+                            ? '수동 교체됨'
+                            : '자동 생성',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: isOverridden
-                          ? AppColors.warningForeground
-                          : AppColors.successForeground,
+                      color: isMarket
+                          ? AppColors.infoForeground
+                          : isOverridden
+                              ? AppColors.warningForeground
+                              : AppColors.successForeground,
                     ),
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  isOverridden
+                  isMarket
+                      ? '마켓에서 가져온 이미지가 적용된 상태입니다. '
+                          '[저장 후 재생성]해도 썸네일은 그대로 유지됩니다. '
+                          '자동 생성으로 바꾸려면 [자동 생성으로 되돌리기]를 누르세요.'
+                      : isOverridden
                       ? '직접 올린 이미지가 적용된 상태입니다. [저장 후 재생성]해도 썸네일은 그대로 유지되고 필드값·상세만 갱신됩니다. 자동 생성으로 되돌리려면 [자동 생성으로 되돌리기]를 누르세요.'
                       : '아래 필드값을 채우고 [저장 후 재생성]하면 썸네일·상세에 반영됩니다.',
                   style:
@@ -356,7 +375,7 @@ class _ThumbnailPaneState extends State<ThumbnailPane> {
                   ? const AppBusyLabel('업로드 중...')
                   : const Text('이미지 업로드로 교체'),
             ),
-            if (isOverridden)
+            if (isOverridden || isMarket)
               OutlinedButton(
                 onPressed: _busy ? null : _handleClear,
                 child: _isClearing
