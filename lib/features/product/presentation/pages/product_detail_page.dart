@@ -27,7 +27,15 @@ import 'package:flutter_oklyn_mobile/features/product/presentation/widgets/purch
 class ProductDetailPage extends StatefulWidget {
   final int productId;
 
-  const ProductDetailPage({super.key, required this.productId});
+  /// Opened from an order detail line — the top back button pops back there
+  /// (FEATURE_2611_15 / D7). false = every other entry (back = product search).
+  final bool fromOrderDetail;
+
+  const ProductDetailPage({
+    super.key,
+    required this.productId,
+    this.fromOrderDetail = false,
+  });
 
   @override
   State<ProductDetailPage> createState() => _ProductDetailPageState();
@@ -184,7 +192,9 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
       child: ScaffoldWithNavBar(
         title: '상품상세',
         navBarIndex: 2,
-        onBackPressed: () => context.go(Routes.productSearchPath),
+        onBackPressed: () => widget.fromOrderDetail && context.canPop()
+            ? context.pop()
+            : context.go(Routes.productSearchPath),
         body: Stack(
           children: [
             BlocBuilder<ProductDetailBloc, ProductDetailState>(

@@ -183,8 +183,13 @@ class AppRouter {
       path: Routes.productDetailPath,
       pageBuilder: (context, state) {
         final productId = int.parse(state.pathParameters['productId']!);
+        // extra `true` = opened from an order detail line (FEATURE_2611_15 /
+        // D7); missing or anything else = every other entry.
         return NoTransitionPage(
-          child: ProductDetailPage(productId: productId),
+          child: ProductDetailPage(
+            productId: productId,
+            fromOrderDetail: state.extra == true,
+          ),
         );
       },
     ),

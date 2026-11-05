@@ -16,7 +16,15 @@ class MasterDetailArgs {
   /// (web `?notice=`). null = none.
   final String? notice;
 
-  const MasterDetailArgs({this.openOverview = false, this.notice});
+  /// Opened from an order detail line — the top back button pops back there
+  /// (FEATURE_2611_15 / D7). false = every other entry (back = master list).
+  final bool fromOrderDetail;
+
+  const MasterDetailArgs({
+    this.openOverview = false,
+    this.notice,
+    this.fromOrderDetail = false,
+  });
 }
 
 /// Master create page (`Routes.masterProductNew`) — web
