@@ -32,8 +32,9 @@ const Map<String, String> _statusLabel = {
 const String _newOption = 'new';
 
 /// Keeps the backend message as-is and appends one actionable line only
-/// (judged by HTTP status + message substring).
-String _importErrorMessage(Failure f) {
+/// (judged by HTTP status + message substring). [platform] = the screen's
+/// sales channel (names the market in the account hint).
+String _importErrorMessage(Failure f, String platform) {
   final status = f is ServerFailure ? f.statusCode : null;
   final message = failureText(f, '가져오기에 실패했습니다.');
   if (status == 429) {
@@ -43,7 +44,7 @@ String _importErrorMessage(Failure f) {
     return '$message 그 마스터에서 [마스터 연결 해제] 한 뒤 다시 시도하세요.';
   }
   if ((status == 400 || status == 404) && message.contains('계정')) {
-    return '$message 판매자 관리에서 쿠팡 계정을 먼저 등록·활성화하세요.';
+    return '$message 판매자 관리에서 ${platformName(platform)} 계정을 먼저 등록·활성화하세요.';
   }
   return message;
 }
@@ -56,7 +57,7 @@ String _optionKey(ImportPreviewOption o) => o.vendorItemId ?? o.itemName;
 class _OptionDraft {
   final int? masterOptionId;
 
-  /// Used only when creating a new option (default = the Coupang option name).
+  /// Used only when creating a new option (default = the market option name).
   final String masterOptionName;
 
   /// productId → typed string (parsed once right before submit).
@@ -142,7 +143,7 @@ bool _isPositiveInt(String raw) {
 /// - Seller and platform come from the matrix row (shown, not editable).
 /// - With `initialProductId` (picked from the detached list) the lookup runs
 ///   right away.
-/// - ⚠️ No price/stock inputs — the server re-reads Coupang on commit.
+/// - ⚠️ No price/stock inputs — the server re-reads the market on commit.
 /// - ⚠️ The preview is never cached.
 ///
 /// Result: `MarketProductAddResult` on success (`null` = closed).
@@ -216,7 +217,7 @@ class _MarketProductAddPageState extends State<MarketProductAddPage> {
     }
     setState(() {
       res.fold(
-        (failure) => _error = _importErrorMessage(failure),
+        (failure) => _error = _importErrorMessage(failure, _args.platform),
         _seed,
       );
       _busy = false;
@@ -242,7 +243,7 @@ class _MarketProductAddPageState extends State<MarketProductAddPage> {
     }
     setState(() {
       res.fold(
-        (failure) => _error = _importErrorMessage(failure),
+        (failure) => _error = _importErrorMessage(failure, _args.platform),
         _seed,
       );
       _busy = false;
@@ -338,10 +339,10 @@ class _MarketProductAddPageState extends State<MarketProductAddPage> {
     }
     res.fold(
       (failure) => setState(() {
-        _error = _importErrorMessage(failure);
+        _error = _importErrorMessage(failure, _args.platform);
         _busy = false;
       }),
-      // ⚠️ The commit re-reads Coupang, so a warning may arrive only here.
+      // ⚠️ The commit re-reads the market, so a warning may arrive only here.
       (added) {
         _busy = false;
         context.pop(
@@ -381,7 +382,9 @@ class _MarketProductAddPageState extends State<MarketProductAddPage> {
                     controller: _productIdController,
                     enabled: !_busy && !lockedToInitial,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: '쿠팡 상품 ID'),
+                    decoration: InputDecoration(
+                      labelText: '${platformName(_args.platform)} 상품 ID',
+                    ),
                     onChanged: (next) => setState(() => _productId = next),
                   ),
                 ),
@@ -459,6 +462,7 @@ class _MarketProductAddPageState extends State<MarketProductAddPage> {
   List<Widget> _previewSection(BuildContext context, ImportPreview preview) {
     final scheme = Theme.of(context).colorScheme;
     final warning = preview.categoryWarning;
+    final market = platformName(_args.platform);
     return [
       Text.rich(
         TextSpan(
@@ -479,10 +483,12 @@ class _MarketProductAddPageState extends State<MarketProductAddPage> {
       ),
       const SizedBox(height: 8),
       if (preview.reusesExistingListing) ...[
-        const _Banner(
-          text: '이 쿠팡 상품에는 마스터 연결이 끊긴 판매상품이 있습니다. 새로 만들지 않고 그 판매상품을 '
+        _Banner(
+          text: '이 $market 상품에는 마스터 연결이 끊긴 판매상품이 있습니다. '
+              '새로 만들지 않고 그 판매상품을 '
               '이 마스터에 다시 붙입니다 — 주문·고객문의·정산 기록이 함께 따라옵니다. 판매가·옵션명은 '
-              '쿠팡의 현재 값으로 들어오니, 이 마스터 기준으로 자동 계산하려면 가져온 뒤 [가격 설정] → '
+              '$market의 현재 값으로 들어오니, 이 마스터 기준으로 자동 계산하려면 '
+              '가져온 뒤 [가격 설정] → '
               '[기본값으로 변경] 을 누르세요.',
           background: AppColors.infoSurface,
           foreground: AppColors.infoForeground,
