@@ -481,6 +481,31 @@ class MasterProductUseCase {
           String group, Map<String, String> notices) =>
       repository.previewEsmNotice(group, notices);
 
+  /// FEATURE_2610_24 / D42.
+  Future<Either<Failure, Map<String, String>>> getInheritedLotteonShipping(
+          int listingId) =>
+      repository.getInheritedLotteonShipping(listingId);
+
+  /// FEATURE_2610_24 / D42.
+  Future<Either<Failure, Map<String, String>>> getLotteonShippingConfig(
+          int accountId) =>
+      repository.getLotteonShippingConfig(accountId);
+
+  /// FEATURE_2610_24 / D65 · D66 — Right = the failed re-price count.
+  Future<Either<Failure, int>> upsertLotteonShippingConfig(
+          int accountId, Map<String, String> settings) =>
+      repository.upsertLotteonShippingConfig(accountId, settings);
+
+  /// FEATURE_2610_24 / D43.
+  Future<Either<Failure, List<LotteonChoice>>> listLotteonFeePolicies(
+          int accountId) =>
+      repository.listLotteonFeePolicies(accountId);
+
+  /// FEATURE_2610_24 / D56.
+  Future<Either<Failure, LotteonNotification>> previewLotteonNotice(
+          String group, Map<String, String> notices) =>
+      repository.previewLotteonNotice(group, notices);
+
   /// L40 — FEATURE_2610_27 / D1 · D10.
   Future<Either<Failure, ListingMargins>> getListingMargins(int listingId) =>
       repository.getListingMargins(listingId);

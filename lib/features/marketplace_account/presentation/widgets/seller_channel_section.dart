@@ -233,6 +233,14 @@ class _ChannelTile extends StatelessWidget {
                 '11번가 키가 곧 멈춥니다 — 셀러오피스 API 관리에서 갱신하세요',
                 style: TextStyle(fontSize: 12, color: AppColors.warningForeground),
               ),
+            // FEATURE_2610_24 / D6 · D57: the server says the LotteON key is
+            // within 30 days of its one-year limit.
+            if (channel.lotteonKeyRenewalNeeded == true)
+              const Text(
+                '롯데ON 키 만료가 다가옵니다 — 판매자센터에서 새 키를 받아 넣으세요',
+                style: TextStyle(
+                    fontSize: 12, color: AppColors.warningForeground),
+              ),
           ],
         ),
         trailing: const Icon(Icons.chevron_right),

@@ -19,11 +19,12 @@ import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 const String _channelOnlyReason = '마스터 옵션이 없는 채널 전용 옵션입니다';
 const String _optionLinkUnknownReason =
     '채널별 옵션을 불러오지 못해 연결된 마스터 옵션을 알 수 없습니다';
-/// FEATURE_2610_13 / D128 · D130 and FEATURE_2610_26 / D41: platforms whose
-/// [마켓 옵션 연결] is disabled, and why.
+/// FEATURE_2610_13 / D128 · D130, FEATURE_2610_26 / D41 and FEATURE_2610_24 /
+/// D32: platforms whose [마켓 옵션 연결] is disabled, and why.
 const Map<String, String> _optionLinkUnsupportedReasons = {
   'ELEVENST': '11번가 옵션 연결은 아직 지원하지 않습니다',
   'ESM': 'G마켓 · 옥션 옵션 연결은 아직 지원하지 않습니다',
+  'LOTTEON': '롯데ON 옵션 연결은 아직 지원하지 않습니다',
 };
 const String _optionIdPendingHint = '승인 후 부여';
 
@@ -129,9 +130,9 @@ class ListingDetailPanel extends StatefulWidget {
   /// The listing is on a market (has a product ID) (2609_74/D13).
   final bool onMarket;
 
-  /// The listing's platform — `'ELEVENST'` and `'ESM'` disable [마켓 옵션 연결]
-  /// and show the reason in an ⓘ next to it (FEATURE_2610_13 / D128 · D130 ·
-  /// FEATURE_2610_26 / D41).
+  /// The listing's platform — `'ELEVENST'`, `'ESM'` and `'LOTTEON'` disable
+  /// [마켓 옵션 연결] and show the reason in an ⓘ next to it (FEATURE_2610_13 /
+  /// D128 · D130 · FEATURE_2610_26 / D41 · FEATURE_2610_24 / D32).
   final String platform;
   final List<ListingOptionView> options;
 
@@ -291,9 +292,12 @@ class _ListingDetailPanelState extends State<ListingDetailPanel> {
     );
   }
 
-  /// Registration name is not drawn on 11st · ESM listings (D19).
+  /// Registration name is not drawn on 11st · ESM · LotteON listings (D19 ·
+  /// FEATURE_2610_24 / D53).
   bool get _showRegName =>
-      widget.platform != 'ELEVENST' && widget.platform != 'ESM';
+      widget.platform != 'ELEVENST' &&
+      widget.platform != 'ESM' &&
+      widget.platform != 'LOTTEON';
 
   String get _trimmedRegName => _regNameDraft.trim();
 

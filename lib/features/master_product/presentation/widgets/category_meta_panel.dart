@@ -8,6 +8,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/mas
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/category_meta_validation.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/elevenst_notice.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/esm_notice.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/lotteon_notice.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/measure_attributes.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/notice_templates.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/option_meta_fields.dart';
@@ -61,6 +62,10 @@ class CategoryMetaPanel extends StatefulWidget {
   /// the 「G마켓 · 옥션」 tab too.
   final bool esmActive;
 
+  /// FEATURE_2610_24 / D37 · D38: a switched-on LotteON channel exists → the
+  /// 「롯데ON」 tab too.
+  final bool lotteonActive;
+
   const CategoryMetaPanel({
     required this.masterId,
     required this.categoryCode,
@@ -69,6 +74,7 @@ class CategoryMetaPanel extends StatefulWidget {
     this.onSaved,
     this.elevenstActive = false,
     this.esmActive = false,
+    this.lotteonActive = false,
   });
 
   @override
@@ -96,6 +102,9 @@ class _CategoryMetaPanelState extends State<CategoryMetaPanel> {
   // FEATURE_2610_26 / D56: the Gmarket · Auction view of the same values.
   late final EsmNoticePreviewer _esmPreviewer =
       EsmNoticePreviewer(onChanged: () => setState(() {}));
+  // FEATURE_2610_24 / D56: the LotteON view of the same values.
+  late final LotteonNoticePreviewer _lotteonPreviewer =
+      LotteonNoticePreviewer(onChanged: () => setState(() {}));
 
   // COUPANG owns the persisted per-master values; other platforms are
   // schema-only (read-only).
@@ -113,6 +122,7 @@ class _CategoryMetaPanelState extends State<CategoryMetaPanel> {
   void dispose() {
     _previewer.dispose();
     _esmPreviewer.dispose();
+    _lotteonPreviewer.dispose();
     super.dispose();
   }
 
@@ -227,13 +237,15 @@ class _CategoryMetaPanelState extends State<CategoryMetaPanel> {
       widget.masterId,
       CategoryAttributesRequest(
         attributes: _attrValues,
-        // FEATURE_2610_13 / D101 · FEATURE_2610_26 / D17: the 11st-only and
-        // Gmarket · Auction-only values ride along under their ELEVENST:{code}
-        // and ESM:{code} keys.
+        // FEATURE_2610_13 / D101 · FEATURE_2610_26 / D17 · FEATURE_2610_24 /
+        // D68: the 11st-only, Gmarket · Auction-only and LotteON-only values
+        // ride along under their ELEVENST:{code}, ESM:{code} and LOTTEON:*
+        // keys.
         notices: {
           ...noticesToSubmit(_notices, _noticeValues, group),
           ...elevenstOwnNotices(_noticeValues),
           ...esmOwnNotices(_noticeValues),
+          ...lotteonOwnNotices(_noticeValues),
         },
         noticeGroup: group,
       ),
@@ -274,7 +286,8 @@ class _CategoryMetaPanelState extends State<CategoryMetaPanel> {
     final scheme = Theme.of(context).colorScheme;
     final tabbed = widget.elevenstActive && !_readOnly;
     final esmTabbed = widget.esmActive && !_readOnly;
-    if (tabbed || esmTabbed) {
+    final lotteonTabbed = widget.lotteonActive && !_readOnly;
+    if (tabbed || esmTabbed || lotteonTabbed) {
       final group = submitNoticeGroup(_notices, _noticeValues, _noticeGroup);
       final groupNotices = _notices
           .where((n) => !isOptionNotice(n) && noticeGroupName(n) == group)
@@ -284,6 +297,9 @@ class _CategoryMetaPanelState extends State<CategoryMetaPanel> {
       }
       if (esmTabbed) {
         _esmPreviewer.update(_useCase, group, groupNotices, _noticeValues);
+      }
+      if (lotteonTabbed) {
+        _lotteonPreviewer.update(_useCase, group, groupNotices, _noticeValues);
       }
     }
     final missingRequired = computeMissingRequired(
@@ -334,6 +350,7 @@ class _CategoryMetaPanelState extends State<CategoryMetaPanel> {
             onNoticeGroupChange: _handleNoticeGroupChange,
             elevenstPreview: tabbed ? _previewer.preview : null,
             esmPreview: esmTabbed ? _esmPreviewer.preview : null,
+            lotteonPreview: lotteonTabbed ? _lotteonPreviewer.preview : null,
           ),
           if (_readOnly)
             _Banner(

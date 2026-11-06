@@ -32,12 +32,14 @@ const Map<String, String> _statusLabel = {
   'SUSPENDED': '판매 중지',
 };
 
-/// Supported platforms — Coupang · 11st (D17 · UX D64: one more record per
-/// platform). (value, label, idLabel, idNumeric)
+/// Supported platforms — Coupang · 11st · LotteON (D17 · UX D64: one more
+/// record per platform; FEATURE_2610_24 / D45 · R13: a LotteON ID is not
+/// digits-only). (value, label, idLabel, idNumeric)
 /// ⚠️ Never write a platform name directly in the widget tree.
 final List<(String, String, String, bool)> _platforms = [
   ('COUPANG', platformName('COUPANG'), '쿠팡 상품 ID', true),
   ('ELEVENST', platformName('ELEVENST'), '11번가 상품 ID', true),
+  ('LOTTEON', platformName('LOTTEON'), '롯데ON 상품 ID', false),
 ];
 
 /// Tokens taken from the product name · candidates shown · size of one search (UX D79).
