@@ -51,6 +51,7 @@ class StockDailyRowModel extends StockDailyRow {
     required super.productId,
     required super.productName,
     required super.quantity,
+    required super.sellerId,
     required super.sellerName,
     required super.owners,
     required super.undecidedLeft,
@@ -58,7 +59,10 @@ class StockDailyRowModel extends StockDailyRow {
     required super.tags,
     required super.amount,
     required super.sellerChangeable,
-    required super.noReceiptShares,
+    required super.recordId,
+    required super.receiptKind,
+    required super.receiptId,
+    required super.shares,
   });
 
   factory StockDailyRowModel.fromJson(Map<String, dynamic> json) =>
@@ -69,6 +73,7 @@ class StockDailyRowModel extends StockDailyRow {
         productId: json['productId'] as int,
         productName: json['productName'] as String? ?? '',
         quantity: json['quantity'] as int,
+        sellerId: json['sellerId'] as int?,
         sellerName: json['sellerName'] as String?,
         owners: ((json['owners'] as List<dynamic>?) ?? const [])
             .map((e) => e as String)
@@ -80,14 +85,23 @@ class StockDailyRowModel extends StockDailyRow {
             .toList(),
         amount: (json['amount'] as num?)?.toDouble(),
         sellerChangeable: json['sellerChangeable'] as bool? ?? false,
-        noReceiptShares: ((json['noReceiptShares'] as List<dynamic>?) ??
-                const [])
-            .map((e) {
+        recordId: json['recordId'] as int?,
+        receiptKind: ReceiptKind.fromCode(json['receiptKind'] as String?),
+        receiptId: json['receiptId'] as int?,
+        // FEATURE_2611_16 D8: every share of an undecided intake row.
+        shares: ((json['shares'] as List<dynamic>?) ?? const []).map((e) {
           final share = e as Map<String, dynamic>;
-          return NoReceiptShare(
+          return StockDailyShare(
             recordId: share['recordId'] as int,
+            sellerId: share['sellerId'] as int,
             sellerName: share['sellerName'] as String? ?? '',
             quantity: share['quantity'] as int,
+            amount: (share['amount'] as num?)?.toDouble(),
+            receiptKind:
+                ReceiptKind.fromCode(share['receiptKind'] as String?) ??
+                    ReceiptKind.noReceipt,
+            receiptId: share['receiptId'] as int?,
+            sellerChangeable: share['sellerChangeable'] as bool? ?? false,
           );
         }).toList(),
       );
