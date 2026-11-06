@@ -67,9 +67,10 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
   bool get _isElevenst => _platform == 'ELEVENST';
 
   // FEATURE_2610_26 / D40: each marketplace is named — Coupang fields, 11st
-  // key or the four ESM fields.
+  // key, the four ESM fields or the LotteON key (FEATURE_2610_24 / D4).
   bool get _isCoupang => _platform == 'COUPANG';
   bool get _isEsm => _platform == 'ESM';
+  bool get _isLotteon => _platform == 'LOTTEON';
 
   static const String _esmSellerIdsMessage =
       'G마켓 판매자 ID 와 옥션 판매자 ID 를 모두 입력하세요';
@@ -127,6 +128,12 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
       if (_auctionSellerIdController.text.trim().isEmpty) {
         errors['auctionSellerId'] = _esmSellerIdsMessage;
       }
+    } else if (_isLotteon) {
+      // FEATURE_2610_24 / D57: required on create; on edit a blank key keeps
+      // the stored one.
+      if (!widget.isEdit && _apiKeyController.text.trim().isEmpty) {
+        errors['apiKey'] = '롯데ON 인증키를 입력하세요.';
+      }
     } else {
       if (_vendorIdController.text.trim().isEmpty) {
         errors['vendorId'] = '판매자(벤더) ID를 입력하세요';
@@ -165,7 +172,9 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
           secretKey: !_isCoupang || _secretKeyController.text.isEmpty
               ? null
               : _secretKeyController.text,
-          apiKey: _isElevenst ? textOrNull(_apiKeyController) : null,
+          apiKey: _isElevenst || _isLotteon
+              ? textOrNull(_apiKeyController)
+              : null,
           esmMasterId: _isEsm ? textOrNull(_esmMasterIdController) : null,
           esmSecretKey: _isEsm ? textOrNull(_esmSecretKeyController) : null,
           gmarketSellerId:
@@ -183,7 +192,9 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
           vendorId: _isCoupang ? textOrNull(_vendorIdController) : null,
           accessKey: _isCoupang ? textOrNull(_accessKeyController) : null,
           secretKey: _isCoupang ? _secretKeyController.text : null,
-          apiKey: _isElevenst ? textOrNull(_apiKeyController) : null,
+          apiKey: _isElevenst || _isLotteon
+              ? textOrNull(_apiKeyController)
+              : null,
           esmMasterId: _isEsm ? textOrNull(_esmMasterIdController) : null,
           esmSecretKey: _isEsm ? textOrNull(_esmSecretKeyController) : null,
           gmarketSellerId:
@@ -275,10 +286,11 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
                     hintText: '예: 쿠팡 본점',
                   ),
                 ),
-                // FEATURE_2610_13 / D5 · FEATURE_2610_26 / D40: each platform
-                // shows its own credential fields — 11st 「API 키」 alone, ESM
-                // the four ESM fields, Coupang the three below; no platform
-                // chosen yet = none.
+                // FEATURE_2610_13 / D5 · FEATURE_2610_26 / D40 · FEATURE_2610_24
+                // / D4: each platform shows its own credential fields — 11st
+                // 「API 키」 alone, ESM the four ESM fields, LotteON 「인증키」
+                // alone (no server IP notice, D7), Coupang the three below; no
+                // platform chosen yet = none.
                 if (_isElevenst) ...[
                   const SizedBox(height: 12),
                   TextField(
@@ -290,6 +302,21 @@ class _ChannelFormDialogState extends State<ChannelFormDialog> {
                       hintText: widget.isEdit
                           ? '변경 시에만 입력 (비워두면 기존 값 유지)'
                           : '11번가 오픈API 키를 입력하세요',
+                      errorText: _errors['apiKey'],
+                    ),
+                  ),
+                ],
+                if (_isLotteon) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _apiKeyController,
+                    enabled: !isSubmitting,
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: widget.isEdit ? '인증키' : '인증키 *',
+                      hintText: widget.isEdit
+                          ? '변경 시에만 입력 (비워두면 기존 값 유지)'
+                          : '롯데ON 판매자센터에서 받은 인증키를 입력하세요',
                       errorText: _errors['apiKey'],
                     ),
                   ),

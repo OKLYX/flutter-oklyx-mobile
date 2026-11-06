@@ -567,6 +567,32 @@ class MasterProductRepositoryImpl implements MasterProductRepository {
       _guard(() => masterDataSource.previewEsmNotice(group, notices));
 
   @override
+  Future<Either<Failure, Map<String, String>>> getInheritedLotteonShipping(
+          int listingId) =>
+      _guard(() => listingDataSource.getInheritedLotteonShipping(listingId));
+
+  @override
+  Future<Either<Failure, Map<String, String>>> getLotteonShippingConfig(
+          int accountId) =>
+      _guard(() => supportDataSource.getLotteonShippingConfig(accountId));
+
+  @override
+  Future<Either<Failure, int>> upsertLotteonShippingConfig(
+          int accountId, Map<String, String> settings) =>
+      _guard(() =>
+          supportDataSource.upsertLotteonShippingConfig(accountId, settings));
+
+  @override
+  Future<Either<Failure, List<LotteonChoice>>> listLotteonFeePolicies(
+          int accountId) =>
+      _guard(() => supportDataSource.listLotteonFeePolicies(accountId));
+
+  @override
+  Future<Either<Failure, LotteonNotification>> previewLotteonNotice(
+          String group, Map<String, String> notices) =>
+      _guard(() => masterDataSource.previewLotteonNotice(group, notices));
+
+  @override
   Future<Either<Failure, ListingMargins>> getListingMargins(int listingId) =>
       _guard(() => listingDataSource.getListingMargins(listingId));
 

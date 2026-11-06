@@ -31,6 +31,10 @@ class MarketplaceAccount extends Equatable {
   /// FEATURE_2610_26 / D5: the Auction seller ID — null on every other account.
   final String? auctionSellerId;
 
+  /// FEATURE_2610_24 / D6 · D57: the server says the LotteON key reached 335
+  /// days since it was saved (null = not LotteON).
+  final bool? lotteonKeyRenewalNeeded;
+
   const MarketplaceAccount({
     required this.id,
     required this.sellerId,
@@ -45,6 +49,7 @@ class MarketplaceAccount extends Equatable {
     this.esmMasterId,
     this.gmarketSellerId,
     this.auctionSellerId,
+    this.lotteonKeyRenewalNeeded,
   });
 
   @override
@@ -62,5 +67,6 @@ class MarketplaceAccount extends Equatable {
         esmMasterId,
         gmarketSellerId,
         auctionSellerId,
+        lotteonKeyRenewalNeeded,
       ];
 }

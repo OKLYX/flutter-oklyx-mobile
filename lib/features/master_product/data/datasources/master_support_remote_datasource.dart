@@ -232,6 +232,39 @@ class MasterSupportRemoteDataSource {
     return _esmChoices(data);
   }
 
+  /// FEATURE_2610_24 / D42: the LotteON channel layer (`lotteon.*` keys;
+  /// nothing stored = empty map).
+  Future<Map<String, String>> getLotteonShippingConfig(int accountId) async {
+    final data = await api.get(
+        '/api/admin/marketplace-account/$accountId/lotteon-shipping-config');
+    final settings = data is Json ? data['settings'] : null;
+    return settings is Map
+        ? settings.map((k, v) => MapEntry(k as String, v.toString()))
+        : <String, String>{};
+  }
+
+  /// FEATURE_2610_24 / D65 · D66: replaces the whole LotteON settings map;
+  /// returns the failed re-price count.
+  Future<int> upsertLotteonShippingConfig(
+      int accountId, Map<String, String> settings) async {
+    final data = await api.put(
+        '/api/admin/marketplace-account/$accountId/lotteon-shipping-config',
+        body: {'settings': settings});
+    return recalcFailedCountFromJson(data as Json);
+  }
+
+  /// FEATURE_2610_24 / D43: the LotteON shipping fee policies.
+  Future<List<LotteonChoice>> listLotteonFeePolicies(int accountId) async {
+    final data = await api.get(
+        '/api/admin/marketplace-account/$accountId/lotteon-shipping/fee-policies');
+    return (data as List? ?? const [])
+        .map((e) => LotteonChoice(
+              code: (e as Json)['code'] as String,
+              name: e['name'] as String,
+            ))
+        .toList();
+  }
+
   List<EsmChoice> _esmChoices(Object? data) => (data as List? ?? const [])
       .map((e) => EsmChoice(
             code: (e as Json)['code'] as String,

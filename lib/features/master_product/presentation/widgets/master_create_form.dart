@@ -18,6 +18,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/master_image_fields.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/elevenst_notice.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/esm_notice.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/lotteon_notice.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/elevenst_notice_text.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/elevenst_shipping.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/platform_category_block.dart';
@@ -997,8 +998,9 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
     }
 
     // Category required attributes / notices: the COUPANG meta map, which also
-    // carries the 11st-only ELEVENST:{code} and the Gmarket · Auction-only
-    // ESM:{code} values (FEATURE_2610_13 / D101 · FEATURE_2610_26 / D17).
+    // carries the 11st-only ELEVENST:{code}, the Gmarket · Auction-only
+    // ESM:{code} and the LotteON-only LOTTEON:* values (FEATURE_2610_13 / D101
+    // · FEATURE_2610_26 / D17 · FEATURE_2610_24 / D68).
     final coupangMeta = _metaByPlatform['COUPANG'];
     if (coupangMeta != null) {
       // Same rule as the detail panel: one effective group for values + group.
@@ -1011,9 +1013,10 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
         createdId,
         CategoryAttributesRequest(
           attributes: coupangMeta.attrValues,
-          // FEATURE_2610_13 / D101 · FEATURE_2610_26 / D17: the 11st-only and
-          // Gmarket · Auction-only values ride along under their
-          // ELEVENST:{code} and ESM:{code} keys.
+          // FEATURE_2610_13 / D101 · FEATURE_2610_26 / D17 · FEATURE_2610_24 /
+          // D68: the 11st-only, Gmarket · Auction-only and LotteON-only values
+          // ride along under their ELEVENST:{code}, ESM:{code} and LOTTEON:*
+          // keys.
           notices: {
             ...noticesToSubmit(
               coupangMeta.notices,
@@ -1022,6 +1025,7 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
             ),
             ...elevenstOwnNotices(coupangMeta.noticeValues),
             ...esmOwnNotices(coupangMeta.noticeValues),
+            ...lotteonOwnNotices(coupangMeta.noticeValues),
           },
           noticeGroup: group,
         ),
@@ -1555,12 +1559,13 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
         const SizedBox(height: 16),
         const _FieldLabel('필수속성 / 상품정보제공고시'),
         const SizedBox(height: 8),
-        // FEATURE_2610_13 / D109 (a) · FEATURE_2610_26 / D45: with a
-        // switched-on 11st or Gmarket · Auction channel the fields bring their
-        // own 「통합」 · 「쿠팡」 · platform tabs, so the single-platform chips are
-        // left out.
+        // FEATURE_2610_13 / D109 (a) · FEATURE_2610_26 / D45 · FEATURE_2610_24
+        // / D37: with a switched-on 11st, Gmarket · Auction or LotteON channel
+        // the fields bring their own 「통합」 · 「쿠팡」 · platform tabs, so the
+        // single-platform chips are left out.
         if (_activePlatforms.contains('ELEVENST') ||
-            _activePlatforms.contains('ESM'))
+            _activePlatforms.contains('ESM') ||
+            _activePlatforms.contains('LOTTEON'))
           CategoryMetaCreateFields(
             categoryId: _selectedCategoryId,
             value: _metaByPlatform['COUPANG']?.value ?? kEmptyMetaValue,
@@ -1569,6 +1574,7 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
                 _handleMetaSchemaLoad('COUPANG', attrs, notices),
             elevenstActive: _activePlatforms.contains('ELEVENST'),
             esmActive: _activePlatforms.contains('ESM'),
+            lotteonActive: _activePlatforms.contains('LOTTEON'),
           )
         else
           MetaPlatformTabs(

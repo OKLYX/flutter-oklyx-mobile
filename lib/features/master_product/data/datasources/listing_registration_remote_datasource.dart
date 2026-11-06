@@ -370,6 +370,16 @@ class ListingRegistrationRemoteDataSource {
         : <String, String>{};
   }
 
+  /// FEATURE_2610_24 / D42: a LotteON listing's inherited baseline (the
+  /// LotteON channel layer — there is no master level).
+  Future<Map<String, String>> getInheritedLotteonShipping(int listingId) async {
+    final data = await api
+        .get('/api/admin/product-listings/$listingId/lotteon-shipping-inherited');
+    return data is Map
+        ? data.map((k, v) => MapEntry(k as String, v.toString()))
+        : <String, String>{};
+  }
+
   /// L39 — FEATURE_2610_26 / D36: an ESM listing's inherited baseline (the
   /// ESM channel layer — there is no master level).
   Future<Map<String, String>> getInheritedEsmShipping(int listingId) async {
