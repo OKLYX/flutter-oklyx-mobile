@@ -14,8 +14,13 @@ const List<String> kRefreshableStatuses = [
 ];
 
 /// FEATURE_2610_38 / D6: the markets the server can refresh (Coupang · 11st ·
-/// ESM).
-const List<String> kRefreshablePlatforms = ['COUPANG', 'ELEVENST', 'ESM'];
+/// ESM · LotteON — FEATURE_2610_24 / D59).
+const List<String> kRefreshablePlatforms = [
+  'COUPANG',
+  'ELEVENST',
+  'ESM',
+  'LOTTEON',
+];
 
 /// FEATURE_2610_38 / D18: shown above the run button while a SELLING listing
 /// is checked.

@@ -301,3 +301,48 @@ class EsmNotification {
     required this.usedCoupangItems,
   });
 }
+
+/// One pickable LotteON shipping fee policy (FEATURE_2610_24 / D43): [code] =
+/// `dvCstPolNo` is stored, [name] = `dvCstPolNm` is shown. Web `LotteonChoice`.
+class LotteonChoice {
+  final String code;
+  final String name;
+
+  const LotteonChoice({required this.code, required this.name});
+}
+
+/// One LotteON notice item of the preview (FEATURE_2610_24 / D38 · D56 · D63).
+/// [ownKey] is set only for a LotteON-only item — the notice-map key its value
+/// is stored under (`LOTTEON:{group}:{item}`). Web `LotteonNoticeLine`.
+class LotteonNoticeLine {
+  final String code;
+  final String name;
+  final String value;
+  final String? ownKey;
+
+  const LotteonNoticeLine({
+    required this.code,
+    required this.name,
+    required this.value,
+    this.ownKey,
+  });
+}
+
+/// The LotteON view of the master notice values
+/// (`POST /api/admin/lotteon/notice-preview`). Web `LotteonNotification`.
+class LotteonNotification {
+  final String itemGroupCode;
+  final String itemGroupName;
+  final List<LotteonNoticeLine> lines;
+
+  /// The request's Coupang item keys that some LotteON item reads (= the items
+  /// both platforms share).
+  final List<String> usedCoupangItems;
+
+  const LotteonNotification({
+    required this.itemGroupCode,
+    required this.itemGroupName,
+    required this.lines,
+    required this.usedCoupangItems,
+  });
+}

@@ -15,6 +15,7 @@ class MarketplaceAccountModel extends MarketplaceAccount {
     String? esmMasterId,
     String? gmarketSellerId,
     String? auctionSellerId,
+    bool? lotteonKeyRenewalNeeded,
   }) : super(
           id: id,
           sellerId: sellerId,
@@ -29,6 +30,7 @@ class MarketplaceAccountModel extends MarketplaceAccount {
           esmMasterId: esmMasterId,
           gmarketSellerId: gmarketSellerId,
           auctionSellerId: auctionSellerId,
+          lotteonKeyRenewalNeeded: lotteonKeyRenewalNeeded,
         );
 
   factory MarketplaceAccountModel.fromJson(Map<String, dynamic> json) => MarketplaceAccountModel(
@@ -45,5 +47,6 @@ class MarketplaceAccountModel extends MarketplaceAccount {
         esmMasterId: json['esmMasterId'] as String?,
         gmarketSellerId: json['gmarketSellerId'] as String?,
         auctionSellerId: json['auctionSellerId'] as String?,
+        lotteonKeyRenewalNeeded: json['lotteonKeyRenewalNeeded'] as bool?,
       );
 }

@@ -17,6 +17,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/master_image_fields.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/elevenst_shipping.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/esm_shipping.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/lotteon_shipping.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/platform_category_block.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_route_args.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_tool_args.dart';
@@ -53,7 +54,9 @@ import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 /// Why a channel cannot be created for a seller without outbound/return
 /// places (user decision 2026-08-28) — the same text for an ESM account with
-/// one of its six shipping values unset (FEATURE_2610_26 / D36).
+/// one of its six shipping values unset (FEATURE_2610_26 / D36) and a LotteON
+/// account with one of its three shipping values unset (FEATURE_2610_24 /
+/// D42).
 const String _shippingBlockReason =
     '이 판매자의 출고지·반품지가 지정되지 않아 채널을 만들 수 없습니다. 판매채널 관리 > 배송관리에서 출고지·반품지를 먼저 지정하세요.';
 
@@ -241,7 +244,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
   bool _genLoading = false;
 
   // Accounts whose outbound/return places (an ESM account: its six shipping
-  // values) are unset. Missing key = unknown.
+  // values · a LotteON account: its three) are unset. Missing key = unknown.
   Map<int, bool> _placesUnset = {};
 
   // FEATURE_2610_13 / D98: platforms with a switched-on sales channel (tenant-wide). Failure = Coupang alone.
@@ -383,6 +386,15 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
           return result.fold<MapEntry<int, bool>?>(
             (_) => null,
             (settings) => MapEntry(accountId, esmShippingUnset(settings)),
+          );
+        }
+        // FEATURE_2610_24 / D42: a LotteON account is unset while one of its
+        // three shipping values is empty.
+        if (row.platform == 'LOTTEON') {
+          final result = await _useCase.getLotteonShippingConfig(accountId);
+          return result.fold<MapEntry<int, bool>?>(
+            (_) => null,
+            (settings) => MapEntry(accountId, lotteonShippingUnset(settings)),
           );
         }
         // FEATURE_2610_13 / D84: an 11st account keeps its address numbers in its own settings map.
@@ -605,7 +617,8 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
 
   // FEATURE_2610_11 / D19 · D25 · 2610_12 / D41: no mapping row and no own
   // row for that platform → its upload buttons are hidden. Coupang · 11st ·
-  // ESM only (FEATURE_2610_26 / D45), and only with a standard category
+  // ESM (FEATURE_2610_26 / D45) · LotteON (FEATURE_2610_24 / D37) only, and
+  // only with a standard category
   // (D18 (f)); unknown mappings or own rows never block.
   bool _isCategoryBlocked(String platform) {
     final mappings = _categoryMappings;
@@ -1638,12 +1651,18 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
     final blocked = _isShippingBlocked(row.accountId);
     final categoryBlocked = _isCategoryBlocked(row.platform);
     final isCoupang = row.platform == 'COUPANG';
-    // 2609_77/D43 · FEATURE_2610_13 / D9 ③ · FEATURE_2610_26 / D2: Coupang,
-    // 11st and ESM upload through the option picker.
-    final canUpload =
-        isCoupang || row.platform == 'ELEVENST' || row.platform == 'ESM';
-    // FEATURE_2611_12 / R11: Coupang and 11st rows can attach a market product.
-    final canImport = isCoupang || row.platform == 'ELEVENST';
+    // 2609_77/D43 · FEATURE_2610_13 / D9 ③ · FEATURE_2610_26 / D2 ·
+    // FEATURE_2610_24 / D2: Coupang, 11st, ESM and LotteON upload through the
+    // option picker.
+    final canUpload = isCoupang ||
+        row.platform == 'ELEVENST' ||
+        row.platform == 'ESM' ||
+        row.platform == 'LOTTEON';
+    // FEATURE_2611_12 / R11 · FEATURE_2610_24 / D45: Coupang, 11st and LotteON
+    // rows can attach a market product.
+    final canImport = isCoupang ||
+        row.platform == 'ELEVENST' ||
+        row.platform == 'LOTTEON';
     final rowBusy = _rowBusyId == row.accountId;
     final smallButton = OutlinedButton.styleFrom(
       visualDensity: VisualDensity.compact,
@@ -2052,6 +2071,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
             onSaved: () => unawaited(_loadMetaBase()),
             elevenstActive: _activePlatforms.contains('ELEVENST'),
             esmActive: _activePlatforms.contains('ESM'),
+            lotteonActive: _activePlatforms.contains('LOTTEON'),
           ),
         ),
         const Divider(height: 1),

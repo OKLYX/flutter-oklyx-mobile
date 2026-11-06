@@ -225,6 +225,30 @@ class MasterProductRemoteDataSource {
     );
   }
 
+  /// FEATURE_2610_24 / D56: the LotteON view of the notice values on screen
+  /// (pure conversion, nothing saved).
+  Future<LotteonNotification> previewLotteonNotice(
+      String group, Map<String, String> notices) async {
+    final data = await api.post('/api/admin/lotteon/notice-preview',
+        body: {'group': group, 'notices': notices});
+    final j = data as Json;
+    return LotteonNotification(
+      itemGroupCode: j['itemGroupCode'] as String,
+      itemGroupName: j['itemGroupName'] as String,
+      lines: (j['lines'] as List? ?? const [])
+          .map((e) => LotteonNoticeLine(
+                code: (e as Json)['code'] as String,
+                name: e['name'] as String,
+                value: e['value'] as String,
+                ownKey: e['ownKey'] as String?,
+              ))
+          .toList(),
+      usedCoupangItems: (j['usedCoupangItems'] as List? ?? const [])
+          .map((e) => e as String)
+          .toList(),
+    );
+  }
+
   /// M25 — FEATURE_2610_26 / D56: the Gmarket · Auction view of the notice
   /// values on screen (pure conversion, nothing saved).
   Future<EsmNotification> previewEsmNotice(

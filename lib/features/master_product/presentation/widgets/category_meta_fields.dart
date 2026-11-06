@@ -5,6 +5,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/choice_groups.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/elevenst_notice.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/esm_notice.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/lotteon_notice.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/measure_attributes.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/notice_templates.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/option_meta_fields.dart';
@@ -12,14 +13,17 @@ import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 
 const String _groupEtc = '기타';
 
-/// FEATURE_2610_13 / D97 · D109 and FEATURE_2610_26 / D45: the tabs shown when
-/// a switched-on 11st or Gmarket · Auction channel exists — the 11st tab only
-/// with an 11st channel, the Gmarket · Auction tab only with an ESM channel.
+/// FEATURE_2610_13 / D97 · D109, FEATURE_2610_26 / D45 and FEATURE_2610_24 /
+/// D37 · D38: the tabs shown when a switched-on 11st, Gmarket · Auction or
+/// LotteON channel exists — the 11st tab only with an 11st channel, the
+/// Gmarket · Auction tab only with an ESM channel, the LotteON tab only with a
+/// LotteON channel.
 final List<(String, String)> _metaTabs = [
   ('ALL', '통합'),
   ('COUPANG', platformName('COUPANG')),
   ('ELEVENST', platformName('ELEVENST')),
   ('ESM', platformName('ESM')),
+  ('LOTTEON', platformName('LOTTEON')),
 ];
 
 /// D99: the gray line under a read-only shared field.
@@ -92,12 +96,17 @@ class CategoryMetaFields extends StatefulWidget {
   final ValueChanged<String>? onNoticeGroupChange;
 
   /// FEATURE_2610_13 / D97 · D109: given only when a switched-on 11st channel exists → 「통합」 · 「쿠팡」 · 「11번가」 tabs.
-  /// null together with [esmPreview] = the single-platform screen as before.
+  /// null together with [esmPreview] and [lotteonPreview] = the
+  /// single-platform screen as before.
   final ElevenstNoticePreview? elevenstPreview;
 
   /// FEATURE_2610_26 / D45 · D46: given only when a switched-on Gmarket ·
   /// Auction channel exists → the 「G마켓 · 옥션」 tab. null = no such tab.
   final EsmNoticePreview? esmPreview;
+
+  /// FEATURE_2610_24 / D37 · D38 · D56: given only when a switched-on LotteON
+  /// channel exists → the 「롯데ON」 tab. null = no such tab.
+  final LotteonNoticePreview? lotteonPreview;
 
   const CategoryMetaFields({
     required this.attributes,
@@ -117,6 +126,7 @@ class CategoryMetaFields extends StatefulWidget {
     this.onNoticeGroupChange,
     this.elevenstPreview,
     this.esmPreview,
+    this.lotteonPreview,
   });
 
   @override
@@ -202,24 +212,30 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
 
     final preview = widget.elevenstPreview;
     final esmPreview = widget.esmPreview;
-    final tabbed = preview != null || esmPreview != null;
+    final lotteonPreview = widget.lotteonPreview;
+    final tabbed =
+        preview != null || esmPreview != null || lotteonPreview != null;
     final tabs = [
       for (final t in _metaTabs)
         if ((t.$1 != 'ELEVENST' || preview != null) &&
-            (t.$1 != 'ESM' || esmPreview != null))
+            (t.$1 != 'ESM' || esmPreview != null) &&
+            (t.$1 != 'LOTTEON' || lotteonPreview != null))
           t,
     ];
     final notification = preview?.notification;
     final esmNotification = esmPreview?.notification;
+    final lotteonNotification = lotteonPreview?.notification;
     // Coupang items another shown platform also reads (shared) — the union over
-    // the 11st and Gmarket · Auction previews. null = a shown preview is not
-    // known yet / failed → no tags, nothing read-only.
+    // the 11st, Gmarket · Auction and LotteON previews. null = a shown preview
+    // is not known yet / failed → no tags, nothing read-only.
     final shared = (preview != null && notification == null) ||
-            (esmPreview != null && esmNotification == null)
+            (esmPreview != null && esmNotification == null) ||
+            (lotteonPreview != null && lotteonNotification == null)
         ? null
         : {
             ...?notification?.usedCoupangItems,
             ...?esmNotification?.usedCoupangItems,
+            ...?lotteonNotification?.usedCoupangItems,
           };
     final ownLines = [
       for (final l in notification?.lines ?? const <ElevenstNoticeLine>[])
@@ -227,6 +243,11 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
     ];
     final esmOwnLines = [
       for (final l in esmNotification?.lines ?? const <EsmNoticeLine>[])
+        if (l.ownKey != null) l,
+    ];
+    final lotteonOwnLines = [
+      for (final l
+          in lotteonNotification?.lines ?? const <LotteonNoticeLine>[])
         if (l.ownKey != null) l,
     ];
     // D109 (b) · (c): 「통합」 shows notices only and owns the group select; the Coupang tab shows the attributes too.
@@ -309,6 +330,8 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
           _buildElevenstView(context, preview)
         else if (tabbed && _tab == 'ESM' && esmPreview != null)
           _buildEsmView(context, esmPreview)
+        else if (tabbed && _tab == 'LOTTEON' && lotteonPreview != null)
+          _buildLotteonView(context, lotteonPreview)
         else ...[
           const SizedBox(height: 4),
           Divider(height: 1, color: scheme.outlineVariant),
@@ -421,6 +444,21 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
               ),
               const SizedBox(height: 12),
             ],
+          // FEATURE_2610_24 / D63 ④: the LotteON-only items of a LotteON item
+          // group with no Coupang twin, stored under LOTTEON:{group}:{item}.
+          if (tabbed && _tab == 'ALL')
+            for (final line in lotteonOwnLines) ...[
+              _MetaTextField(
+                key: ValueKey('notice-${line.ownKey}'),
+                label: _fieldLabel(context, line.name,
+                    required: false, tag: platformName('LOTTEON')),
+                value: noticeValues[line.ownKey] ?? '',
+                enabled: !disabled,
+                hintText: '비우면 「상품 상세페이지 참조」',
+                onChanged: (v) => widget.onNoticeChange(line.ownKey!, v),
+              ),
+              const SizedBox(height: 12),
+            ],
         ],
       ],
     );
@@ -473,6 +511,47 @@ class _CategoryMetaFieldsState extends State<CategoryMetaFields> {
             ),
             _note(context, _sharedNote),
           ],
+          const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+
+  // FEATURE_2610_24 / D38 · D63 ④: on the LotteON tab every item shows the
+  // value LotteON receives, all read-only — edits happen in 「통합」.
+  Widget _buildLotteonView(BuildContext context, LotteonNoticePreview preview) {
+    final scheme = Theme.of(context).colorScheme;
+    final notification = preview.notification;
+    if (preview.failed && notification == null) {
+      return _grayBox(
+        context,
+        Text('롯데ON 고시 미리보기를 불러오지 못했습니다.',
+            style: TextStyle(fontSize: 14, color: scheme.error)),
+      );
+    }
+    if (notification == null) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          '롯데ON 고시 품목: ${notification.itemGroupName}',
+          style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 12),
+        for (final line in notification.lines) ...[
+          _MetaTextField(
+            key: ValueKey('lotteon-${line.code}-${line.value}'),
+            label: _fieldLabel(context, line.name, required: false),
+            value: line.value,
+            enabled: false,
+            onChanged: (_) {},
+          ),
+          _note(context, _sharedNote),
           const SizedBox(height: 12),
         ],
       ],

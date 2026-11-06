@@ -368,6 +368,26 @@ abstract class MasterProductRepository {
   Future<Either<Failure, EsmNotification>> previewEsmNotice(
       String group, Map<String, String> notices);
 
+  /// FEATURE_2610_24 / D42.
+  Future<Either<Failure, Map<String, String>>> getInheritedLotteonShipping(
+      int listingId);
+
+  /// FEATURE_2610_24 / D42.
+  Future<Either<Failure, Map<String, String>>> getLotteonShippingConfig(
+      int accountId);
+
+  /// FEATURE_2610_24 / D65 · D66 — Right = the failed re-price count.
+  Future<Either<Failure, int>> upsertLotteonShippingConfig(
+      int accountId, Map<String, String> settings);
+
+  /// FEATURE_2610_24 / D43.
+  Future<Either<Failure, List<LotteonChoice>>> listLotteonFeePolicies(
+      int accountId);
+
+  /// FEATURE_2610_24 / D56.
+  Future<Either<Failure, LotteonNotification>> previewLotteonNotice(
+      String group, Map<String, String> notices);
+
   /// L40 — FEATURE_2610_27 / D1 · D10.
   Future<Either<Failure, ListingMargins>> getListingMargins(int listingId);
 
