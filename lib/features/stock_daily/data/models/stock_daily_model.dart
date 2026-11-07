@@ -63,6 +63,9 @@ class StockDailyRowModel extends StockDailyRow {
     required super.receiptKind,
     required super.receiptId,
     required super.shares,
+    required super.unitPrices,
+    required super.priceFromBase,
+    required super.openingPriceEditable,
   });
 
   factory StockDailyRowModel.fromJson(Map<String, dynamic> json) =>
@@ -102,7 +105,45 @@ class StockDailyRowModel extends StockDailyRow {
                     ReceiptKind.noReceipt,
             receiptId: share['receiptId'] as int?,
             sellerChangeable: share['sellerChangeable'] as bool? ?? false,
+            unitPrice: (share['unitPrice'] as num?)?.toDouble(),
+            priceFromBase: share['priceFromBase'] as bool? ?? false,
           );
         }).toList(),
+        // FEATURE_2611_17 D16 · D22 · D17: the unit prices, the 「미기입」 mark
+        // and the opening-stock price target.
+        unitPrices: (json['unitPrices'] as List<dynamic>?)?.map((e) {
+          final unit = e as Map<String, dynamic>;
+          return UnitCount(
+            unitPrice: (unit['unitPrice'] as num).toDouble(),
+            quantity: unit['quantity'] as int,
+          );
+        }).toList(),
+        priceFromBase: json['priceFromBase'] as bool? ?? false,
+        openingPriceEditable: json['openingPriceEditable'] as bool? ?? false,
+      );
+}
+
+/// One receipt of the receipt list (`ReceiptSummaryView`, FEATURE_2610_18
+/// D94) — the row sheet's receipt choices (FEATURE_2611_17 D23).
+class DayReceiptModel extends DayReceipt {
+  const DayReceiptModel({
+    required super.id,
+    required super.payerSellerId,
+    required super.payerSellerName,
+    required super.cardAlias,
+    required super.firstProductName,
+    required super.productCount,
+    required super.hasPhoto,
+  });
+
+  factory DayReceiptModel.fromJson(Map<String, dynamic> json) =>
+      DayReceiptModel(
+        id: json['id'] as int,
+        payerSellerId: json['payerSellerId'] as int,
+        payerSellerName: json['payerSellerName'] as String? ?? '',
+        cardAlias: json['cardAlias'] as String?,
+        firstProductName: json['firstProductName'] as String?,
+        productCount: json['productCount'] as int? ?? 0,
+        hasPhoto: json['hasPhoto'] as bool? ?? false,
       );
 }

@@ -199,9 +199,12 @@ import 'package:flutter_oklyn_mobile/features/stock_daily/domain/repositories/st
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/assign_receipt_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/assign_without_receipt_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/change_seller_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/edit_daily_row_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/get_day_receipts_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/get_stock_daily_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/retype_purchase_price_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/bloc/purchase_price_cubit.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/bloc/row_edit_cubit.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/bloc/stock_daily_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/packing/data/datasources/packing_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/packing/data/repositories/packing_repository_impl.dart';
@@ -1235,6 +1238,20 @@ void _registerStockDailyServices() {
     () => PurchasePriceCubit(
       getSellerCardsUseCase: getIt<GetSellerCardsUseCase>(),
       retypePurchasePriceUseCase: getIt<RetypePurchasePriceUseCase>(),
+    ),
+  );
+  getIt.registerSingleton<EditDailyRowUseCase>(
+    EditDailyRowUseCase(repository: getIt<StockDailyRepository>()),
+  );
+  getIt.registerSingleton<GetDayReceiptsUseCase>(
+    GetDayReceiptsUseCase(repository: getIt<StockDailyRepository>()),
+  );
+  // One per row sheet (FEATURE_2611_17 / R14).
+  getIt.registerFactory<RowEditCubit>(
+    () => RowEditCubit(
+      getSellerCardsUseCase: getIt<GetSellerCardsUseCase>(),
+      getDayReceiptsUseCase: getIt<GetDayReceiptsUseCase>(),
+      editDailyRowUseCase: getIt<EditDailyRowUseCase>(),
     ),
   );
   getIt.registerFactory<StockDailyBloc>(

@@ -9,6 +9,7 @@ import 'package:flutter_oklyn_mobile/features/seller/domain/usecases/get_sellers
 import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/entities/stock_enums.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/app_filter_chip.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
@@ -16,9 +17,11 @@ import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/stock_daily.dart';
 import '../bloc/purchase_price_cubit.dart';
+import '../bloc/row_edit_cubit.dart';
 import '../bloc/stock_daily_bloc.dart';
 import '../widgets/purchase_price_sheet.dart';
 import '../widgets/receipt_assign_sheet.dart';
+import '../widgets/row_edit_sheet.dart';
 import '../widgets/seller_change_sheet.dart';
 
 /// 「일별 입출고 내역」 (`/stock/daily`, FEATURE_2610_19 D119 · D122 · D123 ·
@@ -44,6 +47,10 @@ import '../widgets/seller_change_sheet.dart';
 /// - [매입가 넣기] (FEATURE_2611_16 D7 · D8): on when every checked row and
 ///   share is a purchase-price target → [PurchasePriceSheet] with those
 ///   targets in table order (a row, then its checked shares).
+/// - FEATURE_2611_17: the chip 「전체」/「입고」/「출고」 and the boxes
+///   「판매자 미정 상품」 · 「영수증 미등록 상품」 filter the list on screen
+///   (D4 · D11 · D28) · tapping a card or a share line with a sheet target
+///   opens [RowEditSheet] (D12 · D24); the check box only checks (D7).
 class StockDailyPage extends StatelessWidget {
   const StockDailyPage({super.key});
 
@@ -157,6 +164,21 @@ class _StockDailyViewState extends State<_StockDailyView> {
     }
   }
 
+  Future<void> _openRowEdit(RowEditTarget target) async {
+    final bloc = context.read<StockDailyBloc>();
+    final saved = await showAppSheet<bool>(
+      context,
+      builder: (sheetContext) => BlocProvider(
+        create: (_) => getIt<RowEditCubit>()..open(target, _day),
+        child: RowEditSheet(date: _day, target: target, sellers: _sellers),
+      ),
+    );
+    if (saved == true && mounted) {
+      showSuccessToast(context, '저장했습니다.');
+      bloc.add(LoadStockDaily(_day));
+    }
+  }
+
   @override
   Widget build(BuildContext context) => ScaffoldWithNavBar(
         title: '일별 입출고 내역',
@@ -185,6 +207,7 @@ class _StockDailyViewState extends State<_StockDailyView> {
             final loaded = state as StockDailyLoaded;
             final daily = loaded.daily;
             final checked = loaded.checked;
+            final visible = loaded.visibleRows;
             // D14: the checked rows and shares, split by kind.
             final checkedRows =
                 daily.rows.where((row) => checked.contains(_rowKey(row)));
@@ -310,11 +333,15 @@ class _StockDailyViewState extends State<_StockDailyView> {
                   ),
                 ),
                 const SizedBox(height: 8),
+                _filterBar(context, loaded),
+                const SizedBox(height: 8),
                 if (daily.rows.isEmpty)
                   const AppEmpty('그날 입출고가 없습니다.')
+                else if (visible.isEmpty)
+                  const AppEmpty(noMatchMessage)
                 else
-                  for (final row in daily.rows)
-                    _rowCard(context, row, checked),
+                  for (final item in visible)
+                    _rowCard(context, item.row, item.shares, checked),
               ],
             );
           },
@@ -329,9 +356,49 @@ class _StockDailyViewState extends State<_StockDailyView> {
   static String _changeLabel(String product, int quantity, String owner) =>
       '$product $quantity개 · $owner';
 
+  /// FEATURE_2611_17 D4 · D24 · D28: the chip and the two boxes.
+  Widget _filterBar(BuildContext context, StockDailyLoaded loaded) {
+    final bloc = context.read<StockDailyBloc>();
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        AppFilterChip<DailyChip>(
+          label: loaded.chip.label,
+          value: loaded.chip,
+          options: [
+            for (final chip in DailyChip.values)
+              AppFilterOption(chip, chip.label),
+          ],
+          highlighted: loaded.chip != DailyChip.all,
+          onSelected: (chip) => bloc.add(SelectStockDailyChip(chip)),
+        ),
+        _box(undecidedBoxLabel, loaded.undecidedBox,
+            () => bloc.add(ToggleStockDailyBox(StockDailyBox.undecided))),
+        _box(receiptPendingBoxLabel, loaded.receiptBox,
+            () => bloc.add(ToggleStockDailyBox(StockDailyBox.receiptPending))),
+      ],
+    );
+  }
+
+  /// One box next to the chip — the text toggles it too.
+  static Widget _box(String label, bool value, VoidCallback onToggle) =>
+      InkWell(
+        onTap: onToggle,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Checkbox(value: value, onChanged: (_) => onToggle()),
+            Text(label),
+          ],
+        ),
+      );
+
   Widget _rowCard(
     BuildContext context,
     StockDailyRow row,
+    List<StockDailyShare> shares,
     Set<String> checked,
   ) {
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
@@ -351,7 +418,12 @@ class _StockDailyViewState extends State<_StockDailyView> {
         row.sellerChangeable ||
         row.recordId != null;
     final bloc = context.read<StockDailyBloc>();
+    final target = row.editTarget;
+    // D1 · D2 · D16 · D22: count · unit price · amount (+ 「미기입」).
+    final priceLine = '${row.quantity}개 · 단가 ${unitPriceText(row.unitPrices)}'
+        ' · $amount${row.priceFromBase ? ' · $priceFromBaseLabel' : ''}';
     return AppCard.row(
+      onTap: target == null ? null : () => _openRowEdit(target),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -371,10 +443,10 @@ class _StockDailyViewState extends State<_StockDailyView> {
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
-              Text('${row.quantity}개 · $amount'),
             ],
           ),
           const SizedBox(height: 4),
+          Text(priceLine),
           Text(
             [
               if (reason == null) type else '$type · $reason',
@@ -390,7 +462,7 @@ class _StockDailyViewState extends State<_StockDailyView> {
                   fontSize: 12, color: AppColors.warningForeground),
             ),
           // FEATURE_2611_16 D8: every share is its own line and target.
-          for (final share in row.shares)
+          for (final share in shares)
             Row(
               children: [
                 Checkbox(
@@ -399,9 +471,12 @@ class _StockDailyViewState extends State<_StockDailyView> {
                       bloc.add(ToggleStockDailyCheck(_shareKey(share))),
                 ),
                 Expanded(
-                  child: Text(
-                    share.lineText,
-                    style: TextStyle(fontSize: 12, color: muted),
+                  child: InkWell(
+                    onTap: () => _openRowEdit(share.editTargetOf(row)),
+                    child: Text(
+                      share.lineText,
+                      style: TextStyle(fontSize: 12, color: muted),
+                    ),
                   ),
                 ),
               ],
