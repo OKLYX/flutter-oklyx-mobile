@@ -11,8 +11,11 @@ import '../models/stock_daily_model.dart';
 /// (FEATURE_2610_19 D119 · D121), `POST
 /// /api/admin/purchase-receipts/assign-without-receipt` and `POST
 /// /api/admin/stock/daily/change-seller` (FEATURE_2611_01 D2 · D7) and `POST
-/// /api/admin/stock/daily/purchase-price` (FEATURE_2611_16 D2 · D7) — the same
-/// calls as the web `StockLotRepositoryImpl`. All are ADMIN only.
+/// /api/admin/stock/daily/purchase-price` (FEATURE_2611_16 D2 · D7), `POST
+/// /api/admin/stock/daily/row-edit` and `GET /api/admin/purchase-receipts`
+/// (FEATURE_2611_17 D5 · D23) — the same calls as the web
+/// `StockLotRepositoryImpl` and `PurchaseReceiptRepositoryImpl`. All are ADMIN
+/// only.
 ///
 /// `DioClient` lets every status below 500 through — [_ensureOk] turns a
 /// non-2xx status into a [ServerException] with the envelope `message`.
@@ -130,6 +133,53 @@ class StockDailyRemoteDataSource {
       queryParameters: <String, dynamic>{'movedOn': movedOn},
       options: Options(contentType: 'multipart/form-data'),
     ));
+  }
+
+  /// The row sheet's one save (FEATURE_2611_17 D5) — [photo] null = none.
+  /// A null field of [edit] is not sent (the value stays).
+  Future<void> editRow(String movedOn, File? photo, DailyRowEdit edit) async {
+    final request = <String, dynamic>{
+      if (edit.movementId != null) 'movementId': edit.movementId,
+      if (edit.shareRecordId != null) 'shareRecordId': edit.shareRecordId,
+      if (edit.sellerId != null) 'sellerId': edit.sellerId,
+      if (edit.totalAmount != null) 'totalAmount': edit.totalAmount,
+      if (edit.unitPrice != null) 'unitPrice': edit.unitPrice,
+      if (edit.reflectToBasePrice != null)
+        'reflectToBasePrice': edit.reflectToBasePrice,
+      if (edit.receiptId != null) 'receiptId': edit.receiptId,
+      if (edit.cardId != null) 'cardId': edit.cardId,
+    };
+    final form = FormData.fromMap({
+      if (photo != null)
+        // The file name extension sets the part type (jpg → image/jpeg).
+        'photo': await MultipartFile.fromFile(
+          photo.path,
+          filename: photo.path.split('/').last,
+        ),
+      // The server reads this part as JSON (@RequestPart).
+      'request': MultipartFile.fromString(
+        jsonEncode(request),
+        contentType: DioMediaType('application', 'json'),
+      ),
+    });
+    _ensureOk(await dio.post<dynamic>(
+      '/api/admin/stock/daily/row-edit',
+      data: form,
+      queryParameters: <String, dynamic>{'movedOn': movedOn},
+      options: Options(contentType: 'multipart/form-data'),
+    ));
+  }
+
+  /// That day's receipts (FEATURE_2611_17 D23) — the receipt list of the day,
+  /// with and without a photo.
+  Future<List<DayReceiptModel>> getDayReceipts(String date) async {
+    final response = _ensureOk(await dio.get<dynamic>(
+      '/api/admin/purchase-receipts',
+      queryParameters: <String, dynamic>{'from': date, 'to': date},
+    ));
+    return ((response.data['data'] as List<dynamic>?) ?? const [])
+        .map((e) => DayReceiptModel.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Response<dynamic> _ensureOk(Response<dynamic> response) {

@@ -39,4 +39,14 @@ abstract class StockDailyRepository {
     int? cardId,
     List<PurchasePriceLine> lines,
   );
+
+  /// The row sheet's one save (FEATURE_2611_17 D5) — [photo] null = none.
+  Future<Either<Failure, Unit>> editRow(
+    String movedOn,
+    File? photo,
+    DailyRowEdit edit,
+  );
+
+  /// That day's receipts for the row sheet (FEATURE_2611_17 D23).
+  Future<Either<Failure, List<DayReceipt>>> getDayReceipts(String date);
 }

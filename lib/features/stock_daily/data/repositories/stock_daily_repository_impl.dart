@@ -66,6 +66,22 @@ class StockDailyRepositoryImpl implements StockDailyRepository {
         return unit;
       }, '매입가를 반영하지 못했습니다.');
 
+  @override
+  Future<Either<Failure, Unit>> editRow(
+    String movedOn,
+    File? photo,
+    DailyRowEdit edit,
+  ) =>
+      _guard(() async {
+        await remoteDataSource.editRow(movedOn, photo, edit);
+        return unit;
+      }, '저장하지 못했습니다.');
+
+  @override
+  Future<Either<Failure, List<DayReceipt>>> getDayReceipts(String date) =>
+      _guard(
+          () => remoteDataSource.getDayReceipts(date), '영수증 목록을 불러오지 못했습니다.');
+
   /// The server message first — a 400 reason (「남은 영수증 미등록 수량…」)
   /// must reach the screen as it is.
   Future<Either<Failure, T>> _guard<T>(
