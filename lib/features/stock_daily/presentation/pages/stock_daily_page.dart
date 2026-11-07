@@ -15,7 +15,9 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/stock_daily.dart';
+import '../bloc/purchase_price_cubit.dart';
 import '../bloc/stock_daily_bloc.dart';
+import '../widgets/purchase_price_sheet.dart';
 import '../widgets/receipt_assign_sheet.dart';
 import '../widgets/seller_change_sheet.dart';
 
@@ -31,13 +33,17 @@ import '../widgets/seller_change_sheet.dart';
 /// - 「영수증 미등록 N건」 + [영수증 올리기] opens [ReceiptAssignSheet] for that
 ///   day (D118 · D121 ⑨); [영수증 없이 판매자 정하기] opens the same sheet
 ///   without a photo (FEATURE_2611_01 D2 · D4).
-/// - One check per card for three buttons (FEATURE_2611_01 D14): an undecided
-///   row with a quantity left, a decided incoming row without a receipt and
-///   each 「영수증 없음」 share (a line under its undecided row). Only undecided
-///   rows checked → the receipt buttons open with those products at their
-///   remaining quantity · only the others → [판매자 바꾸기] ([SellerChangeSheet],
-///   D7 · D15) · both kinds → every button is off · nothing checked → the
-///   receipt buttons open with every product of the day at 0.
+/// - One check per card for four buttons (FEATURE_2611_01 D14): an undecided
+///   row with a quantity left, a decided incoming row without a receipt, a row
+///   with a purchase record to retype and each share (a line under its
+///   undecided row). Only undecided rows checked → the receipt buttons open
+///   with those products at their remaining quantity · only 「영수증 없음」
+///   rows and shares → [판매자 바꾸기] ([SellerChangeSheet], D7 · D15) ·
+///   nothing checked → the receipt buttons open with every product of the day
+///   at 0.
+/// - [매입가 넣기] (FEATURE_2611_16 D7 · D8): on when every checked row and
+///   share is a purchase-price target → [PurchasePriceSheet] with those
+///   targets in table order (a row, then its checked shares).
 class StockDailyPage extends StatelessWidget {
   const StockDailyPage({super.key});
 
@@ -136,6 +142,21 @@ class _StockDailyViewState extends State<_StockDailyView> {
     }
   }
 
+  Future<void> _openPurchasePrice(List<PurchasePriceTarget> targets) async {
+    final bloc = context.read<StockDailyBloc>();
+    final saved = await showAppSheet<bool>(
+      context,
+      builder: (sheetContext) => BlocProvider(
+        create: (_) => getIt<PurchasePriceCubit>()..open(targets),
+        child: PurchasePriceSheet(date: _day, targets: targets),
+      ),
+    );
+    if (saved == true && mounted) {
+      showSuccessToast(context, '매입가를 반영했습니다.');
+      bloc.add(LoadStockDaily(_day));
+    }
+  }
+
   @override
   Widget build(BuildContext context) => ScaffoldWithNavBar(
         title: '일별 입출고 내역',
@@ -169,7 +190,7 @@ class _StockDailyViewState extends State<_StockDailyView> {
                 daily.rows.where((row) => checked.contains(_rowKey(row)));
             final checkedShares = [
               for (final row in daily.rows)
-                for (final share in row.noReceiptShares)
+                for (final share in row.shares)
                   if (checked.contains(_shareKey(share))) (row, share),
             ];
             final undecidedChecked = checkedRows
@@ -177,11 +198,27 @@ class _StockDailyViewState extends State<_StockDailyView> {
                 .toList();
             final changeRowsChecked =
                 checkedRows.where((row) => row.sellerChangeable).toList();
+            final changeSharesChecked = [
+              for (final (row, share) in checkedShares)
+                if (share.sellerChangeable) (row, share),
+            ];
             final canAssign = checked.isEmpty ||
                 undecidedChecked.length == checked.length;
             final canChange = checked.isNotEmpty &&
-                changeRowsChecked.length + checkedShares.length ==
+                changeRowsChecked.length + changeSharesChecked.length ==
                     checked.length;
+            // FEATURE_2611_16 D7: every checked row and share is a target.
+            final priceTargets = [
+              for (final row in daily.rows) ...[
+                if (checked.contains(_rowKey(row)) && row.priceTarget != null)
+                  row.priceTarget!,
+                for (final share in row.shares)
+                  if (checked.contains(_shareKey(share)))
+                    share.priceTargetOf(row),
+              ],
+            ];
+            final canRetype =
+                checked.isNotEmpty && priceTargets.length == checked.length;
             final assignProducts = checked.isEmpty
                 ? daily.unregistered
                 : daily.unregistered
@@ -192,7 +229,7 @@ class _StockDailyViewState extends State<_StockDailyView> {
               for (final row in changeRowsChecked)
                 _changeLabel(row.productName, row.quantity,
                     row.sellerName ?? '판매자 미정'),
-              for (final (row, share) in checkedShares)
+              for (final (row, share) in changeSharesChecked)
                 _changeLabel(row.productName, share.quantity,
                     '${share.sellerName} (영수증 없음)'),
             ];
@@ -252,13 +289,20 @@ class _StockDailyViewState extends State<_StockDailyView> {
                                           row.movementId,
                                       ],
                                       [
-                                        for (final (_, share) in checkedShares)
+                                        for (final (_, share)
+                                            in changeSharesChecked)
                                           share.recordId,
                                       ],
                                       changeLabels,
                                     )
                                 : null,
                             child: const Text('판매자 바꾸기'),
+                          ),
+                          OutlinedButton(
+                            onPressed: canRetype
+                                ? () => _openPurchasePrice(priceTargets)
+                                : null,
+                            child: const Text('매입가 넣기'),
                           ),
                         ],
                       ),
@@ -279,7 +323,7 @@ class _StockDailyViewState extends State<_StockDailyView> {
 
   static String _rowKey(StockDailyRow row) => 'row-${row.movementId}';
 
-  static String _shareKey(NoReceiptShare share) => 'share-${share.recordId}';
+  static String _shareKey(StockDailyShare share) => 'share-${share.recordId}';
 
   /// One 「판매자 바꾸기」 target as the sheet lists it: 「양말 2개 · A상사」.
   static String _changeLabel(String product, int quantity, String owner) =>
@@ -303,7 +347,9 @@ class _StockDailyViewState extends State<_StockDailyView> {
     final amount = row.amount == null
         ? '미기입'
         : '₩${NumberFormat('#,##0', 'ko_KR').format(row.amount)}';
-    final checkable = (row.undecidedLeft ?? 0) > 0 || row.sellerChangeable;
+    final checkable = (row.undecidedLeft ?? 0) > 0 ||
+        row.sellerChangeable ||
+        row.recordId != null;
     final bloc = context.read<StockDailyBloc>();
     return AppCard.row(
       child: Column(
@@ -343,8 +389,8 @@ class _StockDailyViewState extends State<_StockDailyView> {
               style: const TextStyle(
                   fontSize: 12, color: AppColors.warningForeground),
             ),
-          // FEATURE_2611_01 D15: each 「영수증 없음」 share is its own target.
-          for (final share in row.noReceiptShares)
+          // FEATURE_2611_16 D8: every share is its own line and target.
+          for (final share in row.shares)
             Row(
               children: [
                 Checkbox(
@@ -354,7 +400,7 @@ class _StockDailyViewState extends State<_StockDailyView> {
                 ),
                 Expanded(
                   child: Text(
-                    '└ ${share.sellerName} ${share.quantity}개 · 영수증 없음',
+                    share.lineText,
                     style: TextStyle(fontSize: 12, color: muted),
                   ),
                 ),

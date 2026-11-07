@@ -200,6 +200,8 @@ import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/assign
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/assign_without_receipt_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/change_seller_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/get_stock_daily_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/retype_purchase_price_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/bloc/purchase_price_cubit.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/bloc/stock_daily_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/packing/data/datasources/packing_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/packing/data/repositories/packing_repository_impl.dart';
@@ -1224,6 +1226,16 @@ void _registerStockDailyServices() {
   );
   getIt.registerSingleton<ChangeSellerUseCase>(
     ChangeSellerUseCase(repository: getIt<StockDailyRepository>()),
+  );
+  getIt.registerSingleton<RetypePurchasePriceUseCase>(
+    RetypePurchasePriceUseCase(repository: getIt<StockDailyRepository>()),
+  );
+  // One per sheet (FEATURE_2611_16 / R13).
+  getIt.registerFactory<PurchasePriceCubit>(
+    () => PurchasePriceCubit(
+      getSellerCardsUseCase: getIt<GetSellerCardsUseCase>(),
+      retypePurchasePriceUseCase: getIt<RetypePurchasePriceUseCase>(),
+    ),
   );
   getIt.registerFactory<StockDailyBloc>(
     () => StockDailyBloc(getStockDailyUseCase: getIt<GetStockDailyUseCase>()),

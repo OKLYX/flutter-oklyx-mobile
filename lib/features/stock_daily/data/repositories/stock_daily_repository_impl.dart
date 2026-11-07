@@ -54,6 +54,18 @@ class StockDailyRepositoryImpl implements StockDailyRepository {
         return unit;
       }, '판매자를 바꾸지 못했습니다.');
 
+  @override
+  Future<Either<Failure, Unit>> retypePrices(
+    String movedOn,
+    File? photo,
+    int? cardId,
+    List<PurchasePriceLine> lines,
+  ) =>
+      _guard(() async {
+        await remoteDataSource.retypePrices(movedOn, photo, cardId, lines);
+        return unit;
+      }, '매입가를 반영하지 못했습니다.');
+
   /// The server message first — a 400 reason (「남은 영수증 미등록 수량…」)
   /// must reach the screen as it is.
   Future<Either<Failure, T>> _guard<T>(
