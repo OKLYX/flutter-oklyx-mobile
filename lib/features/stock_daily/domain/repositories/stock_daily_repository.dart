@@ -30,4 +30,13 @@ abstract class StockDailyRepository {
     List<int> movementIds,
     List<int> shareRecordIds,
   );
+
+  /// 「매입가 넣기」 of checked rows and shares (FEATURE_2611_16 D2 · D7) —
+  /// [photo] null = amounts only · [cardId] = the new receipt's card.
+  Future<Either<Failure, Unit>> retypePrices(
+    String movedOn,
+    File? photo,
+    int? cardId,
+    List<PurchasePriceLine> lines,
+  );
 }
