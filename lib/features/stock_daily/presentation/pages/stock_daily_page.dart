@@ -30,7 +30,7 @@ import '../widgets/seller_change_sheet.dart';
 ///
 /// - One day (today first): every ledger row moved that day with its count and
 ///   purchase-price amount (「미기입」 when empty). No selling price (D122).
-/// - Undecided intake rows show their owners 「○○ 4」 and 「영수증 미등록 N개
+/// - Undecided intake rows show their owners 「○○」 and 「영수증 미등록 N개
 ///   남음」; outbound rows show the order seller and 「{seller} 재고 사용」 ·
 ///   「영수증 미등록 재고 사용」.
 /// - 「영수증 미등록 N건」 + [영수증 올리기] opens [ReceiptAssignSheet] for that
