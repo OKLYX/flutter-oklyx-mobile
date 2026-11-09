@@ -13,9 +13,9 @@ import '../models/stock_daily_model.dart';
 /// /api/admin/stock/daily/change-seller` (FEATURE_2611_01 D2 · D7) and `POST
 /// /api/admin/stock/daily/purchase-price` (FEATURE_2611_16 D2 · D7), `POST
 /// /api/admin/stock/daily/row-edit` and `GET /api/admin/purchase-receipts`
-/// (FEATURE_2611_17 D5 · D23) — the same calls as the web
-/// `StockLotRepositoryImpl` and `PurchaseReceiptRepositoryImpl`. All are ADMIN
-/// only.
+/// (FEATURE_2611_17 D5 · D23), `POST /api/admin/stock/daily/move-date`
+/// (FEATURE_2611_21 D9) — the same calls as the web `StockLotRepositoryImpl`
+/// and `PurchaseReceiptRepositoryImpl`. All are ADMIN only.
 ///
 /// `DioClient` lets every status below 500 through — [_ensureOk] turns a
 /// non-2xx status into a [ServerException] with the envelope `message`.
@@ -148,6 +148,7 @@ class StockDailyRemoteDataSource {
         'reflectToBasePrice': edit.reflectToBasePrice,
       if (edit.receiptId != null) 'receiptId': edit.receiptId,
       if (edit.cardId != null) 'cardId': edit.cardId,
+      if (edit.newMovedOn != null) 'newMovedOn': edit.newMovedOn,
     };
     final form = FormData.fromMap({
       if (photo != null)
@@ -167,6 +168,17 @@ class StockDailyRemoteDataSource {
       data: form,
       queryParameters: <String, dynamic>{'movedOn': movedOn},
       options: Options(contentType: 'multipart/form-data'),
+    ));
+  }
+
+  /// The 「날짜 바꾸기」 sheet (FEATURE_2611_21 D9): one row to [newMovedOn].
+  Future<void> moveDate(int movementId, String newMovedOn) async {
+    _ensureOk(await dio.post<dynamic>(
+      '/api/admin/stock/daily/move-date',
+      data: <String, dynamic>{
+        'movementId': movementId,
+        'newMovedOn': newMovedOn,
+      },
     ));
   }
 

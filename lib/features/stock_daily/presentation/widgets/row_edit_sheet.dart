@@ -11,6 +11,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import '../../domain/entities/stock_daily.dart';
 import '../bloc/purchase_price_cubit.dart';
 import '../bloc/row_edit_cubit.dart';
+import 'date_edit_history.dart';
 
 /// 「입고 정보 수정」 sheet of 「일별 입출고 내역」 (FEATURE_2611_17 D5 · D6 ·
 /// D9 · D17 ~ D23), shown with `showAppSheet` when a card or a share line is
@@ -18,11 +19,14 @@ import '../bloc/row_edit_cubit.dart';
 ///
 /// - Open it inside a `BlocProvider` of a new [RowEditCubit] (opened with the
 ///   same [target] and [date]) — the sheet reads every state from it and pops
-///   `true` once the row was saved.
+///   the day the row moved to once the row was saved ('' = the day stayed).
 /// - Fields follow [target]: 「판매자」 (a dropdown when the seller can change),
 ///   the price (「총액」/「단가」 + amount, 「상품 기준가에 반영」 for a
 ///   purchase) and the receipt field ([RowEditReceipt]).
 /// - Picking a receipt of another payer asks first (「판매자 바뀜」).
+/// - 「날짜」 on top (FEATURE_2611_21 D9, [RowEditTarget.dateField]): locked =
+///   off with [receiptRowDateMessage]; a share has none. The row's day
+///   corrections are listed last (D24).
 ///
 /// ⚠️ Refusals and failures are shown inside the sheet in red.
 class RowEditSheet extends StatefulWidget {
@@ -78,6 +82,20 @@ class _RowEditSheetState extends State<RowEditSheet> {
     return sellerId == widget.target.sellerId ? widget.target.sellerName : '';
   }
 
+  /// FEATURE_2611_21 D9: the 「날짜」 picker starts at the picked day.
+  Future<void> _pickDay(RowEditCubit cubit) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.parse(cubit.state.movedOn),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked == null || !mounted) {
+      return;
+    }
+    cubit.setMovedOn(DateFormat('yyyy-MM-dd').format(picked));
+  }
+
   /// D23: a receipt of another payer is picked only after [바꾸기].
   Future<void> _onReceiptPicked(
     RowEditCubit cubit,
@@ -115,7 +133,8 @@ class _RowEditSheetState extends State<RowEditSheet> {
   Widget build(BuildContext context) =>
       BlocConsumer<RowEditCubit, RowEditState>(
         listenWhen: (previous, current) => !previous.saved && current.saved,
-        listener: (context, state) => Navigator.of(context).pop(true),
+        listener: (context, state) =>
+            Navigator.of(context).pop(state.movedTo ?? ''),
         builder: (context, state) {
           final cubit = context.read<RowEditCubit>();
           final colorScheme = Theme.of(context).colorScheme;
@@ -146,6 +165,7 @@ class _RowEditSheetState extends State<RowEditSheet> {
                 child: ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
+                    ..._dateField(cubit, state, muted),
                     Text('${target.productName} ${target.quantity}개'),
                     Text(
                       '지금 금액 ${_currentAmount(target.amount)}',
@@ -155,6 +175,7 @@ class _RowEditSheetState extends State<RowEditSheet> {
                     ..._sellerField(cubit, state, muted),
                     if (target.price != null) ..._priceField(cubit, state),
                     ..._receiptField(cubit, state),
+                    DateEditHistory(edits: target.dateEdits),
                     if (state.error.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       Text(state.error,
@@ -185,6 +206,36 @@ class _RowEditSheetState extends State<RowEditSheet> {
           );
         },
       );
+
+  List<Widget> _dateField(
+    RowEditCubit cubit,
+    RowEditState state,
+    Color muted,
+  ) {
+    final field = widget.target.dateField;
+    if (field == null) {
+      return const [];
+    }
+    return [
+      _label('날짜'),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          onPressed: state.busy || field == RowEditDate.locked
+              ? null
+              : () => _pickDay(cubit),
+          icon: const Icon(Icons.calendar_today, size: 16),
+          label: Text(state.movedOn),
+        ),
+      ),
+      if (field == RowEditDate.locked)
+        Text(
+          receiptRowDateMessage,
+          style: TextStyle(fontSize: 12, color: muted),
+        ),
+      const SizedBox(height: 16),
+    ];
+  }
 
   static Widget _label(String text) => Padding(
         padding: const EdgeInsets.only(bottom: 4),

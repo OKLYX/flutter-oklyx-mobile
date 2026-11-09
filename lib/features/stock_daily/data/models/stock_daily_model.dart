@@ -66,6 +66,10 @@ class StockDailyRowModel extends StockDailyRow {
     required super.unitPrices,
     required super.priceFromBase,
     required super.openingPriceEditable,
+    required super.sourceMovementId,
+    required super.sourceMovedOn,
+    required super.sourcePriceEditable,
+    required super.dateEdits,
   });
 
   factory StockDailyRowModel.fromJson(Map<String, dynamic> json) =>
@@ -120,6 +124,20 @@ class StockDailyRowModel extends StockDailyRow {
         }).toList(),
         priceFromBase: json['priceFromBase'] as bool? ?? false,
         openingPriceEditable: json['openingPriceEditable'] as bool? ?? false,
+        // FEATURE_2611_21 D20 · D22 · D24: the lot of an outgoing row and the
+        // row's day corrections.
+        sourceMovementId: json['sourceMovementId'] as int?,
+        sourceMovedOn: json['sourceMovedOn'] as String?,
+        sourcePriceEditable: json['sourcePriceEditable'] as bool? ?? false,
+        dateEdits: ((json['dateEdits'] as List<dynamic>?) ?? const []).map((e) {
+          final edit = e as Map<String, dynamic>;
+          return StockDateEdit(
+            editedAt: edit['editedAt'] as String? ?? '',
+            editedBy: edit['editedBy'] as String?,
+            oldMovedOn: edit['oldMovedOn'] as String? ?? '',
+            newMovedOn: edit['newMovedOn'] as String? ?? '',
+          );
+        }).toList(),
       );
 }
 

@@ -8,8 +8,11 @@ import '../../domain/usecases/get_stock_daily_usecase.dart';
 /// Events: [LoadStockDaily] (screen entry, date change, after a save — the
 /// checks start empty), [ToggleStockDailyCheck] (one check of the shared
 /// check column), [SelectStockDailyChip] and [ToggleStockDailyBox]
-/// (FEATURE_2611_17 D4 · D28 — kept across loads, a change clears the checks).
+/// (FEATURE_2611_17 D4 · D28 — kept across loads, a change clears the checks),
+/// [GoToStockDailyRow] (FEATURE_2611_21 D19 — 「입고로 이동」, resets the chip
+/// and the boxes).
 /// States: [StockDailyLoading] → [StockDailyLoaded] or [StockDailyError].
+/// [StockDailyBloc.day] = the day loaded last (the screen day).
 sealed class StockDailyEvent {}
 
 class LoadStockDaily extends StockDailyEvent {
@@ -35,6 +38,17 @@ class SelectStockDailyChip extends StockDailyEvent {
 /// The two check boxes next to the chip (FEATURE_2611_17 D24 · D29).
 enum StockDailyBox { undecided, receiptPending }
 
+/// 「○월 ○일 입고로 이동」 (FEATURE_2611_21 D19): every row shows (chip
+/// 「전체」, boxes off), [date] loads, then the lot [movementId] gets its row
+/// sheet ([StockDailyLoaded.focusId]) or a highlight for
+/// [StockDailyBloc.highlightDuration] when it has none.
+class GoToStockDailyRow extends StockDailyEvent {
+  final String date;
+  final int movementId;
+
+  GoToStockDailyRow(this.date, this.movementId);
+}
+
 /// One check box next to the chip was switched (FEATURE_2611_17 D28).
 class ToggleStockDailyBox extends StockDailyEvent {
   final StockDailyBox box;
@@ -57,12 +71,19 @@ class StockDailyLoaded extends StockDailyState {
   final bool undecidedBox;
   final bool receiptBox;
 
+  /// FEATURE_2611_21 D19: the lot whose row sheet the page opens now (one
+  /// state only) · the lot highlighted without a row sheet.
+  final int? focusId;
+  final int? highlightId;
+
   StockDailyLoaded(
     this.daily, {
     this.checked = const {},
     this.chip = DailyChip.all,
     this.undecidedBox = false,
     this.receiptBox = false,
+    this.focusId,
+    this.highlightId,
   });
 
   /// The rows the list shows under the chip and the boxes (D11).
@@ -83,7 +104,16 @@ class StockDailyError extends StockDailyState {
 class StockDailyBloc extends Bloc<StockDailyEvent, StockDailyState> {
   final GetStockDailyUseCase getStockDailyUseCase;
 
-  // The chip and boxes stay through every load (FEATURE_2611_17 D4 · D28).
+  /// How long a lot without a row sheet stays highlighted (D19).
+  static const Duration highlightDuration = Duration(seconds: 2);
+
+  String _day = '';
+
+  /// The day loaded last (yyyy-MM-dd) — the screen day.
+  String get day => _day;
+
+  // The chip and boxes stay through every load (FEATURE_2611_17 D4 · D28) —
+  // [GoToStockDailyRow] resets them (FEATURE_2611_21 D19).
   DailyChip _chip = DailyChip.all;
   bool _undecidedBox = false;
   bool _receiptBox = false;
@@ -91,6 +121,7 @@ class StockDailyBloc extends Bloc<StockDailyEvent, StockDailyState> {
   StockDailyBloc({required this.getStockDailyUseCase})
       : super(StockDailyLoading()) {
     on<LoadStockDaily>((event, emit) async {
+      _day = event.date;
       emit(StockDailyLoading());
       final result = await getStockDailyUseCase(event.date);
       result.fold(
@@ -122,16 +153,58 @@ class StockDailyBloc extends Bloc<StockDailyEvent, StockDailyState> {
       }
       _emitFilter(emit);
     });
+    on<GoToStockDailyRow>((event, emit) async {
+      _chip = DailyChip.all;
+      _undecidedBox = false;
+      _receiptBox = false;
+      _day = event.date;
+      emit(StockDailyLoading());
+      final result = await getStockDailyUseCase(event.date);
+      final daily = result.fold<StockDaily?>((failure) {
+        emit(StockDailyError(failure.message));
+        return null;
+      }, (daily) => daily);
+      if (daily == null) {
+        return;
+      }
+      StockDailyRow? arrived;
+      for (final row in daily.rows) {
+        if (row.movementId == event.movementId) {
+          arrived = row;
+        }
+      }
+      if (arrived == null) {
+        emit(_loaded(daily));
+        return;
+      }
+      if (arrived.editTarget != null) {
+        emit(_loaded(daily, focusId: event.movementId));
+        return;
+      }
+      emit(_loaded(daily, highlightId: event.movementId));
+      await Future<void>.delayed(highlightDuration);
+      final current = state;
+      if (current is StockDailyLoaded &&
+          current.highlightId == event.movementId) {
+        emit(_loaded(current.daily, checked: current.checked));
+      }
+    });
   }
 
-  StockDailyLoaded _loaded(StockDaily daily,
-          {Set<String> checked = const {}}) =>
+  StockDailyLoaded _loaded(
+    StockDaily daily, {
+    Set<String> checked = const {},
+    int? focusId,
+    int? highlightId,
+  }) =>
       StockDailyLoaded(
         daily,
         checked: checked,
         chip: _chip,
         undecidedBox: _undecidedBox,
         receiptBox: _receiptBox,
+        focusId: focusId,
+        highlightId: highlightId,
       );
 
   /// A chip or box change clears the checks (D4 · D28).
