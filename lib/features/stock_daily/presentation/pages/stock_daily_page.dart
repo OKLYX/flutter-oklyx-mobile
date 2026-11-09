@@ -16,9 +16,11 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/stock_daily.dart';
+import '../bloc/date_move_cubit.dart';
 import '../bloc/purchase_price_cubit.dart';
 import '../bloc/row_edit_cubit.dart';
 import '../bloc/stock_daily_bloc.dart';
+import '../widgets/date_move_sheet.dart';
 import '../widgets/purchase_price_sheet.dart';
 import '../widgets/receipt_assign_sheet.dart';
 import '../widgets/row_edit_sheet.dart';
@@ -51,6 +53,10 @@ import '../widgets/seller_change_sheet.dart';
 ///   「판매자 미정 상품」 · 「영수증 미등록 상품」 filter the list on screen
 ///   (D4 · D11 · D28) · tapping a card or a share line with a sheet target
 ///   opens [RowEditSheet] (D12 · D24); the check box only checks (D7).
+/// - FEATURE_2611_21: a card without a sheet target opens [DateMoveSheet]
+///   (D9) · a corrected row shows 「날짜 고침」 (D24) · 「입고로 이동」 sends
+///   [GoToStockDailyRow] — the lot's row sheet opens, or the lot is highlighted
+///   (D19). The screen day is [StockDailyBloc.day].
 class StockDailyPage extends StatelessWidget {
   const StockDailyPage({super.key});
 
@@ -72,10 +78,9 @@ class _StockDailyView extends StatefulWidget {
 }
 
 class _StockDailyViewState extends State<_StockDailyView> {
-  DateTime _date = DateTime.now();
   List<Seller> _sellers = const [];
 
-  String get _day => DateFormat('yyyy-MM-dd').format(_date);
+  String get _day => context.read<StockDailyBloc>().day;
 
   @override
   void initState() {
@@ -94,15 +99,16 @@ class _StockDailyViewState extends State<_StockDailyView> {
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _date,
+      initialDate: DateTime.parse(_day),
       firstDate: DateTime(2020),
       lastDate: DateTime(2100),
     );
     if (picked == null || !mounted) {
       return;
     }
-    setState(() => _date = picked);
-    context.read<StockDailyBloc>().add(LoadStockDaily(_day));
+    context
+        .read<StockDailyBloc>()
+        .add(LoadStockDaily(DateFormat('yyyy-MM-dd').format(picked)));
   }
 
   Future<void> _openAssign(
@@ -166,16 +172,47 @@ class _StockDailyViewState extends State<_StockDailyView> {
 
   Future<void> _openRowEdit(RowEditTarget target) async {
     final bloc = context.read<StockDailyBloc>();
-    final saved = await showAppSheet<bool>(
+    final day = _day;
+    // FEATURE_2611_21 D9: the sheet pops the day the row moved to ('' = kept).
+    final movedTo = await showAppSheet<String>(
       context,
       builder: (sheetContext) => BlocProvider(
-        create: (_) => getIt<RowEditCubit>()..open(target, _day),
-        child: RowEditSheet(date: _day, target: target, sellers: _sellers),
+        create: (_) => getIt<RowEditCubit>()..open(target, day),
+        child: RowEditSheet(date: day, target: target, sellers: _sellers),
       ),
     );
-    if (saved == true && mounted) {
-      showSuccessToast(context, '저장했습니다.');
-      bloc.add(LoadStockDaily(_day));
+    if (movedTo != null && mounted) {
+      showSuccessToast(
+          context, movedTo.isEmpty ? '저장했습니다.' : movedMessage(movedTo));
+      bloc.add(LoadStockDaily(day));
+    }
+  }
+
+  /// FEATURE_2611_21 D9 · D19: the 「날짜 바꾸기」 sheet of a card without a row
+  /// sheet — a moved day reloads the screen day, 「입고로 이동」 goes to the lot.
+  Future<void> _openDateMove(StockDailyRow row) async {
+    final bloc = context.read<StockDailyBloc>();
+    final day = _day;
+    final result = await showAppSheet<DateMoveResult>(
+      context,
+      builder: (sheetContext) => BlocProvider(
+        create: (_) => getIt<DateMoveCubit>()..open(day),
+        child: DateMoveSheet(date: day, row: row),
+      ),
+    );
+    if (result == null || !mounted) {
+      return;
+    }
+    final lotId = result.lotId;
+    final lotDay = result.lotDay;
+    if (lotId != null && lotDay != null) {
+      bloc.add(GoToStockDailyRow(lotDay, lotId));
+      return;
+    }
+    final movedOn = result.movedOn;
+    if (movedOn != null) {
+      showSuccessToast(context, movedMessage(movedOn));
+      bloc.add(LoadStockDaily(day));
     }
   }
 
@@ -184,7 +221,19 @@ class _StockDailyViewState extends State<_StockDailyView> {
         title: '일별 입출고 내역',
         navBarIndex: 2,
         showAppBarDrawerButton: false,
-        body: BlocBuilder<StockDailyBloc, StockDailyState>(
+        body: BlocConsumer<StockDailyBloc, StockDailyState>(
+          // FEATURE_2611_21 D19: the lot 「입고로 이동」 arrived at opens its sheet.
+          listenWhen: (previous, current) =>
+              current is StockDailyLoaded && current.focusId != null,
+          listener: (context, state) {
+            final loaded = state as StockDailyLoaded;
+            for (final row in loaded.daily.rows) {
+              final target = row.editTarget;
+              if (row.movementId == loaded.focusId && target != null) {
+                _openRowEdit(target);
+              }
+            }
+          },
           builder: (context, state) {
             if (state is StockDailyLoading) {
               return const AppPageBody(children: [AppLoading()]);
@@ -341,7 +390,8 @@ class _StockDailyViewState extends State<_StockDailyView> {
                   const AppEmpty(noMatchMessage)
                 else
                   for (final item in visible)
-                    _rowCard(context, item.row, item.shares, checked),
+                    _rowCard(context, item.row, item.shares, checked,
+                        highlighted: loaded.highlightId == item.row.movementId),
               ],
             );
           },
@@ -399,8 +449,9 @@ class _StockDailyViewState extends State<_StockDailyView> {
     BuildContext context,
     StockDailyRow row,
     List<StockDailyShare> shares,
-    Set<String> checked,
-  ) {
+    Set<String> checked, {
+    required bool highlighted,
+  }) {
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     final type =
         StockMovementType.fromCode(row.movementType)?.label ?? row.movementType;
@@ -423,65 +474,72 @@ class _StockDailyViewState extends State<_StockDailyView> {
     final priceLine = '${row.quantity}개 · 단가 ${unitPriceText(row.unitPrices)}'
         ' · $amount${row.priceFromBase ? ' · $priceFromBaseLabel' : ''}';
     return AppCard.row(
-      onTap: target == null ? null : () => _openRowEdit(target),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              if (checkable)
-                Checkbox(
-                  value: checked.contains(_rowKey(row)),
-                  onChanged: (_) =>
-                      bloc.add(ToggleStockDailyCheck(_rowKey(row))),
-                ),
-              ProductThumbnail(productId: row.productId, size: 40),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  row.productName,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(priceLine),
-          Text(
-            [
-              if (reason == null) type else '$type · $reason',
-              if (seller.isNotEmpty) seller,
-              if (row.orderNumber != null) '주문 ${row.orderNumber}',
-            ].join(' · '),
-            style: TextStyle(fontSize: 12, color: muted),
-          ),
-          if (row.tags.isNotEmpty)
-            Text(
-              row.tags.join(' · '),
-              style: const TextStyle(
-                  fontSize: 12, color: AppColors.warningForeground),
-            ),
-          // FEATURE_2611_16 D8: every share is its own line and target.
-          for (final share in shares)
+      onTap: target == null
+          ? () => _openDateMove(row)
+          : () => _openRowEdit(target),
+      child: ColoredBox(
+        // FEATURE_2611_21 D19: the lot 「입고로 이동」 arrived at, without a sheet.
+        color: highlighted ? AppColors.warningSurface : Colors.transparent,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Row(
               children: [
-                Checkbox(
-                  value: checked.contains(_shareKey(share)),
-                  onChanged: (_) =>
-                      bloc.add(ToggleStockDailyCheck(_shareKey(share))),
-                ),
+                if (checkable)
+                  Checkbox(
+                    value: checked.contains(_rowKey(row)),
+                    onChanged: (_) =>
+                        bloc.add(ToggleStockDailyCheck(_rowKey(row))),
+                  ),
+                ProductThumbnail(productId: row.productId, size: 40),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: InkWell(
-                    onTap: () => _openRowEdit(share.editTargetOf(row)),
-                    child: Text(
-                      share.lineText,
-                      style: TextStyle(fontSize: 12, color: muted),
-                    ),
+                  child: Text(
+                    row.productName,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
             ),
-        ],
+            const SizedBox(height: 4),
+            Text(priceLine),
+            Text(
+              [
+                if (reason == null) type else '$type · $reason',
+                if (seller.isNotEmpty) seller,
+                if (row.orderNumber != null) '주문 ${row.orderNumber}',
+                if (row.dateEdits.isNotEmpty) dateEditedLabel,
+              ].join(' · '),
+              style: TextStyle(fontSize: 12, color: muted),
+            ),
+            if (row.tags.isNotEmpty)
+              Text(
+                row.tags.join(' · '),
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.warningForeground),
+              ),
+            // FEATURE_2611_16 D8: every share is its own line and target.
+            for (final share in shares)
+              Row(
+                children: [
+                  Checkbox(
+                    value: checked.contains(_shareKey(share)),
+                    onChanged: (_) =>
+                        bloc.add(ToggleStockDailyCheck(_shareKey(share))),
+                  ),
+                  Expanded(
+                    child: InkWell(
+                      onTap: () => _openRowEdit(share.editTargetOf(row)),
+                      child: Text(
+                        share.lineText,
+                        style: TextStyle(fontSize: 12, color: muted),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
       ),
     );
   }

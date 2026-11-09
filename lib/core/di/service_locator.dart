@@ -202,7 +202,9 @@ import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/change
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/edit_daily_row_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/get_day_receipts_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/get_stock_daily_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/move_daily_row_date_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/retype_purchase_price_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/bloc/date_move_cubit.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/bloc/purchase_price_cubit.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/bloc/row_edit_cubit.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/bloc/stock_daily_bloc.dart';
@@ -1252,6 +1254,15 @@ void _registerStockDailyServices() {
       getSellerCardsUseCase: getIt<GetSellerCardsUseCase>(),
       getDayReceiptsUseCase: getIt<GetDayReceiptsUseCase>(),
       editDailyRowUseCase: getIt<EditDailyRowUseCase>(),
+    ),
+  );
+  getIt.registerSingleton<MoveDailyRowDateUseCase>(
+    MoveDailyRowDateUseCase(repository: getIt<StockDailyRepository>()),
+  );
+  // One per 「날짜 바꾸기」 sheet (FEATURE_2611_21 D9).
+  getIt.registerFactory<DateMoveCubit>(
+    () => DateMoveCubit(
+      moveDailyRowDateUseCase: getIt<MoveDailyRowDateUseCase>(),
     ),
   );
   getIt.registerFactory<StockDailyBloc>(

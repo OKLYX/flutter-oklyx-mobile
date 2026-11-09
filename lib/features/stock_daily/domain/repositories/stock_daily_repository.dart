@@ -47,6 +47,9 @@ abstract class StockDailyRepository {
     DailyRowEdit edit,
   );
 
+  /// The 「날짜 바꾸기」 sheet (FEATURE_2611_21 D9): one row to [newMovedOn].
+  Future<Either<Failure, Unit>> moveDate(int movementId, String newMovedOn);
+
   /// That day's receipts for the row sheet (FEATURE_2611_17 D23).
   Future<Either<Failure, List<DayReceipt>>> getDayReceipts(String date);
 }

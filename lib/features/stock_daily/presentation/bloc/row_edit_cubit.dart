@@ -50,6 +50,12 @@ class RowEditState {
   /// The row was saved — the sheet closes.
   final bool saved;
 
+  /// 「날짜」 (yyyy-MM-dd, FEATURE_2611_21 D9), the screen day at the start.
+  final String movedOn;
+
+  /// The day the save moved the row to; null = the day stayed.
+  final String? movedTo;
+
   const RowEditState({
     this.cards = const [],
     this.receipts = const [],
@@ -62,6 +68,8 @@ class RowEditState {
     this.busy = false,
     this.error = '',
     this.saved = false,
+    this.movedOn = '',
+    this.movedTo,
   });
 
   /// The day receipt picked in the 「영수증」 field, or null.
@@ -91,6 +99,8 @@ class RowEditState {
     bool? busy,
     String? error,
     bool? saved,
+    String? movedOn,
+    String? movedTo,
   }) =>
       RowEditState(
         cards: cards ?? this.cards,
@@ -104,6 +114,8 @@ class RowEditState {
         busy: busy ?? this.busy,
         error: error ?? this.error,
         saved: saved ?? this.saved,
+        movedOn: movedOn ?? this.movedOn,
+        movedTo: movedTo ?? this.movedTo,
       );
 }
 
@@ -111,13 +123,13 @@ class RowEditState {
 /// D23).
 ///
 /// **Purpose**: the seller, 「총액」/「단가」, 「상품 기준가에 반영」, the receipt
-/// choice, the photo, the card, the save checks and the one save of the row
-/// sheet opened from 「일별 입출고 내역」.
+/// choice, the photo, the card, the day (FEATURE_2611_21 D9), the save checks
+/// and the one save of the row sheet opened from 「일별 입출고 내역」.
 /// **File**: lib/features/stock_daily/presentation/bloc/row_edit_cubit.dart
 ///
 /// - Save checks stop at the first refusal (same texts and order as the web).
 /// - A refused or failed save keeps the sheet open with the text inside.
-/// ⚠️ GetIt factory — 시트마다 새 것 (a new one for every sheet).
+/// ⚠️ GetIt factory — a new one for every sheet.
 class RowEditCubit extends Cubit<RowEditState> {
   final GetSellerCardsUseCase getSellerCardsUseCase;
   final GetDayReceiptsUseCase getDayReceiptsUseCase;
@@ -129,10 +141,10 @@ class RowEditCubit extends Cubit<RowEditState> {
     required this.editDailyRowUseCase,
   }) : super(const RowEditState());
 
-  /// Starts at the target seller and loads the cards and that day's receipts
-  /// (a failure = an empty list).
+  /// Starts at the target seller and the screen day and loads the cards and
+  /// that day's receipts (a failure = an empty list).
   Future<void> open(RowEditTarget target, String date) async {
-    emit(state.copyWith(sellerId: target.sellerId));
+    emit(state.copyWith(sellerId: target.sellerId, movedOn: date));
     final cardResult = await getSellerCardsUseCase();
     final cards = cardResult.fold((_) => const <SellerCard>[], (list) => list);
     final receiptResult = await getDayReceiptsUseCase(date);
@@ -208,6 +220,14 @@ class RowEditCubit extends Cubit<RowEditState> {
     emit(state.copyWith(reflect: value));
   }
 
+  /// 「날짜」 was picked (FEATURE_2611_21 D9).
+  void setMovedOn(String day) {
+    if (state.busy) {
+      return;
+    }
+    emit(state.copyWith(movedOn: day, error: ''));
+  }
+
   /// [저장] — [amount] = the amount field text (blank = the price stays).
   Future<void> save({
     required String date,
@@ -250,7 +270,13 @@ class RowEditCubit extends Cubit<RowEditState> {
     final sellerChanged = target.sellerEditable &&
         sellerId != null &&
         sellerId != target.sellerId;
-    if (!sellerChanged && value == null && photo == null && receiptId == null) {
+    final dateChanged =
+        target.dateField == RowEditDate.edit && state.movedOn != date;
+    if (!sellerChanged &&
+        value == null &&
+        photo == null &&
+        receiptId == null &&
+        !dateChanged) {
       emit(state.copyWith(error: '바꿀 내용이 없습니다.'));
       return;
     }
@@ -265,6 +291,7 @@ class RowEditCubit extends Cubit<RowEditState> {
           target.price == RowEditPrice.purchase ? state.reflect : null,
       receiptId: receiptId,
       cardId: cardId,
+      newMovedOn: dateChanged ? state.movedOn : null,
     );
     emit(state.copyWith(busy: true, error: ''));
     final result = await editDailyRowUseCase(date, photo, edit);
@@ -273,7 +300,11 @@ class RowEditCubit extends Cubit<RowEditState> {
     }
     result.fold(
       (failure) => emit(state.copyWith(busy: false, error: failure.message)),
-      (_) => emit(state.copyWith(busy: false, saved: true)),
+      (_) => emit(state.copyWith(
+        busy: false,
+        saved: true,
+        movedTo: dateChanged ? edit.newMovedOn : null,
+      )),
     );
   }
 }
