@@ -45,6 +45,11 @@ class UnregisteredProduct {
 /// [amount] has a unit price filled from the registered price, shown with
 /// 「미기입」 (D22) · [openingPriceEditable] = an opening-stock row the row
 /// sheet may price (D5 · D17).
+///
+/// FEATURE_2611_21: [sourceMovementId] · [sourceMovedOn] = the lot an outgoing
+/// row came from and its day, null without a lot (D18 · D22) ·
+/// [sourcePriceEditable] = that lot has a value to fix (D20) · [dateEdits] =
+/// the row's day corrections, newest first (D24).
 class StockDailyRow {
   final int movementId;
   final String movementType;
@@ -67,6 +72,10 @@ class StockDailyRow {
   final List<UnitCount>? unitPrices;
   final bool priceFromBase;
   final bool openingPriceEditable;
+  final int? sourceMovementId;
+  final String? sourceMovedOn;
+  final bool sourcePriceEditable;
+  final List<StockDateEdit> dateEdits;
 
   const StockDailyRow({
     required this.movementId,
@@ -90,11 +99,16 @@ class StockDailyRow {
     required this.unitPrices,
     required this.priceFromBase,
     required this.openingPriceEditable,
+    required this.sourceMovementId,
+    required this.sourceMovedOn,
+    required this.sourcePriceEditable,
+    required this.dateEdits,
   });
 
-  /// The row sheet target of this row, or null when the row opens nothing
-  /// (FEATURE_2611_17 D12 · D24 — an undecided row never opens). The same rule
-  /// as the web `rowEditTarget`.
+  /// The row sheet target of this row, or null when the row has no sheet
+  /// (FEATURE_2611_17 D12 · D24 — an undecided row has none); a row without
+  /// one opens the 「날짜 바꾸기」 sheet instead (FEATURE_2611_21 D9). The same
+  /// rule as the web `rowEditTarget`.
   RowEditTarget? get editTarget {
     final seller = sellerId;
     final name = sellerName;
@@ -120,6 +134,10 @@ class StockDailyRow {
       price: price,
       receipt: recordId != null && kind != null ? kind.editField : null,
       receiptId: receiptId,
+      dateField: recordId != null && kind == ReceiptKind.receipt
+          ? RowEditDate.locked
+          : RowEditDate.edit,
+      dateEdits: dateEdits,
     );
   }
 
@@ -233,6 +251,8 @@ class StockDailyShare {
         price: RowEditPrice.purchase,
         receipt: receiptKind.editField,
         receiptId: receiptId,
+        dateField: null,
+        dateEdits: const [],
       );
 
   /// The 「매입가 넣기」 target of this share of [row].
@@ -264,6 +284,47 @@ class UnitCount {
 /// The mark next to a unit price and amount filled from the registered price
 /// (FEATURE_2611_17 D22).
 const String priceFromBaseLabel = '미기입';
+
+/// One day correction of a daily row (FEATURE_2611_21 D7 · D24) —
+/// [editedAt] = KST wall clock as stored · [editedBy] = the login email, null
+/// = written outside a request.
+class StockDateEdit {
+  final String editedAt;
+  final String? editedBy;
+  final String oldMovedOn;
+  final String newMovedOn;
+
+  const StockDateEdit({
+    required this.editedAt,
+    required this.editedBy,
+    required this.oldMovedOn,
+    required this.newMovedOn,
+  });
+}
+
+/// The mark of a row whose day was corrected (FEATURE_2611_21 D24).
+const String dateEditedLabel = '날짜 고침';
+
+/// The fixed texts of the day correction (FEATURE_2611_21 D9 · D13 · D20) —
+/// the server sends the same refusals. The same texts as the web.
+const String receiptRowDateMessage = '영수증에 묶인 입고는 날짜를 옮길 수 없습니다.';
+const String receiptShareDateMessage = '영수증에 묶인 몫이 있어 날짜를 옮길 수 없습니다.';
+const String noSourceMessage = '어느 입고에서 나갔는지 기록이 없어 값을 고칠 곳이 없습니다.';
+const String sourceFixedMessage = '이 입고는 값을 고칠 수 없습니다.';
+
+/// 「11월 3일」 of a yyyy-MM-dd day (FEATURE_2611_21 D34 「○월 ○일」).
+String monthDayText(String day) {
+  final parts = day.split('-');
+  return '${int.parse(parts[1])}월 ${int.parse(parts[2])}일';
+}
+
+/// The notice after a day was moved (FEATURE_2611_21 D9):
+/// 「11월 3일로 옮겼습니다.」.
+String movedMessage(String day) => '${monthDayText(day)}로 옮겼습니다.';
+
+/// The button of an outgoing row with a lot (FEATURE_2611_21 D17 · D21):
+/// 「11월 3일 입고로 이동」.
+String goToIntakeLabel(String day) => '${monthDayText(day)} 입고로 이동';
 
 /// The 「단가」 text (FEATURE_2611_17 D1 · D16): one price 「4,000원」 · several
 /// 「4,000원×3 · 5,000원×2」 · null 「미기입」. The same rule as the web
@@ -360,9 +421,16 @@ enum RowEditPrice { purchase, opening }
 /// 「영수증 나중에」 receipt · fixed = the receipt as text.
 enum RowEditReceipt { pick, laterPhoto, fixed }
 
+/// The 「날짜」 field on top of the row sheet (FEATURE_2611_21 D9): edit = a
+/// row · locked = a purchase on a receipt with its photo (off, with
+/// [receiptRowDateMessage]).
+enum RowEditDate { edit, locked }
+
 /// What the row sheet can change for one row or share (FEATURE_2611_17 D5 ·
 /// D10 · D12 · D17 ~ D20 · D24) — the web `RowEditTarget`. [price] null = no
-/// price field · [receipt] null = no receipt field (D20).
+/// price field · [receipt] null = no receipt field (D20) · [dateField] null =
+/// no 「날짜」 field, a share (FEATURE_2611_21 D13) · [dateEdits] = the row's
+/// day corrections (D24).
 class RowEditTarget {
   final int? movementId;
   final int? shareRecordId;
@@ -377,6 +445,8 @@ class RowEditTarget {
   final RowEditPrice? price;
   final RowEditReceipt? receipt;
   final int? receiptId;
+  final RowEditDate? dateField;
+  final List<StockDateEdit> dateEdits;
 
   const RowEditTarget({
     required this.movementId,
@@ -390,6 +460,8 @@ class RowEditTarget {
     required this.price,
     required this.receipt,
     required this.receiptId,
+    required this.dateField,
+    required this.dateEdits,
   });
 }
 
@@ -441,7 +513,8 @@ String sellerSwitchMessage(String fromSeller, String toSeller) =>
 
 /// The row sheet's one save (FEATURE_2611_17 D5) — the web
 /// `DailyRowEditRequest`: exactly one of [movementId] / [shareRecordId];
-/// null fields are not sent (the value stays).
+/// null fields are not sent (the value stays). [newMovedOn] = the row's new
+/// day (FEATURE_2611_21 D9), never for a share.
 class DailyRowEdit {
   final int? movementId;
   final int? shareRecordId;
@@ -451,6 +524,7 @@ class DailyRowEdit {
   final bool? reflectToBasePrice;
   final int? receiptId;
   final int? cardId;
+  final String? newMovedOn;
 
   const DailyRowEdit({
     this.movementId,
@@ -461,6 +535,7 @@ class DailyRowEdit {
     this.reflectToBasePrice,
     this.receiptId,
     this.cardId,
+    this.newMovedOn,
   });
 }
 

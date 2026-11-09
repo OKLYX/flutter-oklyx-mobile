@@ -78,6 +78,13 @@ class StockDailyRepositoryImpl implements StockDailyRepository {
       }, '저장하지 못했습니다.');
 
   @override
+  Future<Either<Failure, Unit>> moveDate(int movementId, String newMovedOn) =>
+      _guard(() async {
+        await remoteDataSource.moveDate(movementId, newMovedOn);
+        return unit;
+      }, '저장하지 못했습니다.');
+
+  @override
   Future<Either<Failure, List<DayReceipt>>> getDayReceipts(String date) =>
       _guard(
           () => remoteDataSource.getDayReceipts(date), '영수증 목록을 불러오지 못했습니다.');
