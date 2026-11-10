@@ -56,6 +56,17 @@ MasterOption masterOptionFromJson(Json j) => MasterOption(
       marketRegistered: _boolN(j['marketRegistered']),
       stockQuantity: _intN(j['stockQuantity']),
       clampedChannels: _intN(j['clampedChannels']),
+      stockPushResults: _list(
+        j['stockPushResults'],
+        (r) => MasterStockPushResult(
+          productListingId: _int(r['productListingId']),
+          platform: _str(r['platform']),
+          sellerName: _strN(r['sellerName']),
+          optionName: _str(r['optionName']),
+          result: _str(r['result']),
+          message: _strN(r['message']),
+        ),
+      ),
     );
 
 MasterProduct masterProductFromJson(Json j) => MasterProduct(
@@ -416,6 +427,20 @@ MasterChannelOptions masterChannelOptionsFromJson(Json j) =>
           platformProductId: _strN(c['platformProductId']),
           status: _str(c['status']),
           options: _list(c['options'], listingOptionSummaryFromJson),
+        ),
+      ),
+    );
+
+ChannelStockUpdateResult channelStockUpdateResultFromJson(Json j) =>
+    ChannelStockUpdateResult(
+      listing: listingOptionsFromJson(j['listing'] as Json),
+      pushed: _int(j['pushed']),
+      skipped: _strList(j['skipped']),
+      failed: _list(
+        j['failed'],
+        (f) => ChannelStockFailure(
+          optionName: _str(f['optionName']),
+          message: _str(f['message']),
         ),
       ),
     );

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/carrier_rate/domain/entities/carrier_rate.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/domain/entities/master_product.dart';
@@ -392,6 +393,9 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
   // 102/D6: notice when lowering the master stock also lowered channel
   // overrides (not a failure; stays after the form closes).
   String _clampNotice = '';
+  // FEATURE_2611_19 / D28: the market stock lines of the last save (stay after
+  // the form closes, like the clamp notice).
+  List<MasterStockPushResult> _stockPushResults = const [];
   bool _isSubmitting = false;
   int? _busyOptionId;
   // 2609_61: single on → off highlight of the focused option row.
@@ -798,6 +802,7 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
       // Cleared at the next save start (not on close) so the notice
       // survives the form closing.
       _clampNotice = '';
+      _stockPushResults = const [];
     });
     if (_nameController.text.trim().isEmpty) {
       setState(() => _formError = '옵션 이름을 입력하세요.');
@@ -845,12 +850,17 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
       }
       final failure = result.fold((f) => f, (res) {
         // 102/D6: lowering the master stock lowered channel overrides too.
-        // Market sync needs [수정 요청] — never sent automatically here.
+        // FEATURE_2611_19 / D10 · D28: the server then sent each changed stock
+        // of an active option of a Coupang, LotteON, 11st or ESM listing to the
+        // market and returned one line per option. Other platforms get no
+        // line.
         final clamped = res.clampedChannels;
-        if (clamped != null && clamped > 0) {
-          setState(() => _clampNotice =
-              '채널 $clamped곳의 재고가 마스터 값으로 낮춰졌습니다. 마켓 반영은 [수정 요청]이 필요합니다.');
-        }
+        setState(() {
+          if (clamped != null && clamped > 0) {
+            _clampNotice = '채널 $clamped곳의 재고가 마스터 값으로 낮춰졌습니다.';
+          }
+          _stockPushResults = res.stockPushResults;
+        });
         return null;
       });
       if (failure != null) {
@@ -1450,6 +1460,57 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
     );
   }
 
+  /// FEATURE_2611_19 / D28: 「{판매자} · {마켓} · {옵션명}」 — the seller part is
+  /// left out when the listing has none.
+  static String _stockPushLabel(MasterStockPushResult r) => [
+        if (r.sellerName != null && r.sellerName!.isNotEmpty) r.sellerName!,
+        platformDisplayName(r.platform),
+        r.optionName,
+      ].join(' · ');
+
+  /// FEATURE_2611_19 / D28: ① pushed count ② saved only ③ one line per refusal.
+  List<Widget> _stockPushLines(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final pushed =
+        _stockPushResults.where((r) => r.result == 'PUSHED').length;
+    final skipped = _stockPushResults
+        .where((r) => r.result == 'SKIPPED')
+        .map(_stockPushLabel)
+        .toList();
+    final failed =
+        _stockPushResults.where((r) => r.result == 'FAILED').toList();
+    Widget line(String text, Color background, Color foreground) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: background,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child:
+                Text(text, style: TextStyle(fontSize: 14, color: foreground)),
+          ),
+        );
+    return [
+      if (pushed > 0)
+        line('마켓에 $pushed건 반영했습니다.', AppColors.successSurface,
+            AppColors.successForeground),
+      if (skipped.isNotEmpty)
+        line(
+            '아직 마켓에 없는 옵션은 저장만 했습니다: ${skipped.join(', ')}. '
+            '[마켓에 올리기] 시 이 재고로 올라갑니다.',
+            scheme.surfaceContainerLow,
+            scheme.onSurfaceVariant),
+      for (final r in failed)
+        line(
+            '마켓 반영 실패(저장은 됨): ${_stockPushLabel(r)} — ${r.message}. '
+            '다음 [수정 요청] 때 이 재고로 나갑니다.',
+            scheme.errorContainer,
+            scheme.error),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -1534,6 +1595,7 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
           ),
           const SizedBox(height: 8),
         ],
+        ..._stockPushLines(context),
         if (rows.isEmpty) ...[
           Text(
             '등록된 옵션이 없습니다.',
