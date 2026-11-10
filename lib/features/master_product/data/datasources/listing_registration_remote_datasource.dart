@@ -207,8 +207,9 @@ class ListingRegistrationRemoteDataSource {
     return listingOptionsFromJson(data as Json);
   }
 
-  /// L24
-  Future<ListingOptions> setOptionStocks(
+  /// L24 — FEATURE_2611_19 / D7: saved, then sent to the market when the
+  /// platform takes a stock push.
+  Future<ChannelStockUpdateResult> setOptionStocks(
       int listingId, List<OptionStockChange> stocks) async {
     final data = await api
         .put('/api/admin/product-listings/$listingId/options/stock', body: {
@@ -217,7 +218,7 @@ class ListingRegistrationRemoteDataSource {
               (s) => {'optionId': s.optionId, 'stockQuantity': s.stockQuantity})
           .toList()
     });
-    return listingOptionsFromJson(data as Json);
+    return channelStockUpdateResultFromJson(data as Json);
   }
 
   /// L25

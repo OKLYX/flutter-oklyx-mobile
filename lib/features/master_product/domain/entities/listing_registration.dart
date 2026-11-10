@@ -462,6 +462,33 @@ class ChannelPriceUpdateResult {
   });
 }
 
+/// One option whose stock the market refused — the stock IS saved
+/// (FEATURE_2611_19 / D6).
+class ChannelStockFailure {
+  final String optionName;
+  final String message;
+
+  const ChannelStockFailure({required this.optionName, required this.message});
+}
+
+/// Web `ChannelStockUpdateResponse` (FEATURE_2611_19 / D7) — the price result's
+/// shape, but [failed] = saved and refused by the market. On a platform without
+/// a stock push all three are empty / 0 and `listing.needsResync` keeps its old
+/// meaning.
+class ChannelStockUpdateResult {
+  final ListingOptions listing;
+  final int pushed;
+  final List<String> skipped;
+  final List<ChannelStockFailure> failed;
+
+  const ChannelStockUpdateResult({
+    required this.listing,
+    required this.pushed,
+    required this.skipped,
+    required this.failed,
+  });
+}
+
 class ImportPreviewComponent {
   final int productId;
   final String? brand;

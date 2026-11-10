@@ -289,7 +289,7 @@ class MasterProductRepositoryImpl implements MasterProductRepository {
           () => listingDataSource.setActiveOptions(listingId, activeOptionIds));
 
   @override
-  Future<Either<Failure, ListingOptions>> setOptionStocks(
+  Future<Either<Failure, ChannelStockUpdateResult>> setOptionStocks(
           int listingId, List<OptionStockChange> stocks) =>
       _guard(() => listingDataSource.setOptionStocks(listingId, stocks));
 
