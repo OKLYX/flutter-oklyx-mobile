@@ -41,6 +41,10 @@ class MasterOption {
   final int? stockQuantity;
   final int? clampedChannels;
 
+  /// FEATURE_2611_19 / D28: update response only — one line per channel option
+  /// whose market stock this save changed (empty = nothing sent).
+  final List<MasterStockPushResult> stockPushResults;
+
   const MasterOption({
     required this.id,
     required this.name,
@@ -52,6 +56,30 @@ class MasterOption {
     this.marketRegistered,
     this.stockQuantity,
     this.clampedChannels,
+    this.stockPushResults = const [],
+  });
+}
+
+/// Web `MasterStockPushResult` (FEATURE_2611_19 / D28).
+class MasterStockPushResult {
+  final int productListingId;
+  final String platform;
+  final String? sellerName;
+  final String optionName;
+
+  /// `PUSHED` · `SKIPPED` · `FAILED` (the stock stays saved).
+  final String result;
+
+  /// The market's own text when [result] is `FAILED`.
+  final String? message;
+
+  const MasterStockPushResult({
+    required this.productListingId,
+    required this.platform,
+    required this.optionName,
+    required this.result,
+    this.sellerName,
+    this.message,
   });
 }
 

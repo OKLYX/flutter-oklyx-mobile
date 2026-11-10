@@ -29,7 +29,12 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 /// - Inactive options are hidden.
 ///
 /// Result: `true` once something was saved (`null` = closed without saving).
-/// ⚠️ A registered cell (`needsResync`) stays open with a notice after saving.
+/// FEATURE_2611_19 / D7 · D8: a Coupang, LotteON, 11st or ESM listing sends
+/// the saved stock to the market right away and returns pushed / skipped /
+/// failed — nothing skipped or failed closes the page, otherwise the lines
+/// stay (a failed line = saved, the market refused).
+/// ⚠️ `needsResync` (other platforms, not DRAFT) stays open with a notice
+/// after saving.
 class ChannelStockPage extends StatefulWidget {
   final ChannelOptionsArgs args;
 
@@ -52,6 +57,7 @@ class _ChannelStockPageState extends State<ChannelStockPage> {
   String _error = '';
   String _notice = '';
   bool? _result;
+  ChannelStockUpdateResult? _saveResult;
 
   @override
   void initState() {
@@ -142,6 +148,8 @@ class _ChannelStockPageState extends State<ChannelStockPage> {
     setState(() {
       _isSaving = true;
       _error = '';
+      // Clear the previous lines — an old failure would read as new.
+      _saveResult = null;
     });
     final res = await _useCase.setOptionStocks(
       widget.args.listingId,
@@ -163,19 +171,28 @@ class _ChannelStockPageState extends State<ChannelStockPage> {
         _error = failureText(failure, '재고 저장에 실패했습니다.');
         _isSaving = false;
       }),
-      (listing) {
+      (saved) {
         _result = true;
-        // A registered cell is not pushed to the market by a stock change —
-        // no auto push, only a notice.
-        if (listing.needsResync == true) {
+        // FEATURE_2611_19 / D7 · D8: a Coupang, LotteON, 11st or ESM listing
+        // sends the saved stock right away (needsResync = false). For other
+        // platforms needsResync keeps its old rule (not DRAFT) and the notice
+        // asks for [수정 요청].
+        if (saved.listing.needsResync == true) {
           setState(() {
             _notice = '등록된 셀입니다 — 마켓 반영은 [수정 요청]이 필요합니다.';
-            _applyOptions(listing.options);
+            _applyOptions(saved.listing.options);
             _isSaving = false;
           });
           return;
         }
-        _close();
+        setState(() {
+          _applyOptions(saved.listing.options);
+          _saveResult = saved;
+          _isSaving = false;
+        });
+        if (saved.failed.isEmpty && saved.skipped.isEmpty) {
+          _close();
+        }
       },
     );
   }
@@ -183,6 +200,7 @@ class _ChannelStockPageState extends State<ChannelStockPage> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final saveResult = _saveResult;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -212,6 +230,36 @@ class _ChannelStockPageState extends State<ChannelStockPage> {
                 foreground: AppColors.warningForeground,
               ),
               const SizedBox(height: 16),
+            ],
+            if (saveResult != null) ...[
+              if (saveResult.pushed > 0) ...[
+                _Banner(
+                  text: '마켓에 ${saveResult.pushed}건 반영했습니다.',
+                  background: AppColors.successSurface,
+                  foreground: AppColors.successForeground,
+                ),
+                const SizedBox(height: 4),
+              ],
+              if (saveResult.skipped.isNotEmpty) ...[
+                _Banner(
+                  text: '아직 마켓에 없는 옵션은 저장만 했습니다: '
+                      '${saveResult.skipped.join(', ')}. [마켓에 올리기] 시 '
+                      '이 재고로 올라갑니다.',
+                  background: scheme.surfaceContainerLow,
+                  foreground: scheme.onSurfaceVariant,
+                ),
+                const SizedBox(height: 4),
+              ],
+              for (final f in saveResult.failed) ...[
+                _Banner(
+                  text: '마켓 반영 실패(저장은 됨): ${f.optionName} — ${f.message}. '
+                      '다음 [수정 요청] 때 이 재고로 나갑니다.',
+                  background: scheme.errorContainer,
+                  foreground: scheme.error,
+                ),
+                const SizedBox(height: 4),
+              ],
+              const SizedBox(height: 12),
             ],
             if (_isLoading)
               const SizedBox(

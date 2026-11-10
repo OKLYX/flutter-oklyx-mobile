@@ -248,7 +248,7 @@ class MasterProductUseCase {
       repository.setActiveOptions(listingId, activeOptionIds);
 
   /// L24
-  Future<Either<Failure, ListingOptions>> setOptionStocks(
+  Future<Either<Failure, ChannelStockUpdateResult>> setOptionStocks(
           int listingId, List<OptionStockChange> stocks) =>
       repository.setOptionStocks(listingId, stocks);
 

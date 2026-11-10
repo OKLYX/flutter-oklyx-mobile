@@ -193,7 +193,7 @@ abstract class MasterProductRepository {
       int listingId, List<int> activeOptionIds);
 
   /// L24
-  Future<Either<Failure, ListingOptions>> setOptionStocks(
+  Future<Either<Failure, ChannelStockUpdateResult>> setOptionStocks(
       int listingId, List<OptionStockChange> stocks);
 
   /// L25
