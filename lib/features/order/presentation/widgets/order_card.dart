@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 import '../../domain/entities/order_item.dart';
 import 'elevenst_reserved_badge.dart';
 import 'internal_stage_badge.dart';
@@ -14,8 +15,10 @@ import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets
 ///
 /// **Purpose**: one row of the order list. The shown items are the same as the
 /// columns of the front-end `OrderTable`
-/// (order number / customer name / product name / ordered quantity /
-/// cancelled / real product quantity / paid date). The real product quantity
+/// (order number / seller · sales channel / customer name / product name /
+/// ordered quantity / cancelled / real product quantity / paid date). The
+/// 「판매처」 text comes from `salesChannelLabel` only (FEATURE_2611_24 / D15 ·
+/// D17). The real product quantity
 /// (「실제 상품 수량」) is `componentQuantitiesLabel(order.components)` — text
 /// only, no link (FEATURE_2611_15 / D15 · D16 · D17).
 /// **Required rule**: a new screen that draws an order list uses this widget.
@@ -73,12 +76,13 @@ class OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final salesChannel = salesChannelLabel(order.platform, order.accountAlias);
     return AppCard.row(
       // 항목 탭 → 주문 상세 페이지로 이동 (선택한 OrderItem 을 extra 로 전달).
       onTap: () => context.push(Routes.orderHistoryDetailPath, extra: order),
       // Card items match the front-end OrderTable columns:
-      // order number / customer name / product name / ordered quantity /
-      // cancelled / real product quantity / paid date.
+      // order number / seller · sales channel / customer name / product name /
+      // ordered quantity / cancelled / real product quantity / paid date.
       child: _withCheckbox(_withThumbnail(
             context,
             Column(
@@ -114,6 +118,27 @@ class OrderCard extends StatelessWidget {
                         child:
                             const Text('송장 수정', style: TextStyle(fontSize: 12)),
                       ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  children: [
+                    Text(
+                      '판매자 ${order.sellerName ?? '-'}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    Text(
+                      '판매처 $salesChannel',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 6),

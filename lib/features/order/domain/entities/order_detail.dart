@@ -60,15 +60,10 @@ class OrderDetail {
     return null;
   }
 
-  /// 「판매처」 text (D35): 「{channel} · {alias}」, or only 「{channel}」 when
-  /// the alias is blank.
+  /// 「판매처」 text (D35) — built by [salesChannelLabel] only (FEATURE_2611_24 / D15).
   /// ⚠️ Not the packing screen's channel text (alias alone) — that one stays
   /// as it is (D35).
-  String get salesChannel {
-    final channel = platform == null ? '-' : platformName(platform!);
-    final alias = accountAlias?.trim() ?? '';
-    return alias.isEmpty ? channel : '$channel · $alias';
-  }
+  String get salesChannel => salesChannelLabel(platform, accountAlias);
 }
 
 /// One parcel (invoice) of the order (D23 · D36 · D37).

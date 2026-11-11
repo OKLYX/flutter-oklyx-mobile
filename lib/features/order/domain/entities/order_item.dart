@@ -6,6 +6,11 @@ class OrderItem {
   final int id;
   final int marketplaceAccountId;
   final String platform;
+
+  /// Seller name and sales-channel alias the server puts on each line; null
+  /// on an older server (FEATURE_2611_24 / D8 · D10).
+  final String? sellerName;
+  final String? accountAlias;
   final String externalOrderId;
   final String? externalBoxId;
   final String externalItemId;
@@ -85,6 +90,8 @@ class OrderItem {
     required this.holdCount,
     required this.purchasableQty,
     required this.status,
+    this.sellerName,
+    this.accountAlias,
     this.platformStatus,
     this.cancelled = false,
     this.internalStage,

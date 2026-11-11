@@ -331,6 +331,9 @@ class Claim {
   final DateTime receivedAt;
   final int? sellerId;
   final String? sellerName;
+
+  /// Sales-channel alias — input of the 「판매처」 text (FEATURE_2611_24 / D13).
+  final String? accountAlias;
   final int? orderItemId;
 
   /// false = 주문 라인 미연결(D12). 매칭에 실패해도 클레임 자체는 저장된다.
@@ -365,6 +368,7 @@ class Claim {
     required this.receivedAt,
     this.sellerId,
     this.sellerName,
+    this.accountAlias,
     this.orderItemId,
     required this.linked,
     this.availableActions = const [],

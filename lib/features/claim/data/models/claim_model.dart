@@ -33,6 +33,7 @@ class ClaimModel extends Claim {
     required super.receivedAt,
     super.sellerId,
     super.sellerName,
+    super.accountAlias,
     super.orderItemId,
     required super.linked,
     super.availableActions,
@@ -69,6 +70,7 @@ class ClaimModel extends Claim {
           DateTime.fromMillisecondsSinceEpoch(0),
       sellerId: (json['sellerId'] as num?)?.toInt(),
       sellerName: json['sellerName'] as String?,
+      accountAlias: json['accountAlias'] as String?,
       orderItemId: (json['orderItemId'] as num?)?.toInt(),
       linked: json['linked'] as bool? ?? false,
       // 구버전 서버(필드 없음)·비-ADMIN(빈 목록) 모두 빈 리스트로 떨어진다 — 크래시 없음.
