@@ -114,7 +114,11 @@ abstract class MasterProductRepository {
 
   /// L4
   Future<Either<Failure, ListingRegisterResult>> requestListingUpdate(
-      int listingId);
+      int listingId,
+      {ListingUpdateSelection? selection});
+
+  /// L4b
+  Future<Either<Failure, ListingUpdatePreview>> getUpdatePreview(int listingId);
 
   /// L5
   Future<Either<Failure, ListingStatusResult>> fetchListingStatus(

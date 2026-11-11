@@ -40,11 +40,23 @@ class ListingRegistrationRemoteDataSource {
     return listingRegisterResultFromJson(data as Json);
   }
 
-  /// L4
-  Future<ListingRegisterResult> requestListingUpdate(int listingId) async {
-    final data =
-        await api.post('/api/admin/product-listings/$listingId/update-request');
+  /// L4 — FEATURE_2611_25 / §3-2: [selection] = the Coupang sheet's picks;
+  /// null = no body (other markets).
+  Future<ListingRegisterResult> requestListingUpdate(int listingId,
+      {ListingUpdateSelection? selection}) async {
+    final data = selection != null
+        ? await api.post('/api/admin/product-listings/$listingId/update-request',
+            body: listingUpdateSelectionToJson(selection))
+        : await api
+            .post('/api/admin/product-listings/$listingId/update-request');
     return listingRegisterResultFromJson(data as Json);
+  }
+
+  /// L4b — FEATURE_2611_25 / §3-1: Coupang values vs oclyx values.
+  Future<ListingUpdatePreview> getUpdatePreview(int listingId) async {
+    final data = await api
+        .get('/api/admin/product-listings/$listingId/update-request/preview');
+    return listingUpdatePreviewFromJson(data as Json);
   }
 
   /// L5
