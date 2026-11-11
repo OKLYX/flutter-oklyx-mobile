@@ -47,8 +47,9 @@ abstract class PurchaseListRemoteDataSource {
   Future<List<SellerCardModel>> getSellerCards();
 
   /// `POST /api/admin/purchase-receipts` (multipart `photo` + `request`) →
-  /// the new receipt id (FEATURE_2610_18 D76).
-  Future<int> createReceipt(File photo, CreateReceiptParams params);
+  /// the stock rows its lines wrote, in line order (FEATURE_2610_18 D76 ·
+  /// FEATURE_2611_22 D3 ①).
+  Future<List<int>> createReceipt(File photo, CreateReceiptParams params);
 
   /// `GET /api/admin/purchase-receipts/{id}` (FEATURE_2610_18 D93 ①).
   Future<ReceiptDetailModel> getReceipt(int receiptId);
@@ -115,7 +116,8 @@ class PurchaseListRemoteDataSourceImpl implements PurchaseListRemoteDataSource {
         .toList();
   }
 
-  /// 입고 1회 — 물품 × 판매자. 응답 { data: { purchaseRecordId, stockRecorded } }.
+  /// One check-in — product × seller. Response
+  /// `{ data: { purchaseRecordId, stockRecorded, lotId } }`.
   @override
   Future<PurchaseRecordResultModel> recordPurchase(
     RecordPurchaseParams params,
@@ -210,7 +212,8 @@ class PurchaseListRemoteDataSourceImpl implements PurchaseListRemoteDataSource {
   }
 
   @override
-  Future<int> createReceipt(File photo, CreateReceiptParams params) async {
+  Future<List<int>> createReceipt(
+      File photo, CreateReceiptParams params) async {
     final form = FormData.fromMap({
       // The file name extension sets the part type (jpg → image/jpeg) — the
       // server accepts jpeg/png only.
@@ -230,7 +233,9 @@ class PurchaseListRemoteDataSourceImpl implements PurchaseListRemoteDataSource {
       options: Options(contentType: 'multipart/form-data'),
     ));
     final data = response.data['data'] as Map<String, dynamic>;
-    return data['receiptId'] as int;
+    return ((data['lotIds'] as List<dynamic>?) ?? const [])
+        .map((e) => e as int)
+        .toList();
   }
 
   @override

@@ -5,7 +5,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/data/models/create_receipt_params.dart';
 import '../../domain/entities/stock_daily.dart';
+import '../../domain/entities/stock_fill.dart';
 import '../models/stock_daily_model.dart';
+import '../models/stock_fill_model.dart';
 
 /// `GET /api/admin/stock/daily` and `POST /api/admin/purchase-receipts/assign`
 /// (FEATURE_2610_19 D119 · D121), `POST
@@ -14,8 +16,10 @@ import '../models/stock_daily_model.dart';
 /// /api/admin/stock/daily/purchase-price` (FEATURE_2611_16 D2 · D7), `POST
 /// /api/admin/stock/daily/row-edit` and `GET /api/admin/purchase-receipts`
 /// (FEATURE_2611_17 D5 · D23), `POST /api/admin/stock/daily/move-date`
-/// (FEATURE_2611_21 D9) — the same calls as the web `StockLotRepositoryImpl`
-/// and `PurchaseReceiptRepositoryImpl`. All are ADMIN only.
+/// (FEATURE_2611_21 D9), `GET /api/admin/stock/fill/candidates` · `GET
+/// /api/admin/stock/fill/lots` · `POST /api/admin/stock/fill` (FEATURE_2611_22
+/// D3) — the same calls as the web `StockLotRepositoryImpl` and
+/// `PurchaseReceiptRepositoryImpl`. All are ADMIN only.
 ///
 /// `DioClient` lets every status below 500 through — [_ensureOk] turns a
 /// non-2xx status into a [ServerException] with the envelope `message`.
@@ -178,6 +182,49 @@ class StockDailyRemoteDataSource {
       data: <String, dynamic>{
         'movementId': movementId,
         'newMovedOn': newMovedOn,
+      },
+    ));
+  }
+
+  /// The 「채울까요?」 sheets of the saved lots [lotIds] (FEATURE_2611_22 D3 ① ·
+  /// D31) — one comma-separated value, as the web sends it.
+  Future<List<FillCandidateModel>> fillCandidates(List<int> lotIds) async {
+    final response = _ensureOk(await dio.get<dynamic>(
+      '/api/admin/stock/fill/candidates',
+      queryParameters: <String, dynamic>{'lotIds': lotIds.join(',')},
+    ));
+    return ((response.data['data'] as List<dynamic>?) ?? const [])
+        .map((e) => FillCandidateModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// The lots [입고로 채우기] offers for one row (FEATURE_2611_22 D15).
+  Future<List<FillLotModel>> fillLots(int movementId) async {
+    final response = _ensureOk(await dio.get<dynamic>(
+      '/api/admin/stock/fill/lots',
+      queryParameters: <String, dynamic>{'movementId': movementId},
+    ));
+    return ((response.data['data'] as List<dynamic>?) ?? const [])
+        .map((e) => FillLotModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// [채우기] (FEATURE_2611_22 D3).
+  Future<void> fill(List<FillRequestLot> fills) async {
+    _ensureOk(await dio.post<dynamic>(
+      '/api/admin/stock/fill',
+      data: <String, dynamic>{
+        'fills': fills
+            .map((fill) => <String, dynamic>{
+                  'lotId': fill.lotId,
+                  'lines': fill.lines
+                      .map((line) => <String, dynamic>{
+                            'movementId': line.movementId,
+                            'quantity': line.quantity,
+                          })
+                      .toList(),
+                })
+            .toList(),
       },
     ));
   }

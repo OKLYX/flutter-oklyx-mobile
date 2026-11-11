@@ -200,13 +200,18 @@ import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/assign
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/assign_without_receipt_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/change_seller_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/edit_daily_row_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/fill_outbound_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/get_fill_candidates_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/get_fill_lots_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/get_day_receipts_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/get_stock_daily_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/move_daily_row_date_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/domain/usecases/retype_purchase_price_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/bloc/date_move_cubit.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/bloc/fill_flow_cubit.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/bloc/purchase_price_cubit.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/bloc/row_edit_cubit.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/bloc/row_fill_cubit.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/bloc/stock_daily_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/packing/data/datasources/packing_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/packing/data/repositories/packing_repository_impl.dart';
@@ -1263,6 +1268,28 @@ void _registerStockDailyServices() {
   getIt.registerFactory<DateMoveCubit>(
     () => DateMoveCubit(
       moveDailyRowDateUseCase: getIt<MoveDailyRowDateUseCase>(),
+    ),
+  );
+  getIt.registerSingleton<GetFillCandidatesUseCase>(
+    GetFillCandidatesUseCase(repository: getIt<StockDailyRepository>()),
+  );
+  getIt.registerSingleton<GetFillLotsUseCase>(
+    GetFillLotsUseCase(repository: getIt<StockDailyRepository>()),
+  );
+  getIt.registerSingleton<FillOutboundUseCase>(
+    FillOutboundUseCase(repository: getIt<StockDailyRepository>()),
+  );
+  // One per intake save and one per [입고로 채우기] sheet (FEATURE_2611_22 D3).
+  getIt.registerFactory<FillFlowCubit>(
+    () => FillFlowCubit(
+      getFillCandidatesUseCase: getIt<GetFillCandidatesUseCase>(),
+      fillOutboundUseCase: getIt<FillOutboundUseCase>(),
+    ),
+  );
+  getIt.registerFactory<RowFillCubit>(
+    () => RowFillCubit(
+      getFillLotsUseCase: getIt<GetFillLotsUseCase>(),
+      fillOutboundUseCase: getIt<FillOutboundUseCase>(),
     ),
   );
   getIt.registerFactory<StockDailyBloc>(

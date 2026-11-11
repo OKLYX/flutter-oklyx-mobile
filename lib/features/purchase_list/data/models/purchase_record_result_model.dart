@@ -4,15 +4,18 @@ class PurchaseRecordResultModel extends PurchaseRecordResult {
   PurchaseRecordResultModel({
     required int purchaseRecordId,
     required bool stockRecorded,
+    required int? lotId,
   }) : super(
           purchaseRecordId: purchaseRecordId,
           stockRecorded: stockRecorded,
+          lotId: lotId,
         );
 
   factory PurchaseRecordResultModel.fromJson(Map<String, dynamic> json) {
     return PurchaseRecordResultModel(
       purchaseRecordId: json['purchaseRecordId'] as int,
       stockRecorded: json['stockRecorded'] as bool? ?? false,
+      lotId: json['lotId'] as int?,
     );
   }
 }

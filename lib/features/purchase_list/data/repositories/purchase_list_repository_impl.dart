@@ -228,7 +228,7 @@ class PurchaseListRepositoryImpl implements PurchaseListRepository {
   }
 
   @override
-  Future<Either<Failure, int>> createReceipt(
+  Future<Either<Failure, List<int>>> createReceipt(
     File photo,
     CreateReceiptParams params,
   ) async {

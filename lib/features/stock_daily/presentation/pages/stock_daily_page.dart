@@ -16,14 +16,17 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/stock_daily.dart';
+import '../../domain/entities/stock_fill.dart';
 import '../bloc/date_move_cubit.dart';
 import '../bloc/purchase_price_cubit.dart';
 import '../bloc/row_edit_cubit.dart';
+import '../bloc/row_fill_cubit.dart';
 import '../bloc/stock_daily_bloc.dart';
 import '../widgets/date_move_sheet.dart';
 import '../widgets/purchase_price_sheet.dart';
 import '../widgets/receipt_assign_sheet.dart';
 import '../widgets/row_edit_sheet.dart';
+import '../widgets/row_fill_sheet.dart';
 import '../widgets/seller_change_sheet.dart';
 
 /// 「일별 입출고 내역」 (`/stock/daily`, FEATURE_2610_19 D119 · D122 · D123 ·
@@ -57,6 +60,8 @@ import '../widgets/seller_change_sheet.dart';
 ///   (D9) · a corrected row shows 「날짜 고침」 (D24) · 「입고로 이동」 sends
 ///   [GoToStockDailyRow] — the lot's row sheet opens, or the lot is highlighted
 ///   (D19). The screen day is [StockDailyBloc.day].
+/// - FEATURE_2611_22: a row that got its lot later shows `filledLaterLabel`
+///   (D9) · [입고로 채우기] of [DateMoveSheet] opens [RowFillSheet] (D3 ②).
 class StockDailyPage extends StatelessWidget {
   const StockDailyPage({super.key});
 
@@ -203,6 +208,10 @@ class _StockDailyViewState extends State<_StockDailyView> {
     if (result == null || !mounted) {
       return;
     }
+    if (result.fill) {
+      await _openRowFill(row);
+      return;
+    }
     final lotId = result.lotId;
     final lotDay = result.lotDay;
     if (lotId != null && lotDay != null) {
@@ -212,6 +221,23 @@ class _StockDailyViewState extends State<_StockDailyView> {
     final movedOn = result.movedOn;
     if (movedOn != null) {
       showSuccessToast(context, movedMessage(movedOn));
+      bloc.add(LoadStockDaily(day));
+    }
+  }
+
+  /// FEATURE_2611_22 D3 ②: [입고로 채우기] of an order outbound row without a
+  /// lot — a save reloads the screen day.
+  Future<void> _openRowFill(StockDailyRow row) async {
+    final bloc = context.read<StockDailyBloc>();
+    final day = _day;
+    final saved = await showAppSheet<bool>(
+      context,
+      builder: (sheetContext) => BlocProvider(
+        create: (_) => getIt<RowFillCubit>()..open(row),
+        child: RowFillSheet(row: row),
+      ),
+    );
+    if (saved == true && mounted) {
       bloc.add(LoadStockDaily(day));
     }
   }
@@ -509,6 +535,8 @@ class _StockDailyViewState extends State<_StockDailyView> {
                 if (seller.isNotEmpty) seller,
                 if (row.orderNumber != null) '주문 ${row.orderNumber}',
                 if (row.dateEdits.isNotEmpty) dateEditedLabel,
+                if (row.filledLater && row.sourceMovedOn != null)
+                  filledLaterLabel(row.sourceMovedOn!),
               ].join(' · '),
               style: TextStyle(fontSize: 12, color: muted),
             ),

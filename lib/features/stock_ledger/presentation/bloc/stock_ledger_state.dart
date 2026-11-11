@@ -51,6 +51,10 @@ class StockLedgerLoaded extends StockLedgerState {
   final String? actionError;
   final String? actionMessage;
 
+  /// The row 「입고·조정」 just wrote — its 「채울까요?」 sheet shows with
+  /// [actionMessage] (FEATURE_2611_22 D3 ①); cleared with it.
+  final int? recordedLotId;
+
   /// The lit 「미기입 N줄」 of the 「재고 조회」 amount box; null = the whole
   /// list (FEATURE_2611_02 D35 · D37).
   final String? amountFilterKey;
@@ -70,6 +74,7 @@ class StockLedgerLoaded extends StockLedgerState {
     this.actionInProgressKey,
     this.actionError,
     this.actionMessage,
+    this.recordedLotId,
     this.amountFilterKey,
   });
 
@@ -92,6 +97,7 @@ class StockLedgerLoaded extends StockLedgerState {
     bool clearActionError = false,
     String? actionMessage,
     bool clearActionMessage = false,
+    int? recordedLotId,
     String? amountFilterKey,
     bool clearAmountFilter = false,
   }) {
@@ -113,6 +119,8 @@ class StockLedgerLoaded extends StockLedgerState {
       actionError: clearActionError ? null : (actionError ?? this.actionError),
       actionMessage:
           clearActionMessage ? null : (actionMessage ?? this.actionMessage),
+      recordedLotId:
+          clearActionMessage ? null : (recordedLotId ?? this.recordedLotId),
       amountFilterKey: clearAmountFilter
           ? null
           : (amountFilterKey ?? this.amountFilterKey),

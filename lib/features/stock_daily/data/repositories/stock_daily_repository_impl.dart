@@ -6,6 +6,7 @@ import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/data/models/create_receipt_params.dart';
 import '../../domain/entities/stock_daily.dart';
+import '../../domain/entities/stock_fill.dart';
 import '../../domain/repositories/stock_daily_repository.dart';
 import '../datasources/stock_daily_remote_datasource.dart';
 
@@ -88,6 +89,23 @@ class StockDailyRepositoryImpl implements StockDailyRepository {
   Future<Either<Failure, List<DayReceipt>>> getDayReceipts(String date) =>
       _guard(
           () => remoteDataSource.getDayReceipts(date), '영수증 목록을 불러오지 못했습니다.');
+
+  @override
+  Future<Either<Failure, List<FillCandidate>>> fillCandidates(
+          List<int> lotIds) =>
+      _guard(
+          () => remoteDataSource.fillCandidates(lotIds), '채울 출고를 불러오지 못했습니다.');
+
+  @override
+  Future<Either<Failure, List<FillLot>>> fillLots(int movementId) =>
+      _guard(() => remoteDataSource.fillLots(movementId), '입고를 불러오지 못했습니다.');
+
+  @override
+  Future<Either<Failure, Unit>> fill(List<FillRequestLot> fills) =>
+      _guard(() async {
+        await remoteDataSource.fill(fills);
+        return unit;
+      }, '채우지 못했습니다.');
 
   /// The server message first — a 400 reason (「남은 영수증 미등록 수량…」)
   /// must reach the screen as it is.
