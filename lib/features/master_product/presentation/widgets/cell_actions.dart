@@ -11,6 +11,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/domain/usecases/mas
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/platform_category_block.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_tool_args.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/utils/failure_text.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/coupang_update_request_sheet.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/listing_option_picker_sheet.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
@@ -65,7 +66,8 @@ class _MenuGroup {
 ///   picker sheet, D43 · FEATURE_2610_13 / D9 ③ · FEATURE_2610_26 / D2 ·
 ///   FEATURE_2610_24 / D2) / other platforms
 ///   [마켓 등록] · unsynced changes (`needsMarketSync`) =
-///   [수정 요청] · otherwise none. A draft whose category the server could not
+///   [수정 요청] (Coupang opens the compare sheet (FEATURE_2611_25 / D12)) ·
+///   otherwise none. A draft whose category the server could not
 ///   resolve ([categoryBlocked]) shows none — the category notice takes its
 ///   place (FEATURE_2610_11 / D25).
 /// - ⋯ menu: 「편집」 (field values · detail · price · stock · option names ·
@@ -338,6 +340,10 @@ class _CellActionsState extends State<CellActions> {
   // ── Confirmations (D23 · D29 · D32) ────────────────────────────────────
 
   Future<void> _confirmUpdateRequest() async {
+    if (widget.platform == 'COUPANG') {
+      await _openCoupangUpdateRequest();
+      return;
+    }
     final ok = await showAppConfirmDialog(
       context,
       title: '수정 요청',
@@ -346,6 +352,19 @@ class _CellActionsState extends State<CellActions> {
     );
     if (ok && mounted) {
       await _handleUpdateRequest();
+    }
+  }
+
+  // FEATURE_2611_25 / D12: Coupang picks the items to overwrite in a sheet.
+  Future<void> _openCoupangUpdateRequest() async {
+    final sent =
+        await showCoupangUpdateRequestSheet(context, listingId: _listingId);
+    if (sent && mounted) {
+      setState(() {
+        _pushedBanner = '승인 대기중으로 전환됨';
+        _statusResult = null;
+      });
+      widget.onReload();
     }
   }
 

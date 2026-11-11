@@ -175,8 +175,16 @@ class MasterProductRepositoryImpl implements MasterProductRepository {
 
   @override
   Future<Either<Failure, ListingRegisterResult>> requestListingUpdate(
-          int listingId) =>
-      _guard(() => listingDataSource.requestListingUpdate(listingId));
+          int listingId,
+          {ListingUpdateSelection? selection}) =>
+      _guard(() => listingDataSource.requestListingUpdate(listingId,
+          selection: selection));
+
+  /// L4b
+  @override
+  // ignore: lines_longer_than_80_chars
+  Future<Either<Failure, ListingUpdatePreview>> getUpdatePreview(int listingId) =>
+      _guard(() => listingDataSource.getUpdatePreview(listingId));
 
   @override
   Future<Either<Failure, ListingStatusResult>> fetchListingStatus(

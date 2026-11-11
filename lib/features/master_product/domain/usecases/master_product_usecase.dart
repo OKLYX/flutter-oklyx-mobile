@@ -146,8 +146,14 @@ class MasterProductUseCase {
 
   /// L4
   Future<Either<Failure, ListingRegisterResult>> requestListingUpdate(
-          int listingId) =>
-      repository.requestListingUpdate(listingId);
+          int listingId,
+          {ListingUpdateSelection? selection}) =>
+      repository.requestListingUpdate(listingId, selection: selection);
+
+  /// L4b
+  // ignore: lines_longer_than_80_chars
+  Future<Either<Failure, ListingUpdatePreview>> getUpdatePreview(int listingId) =>
+      repository.getUpdatePreview(listingId);
 
   /// L5
   Future<Either<Failure, ListingStatusResult>> fetchListingStatus(
