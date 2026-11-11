@@ -25,8 +25,9 @@ import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 ///   hidden and that seller pays (D53).
 /// - 「구매일」 starts at today. Product lines come from [ReceiptLineDialog]
 ///   (any product, quantity 1 or more, amount blank = not entered).
-/// - [저장] calls `CreateReceiptUseCase` **from the sheet** and pops `true` on
-///   success; the page then shows the toast and sends `ReceiptSaved`.
+/// - [저장] calls `CreateReceiptUseCase` **from the sheet** and pops the stock
+///   rows its lines wrote on success; the page then shows the toast, sends
+///   `ReceiptSaved` and shows `showFillFlow` (FEATURE_2611_22 D3 ①).
 ///
 /// ⚠️ Show toasts with this sheet's context (`showAppSheet` owns a messenger).
 /// ❌ No negative quantity and no seller per line (D97 · D89).
@@ -145,7 +146,7 @@ class _ReceiptIntakeSheetState extends State<ReceiptIntakeSheet> {
         setState(() => _saving = false);
         showErrorToast(context, failure.message);
       },
-      (_) => Navigator.of(context).pop(true),
+      (lotIds) => Navigator.of(context).pop(lotIds),
     );
   }
 

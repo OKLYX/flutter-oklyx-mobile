@@ -209,6 +209,7 @@ class StockLedgerBloc extends Bloc<StockLedgerEvent, StockLedgerState> {
               purchases.getOrElse((_) => current.purchaseCandidates),
           returnCandidates: returns.getOrElse((_) => current.returnCandidates),
           actionMessage: '${event.movementType.label} 기록했습니다',
+          recordedLotId: movement.id,
         ));
       },
     );

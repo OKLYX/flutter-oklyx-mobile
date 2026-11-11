@@ -4,6 +4,7 @@ import 'package:fpdart/fpdart.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/data/models/create_receipt_params.dart';
 import '../entities/stock_daily.dart';
+import '../entities/stock_fill.dart';
 
 /// 「일별 입출고 내역」 data (FEATURE_2610_19 D119 · D121 · FEATURE_2611_01 D2 ·
 /// D7).
@@ -52,4 +53,14 @@ abstract class StockDailyRepository {
 
   /// That day's receipts for the row sheet (FEATURE_2611_17 D23).
   Future<Either<Failure, List<DayReceipt>>> getDayReceipts(String date);
+
+  /// The 「채울까요?」 sheets of the saved lots (FEATURE_2611_22 D3 ① · D31);
+  /// empty = no sheet.
+  Future<Either<Failure, List<FillCandidate>>> fillCandidates(List<int> lotIds);
+
+  /// The lots [입고로 채우기] offers for one row (FEATURE_2611_22 D15).
+  Future<Either<Failure, List<FillLot>>> fillLots(int movementId);
+
+  /// [채우기] (FEATURE_2611_22 D3).
+  Future<Either<Failure, Unit>> fill(List<FillRequestLot> fills);
 }

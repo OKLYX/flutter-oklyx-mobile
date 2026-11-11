@@ -26,6 +26,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/widgets/fill_flow_sheet.dart';
 
 /// Purchase list page (third bottom tab, `/list-to-shop`).
 ///
@@ -88,6 +89,12 @@ class _PurchaseListView extends StatelessWidget {
             if (loaded.stockRecorded == false && stockLinked) {
               _snack(context,
                   '재고는 반영되지 않았습니다 — 실물이 줄었다면 재고 화면에서 조정하세요');
+            }
+            // FEATURE_2611_22 D3 ①: the 「채울까요?」 sheet of the stock row just
+            // written.
+            final lotId = loaded.recordedLotId;
+            if (lotId != null) {
+              showFillFlow(context, [lotId]);
             }
             // ⚠️ 1회성 안내다 — 소비 즉시 지운다(안 지우면 다음 리빌드에 또 뜬다).
             context.read<PurchaseListBloc>().add(ClearStockNotice());
@@ -472,20 +479,22 @@ Widget? _shareFooter(
   );
 }
 
-/// Opens the receipt popup; a saved receipt shows the success toast and
-/// reloads the current tab (FEATURE_2610_18 D46).
+/// Opens the receipt popup; a saved receipt shows the success toast, reloads
+/// the current tab (FEATURE_2610_18 D46) and shows the 「채울까요?」 sheets of
+/// its stock rows (FEATURE_2611_22 D3 ① · D31).
 Future<void> _openReceiptSheet(
   BuildContext context,
   PurchaseListBloc bloc,
   PurchaseListLoaded state,
 ) async {
-  final saved = await showAppSheet<bool>(
+  final lotIds = await showAppSheet<List<int>>(
     context,
     builder: (_) => ReceiptIntakeSheet(sellers: state.sellers),
   );
-  if (saved == true && context.mounted) {
+  if (lotIds != null && context.mounted) {
     showSuccessToast(context, '영수증 입고를 저장했습니다.');
     bloc.add(ReceiptSaved());
+    await showFillFlow(context, lotIds);
   }
 }
 

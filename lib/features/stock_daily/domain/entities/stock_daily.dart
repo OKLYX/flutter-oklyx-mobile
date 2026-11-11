@@ -43,13 +43,17 @@ class UnregisteredProduct {
 /// FEATURE_2611_17: [unitPrices] = the unit prices behind [amount] with their
 /// counts (D1 · D16), null when [amount] is null · [priceFromBase] = a part of
 /// [amount] has a unit price filled from the registered price, shown with
-/// 「미기입」 (D22) · [openingPriceEditable] = an opening-stock row the row
-/// sheet may price (D5 · D17).
+/// 「미기입」 (D22) · [openingPriceEditable] = an opening-stock or 「기타」 intake
+/// row the row sheet may price (D5 · D17 · FEATURE_2611_22 D38).
 ///
 /// FEATURE_2611_21: [sourceMovementId] · [sourceMovedOn] = the lot an outgoing
 /// row came from and its day, null without a lot (D18 · D22) ·
 /// [sourcePriceEditable] = that lot has a value to fix (D20) · [dateEdits] =
 /// the row's day corrections, newest first (D24).
+///
+/// FEATURE_2611_22: [fillable] = an order outbound row without a lot that
+/// [입고로 채우기] may fill (D3 ② · D11 · D28) · [filledLater] = the row got its
+/// lot later, shown with `filledLaterLabel` (D9).
 class StockDailyRow {
   final int movementId;
   final String movementType;
@@ -76,6 +80,8 @@ class StockDailyRow {
   final String? sourceMovedOn;
   final bool sourcePriceEditable;
   final List<StockDateEdit> dateEdits;
+  final bool fillable;
+  final bool filledLater;
 
   const StockDailyRow({
     required this.movementId,
@@ -103,6 +109,8 @@ class StockDailyRow {
     required this.sourceMovedOn,
     required this.sourcePriceEditable,
     required this.dateEdits,
+    required this.fillable,
+    required this.filledLater,
   });
 
   /// The row sheet target of this row, or null when the row has no sheet
@@ -412,8 +420,8 @@ List<VisibleDailyRow> visibleDailyRows(
 }
 
 /// The price field of the row sheet (FEATURE_2611_17 D17 · D18): a purchase
-/// (total or unit price + 「상품 기준가에 반영」) or an opening-stock row (total
-/// or unit price).
+/// (total or unit price + 「상품 기준가에 반영」) or an opening-stock or 「기타」
+/// intake row (total or unit price, FEATURE_2611_22 D38).
 enum RowEditPrice { purchase, opening }
 
 /// The receipt field of the row sheet (FEATURE_2611_17 D6 · D19 · D23): pick =

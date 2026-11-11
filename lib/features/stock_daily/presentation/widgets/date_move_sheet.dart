@@ -4,17 +4,21 @@ import 'package:intl/intl.dart';
 
 import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 import '../../domain/entities/stock_daily.dart';
+import '../../domain/entities/stock_fill.dart';
 import '../bloc/date_move_cubit.dart';
 import 'date_edit_history.dart';
 
 /// What the 「날짜 바꾸기」 sheet ended with (FEATURE_2611_21 D9 · D19):
-/// [movedOn] = the row moved there · [lotId] + [lotDay] = 「입고로 이동」.
+/// [movedOn] = the row moved there · [lotId] + [lotDay] = 「입고로 이동」 ·
+/// [fill] = [입고로 채우기] (FEATURE_2611_22 D3 ②).
 class DateMoveResult {
   final String? movedOn;
   final int? lotId;
   final String? lotDay;
+  final bool fill;
 
-  const DateMoveResult({this.movedOn, this.lotId, this.lotDay});
+  const DateMoveResult(
+      {this.movedOn, this.lotId, this.lotDay, this.fill = false});
 }
 
 /// 「날짜 바꾸기」 sheet of 「일별 입출고 내역」 (FEATURE_2611_21 D9 · D17 · D20 ·
@@ -29,7 +33,8 @@ class DateMoveResult {
 ///   off with [receiptShareDateMessage] (D13).
 /// - An outgoing row: with a lot → 「○월 ○일 입고로 이동」, plus
 ///   [sourceFixedMessage] when that lot has no value to fix · without a lot →
-///   [noSourceMessage] (D20).
+///   [noSourceMessage] (D20), with [입고로 채우기] under it when the row is
+///   `fillable` (FEATURE_2611_22 D3 ② · D27).
 ///
 /// ⚠️ Refusals and failures are shown inside the sheet in red.
 class DateMoveSheet extends StatelessWidget {
@@ -136,11 +141,20 @@ class DateMoveSheet extends StatelessWidget {
                             sourceFixedMessage,
                             style: TextStyle(fontSize: 12, color: muted),
                           ),
-                      ] else
+                      ] else ...[
                         Text(
                           noSourceMessage,
                           style: TextStyle(fontSize: 12, color: muted),
                         ),
+                        if (row.fillable)
+                          OutlinedButton(
+                            onPressed: state.busy
+                                ? null
+                                : () => Navigator.of(context)
+                                    .pop(const DateMoveResult(fill: true)),
+                            child: const Text(fillButtonLabel),
+                          ),
+                      ],
                     ],
                     DateEditHistory(edits: row.dateEdits),
                     if (state.error.isNotEmpty) ...[
