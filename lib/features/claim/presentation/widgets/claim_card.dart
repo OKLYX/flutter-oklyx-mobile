@@ -3,14 +3,16 @@ import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
+import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 import '../../domain/entities/claim.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 
 /// Card for one claim (one row of the return / exchange list).
 ///
-/// **Purpose**: shows order number + status / product name /
-/// quantity · reason / received date.
+/// **Purpose**: shows order number + status / seller · sales channel /
+/// product name / quantity · reason / received date (FEATURE_2611_24 / D14 ·
+/// D17).
 /// **Required rule**: a new screen that draws a claim list uses this widget. Do
 /// not build the card again per screen.
 /// **File**: lib/features/claim/presentation/widgets/claim_card.dart
@@ -85,6 +87,28 @@ class ClaimCard extends StatelessWidget {
                     text: getClaimStatusLabel(claim.status),
                     color: AppColors.infoForeground,
                     background: AppColors.infoSurface,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 12,
+                runSpacing: 4,
+                children: [
+                  Text(
+                    '판매자 ${claim.sellerName ?? '-'}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  Text(
+                    '판매처 '
+                    '${salesChannelLabel(claim.platform, claim.accountAlias)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
