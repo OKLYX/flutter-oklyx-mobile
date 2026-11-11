@@ -185,6 +185,85 @@ class ListingRegisterResult {
   });
 }
 
+/// FEATURE_2611_25 / §3-1: one differing option of an option-level line.
+class ListingUpdatePreviewOption {
+  final int productListingOptionId;
+  final String optionName;
+  final String coupangValue;
+  final String oclyxValue;
+
+  const ListingUpdatePreviewOption({
+    required this.productListingOptionId,
+    required this.optionName,
+    required this.coupangValue,
+    required this.oclyxValue,
+  });
+}
+
+/// FEATURE_2611_25 / §3-1: one item that differs from Coupang (or that oclyx
+/// cannot build — [selectable] = false, D15).
+class ListingUpdatePreviewLine {
+  final String key;
+  final String label;
+  final bool selectable;
+  final String? unavailableReason;
+  final String? coupangValue;
+  final String? oclyxValue;
+  final List<ListingUpdatePreviewOption> options;
+
+  const ListingUpdatePreviewLine({
+    required this.key,
+    required this.label,
+    required this.selectable,
+    required this.options,
+    this.unavailableReason,
+    this.coupangValue,
+    this.oclyxValue,
+  });
+}
+
+/// FEATURE_2611_25 / D31: one option check row of the update sheet.
+class ListingUpdateOptionLine {
+  final int productListingOptionId;
+  final String optionName;
+  final bool checked;
+
+  const ListingUpdateOptionLine({
+    required this.productListingOptionId,
+    required this.optionName,
+    required this.checked,
+  });
+}
+
+/// FEATURE_2611_25 / §3-1: `GET …/update-request/preview`.
+class ListingUpdatePreview {
+  final int productListingId;
+  final List<ListingUpdatePreviewLine> items;
+  final bool approvalPending;
+  final bool mixedBundle;
+  final List<ListingUpdateOptionLine> optionLines;
+
+  const ListingUpdatePreview({
+    required this.productListingId,
+    required this.items,
+    required this.approvalPending,
+    required this.mixedBundle,
+    required this.optionLines,
+  });
+}
+
+/// FEATURE_2611_25 / §3-2: `POST …/update-request` body — item keys to
+/// overwrite and listing option ids to send.
+class ListingUpdateSelection {
+  final List<String> overwrite;
+  final List<int> addOptions;
+
+  const ListingUpdateSelection({
+    required this.overwrite,
+    required this.addOptions,
+  });
+}
+
 /// Web `ListingStatusOption`. [approvalStatus] = 'APPROVED' | 'NOT_APPROVED'.
 class ListingStatusOption {
   final int optionId;

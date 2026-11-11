@@ -325,6 +325,46 @@ ListingRegisterResult listingRegisterResultFromJson(Json j) =>
       grandTotalNotice: _strN(j['grandTotalNotice']),
     );
 
+// FEATURE_2611_25 / §3-1 — a missing array = empty list.
+ListingUpdatePreview listingUpdatePreviewFromJson(Json j) =>
+    ListingUpdatePreview(
+      productListingId: _int(j['productListingId']),
+      items: _list(j['items'], _listingUpdatePreviewLineFromJson),
+      approvalPending: _bool(j['approvalPending']),
+      mixedBundle: _bool(j['mixedBundle']),
+      optionLines: _list(j['optionLines'], _listingUpdateOptionLineFromJson),
+    );
+
+ListingUpdatePreviewLine _listingUpdatePreviewLineFromJson(Json j) =>
+    ListingUpdatePreviewLine(
+      key: _str(j['key']),
+      label: _str(j['label']),
+      selectable: _bool(j['selectable']),
+      unavailableReason: _strN(j['unavailableReason']),
+      coupangValue: _strN(j['coupangValue']),
+      oclyxValue: _strN(j['oclyxValue']),
+      options: _list(j['options'], _listingUpdatePreviewOptionFromJson),
+    );
+
+ListingUpdatePreviewOption _listingUpdatePreviewOptionFromJson(Json j) =>
+    ListingUpdatePreviewOption(
+      productListingOptionId: _int(j['productListingOptionId']),
+      optionName: _str(j['optionName']),
+      coupangValue: _str(j['coupangValue']),
+      oclyxValue: _str(j['oclyxValue']),
+    );
+
+ListingUpdateOptionLine _listingUpdateOptionLineFromJson(Json j) =>
+    ListingUpdateOptionLine(
+      productListingOptionId: _int(j['productListingOptionId']),
+      optionName: _str(j['optionName']),
+      checked: _bool(j['checked']),
+    );
+
+// FEATURE_2611_25 / §3-2 — both keys always sent.
+Json listingUpdateSelectionToJson(ListingUpdateSelection s) =>
+    {'overwrite': s.overwrite, 'addOptions': s.addOptions};
+
 ListingStatusOption listingStatusOptionFromJson(Json j) => ListingStatusOption(
       optionId: _int(j['optionId']),
       approvalStatus: _str(j['approvalStatus']),
