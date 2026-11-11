@@ -43,3 +43,17 @@ const Map<String, String> _platformNames = {
 /// ❌ [platformDisplayName] does not call this — its callers keep their text.
 /// Web twin: `nextjs-oklyx-front/src/config/platforms.ts` `platformName`.
 String platformName(String platform) => _platformNames[platform] ?? platform;
+
+/// 「판매처」 text — the one source of it (FEATURE_2611_07 / D35 ·
+/// FEATURE_2611_24 / D15): 「{platformName} · {alias}」, or only
+/// 「{platformName}」 when the alias is null or blank. A null platform shows
+/// 「-」. The order detail, the order card and the claim card call this; a
+/// later logo swaps in here (D2).
+///
+/// ❌ The packing screen's channel text (alias alone) does not use this.
+/// Web twin: nextjs-oklyx-front/src/domain/entities/OrderEntity.ts salesChannelLabel.
+String salesChannelLabel(String? platform, String? accountAlias) {
+  final channel = platform == null ? '-' : platformName(platform);
+  final alias = accountAlias?.trim() ?? '';
+  return alias.isEmpty ? channel : '$channel · $alias';
+}
