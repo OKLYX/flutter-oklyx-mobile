@@ -48,7 +48,7 @@ abstract class ShippingLabelRemoteDataSource {
   });
 
   /// GET /api/admin/shipping-labels/v2/preview/internal?sellerId={sellerId}
-  /// 「내부 상품준비중」 접수시트 행 + 쿠팡 결제완료 목록에 없던 주문번호(FEATURE_2609_75 / D26).
+  /// 「내부 상품준비중」 sheet rows + order numbers missing from the marketplace's paid list (FEATURE_2609_75 / D26).
   Future<InternalLabelPreview> previewInternalRows({int? sellerId});
 
   /// POST /api/admin/reserved-shipments (multipart 'file' + 'executeAt')

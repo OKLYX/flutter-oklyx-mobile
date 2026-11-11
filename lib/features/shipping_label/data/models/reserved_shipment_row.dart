@@ -27,6 +27,10 @@ class ReservedShipmentRow extends Equatable {
   final String result;
   final String? failureReason;
 
+  /// Marketplace `Platform` name of the row's shipment group (e.g. COUPANG ·
+  /// ELEVENST) — null when the group has no lines.
+  final String? platform;
+
   const ReservedShipmentRow({
     required this.id,
     required this.orderShipmentId,
@@ -41,6 +45,7 @@ class ReservedShipmentRow extends Equatable {
     required this.invoiceNumber,
     required this.result,
     required this.failureReason,
+    required this.platform,
   });
 
   factory ReservedShipmentRow.fromJson(Map<String, dynamic> json) =>
@@ -61,6 +66,7 @@ class ReservedShipmentRow extends Equatable {
         invoiceNumber: json['invoiceNumber'] as String?,
         result: json['result'] as String? ?? '',
         failureReason: json['failureReason'] as String?,
+        platform: json['platform'] as String?,
       );
 
   /// 대기·실패 = 끝나지 않은 행.
@@ -88,6 +94,7 @@ class ReservedShipmentRow extends Equatable {
         invoiceNumber,
         result,
         failureReason,
+        platform,
       ];
 }
 

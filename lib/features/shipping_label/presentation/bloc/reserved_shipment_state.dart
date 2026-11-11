@@ -11,12 +11,16 @@ enum ReservedAction { retry, time, invoice, cancel, storedInvoice }
 ///
 /// [externalOrderId] = 조회 범위(null = 전체 현황, 값 = 그 주문의 기록 + 「송장」). [busyId]·[busyAction] = 지금 보내는
 /// 작업(한 번에 하나). [actionError]·[errorAction] = 마지막 작업 실패 문구(서버 문구 그대로)와 그 작업.
-/// [carrierOptions] = [송장 수정] 택배사 목록(조회 실패면 빈 목록 → 버튼이 숨는다).
+/// [carrierOptionsByPlatform] = [송장 수정] carrier lists per marketplace (a
+/// failed or empty lookup leaves no list → that marketplace's buttons hide,
+/// D64 ④). [platform] = the opened order's marketplace in an order scope
+/// (null = all rows).
 /// [storedInvoices] = 그 주문의 내부 단계 배송 묶음별 현재 송장(E14, D18). 전체 현황에서는 늘 빈 목록.
 class ReservedShipmentState extends Equatable {
   final bool loading;
   final List<ReservedShipmentRow> rows;
-  final List<CarrierOption> carrierOptions;
+  final Map<String, List<CarrierOption>> carrierOptionsByPlatform;
+  final String? platform;
   final List<StoredInvoice> storedInvoices;
   final String? externalOrderId;
   final String? loadError;
@@ -29,7 +33,8 @@ class ReservedShipmentState extends Equatable {
   const ReservedShipmentState({
     required this.loading,
     required this.rows,
-    required this.carrierOptions,
+    required this.carrierOptionsByPlatform,
+    required this.platform,
     required this.storedInvoices,
     required this.externalOrderId,
     required this.loadError,
@@ -43,7 +48,8 @@ class ReservedShipmentState extends Equatable {
   const ReservedShipmentState.initial()
       : loading = true,
         rows = const [],
-        carrierOptions = const [],
+        carrierOptionsByPlatform = const {},
+        platform = null,
         storedInvoices = const [],
         externalOrderId = null,
         loadError = null,
@@ -57,7 +63,8 @@ class ReservedShipmentState extends Equatable {
   ReservedShipmentState copyWith({
     bool? loading,
     List<ReservedShipmentRow>? rows,
-    List<CarrierOption>? carrierOptions,
+    Map<String, List<CarrierOption>>? carrierOptionsByPlatform,
+    String? platform,
     List<StoredInvoice>? storedInvoices,
     String? externalOrderId,
     String? loadError,
@@ -73,7 +80,9 @@ class ReservedShipmentState extends Equatable {
       ReservedShipmentState(
         loading: loading ?? this.loading,
         rows: rows ?? this.rows,
-        carrierOptions: carrierOptions ?? this.carrierOptions,
+        carrierOptionsByPlatform:
+            carrierOptionsByPlatform ?? this.carrierOptionsByPlatform,
+        platform: platform ?? this.platform,
         storedInvoices: storedInvoices ?? this.storedInvoices,
         externalOrderId: externalOrderId ?? this.externalOrderId,
         loadError: clearLoadError ? null : (loadError ?? this.loadError),
@@ -86,11 +95,16 @@ class ReservedShipmentState extends Equatable {
             clearActionError ? null : (errorAction ?? this.errorAction),
       );
 
+  /// Carrier list of one marketplace — empty when not loaded (buttons hide).
+  List<CarrierOption> carrierOptionsOf(String? marketplace) =>
+      carrierOptionsByPlatform[marketplace] ?? const [];
+
   @override
   List<Object?> get props => [
         loading,
         rows,
-        carrierOptions,
+        carrierOptionsByPlatform,
+        platform,
         storedInvoices,
         externalOrderId,
         loadError,

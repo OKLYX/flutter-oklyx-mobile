@@ -250,7 +250,7 @@ class _UploadPanel extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          '[예약 발송]은 「내부 상품준비중」 주문의 송장만 저장하고, 이 시각에 쿠팡 발주처리와 송장 등록을 합니다. '
+          '[예약 발송]은 「내부 상품준비중」 주문의 송장만 저장하고, 이 시각에 마켓 발주처리와 송장 등록을 합니다. '
           '[지금 발송]은 바로 전송합니다(「내부 상품준비중」·「발송대기중」 주문은 발주처리 후 송장 등록).',
           style: TextStyle(
             fontSize: 12,

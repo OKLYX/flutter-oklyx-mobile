@@ -14,7 +14,8 @@ class InternalStageResult extends Equatable {
   /// 대상이 아니라 건너뛴 주문번호.
   final List<String> skippedOrderIds;
 
-  /// 비-쿠팡이거나 박스가 없어 처리할 수 없는 주문번호.
+  /// Order numbers that cannot be processed — a marketplace without the
+  /// internal stage, or no box.
   final List<String> unsupported;
 
   const InternalStageResult({
