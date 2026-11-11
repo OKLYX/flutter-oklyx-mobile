@@ -7,7 +7,8 @@ class InternalLabelPreview extends Equatable {
   /// 편집용 행 — 기존 미리보기와 같은 모양(엑셀은 기존 export 재사용).
   final List<ShippingLabelPreviewRow> rows;
 
-  /// 내부 상품준비중인데 쿠팡 결제완료 목록에 없던 주문번호 — 화면은 건수만 보인다.
+  /// Order numbers in the internal stage but missing from the marketplace's
+  /// paid list — the screen shows only the count.
   final List<String> notAcceptedOrderIds;
 
   const InternalLabelPreview({

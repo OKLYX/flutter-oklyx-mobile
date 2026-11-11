@@ -118,9 +118,10 @@ bool _isAcknowledgeTarget(OrderItem order) =>
 /// 🔴 Do not use the confirmation whitelist ([_isAcknowledgeTarget]) for the
 /// checkbox — then an order stuck in preparing has no checkbox and
 /// [주문 상태 갱신] stays disabled forever. Unsticking those is why 2609_50
-/// exists, so the decision is split per action. [주문 상태 갱신] and the
-/// internal stage stay Coupang only (D12) — their id lists narrow the
-/// selection again in `_LoadedBody`.
+/// exists, so the decision is split per action. [주문 상태 갱신] stays
+/// Coupang only (D12) and the internal stage covers Coupang · 11st
+/// (FEATURE_2611_23 / D51) — their id lists narrow the selection again in
+/// `_LoadedBody`.
 ///
 /// Confirmation is the narrow one (an irreversible write) — only the targets
 /// are picked out of the wider selection (`_LoadedBody`'s `ackTargetIds`), so
@@ -128,12 +129,13 @@ bool _isAcknowledgeTarget(OrderItem order) =>
 bool _isSelectable(OrderItem order) =>
     order.platform == 'COUPANG' || order.platform == 'ELEVENST';
 
-/// Internal-acknowledge target = a Coupang confirmation target without an
-/// internal stage yet (FEATURE_2609_75 / D1 · FEATURE_2610_17 / D12). The
-/// server judges again.
+/// Internal-acknowledge target = a Coupang or 11st (not visit pickup,
+/// FEATURE_2611_23 / D53) confirmation target without an internal stage yet
+/// (FEATURE_2609_75 / D1 · FEATURE_2610_17 / D12). The server judges again.
 bool _isInternalTarget(OrderItem order) =>
     _isAcknowledgeTarget(order) &&
-    order.platform == 'COUPANG' &&
+    (order.platform == 'COUPANG' ||
+        (order.platform == 'ELEVENST' && !order.visitPickup)) &&
     order.internalStage == null;
 
 /// [주문 상태 갱신] target = a Coupang order (FEATURE_2610_17 / D12).
@@ -365,7 +367,7 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
       context,
       title: includesInternal ? '예약된 주문 포함' : '발주처리',
       message: includesInternal
-          ? '예약된 주문입니다. 쿠팡에 지금 발주처리하면 해당 주문의 내부 발주·예약 발송이 해제됩니다. 계속할까요?'
+          ? '예약된 주문입니다. 마켓에 지금 발주처리하면 해당 주문의 내부 발주·예약 발송이 해제됩니다. 계속할까요?'
           : '$count건을 발주처리합니다. 되돌릴 수 없습니다.',
       confirmText: '발주처리',
     );
@@ -373,7 +375,7 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
     context.read<OrderAcknowledgeBloc>().add(AcknowledgeRequested(ids));
   }
 
-  /// [내부 발주처리] — 쿠팡에 보내지 않는다(FEATURE_2609_75 / D1). 되돌리기는 [내부 발주 해제]라 확인 없이 보낸다.
+  /// [내부 발주처리] — Sends nothing to the marketplace (FEATURE_2609_75 / D1). Undo is [내부 발주 해제], so it is sent without confirmation.
   void _onInternalPressed(List<int> ids) {
     if (ids.isEmpty) return;
     context
@@ -1098,12 +1100,13 @@ class _LoadedBody extends StatelessWidget {
                         style: hintStyle,
                       ),
                     ),
-                  // 내부 발주처리는 쿠팡에 보내지 않는다 — 쿠팡에는 결제완료로 남는다(D1).
+                  // The internal acknowledge sends nothing to the marketplace —
+                  // it stays paid there (D1).
                   if (internalTargetIds.isNotEmpty && !internalState.forbidden)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
-                        '내부 발주처리는 쿠팡에 보내지 않습니다. 쿠팡에는 결제완료로 남고 '
+                        '내부 발주처리는 마켓에 보내지 않습니다. 마켓에는 결제완료로 남고 '
                         '오클릭스에만 「내부 상품준비중」으로 표시됩니다.',
                         style: hintStyle,
                       ),
@@ -1142,7 +1145,8 @@ class _LoadedBody extends StatelessWidget {
                 onToggleSelect: onToggleSelect,
                 // 카드가 내부 단계 주문일 때만 버튼을 그린다(D18). 시트 안에서 저장·조회한다.
                 onEditInvoice: () =>
-                    showStoredInvoiceSheet(context, o.externalOrderId),
+                    showStoredInvoiceSheet(
+                        context, o.externalOrderId, o.platform),
               );
             },
           ),

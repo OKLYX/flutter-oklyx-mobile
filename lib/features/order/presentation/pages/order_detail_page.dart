@@ -157,8 +157,8 @@ class OrderDetailPage extends StatelessWidget {
     final isCoupang = o.platform == 'COUPANG';
     // FEATURE_2610_17 / D28: order confirmation, single invoice and the sheet
     // are open to 11st as well, and the seller cancel opens as 11st sale
-    // refusal (D61); refresh · internal stage · reservation stay Coupang only
-    // (D12).
+    // refusal (D61); refresh stays Coupang only (D12) while the internal
+    // stage · reservation cover 11st too (FEATURE_2611_23 / D51).
     final isElevenst = o.platform == 'ELEVENST';
     final isMarketOrder = isCoupang || isElevenst;
     return MultiBlocProvider(
@@ -192,14 +192,18 @@ class OrderDetailPage extends StatelessWidget {
               ..add(ElevenstCancelRequestsRequested(o.id))
               ..add(const ElevenstChoicesRequested()),
           ),
-        // 내부 발주처리도 쿠팡 전용(FEATURE_2609_75 / D1) — 같은 가드. 진입 시 자동 전송 없음.
-        if (isCoupang)
+        // The internal acknowledge is Coupang · 11st only (FEATURE_2609_75 / D1 ·
+        // FEATURE_2611_23 / D51) — same guard. No automatic send on entry.
+        if (isCoupang || isElevenst)
           BlocProvider<OrderInternalStageBloc>(
             create: (_) => getIt<OrderInternalStageBloc>(),
           ),
-        // 상태 갱신도 쿠팡 전용 — 같은 가드 안에 둔다(2609_50 D24). 가드 밖에 두면 비-쿠팡
-        // 주문에도 버튼이 보이고, 눌러 봐야 무조건 unsupported 다.
-        // ⚠️ 진입 시 자동 조회하지 않는다 — 이벤트는 버튼 핸들러에서만 발행한다.
+        // The status refresh is Coupang only — kept inside a guard
+        // (2609_50 D24).
+        // Outside a guard non-Coupang orders would show the button too, and it
+        // always comes back unsupported.
+        // ⚠️ No automatic read on entry — the event is dispatched only from the
+        // button handler.
         if (isCoupang)
           BlocProvider<OrderRefreshBloc>(
             create: (_) => getIt<OrderRefreshBloc>(),
@@ -214,11 +218,14 @@ class OrderDetailPage extends StatelessWidget {
             create: (_) =>
                 getIt<OrderCancelBloc>()..add(const CancelReasonsRequested()),
           ),
-        // 예약 발송 기록(D30) + 「송장」(D18) — 쿠팡 전용, 진입 시 그 주문의 기록·송장 1회 조회(읽기).
-        if (isCoupang)
+        // Reserved shipment history (D30) + 「송장」(D18) — Coupang · 11st only
+        // (FEATURE_2611_23 / D51); reads that order's history · invoices once on
+        // entry, with that order's marketplace carriers (D64 ④).
+        if (isCoupang || isElevenst)
           BlocProvider<ReservedShipmentBloc>(
             create: (_) => getIt<ReservedShipmentBloc>()
-              ..add(ReservedShipmentsRequested(externalOrderId: o.externalOrderId)),
+              ..add(ReservedShipmentsRequested(
+                  externalOrderId: o.externalOrderId, platform: o.platform)),
           ),
       ],
       child: AppPageBody.scroll(
@@ -274,7 +281,7 @@ class OrderDetailPage extends StatelessWidget {
             // 송장(D18 🔁) — 내부 단계(결제완료) 배송건이 없으면(대부분의 주문) 아무것도 그리지 않는다.
             // 이 화면에서 [내부 발주처리]·[발주처리]가 성공하면 그 주문의 송장·기록을 다시 읽는다 —
             // 다시 들어오지 않아도 「송장」이 바로 나타나고/사라진다(웹 05 의 `shownStage` 재렌더와 같은 동작, D9).
-            if (isCoupang)
+            if (isCoupang || isElevenst)
               MultiBlocListener(
                 listeners: [
                   BlocListener<OrderInternalStageBloc, OrderInternalStageState>(
@@ -295,7 +302,7 @@ class OrderDetailPage extends StatelessWidget {
                 child: const StoredInvoiceSection(),
               ),
             // 예약 발송 기록(D30) — 기록이 없으면(대부분의 주문) 아무것도 그리지 않는다.
-            if (isCoupang) const ReservedShipmentHistorySection(),
+            if (isCoupang || isElevenst) const ReservedShipmentHistorySection(),
             // Sheet · shipment · cancel are used one at a time, so they share
             // side-by-side tabs.
             // ⚠️ A full cancel keeps the local status (D7), so the section
@@ -370,17 +377,27 @@ Widget _buildInfoCard(
     return rows(o.status, o.internalStage);
   }
   if (!isCoupang) {
-    // 11st has no cancel / internal-stage BLoC (FEATURE_2610_17 / D12) — only
-    // the shipment and confirmation results move the status row.
+    // 11st has no cancel BLoC (FEATURE_2610_17 / D12) — only the shipment and
+    // confirmation results move the status row. The badge follows the
+    // internal-stage BLoC like Coupang (FEATURE_2611_23 / D51).
     return BlocBuilder<ManualShipmentBloc, ManualShipmentState>(
       builder: (context, manual) =>
           BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
-        builder: (context, ack) {
-          final acknowledged = ack.result != null && ack.result!.succeeded > 0;
-          final status = manual.result?.resultStatus ??
-              (acknowledged ? OrderStatus.preparing : o.status);
-          return rows(status, o.internalStage);
-        },
+        builder: (context, ack) =>
+            BlocBuilder<OrderInternalStageBloc, OrderInternalStageState>(
+          builder: (context, internal) {
+            final acknowledged =
+                ack.result != null && ack.result!.succeeded > 0;
+            final status = manual.result?.resultStatus ??
+                (acknowledged ? OrderStatus.preparing : o.status);
+            final shownStage = acknowledged
+                ? null
+                : _AcknowledgeSection._internalMarked(internal)
+                    ? InternalStage.internalPreparing
+                    : o.internalStage;
+            return rows(status, shownStage);
+          },
+        ),
       ),
     );
   }
@@ -1139,6 +1156,41 @@ class _ActionTabsState extends State<_ActionTabs> {
   }
 }
 
+/// Internal-stage notice on top of the 11st shipment tab (FEATURE_2611_23 /
+/// R4) — same text and same rule as the Coupang shipment tab: shown when this
+/// screen just marked the order internal or the server says it has an
+/// internal stage.
+class _InternalStageShipmentNotice extends StatelessWidget {
+  final OrderItem order;
+
+  const _InternalStageShipmentNotice({required this.order});
+
+  @override
+  Widget build(BuildContext context) =>
+      BlocBuilder<OrderInternalStageBloc, OrderInternalStageState>(
+        builder: (context, internal) {
+          if (!_AcknowledgeSection._internalMarked(internal) &&
+              order.internalStage == null) {
+            return const SizedBox.shrink();
+          }
+          return const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: AppCard(
+              child: Text(
+                '내부 단계 주문은 여기서 발송처리할 수 없습니다. '
+                '「송장」에 송장을 저장한 뒤 출고관리의 '
+                '[저장된 송장으로 발송]을 누르세요',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.warningForeground,
+                ),
+              ),
+            ),
+          );
+        },
+      );
+}
+
 /// Shipment tab of an 11st order (FEATURE_2610_17 / D20 · D21): a paid order
 /// needs [발주처리] first, and 11st has no invoice-update API — both show a
 /// notice instead of the form. A confirmation made on this screen opens the
@@ -1179,6 +1231,7 @@ class _ElevenstShipmentGate extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (!acknowledged) _InternalStageShipmentNotice(order: order),
             body,
             if (openStatus) ElevenstDeliveryDelaySection(order: order),
           ],
@@ -1364,14 +1417,17 @@ class _AcknowledgeSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // An 11st order has no internal-stage BLoC (FEATURE_2610_17 / D12).
-    if (order.platform != 'COUPANG') return _buildBody(context, null);
+    // Only Coupang · 11st orders have the internal-stage BLoC (FEATURE_2611_23 / D51).
+    if (order.platform != 'COUPANG' && order.platform != 'ELEVENST') {
+      return _buildBody(context, null);
+    }
     return BlocBuilder<OrderInternalStageBloc, OrderInternalStageState>(
       builder: (context, internal) => _buildBody(context, internal),
     );
   }
 
-  /// [internal] = null for an 11st order — no [내부 발주처리] there.
+  /// [internal] = null for an order other than Coupang · 11st — no
+  /// [내부 발주처리] there.
   Widget _buildBody(BuildContext context, OrderInternalStageState? internal) {
     return BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
         builder: (context, state) {
@@ -1392,8 +1448,11 @@ class _AcknowledgeSection extends StatelessWidget {
               ? '${result.failed.first.resultCode}: ${result.failed.first.message}'
               : state.errorMessage;
           final internalMarked = internal != null && _internalMarked(internal);
-          // [내부 발주처리] = 아직 내부 단계가 없는 주문만(D1·D13). 403 이면 숨긴다.
-          final canMarkInternal = internal != null &&
+          // [내부 발주처리] = only orders without an internal stage yet
+          // (D1·D13), never a visit-pickup order (FEATURE_2611_23 / D53).
+          // Hidden on 403.
+          final canMarkInternal = !order.visitPickup &&
+              internal != null &&
               order.internalStage == null &&
               !internal.forbidden;
           final busy = state.submitting || internal?.submitting != null;
@@ -1506,13 +1565,13 @@ class _AcknowledgeSection extends StatelessWidget {
   Future<void> _confirmAndSubmit(BuildContext context) async {
     final bloc = context.read<OrderAcknowledgeBloc>();
     final reserved = order.internalStage != null ||
-        (order.platform == 'COUPANG' &&
+        ((order.platform == 'COUPANG' || order.platform == 'ELEVENST') &&
             _internalMarked(context.read<OrderInternalStageBloc>().state));
     final ok = await showAppConfirmDialog(
       context,
       title: reserved ? '예약된 주문 포함' : '발주처리',
       message: reserved
-          ? '예약된 주문입니다. 쿠팡에 지금 발주처리하면 해당 주문의 내부 발주·예약 발송이 해제됩니다. 계속할까요?'
+          ? '예약된 주문입니다. 마켓에 지금 발주처리하면 해당 주문의 내부 발주·예약 발송이 해제됩니다. 계속할까요?'
           : '이 주문을 발주처리합니다. 되돌릴 수 없습니다.',
       confirmText: '발주처리',
     );

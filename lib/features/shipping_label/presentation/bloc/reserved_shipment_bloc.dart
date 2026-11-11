@@ -61,14 +61,40 @@ class ReservedShipmentBloc
     emit(state.copyWith(
       loading: true,
       externalOrderId: event.externalOrderId,
+      platform: event.platform,
       clearLoadError: true,
     ));
-    if (state.carrierOptions.isEmpty) {
-      final options = await useCase.getCarrierOptions(platform: 'COUPANG');
+    // Order scope = the opened order's marketplace only (D64 ④).
+    // No scope = per row marketplace, in _reload.
+    final marketplace = state.platform;
+    if (state.externalOrderId != null && marketplace != null) {
+      await _loadCarrierOptions([marketplace], emit);
       if (emit.isDone) return;
-      options.fold((_) {}, (list) => emit(state.copyWith(carrierOptions: list)));
     }
     await _reload(emit);
+  }
+
+  /// Loads the carrier list once per marketplace not loaded yet. A failure is
+  /// not stored (that marketplace's buttons stay hidden, D64 ④).
+  Future<void> _loadCarrierOptions(
+    Iterable<String> platforms,
+    Emitter<ReservedShipmentState> emit,
+  ) async {
+    for (final marketplace in platforms.toSet()) {
+      if (state.carrierOptionsByPlatform.containsKey(marketplace)) {
+        continue;
+      }
+      final options = await useCase.getCarrierOptions(platform: marketplace);
+      if (emit.isDone) {
+        return;
+      }
+      options.fold(
+          (_) {},
+          (list) => emit(state.copyWith(carrierOptionsByPlatform: {
+                ...state.carrierOptionsByPlatform,
+                marketplace: list,
+              })));
+    }
   }
 
   Future<void> _reload(Emitter<ReservedShipmentState> emit) async {
@@ -97,6 +123,10 @@ class ReservedShipmentBloc
       (rows) =>
           emit(state.copyWith(loading: false, rows: rows, clearLoadError: true)),
     );
+    if (scope == null) {
+      await _loadCarrierOptions(
+          state.rows.map((r) => r.platform).whereType<String>(), emit);
+    }
   }
 
   Future<void> _act(
