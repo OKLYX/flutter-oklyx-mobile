@@ -300,6 +300,7 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
         current,
         emit,
         stockRecorded: recordResult.stockRecorded,
+        recordedLotId: recordResult.lotId,
       ),
     );
   }
@@ -511,12 +512,14 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
     PurchaseListLoaded current,
     Emitter<PurchaseListState> emit, {
     bool? stockRecorded,
+    int? recordedLotId,
   }) async {
     if (current.activeTab == PurchaseTab.completed) {
       await _loadCompleted(
         current.copyWith(
           isRefreshing: false,
           stockRecorded: stockRecorded,
+          recordedLotId: recordedLotId,
           listStale: true,
         ),
         current.completedFrom,
@@ -534,6 +537,7 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
         clearCompleted: true,
         actionError: failure.message,
         stockRecorded: stockRecorded,
+        recordedLotId: recordedLotId,
       )),
       (res) => emit(current.copyWith(
         isRefreshing: false,
@@ -542,6 +546,7 @@ class PurchaseListBloc extends Bloc<PurchaseListEvent, PurchaseListState> {
         unmappedOrders: res.unmappedOrders,
         clearCompleted: true,
         stockRecorded: stockRecorded,
+        recordedLotId: recordedLotId,
       )),
     );
   }

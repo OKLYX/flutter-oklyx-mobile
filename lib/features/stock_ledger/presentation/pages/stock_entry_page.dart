@@ -7,6 +7,7 @@ import 'package:flutter_oklyn_mobile/features/product/domain/entities/product.da
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_setting_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_setting_event.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/seller_filter_dropdown.dart';
+import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/widgets/fill_flow_sheet.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/purchase_candidate.dart';
 import '../../domain/entities/return_candidate.dart';
@@ -124,6 +125,12 @@ class _StockEntryViewState extends State<_StockEntryView> {
           } else if (loaded.actionMessage != null) {
             showSuccessToast(context, loaded.actionMessage!);
             _afterRecorded();
+            // FEATURE_2611_22 D3 ①: the server answers no sheet for a row that
+            // is not a lot (disposal, return …).
+            final lotId = loaded.recordedLotId;
+            if (lotId != null) {
+              showFillFlow(context, [lotId]);
+            }
           }
           context.read<StockLedgerBloc>().add(ClearStockLedgerNotice());
         },

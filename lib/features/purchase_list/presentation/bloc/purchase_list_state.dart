@@ -39,6 +39,9 @@ class PurchaseListError extends PurchaseListState {
 /// [stockRecorded] is a **one-time notice** of a check-in — false shows the
 /// "stock not recorded" toast while the stock link is on, then
 /// `ClearStockNotice` clears it (otherwise the next rebuild shows it again).
+/// [recordedLotId] rides along with it — the stock row the check-in wrote,
+/// whose 「채울까요?」 sheet the page shows (FEATURE_2611_22 D3 ①); cleared with
+/// it.
 ///
 /// [deletedManualItemId] is the manual line the last successful
 /// `DeleteManualLine` removed (FEATURE_2610_09 D64). The detail page matches
@@ -83,6 +86,7 @@ class PurchaseListLoaded extends PurchaseListState {
   final OrderSyncResult? syncResult;
   final String? actionError;
   final bool? stockRecorded;
+  final int? recordedLotId;
   final int? deletedManualItemId;
   final int? movedManualItemId;
 
@@ -103,6 +107,7 @@ class PurchaseListLoaded extends PurchaseListState {
     this.syncResult,
     this.actionError,
     this.stockRecorded,
+    this.recordedLotId,
     this.deletedManualItemId,
     this.movedManualItemId,
   });
@@ -129,6 +134,7 @@ class PurchaseListLoaded extends PurchaseListState {
     bool clearActionError = false,
     bool? stockRecorded,
     bool clearStockRecorded = false,
+    int? recordedLotId,
     int? deletedManualItemId,
     int? movedManualItemId,
     bool clearMovedManualItem = false,
@@ -153,6 +159,8 @@ class PurchaseListLoaded extends PurchaseListState {
       actionError: clearActionError ? null : (actionError ?? this.actionError),
       stockRecorded:
           clearStockRecorded ? null : (stockRecorded ?? this.stockRecorded),
+      recordedLotId:
+          clearStockRecorded ? null : (recordedLotId ?? this.recordedLotId),
       deletedManualItemId: deletedManualItemId ?? this.deletedManualItemId,
       movedManualItemId: clearMovedManualItem
           ? null

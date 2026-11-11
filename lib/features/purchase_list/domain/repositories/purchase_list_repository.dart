@@ -86,8 +86,9 @@ abstract class PurchaseListRepository {
   Future<Either<Failure, List<SellerCard>>> getSellerCards();
 
   /// Receipt check-in — [photo] + [params] in one multipart request
-  /// (FEATURE_2610_18 D76). Right = the new receipt id.
-  Future<Either<Failure, int>> createReceipt(
+  /// (FEATURE_2610_18 D76). Right = the stock rows its lines wrote
+  /// (FEATURE_2611_22 D3 ①).
+  Future<Either<Failure, List<int>>> createReceipt(
     File photo,
     CreateReceiptParams params,
   );

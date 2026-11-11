@@ -70,6 +70,8 @@ class StockDailyRowModel extends StockDailyRow {
     required super.sourceMovedOn,
     required super.sourcePriceEditable,
     required super.dateEdits,
+    required super.fillable,
+    required super.filledLater,
   });
 
   factory StockDailyRowModel.fromJson(Map<String, dynamic> json) =>
@@ -114,7 +116,7 @@ class StockDailyRowModel extends StockDailyRow {
           );
         }).toList(),
         // FEATURE_2611_17 D16 · D22 · D17: the unit prices, the 「미기입」 mark
-        // and the opening-stock price target.
+        // and the opening-stock or 「기타」 price target (FEATURE_2611_22 D38).
         unitPrices: (json['unitPrices'] as List<dynamic>?)?.map((e) {
           final unit = e as Map<String, dynamic>;
           return UnitCount(
@@ -138,6 +140,9 @@ class StockDailyRowModel extends StockDailyRow {
             newMovedOn: edit['newMovedOn'] as String? ?? '',
           );
         }).toList(),
+        // FEATURE_2611_22 D3 ② · D9: [입고로 채우기] and 「… 입고로 나중에 채움」.
+        fillable: json['fillable'] as bool? ?? false,
+        filledLater: json['filledLater'] as bool? ?? false,
       );
 }
 
