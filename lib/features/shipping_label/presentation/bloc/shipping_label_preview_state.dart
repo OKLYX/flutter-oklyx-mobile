@@ -27,7 +27,7 @@ class PreviewLoaded extends ShippingLabelPreviewState {
   final List<ShippingLabelPreviewRow> rows;
   final int? sellerId;
 
-  /// 내부 시트에서 쿠팡 결제완료 목록에 없던 주문 수(FEATURE_2609_75 / D26). 기존 시트는 늘 0.
+  /// Orders of the internal sheet missing from the marketplace's paid list (FEATURE_2609_75 / D26). Always 0 for the regular sheet.
   final int notAcceptedCount;
 
   const PreviewLoaded({

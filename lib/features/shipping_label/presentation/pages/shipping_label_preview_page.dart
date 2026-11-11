@@ -145,7 +145,8 @@ class _LoadedBody extends StatelessWidget {
   final int? sellerId;
   final bool internal;
 
-  /// 쿠팡 결제완료 목록에 없던 내부 주문 수(D26) — 0 이면 안내를 그리지 않는다.
+  /// Internal orders missing from the marketplace's paid list (D26) — no
+  /// notice when 0.
   final int notAcceptedCount;
 
   const _LoadedBody({
@@ -202,7 +203,7 @@ class _LoadedBody extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                '쿠팡에서 결제완료 상태가 아님 $notAcceptedCount건',
+                '마켓에서 결제완료 상태가 아님 $notAcceptedCount건',
                 style: const TextStyle(
                     fontSize: 13, color: AppColors.warningForeground),
               ),

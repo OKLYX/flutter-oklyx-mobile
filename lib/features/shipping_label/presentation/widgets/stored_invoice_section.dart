@@ -15,12 +15,14 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_sheet.dart';
 ///
 /// **파일**: lib/features/shipping_label/presentation/widgets/stored_invoice_section.dart
 /// ⚠️ 시트마다 [ReservedShipmentBloc] 을 새로 만든다(그 주문 범위). 닫으면 폐기된다.
-Future<void> showStoredInvoiceSheet(BuildContext context, String externalOrderId) =>
+Future<void> showStoredInvoiceSheet(
+        BuildContext context, String externalOrderId, String platform) =>
     showAppSheet<void>(
       context,
       builder: (_) => BlocProvider(
         create: (_) => getIt<ReservedShipmentBloc>()
-          ..add(ReservedShipmentsRequested(externalOrderId: externalOrderId)),
+          ..add(ReservedShipmentsRequested(
+              externalOrderId: externalOrderId, platform: platform)),
         child: const SafeArea(
           child: Padding(
             padding: EdgeInsets.all(16),
@@ -41,7 +43,8 @@ Future<void> showStoredInvoiceSheet(BuildContext context, String externalOrderId
 /// **Used in**: order detail (above 「예약 발송 기록」) ·
 /// [showStoredInvoiceSheet] (shipment management [송장 수정]).
 /// ⚠️ A [ReservedShipmentBloc] of that order's scope
-/// (`ReservedShipmentsRequested(externalOrderId: …)`) must be above it.
+/// (`ReservedShipmentsRequested(externalOrderId: …, platform: …)`) must be
+/// above it — carriers come from that order's marketplace (D64 ④).
 /// ⚠️ Errors are shown as red text inside the section.
 /// With [inSheet] = true, loading · no permission · no target are also shown
 /// as text (so the sheet is not empty). With false nothing is drawn in those
@@ -55,7 +58,7 @@ class StoredInvoiceSection extends StatelessWidget {
 
   String _carrierName(ReservedShipmentState state, String? code) {
     if (code == null) return '-';
-    for (final option in state.carrierOptions) {
+    for (final option in state.carrierOptionsOf(state.platform)) {
       if (option.deliveryCompanyCode == code) return option.carrierName;
     }
     return code;
@@ -70,7 +73,7 @@ class StoredInvoiceSection extends StatelessWidget {
     final picked = await showDialog<InvoiceEditInput>(
       context: context,
       builder: (_) => InvoiceEditDialog(
-        options: state.carrierOptions,
+        options: state.carrierOptionsOf(state.platform),
         carrierCode: invoice.carrierCode,
         invoiceNumber: invoice.invoiceNumber,
       ),
@@ -147,7 +150,7 @@ class StoredInvoiceSection extends StatelessWidget {
                           ],
                         ),
                       ),
-                      if (state.carrierOptions.isNotEmpty)
+                      if (state.carrierOptionsOf(state.platform).isNotEmpty)
                         OutlinedButton(
                           onPressed: anyBusy
                               ? null

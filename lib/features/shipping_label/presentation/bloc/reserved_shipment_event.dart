@@ -10,15 +10,19 @@ abstract class ReservedShipmentEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-/// 행 조회(진입 · 당겨서 새로고침). [externalOrderId] 가 있으면 그 주문의 기록 + 「송장」(E14)만(주문 상세·송장 시트, D30·D18).
-/// 한 번 정한 범위는 BLoC 이 기억한다 — 새로고침은 인자 없이 보낸다.
+/// Load rows (entry · pull to refresh). With [externalOrderId] only that
+/// order's history + stored invoices (E14) (order detail · invoice sheet,
+/// D30·D18); [platform] = that order's marketplace, whose carrier list is
+/// used (D64 ④). The BLoC remembers the scope once set — a refresh is sent
+/// without arguments.
 class ReservedShipmentsRequested extends ReservedShipmentEvent {
   final String? externalOrderId;
+  final String? platform;
 
-  const ReservedShipmentsRequested({this.externalOrderId});
+  const ReservedShipmentsRequested({this.externalOrderId, this.platform});
 
   @override
-  List<Object?> get props => [externalOrderId];
+  List<Object?> get props => [externalOrderId, platform];
 }
 
 /// [다시 시도] (D16).

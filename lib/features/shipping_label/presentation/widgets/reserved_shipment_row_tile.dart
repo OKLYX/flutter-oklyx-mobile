@@ -56,7 +56,7 @@ class ReservedShipmentRowTile extends StatelessWidget {
     final picked = await showDialog<InvoiceEditInput>(
       context: context,
       builder: (_) => InvoiceEditDialog(
-        options: state.carrierOptions,
+        options: state.carrierOptionsOf(row.platform),
         carrierCode: row.carrierCode,
         invoiceNumber: row.invoiceNumber,
       ),
@@ -132,7 +132,7 @@ class ReservedShipmentRowTile extends StatelessWidget {
                   ),
                 if (showInvoiceEdit &&
                     row.isInvoiceEditable &&
-                    state.carrierOptions.isNotEmpty)
+                    state.carrierOptionsOf(row.platform).isNotEmpty)
                   OutlinedButton(
                     onPressed: anyBusy ? null : () => _changeInvoice(context),
                     child: _isBusy(ReservedAction.invoice)
