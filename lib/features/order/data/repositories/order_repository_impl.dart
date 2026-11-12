@@ -13,6 +13,9 @@ import '../models/elevenst_cancel_request.dart';
 import '../models/elevenst_choices.dart';
 import '../models/elevenst_delivery_line.dart';
 import '../models/internal_stage_result.dart';
+import '../models/lotteon_cancel_request.dart';
+import '../models/lotteon_choices.dart';
+import '../models/lotteon_invoice_records.dart';
 import '../models/order_acknowledge_result.dart';
 import '../models/order_cancel_result.dart';
 import '../models/order_refresh_result.dart';
@@ -400,6 +403,56 @@ class OrderRepositoryImpl implements OrderRepository {
         await remoteDataSource.confirmElevenstStock(orderItemId);
         return unit;
       }, 'Failed to confirm the stock');
+
+  // FEATURE_2611_23 — the LotteON order-detail calls, one [_call] each.
+  @override
+  Future<Either<Failure, LotteonChoices>> getLotteonChoices() =>
+      _call(remoteDataSource.getLotteonChoices, '사유 목록을 불러오지 못했습니다.');
+
+  @override
+  Future<Either<Failure, List<LotteonCancelRequest>>> getLotteonCancelRequests(
+          int orderItemId) =>
+      _call(() => remoteDataSource.getLotteonCancelRequests(orderItemId),
+          '취소 요청을 불러오지 못했습니다.');
+
+  @override
+  Future<Either<Failure, Unit>> approveLotteonCancel(int requestId) =>
+      _call(() async {
+        await remoteDataSource.approveLotteonCancel(requestId);
+        return unit;
+      }, '취소 승인에 실패했습니다. 다시 시도해주세요.');
+
+  @override
+  Future<Either<Failure, Unit>> rejectLotteonCancel(int requestId,
+          {required String reasonCode, required String reasonText}) =>
+      _call(() async {
+        await remoteDataSource.rejectLotteonCancel(requestId,
+            reasonCode: reasonCode, reasonText: reasonText);
+        return unit;
+      }, '취소 거부에 실패했습니다. 다시 시도해주세요.');
+
+  @override
+  Future<Either<Failure, Unit>> sendLotteonDeliveryAppointment(
+          int orderItemId, Map<String, dynamic> body) =>
+      _call(() async {
+        await remoteDataSource.sendLotteonDeliveryAppointment(
+            orderItemId, body);
+        return unit;
+      }, '발송 약정일 안내에 실패했습니다. 다시 시도해주세요.');
+
+  @override
+  Future<Either<Failure, OrderCancelResult>> cancelLotteonLine(int orderItemId,
+          int quantity, String reasonCode, String reasonText) =>
+      _call(
+          () => remoteDataSource.cancelLotteonLine(
+              orderItemId, quantity, reasonCode, reasonText),
+          'Failed to cancel the order');
+
+  @override
+  Future<Either<Failure, List<LotteonInvoiceRecords>>> getLotteonInvoiceRecords(
+          int orderItemId) =>
+      _call(() => remoteDataSource.getLotteonInvoiceRecords(orderItemId),
+          '발송 기록을 불러오지 못했습니다.');
 
   @override
   Future<Either<Failure, OrderDetail>> getOrderDetail(int orderLineId) =>

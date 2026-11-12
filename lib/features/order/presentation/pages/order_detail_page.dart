@@ -24,6 +24,9 @@ import '../../data/models/order_cancel_result.dart';
 import '../bloc/elevenst_order_action_bloc.dart';
 import '../bloc/elevenst_order_action_event.dart';
 import '../bloc/elevenst_order_action_state.dart';
+import '../bloc/lotteon_order_action_bloc.dart';
+import '../bloc/lotteon_order_action_event.dart';
+import '../bloc/lotteon_order_action_state.dart';
 import '../bloc/order_acknowledge_bloc.dart';
 import '../bloc/order_acknowledge_event.dart';
 import '../bloc/order_acknowledge_state.dart';
@@ -35,6 +38,8 @@ import '../bloc/order_internal_stage_event.dart';
 import '../bloc/order_internal_stage_state.dart';
 import '../widgets/elevenst_order_sections.dart';
 import '../widgets/elevenst_seller_action_sections.dart';
+import '../widgets/lotteon_invoice_edit_sheet.dart';
+import '../widgets/lotteon_order_sections.dart';
 import '../widgets/internal_stage_badge.dart';
 import '../bloc/order_refresh_bloc.dart';
 import '../bloc/order_refresh_event.dart';
@@ -158,9 +163,11 @@ class OrderDetailPage extends StatelessWidget {
     // FEATURE_2610_17 / D28: order confirmation, single invoice and the sheet
     // are open to 11st as well, and the seller cancel opens as 11st sale
     // refusal (D61); refresh stays Coupang only (D12) while the internal
-    // stage · reservation cover 11st too (FEATURE_2611_23 / D51).
+    // stage · reservation cover 11st and LotteON too (FEATURE_2611_23 / D51 ·
+    // R50).
     final isElevenst = o.platform == 'ELEVENST';
-    final isMarketOrder = isCoupang || isElevenst;
+    final isLotteon = o.platform == 'LOTTEON';
+    final isMarketOrder = isCoupang || isElevenst || isLotteon;
     return MultiBlocProvider(
       providers: [
         // The order read on open (FEATURE_2611_07 / D18).
@@ -168,15 +175,16 @@ class OrderDetailPage extends StatelessWidget {
           create: (_) => getIt<OrderDetailCubit>()..loadByLine(o.id),
         ),
         BlocProvider<OrderSheetBloc>(create: (_) => getIt<OrderSheetBloc>()),
-        // ⚠️ Made only for Coupang · 11st orders — gating only the render would
-        // call the ADMIN-only carrier API for nothing on every other order.
+        // ⚠️ Made only for Coupang · 11st · LotteON orders — gating only the
+        // render would call the ADMIN-only carrier API for nothing on every
+        // other order.
         if (isMarketOrder)
           BlocProvider<ManualShipmentBloc>(
             create: (_) => getIt<ManualShipmentBloc>()
               ..add(LoadCarrierOptions(o.platform)),
           ),
-        // Order confirmation sits in the same guard (Coupang · 11st, D20) — no
-        // idle instance for other orders.
+        // Order confirmation sits in the same guard (Coupang · 11st · LotteON,
+        // D20 · FEATURE_2611_23 / D16) — no idle instance for other orders.
         // ⚠️ No automatic send on entry (D4) — the event is dispatched only
         // from the button handler.
         if (isMarketOrder)
@@ -192,9 +200,19 @@ class OrderDetailPage extends StatelessWidget {
               ..add(ElevenstCancelRequestsRequested(o.id))
               ..add(const ElevenstChoicesRequested()),
           ),
-        // The internal acknowledge is Coupang · 11st only (FEATURE_2609_75 / D1 ·
-        // FEATURE_2611_23 / D51) — same guard. No automatic send on entry.
-        if (isCoupang || isElevenst)
+        // LotteON cancel requests + seller cancel + delivery appointment
+        // (FEATURE_2611_23 / D24 ~ D26 · D57) — reads the open requests and
+        // the reason lists once on entry; every write is a button.
+        if (isLotteon)
+          BlocProvider<LotteonOrderActionBloc>(
+            create: (_) => getIt<LotteonOrderActionBloc>()
+              ..add(LotteonCancelRequestsRequested(o.id))
+              ..add(const LotteonChoicesRequested()),
+          ),
+        // The internal acknowledge is Coupang · 11st · LotteON only
+        // (FEATURE_2609_75 / D1 · FEATURE_2611_23 / D51 · R50) — same guard.
+        // No automatic send on entry.
+        if (isCoupang || isElevenst || isLotteon)
           BlocProvider<OrderInternalStageBloc>(
             create: (_) => getIt<OrderInternalStageBloc>(),
           ),
@@ -218,10 +236,11 @@ class OrderDetailPage extends StatelessWidget {
             create: (_) =>
                 getIt<OrderCancelBloc>()..add(const CancelReasonsRequested()),
           ),
-        // Reserved shipment history (D30) + 「송장」(D18) — Coupang · 11st only
-        // (FEATURE_2611_23 / D51); reads that order's history · invoices once on
-        // entry, with that order's marketplace carriers (D64 ④).
-        if (isCoupang || isElevenst)
+        // Reserved shipment history (D30) + 「송장」(D18) — Coupang · 11st ·
+        // LotteON only (FEATURE_2611_23 / D51 · R50); reads that order's
+        // history · invoices once on entry, with that order's marketplace
+        // carriers (D64 ④).
+        if (isCoupang || isElevenst || isLotteon)
           BlocProvider<ReservedShipmentBloc>(
             create: (_) => getIt<ReservedShipmentBloc>()
               ..add(ReservedShipmentsRequested(
@@ -278,10 +297,11 @@ class OrderDetailPage extends StatelessWidget {
             const SizedBox(height: 12),
             // 11st only — cancel requests and the seller return (D19 · D35).
             if (isElevenst) ElevenstOrderSections(order: o),
+            if (isLotteon) LotteonOrderSections(order: o),
             // 송장(D18 🔁) — 내부 단계(결제완료) 배송건이 없으면(대부분의 주문) 아무것도 그리지 않는다.
             // 이 화면에서 [내부 발주처리]·[발주처리]가 성공하면 그 주문의 송장·기록을 다시 읽는다 —
             // 다시 들어오지 않아도 「송장」이 바로 나타나고/사라진다(웹 05 의 `shownStage` 재렌더와 같은 동작, D9).
-            if (isCoupang || isElevenst)
+            if (isCoupang || isElevenst || isLotteon)
               MultiBlocListener(
                 listeners: [
                   BlocListener<OrderInternalStageBloc, OrderInternalStageState>(
@@ -302,18 +322,22 @@ class OrderDetailPage extends StatelessWidget {
                 child: const StoredInvoiceSection(),
               ),
             // 예약 발송 기록(D30) — 기록이 없으면(대부분의 주문) 아무것도 그리지 않는다.
-            if (isCoupang || isElevenst) const ReservedShipmentHistorySection(),
+            if (isCoupang || isElevenst || isLotteon)
+              const ReservedShipmentHistorySection(),
             // Sheet · shipment · cancel are used one at a time, so they share
             // side-by-side tabs.
             // ⚠️ A full cancel keeps the local status (D7), so the section
             // stays open — it is hidden from outside (tab gate · wrapper)
             // **without editing the widget**. A partial cancel is not hidden
             // (D19).
-            // ⚠️ Orders other than Coupang · 11st get no shipment / cancel BLoC at
-            // all (provider guard above), so they skip the tabs and keep only
-            // the sheet section — a tab reading a missing BLoC crashes. 11st
-            // has no Coupang cancel BLoC (D12); its cancel tab is the 11st sale
-            // refusal on `ElevenstOrderActionBloc` (FEATURE_2610_17 / D61).
+            // ⚠️ Orders other than Coupang · 11st · LotteON get no shipment /
+            // cancel BLoC at all (provider guard above), so they skip the tabs
+            // and keep only the sheet section — a tab reading a missing BLoC
+            // crashes. 11st has no Coupang cancel BLoC (D12); its cancel tab
+            // is the 11st sale refusal on `ElevenstOrderActionBloc`
+            // (FEATURE_2610_17 / D61).
+            // LotteON neither — its cancel tab is the LotteON seller cancel
+            // on `LotteonOrderActionBloc` (FEATURE_2611_23 / D57).
             if (isMarketOrder)
               _ActionTabs(order: o, withCancel: isCoupang)
             else
@@ -339,10 +363,11 @@ class OrderDetailPage extends StatelessWidget {
 }
 
 /// 「주문 정보」 + 「기본 정보」 cards in one [Column] (FEATURE_2611_07 / D34).
-/// For a Coupang · 11st order only the `상태` row and the badge follow the
-/// sends made on this screen — shipment gets `resultStatus: SHIPPED` from the
-/// server (2609_11 D4), and a successful order confirmation reads as
-/// [OrderStatus.preparing]. Both show without a refetch.
+/// For a Coupang · 11st · LotteON order only the 「상태」 row and the badge
+/// follow the sends made on this screen — shipment gets
+/// `resultStatus: SHIPPED` from the server (2609_11 D4), and a successful
+/// order confirmation reads as [OrderStatus.preparing]. Both show without a
+/// refetch.
 Widget _buildInfoCard(
   OrderItem o,
   OrderDetail detail, {
@@ -377,8 +402,9 @@ Widget _buildInfoCard(
     return rows(o.status, o.internalStage);
   }
   if (!isCoupang) {
-    // 11st has no cancel BLoC (FEATURE_2610_17 / D12) — only the shipment and
-    // confirmation results move the status row. The badge follows the
+    // 11st · LotteON have no cancel BLoC (FEATURE_2610_17 / D12 ·
+    // FEATURE_2611_23 / D57) — only the shipment and confirmation results
+    // move the status row. The badge follows the
     // internal-stage BLoC like Coupang (FEATURE_2611_23 / D51).
     return BlocBuilder<ManualShipmentBloc, ManualShipmentState>(
       builder: (context, manual) =>
@@ -999,7 +1025,9 @@ class _PackingOrderDetail extends StatelessWidget {
 /// default** — most orders end in a shipment, and a cancel cannot be undone,
 /// so it is safer to need one more tap.
 /// An 11st order ([withCancel] false) gets its cancel tab from the 11st sale
-/// refusal (FEATURE_2610_17 / D61) instead of the Coupang cancel section.
+/// refusal (FEATURE_2610_17 / D61) instead of the Coupang cancel section; a
+/// LotteON order ([withCancel] false too) from the LotteON seller cancel
+/// (FEATURE_2611_23 / D57).
 /// ⚠️ The sheet lookup is a live marketplace call, so opening the tab does not
 /// run it (only the button inside the section does).
 ///
@@ -1013,8 +1041,10 @@ class _PackingOrderDetail extends StatelessWidget {
 class _ActionTabs extends StatefulWidget {
   final OrderItem order;
 
-  /// false = 11st — no Coupang cancel BLoC (FEATURE_2610_17 / D12); the cancel
-  /// tab is the 11st sale refusal on `ElevenstOrderActionBloc` (D61).
+  /// false = 11st · LotteON — no Coupang cancel BLoC (FEATURE_2610_17 / D12);
+  /// the cancel tab is the 11st sale refusal on `ElevenstOrderActionBloc`
+  /// (D61) or the LotteON seller cancel on `LotteonOrderActionBloc`
+  /// (FEATURE_2611_23 / D57).
   final bool withCancel;
 
   const _ActionTabs({required this.order, required this.withCancel});
@@ -1028,9 +1058,18 @@ enum _ActionTab { sheet, shipment, cancel }
 class _ActionTabsState extends State<_ActionTabs> {
   _ActionTab _selected = _ActionTab.shipment; // 기본 = 왼쪽(발송처리)
 
+  bool get _isLotteon => widget.order.platform == 'LOTTEON';
+
   @override
   Widget build(BuildContext context) {
     if (!widget.withCancel) {
+      if (_isLotteon) {
+        return BlocBuilder<LotteonOrderActionBloc, LotteonOrderActionState>(
+          buildWhen: (p, c) => p.forbidden != c.forbidden,
+          builder: (context, lotteon) =>
+              _buildTabs(context, null, lotteon.forbidden),
+        );
+      }
       return BlocBuilder<ElevenstOrderActionBloc, ElevenstOrderActionState>(
         buildWhen: (p, c) => p.forbidden != c.forbidden,
         builder: (context, elevenst) =>
@@ -1042,15 +1081,18 @@ class _ActionTabsState extends State<_ActionTabs> {
     );
   }
 
-  /// [cancel] = null for an 11st order — there is no cancel BLoC to read.
-  /// [elevenstForbidden] = an 11st write came back 403 (D61 cancel tab gate).
+  /// [cancel] = null for an 11st or LotteON order — there is no cancel BLoC
+  /// to read.
+  /// [marketForbidden] = an 11st or LotteON write came back 403
+  /// (D61 · FEATURE_2611_23 / D57 cancel tab gate).
   Widget _buildTabs(
-      BuildContext context, OrderCancelState? cancel, bool elevenstForbidden) {
+      BuildContext context, OrderCancelState? cancel, bool marketForbidden) {
     final order = widget.order;
-    // FEATURE_2610_17 / D61: 11st sale refusal — paid / preparing, not fully
-    // cancelled, and no 403 from an 11st write.
-    final elevenstCancel = cancel == null &&
-        !elevenstForbidden &&
+    // FEATURE_2610_17 / D61 · FEATURE_2611_23 / D57: 11st sale refusal or
+    // LotteON seller cancel — paid / preparing, not fully cancelled, and no
+    // 403 from a write of that marketplace.
+    final marketCancel = cancel == null &&
+        !marketForbidden &&
         !order.cancelled &&
         (order.status == OrderStatus.paid ||
             order.status == OrderStatus.preparing);
@@ -1061,7 +1103,7 @@ class _ActionTabsState extends State<_ActionTabs> {
               cancel != null && _isFullyCancelledByResult(cancel.result);
           final canShip = !manual.optionsForbidden && !fullyCancelled;
           final canCancel = cancel == null
-              ? elevenstCancel
+              ? marketCancel
               : !cancel.forbidden &&
                   (order.status == OrderStatus.paid ||
                       order.status == OrderStatus.preparing);
@@ -1117,7 +1159,9 @@ class _ActionTabsState extends State<_ActionTabs> {
                 // 내부 단계 주문(FEATURE_2609_75 / D27)은 입력 대신 안내 — 「송장」 + [저장된 송장으로 발송].
                 // 판정 = 주문번호 옆 배지와 같은 식(`_buildInfoCard` 의 shownStage). 서버도 같은 문구로 거절한다(400).
                 child: cancel == null
-                    ? _ElevenstShipmentGate(order: order)
+                    ? (_isLotteon
+                        ? _LotteonShipmentGate(order: order)
+                        : _ElevenstShipmentGate(order: order))
                     : BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
                   builder: (context, ack) => BlocBuilder<OrderInternalStageBloc,
                       OrderInternalStageState>(
@@ -1146,7 +1190,9 @@ class _ActionTabsState extends State<_ActionTabs> {
               Offstage(
                 offstage: selected != _ActionTab.cancel,
                 child: cancel == null
-                    ? ElevenstSaleRefusalSection(order: order)
+                    ? (_isLotteon
+                        ? LotteonSellerCancelSection(order: order)
+                        : ElevenstSaleRefusalSection(order: order))
                     : _CancelSection(order: order),
               ),
             ],
@@ -1235,6 +1281,76 @@ class _ElevenstShipmentGate extends StatelessWidget {
             body,
             if (openStatus) ElevenstDeliveryDelaySection(order: order),
           ],
+        );
+      },
+    );
+  }
+}
+
+/// Shipment tab of a LotteON order (FEATURE_2611_23 / D18 · D19 · D96 · R51):
+/// an internal-stage order shows only the internal notice; a paid order needs
+/// [발주처리] first (a confirmation made on this screen opens the form without
+/// a refetch); a preparing order gets the one-invoice form; a shipped order
+/// gets [송장 수정하기], which opens the LotteON 「송장 수정」 sheet. A paid /
+/// preparing order also gets [발송 약정일 안내] below (R55).
+class _LotteonShipmentGate extends StatelessWidget {
+  final OrderItem order;
+
+  const _LotteonShipmentGate({required this.order});
+
+  @override
+  Widget build(BuildContext context) {
+    final openStatus = order.status == OrderStatus.paid ||
+        order.status == OrderStatus.preparing;
+    return BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
+      builder: (context, ack) {
+        final acknowledged = ack.result != null && ack.result!.succeeded > 0;
+        // ignore: omit_local_variable_types
+        final String? notice = order.status == OrderStatus.paid && !acknowledged
+            ? '롯데ON 주문은 [발주처리] 뒤에 송장을 등록할 수 있습니다.'
+            : null;
+        return BlocBuilder<OrderInternalStageBloc, OrderInternalStageState>(
+          builder: (context, internal) {
+            final internalStage = !acknowledged &&
+                (_AcknowledgeSection._internalMarked(internal) ||
+                    order.internalStage != null);
+            final body = internalStage
+                ? null
+                : notice != null
+                    ? AppCard(
+                        child: Text(
+                          notice,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.warningForeground,
+                          ),
+                        ),
+                      )
+                    : isAlreadyShipped(order.status)
+                        ? _ManualShipmentSection(
+                            order: order,
+                            onEditShippedInvoice: () async {
+                              final detail = context.read<OrderDetailCubit>();
+                              final options = context
+                                  .read<ManualShipmentBloc>()
+                                  .state
+                                  .options;
+                              if (await showLotteonInvoiceEditSheet(context,
+                                  order: order, carrierOptions: options)) {
+                                await detail.reload();
+                              }
+                            },
+                          )
+                        : _ManualShipmentSection(order: order);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!acknowledged) _InternalStageShipmentNotice(order: order),
+                if (body != null) body,
+                if (openStatus) LotteonDeliveryAppointmentSection(order: order),
+              ],
+            );
+          },
         );
       },
     );
@@ -1417,8 +1533,11 @@ class _AcknowledgeSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Only Coupang · 11st orders have the internal-stage BLoC (FEATURE_2611_23 / D51).
-    if (order.platform != 'COUPANG' && order.platform != 'ELEVENST') {
+    // Only Coupang · 11st · LotteON orders have the internal-stage BLoC
+    // (FEATURE_2611_23 / D51 · R50).
+    if (order.platform != 'COUPANG' &&
+        order.platform != 'ELEVENST' &&
+        order.platform != 'LOTTEON') {
       return _buildBody(context, null);
     }
     return BlocBuilder<OrderInternalStageBloc, OrderInternalStageState>(
@@ -1426,14 +1545,17 @@ class _AcknowledgeSection extends StatelessWidget {
     );
   }
 
-  /// [internal] = null for an order other than Coupang · 11st — no
+  /// [internal] = null for an order other than Coupang · 11st · LotteON — no
   /// [내부 발주처리] there.
   Widget _buildBody(BuildContext context, OrderInternalStageState? internal) {
     return BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
         builder: (context, state) {
-          // Shown only for paid Coupang · 11st orders (D2·D10·D14 ·
-          // FEATURE_2610_17 / D20). A 403 hides the entry point.
-          if ((order.platform != 'COUPANG' && order.platform != 'ELEVENST') ||
+          // Shown only for paid Coupang · 11st · LotteON orders (D2·D10·D14 ·
+          // FEATURE_2610_17 / D20 · FEATURE_2611_23 / D16). A 403 hides the
+          // entry point.
+          if ((order.platform != 'COUPANG' &&
+              order.platform != 'ELEVENST' &&
+              order.platform != 'LOTTEON') ||
               order.status != OrderStatus.paid ||
               state.forbidden) {
             return const SizedBox.shrink();
@@ -1475,11 +1597,14 @@ class _AcknowledgeSection extends StatelessWidget {
                       ),
                     )
                   else ...[
-                    // FEATURE_2610_17 / D52: 11st confirms this product only —
-                    // its notice has no box number.
+                    // FEATURE_2610_17 / D52 · FEATURE_2611_23 / D17:
+                    // 11st and LotteON confirm this product only — their notice
+                    // has no box number.
                     Text(
                       order.platform == 'ELEVENST'
                           ? '이 상품(주문 줄)이 발주확인 처리되어 배송준비중으로 바뀝니다. 되돌릴 수 없습니다.'
+                          : order.platform == 'LOTTEON'
+                          ? '이 상품(주문 줄)이 발주확인 처리되어 상품준비중으로 바뀝니다. 되돌릴 수 없습니다.'
                           : '이 주문의 배송건(박스 ${order.externalBoxId ?? '-'}) 전체가 '
                               '상품준비중으로 전환됩니다. 되돌릴 수 없습니다.',
                       style: TextStyle(
@@ -1565,7 +1690,9 @@ class _AcknowledgeSection extends StatelessWidget {
   Future<void> _confirmAndSubmit(BuildContext context) async {
     final bloc = context.read<OrderAcknowledgeBloc>();
     final reserved = order.internalStage != null ||
-        ((order.platform == 'COUPANG' || order.platform == 'ELEVENST') &&
+        ((order.platform == 'COUPANG' ||
+            order.platform == 'ELEVENST' ||
+            order.platform == 'LOTTEON') &&
             _internalMarked(context.read<OrderInternalStageBloc>().state));
     final ok = await showAppConfirmDialog(
       context,
@@ -1888,7 +2015,9 @@ class _CancelSectionState extends State<_CancelSection> {
 /// **Purpose**: pick a carrier, type the invoice number and ship this order's
 /// one box (Coupang) or delivery number (11st, FEATURE_2610_17 / D2). Used for
 /// orders without a result file (xlsx), orders shipped with another carrier,
-/// and fixing a wrong invoice (Coupang only — 11st has no update, D21).
+/// and fixing a wrong invoice (Coupang inline — 11st has no update, D21;
+/// LotteON opens its own sheet through [onEditShippedInvoice],
+/// FEATURE_2611_23 / D19).
 ///
 /// ⚠️ The send unit is **the whole box this line belongs to**, not the line
 /// on screen (PLAN 2609_11 D1) — Coupang accepts only the same invoice on
@@ -1916,8 +2045,16 @@ class _ManualShipmentSection extends StatefulWidget {
   /// split send; the title, error and result stay this card's.
   final Widget? altForm;
 
-  const _ManualShipmentSection(
-      {required this.order, this.modePicker, this.altForm});
+  /// LotteON only (FEATURE_2611_23 / D19): [송장 수정하기] opens the LotteON
+  /// invoice-update sheet instead of the inline form.
+  final VoidCallback? onEditShippedInvoice;
+
+  const _ManualShipmentSection({
+    required this.order,
+    this.modePicker,
+    this.altForm,
+    this.onEditShippedInvoice,
+  });
 
   @override
   State<_ManualShipmentSection> createState() => _ManualShipmentSectionState();
@@ -1993,11 +2130,18 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
                     ),
                   ),
                 ],
-                if (!formOpen) ...[
+                if (!formOpen && widget.onEditShippedInvoice == null) ...[
                   const SizedBox(height: 12),
                   OutlinedButton(
                     onPressed:
                         locked ? null : () => setState(() => _editing = true),
+                    child: const Text('송장 수정하기'),
+                  ),
+                ],
+                if (!formOpen && widget.onEditShippedInvoice != null) ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: locked ? null : widget.onEditShippedInvoice,
                     child: const Text('송장 수정하기'),
                   ),
                 ],
@@ -2172,9 +2316,12 @@ class _OrderSheetSection extends StatelessWidget {
 
   const _OrderSheetSection({required this.order});
 
-  /// Coupang · 11st — the platforms the sheet serves (FEATURE_2610_17 / D2).
+  /// Coupang · 11st · LotteON — the platforms the sheet serves
+  /// (FEATURE_2610_17 / D2 · FEATURE_2611_23).
   bool get _isMarketOrder =>
-      order.platform == 'COUPANG' || order.platform == 'ELEVENST';
+      order.platform == 'COUPANG' ||
+          order.platform == 'ELEVENST' ||
+          order.platform == 'LOTTEON';
 
   @override
   Widget build(BuildContext context) {

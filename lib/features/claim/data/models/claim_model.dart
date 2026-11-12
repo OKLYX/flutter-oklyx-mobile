@@ -37,6 +37,7 @@ class ClaimModel extends Claim {
     super.orderItemId,
     required super.linked,
     super.availableActions,
+    super.statusNote,
   });
 
   factory ClaimModel.fromJson(Map<String, dynamic> json) {
@@ -75,6 +76,7 @@ class ClaimModel extends Claim {
       linked: json['linked'] as bool? ?? false,
       // 구버전 서버(필드 없음)·비-ADMIN(빈 목록) 모두 빈 리스트로 떨어진다 — 크래시 없음.
       availableActions: _parseActions(json['availableActions']),
+      statusNote: json['statusNote'] as String?,
     );
   }
 

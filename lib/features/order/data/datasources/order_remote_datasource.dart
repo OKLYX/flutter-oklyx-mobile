@@ -5,6 +5,9 @@ import '../models/elevenst_cancel_request.dart';
 import '../models/elevenst_choices.dart';
 import '../models/elevenst_delivery_line.dart';
 import '../models/internal_stage_result.dart';
+import '../models/lotteon_cancel_request.dart';
+import '../models/lotteon_choices.dart';
+import '../models/lotteon_invoice_records.dart';
 import '../models/order_acknowledge_result.dart';
 import '../models/order_cancel_result.dart';
 import '../models/order_detail_model.dart';
@@ -130,6 +133,33 @@ abstract class OrderRemoteDataSource {
 
   /// POST /api/admin/orders/{orderItemId}/elevenst-stock-confirm (D67).
   Future<void> confirmElevenstStock(int orderItemId);
+
+  /// LotteON reason lists of the order detail (FEATURE_2611_23 / D58).
+  Future<LotteonChoices> getLotteonChoices();
+
+  /// Open LotteON cancel requests of one order line (FEATURE_2611_23 / D24).
+  Future<List<LotteonCancelRequest>> getLotteonCancelRequests(
+      int orderItemId);
+
+  /// [취소 승인] of a LotteON cancel request (D24 — cannot be undone).
+  Future<void> approveLotteonCancel(int requestId);
+
+  /// [취소 거부] of a LotteON cancel request (D24).
+  Future<void> rejectLotteonCancel(int requestId,
+      {required String reasonCode, required String reasonText});
+
+  /// [발송 약정일 안내] of a LotteON order (D26).
+  Future<void> sendLotteonDeliveryAppointment(
+      int orderItemId, Map<String, dynamic> body);
+
+  /// POST /api/admin/orders/cancel with `reasonCode` · `reasonText` — LotteON
+  /// seller cancel of the whole line (D25).
+  Future<OrderCancelResult> cancelLotteonLine(
+      int orderItemId, int quantity, String reasonCode, String reasonText);
+
+  /// LotteON shipping records of the delivery of one line (D19 ⑥-5).
+  Future<List<LotteonInvoiceRecords>> getLotteonInvoiceRecords(
+      int orderItemId);
 
   /// GET /api/orders/lines/{orderLineId}/detail — the shared order detail of
   /// the order this line belongs to (FEATURE_2611_07 / D30 ①, any logged-in
@@ -556,6 +586,109 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
             const Duration(seconds: AppConstants.coupangReceiveTimeout),
       ),
     );
+  }
+
+  // FEATURE_2611_23 — same rule as the 11st calls above: no try/catch. The
+  // writes and the record list call LotteON live → the longer receive timeout.
+  @override
+  Future<LotteonChoices> getLotteonChoices() async {
+    final response = await dio.get('/api/orders/lotteon-choices');
+    final data = response.data['data'];
+    if (data is! Map<String, dynamic>) {
+      return LotteonChoices.empty;
+    }
+    return LotteonChoices.fromJson(data);
+  }
+
+  @override
+  Future<List<LotteonCancelRequest>> getLotteonCancelRequests(
+      int orderItemId) async {
+    final response =
+        await dio.get('/api/orders/$orderItemId/lotteon-cancel-requests');
+    final data = response.data['data'];
+    if (data is! List) {
+      return [];
+    }
+    return data
+        .map((e) => LotteonCancelRequest.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<void> approveLotteonCancel(int requestId) async {
+    await dio.post(
+      '/api/admin/lotteon-cancel-requests/$requestId/approve',
+      options: Options(
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+  }
+
+  @override
+  Future<void> rejectLotteonCancel(int requestId,
+      {required String reasonCode, required String reasonText}) async {
+    await dio.post(
+      '/api/admin/lotteon-cancel-requests/$requestId/reject',
+      data: {'reasonCode': reasonCode, 'reasonText': reasonText},
+      options: Options(
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+  }
+
+  @override
+  Future<void> sendLotteonDeliveryAppointment(
+      int orderItemId, Map<String, dynamic> body) async {
+    await dio.post(
+      '/api/admin/orders/$orderItemId/lotteon-delivery-appointment',
+      data: body,
+      options: Options(
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+  }
+
+  @override
+  Future<OrderCancelResult> cancelLotteonLine(int orderItemId, int quantity,
+      String reasonCode, String reasonText) async {
+    final response = await dio.post(
+      '/api/admin/orders/cancel',
+      data: {
+        'lines': [
+          {'orderItemId': orderItemId, 'quantity': quantity},
+        ],
+        'reasonCode': reasonCode,
+        'reasonText': reasonText,
+      },
+      options: Options(
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+    return OrderCancelResult.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+  }
+
+  @override
+  Future<List<LotteonInvoiceRecords>> getLotteonInvoiceRecords(
+      int orderItemId) async {
+    final response = await dio.get(
+      '/api/orders/$orderItemId/lotteon-invoice-records',
+      options: Options(
+        receiveTimeout:
+            const Duration(seconds: AppConstants.coupangReceiveTimeout),
+      ),
+    );
+    final data = response.data['data'];
+    if (data is! List) {
+      return [];
+    }
+    return data
+        .map((e) => LotteonInvoiceRecords.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override

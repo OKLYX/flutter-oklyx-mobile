@@ -132,7 +132,12 @@ class _ClaimDetailPageState extends State<ClaimDetailPage> {
               _InfoRow('접수번호', c.externalClaimId),
               _InfoRow('접수일',
                   formatOrderDateTime(c.receivedAt.toIso8601String())),
-              _InfoRow('상태', getClaimStatusLabel(c.status)),
+              _InfoRow(
+                '상태',
+                c.statusNote == null
+                    ? getClaimStatusLabel(c.status)
+                    : '${getClaimStatusLabel(c.status)} · ${c.statusNote}',
+              ),
               _InfoRow('플랫폼', platformName(c.platform)),
             ],
             // 원문 상태 코드는 정보 손실 방지용 — 목록 카드에는 내지 않는다.

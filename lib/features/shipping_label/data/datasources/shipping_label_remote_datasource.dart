@@ -39,12 +39,16 @@ abstract class ShippingLabelRemoteDataSource {
 
   /// POST /api/admin/shipping-labels/confirm/manual (body {orderItemId, deliveryCompanyCode, invoiceNumber}
   /// + for an 11st partial / split send the [elevenst] keys `mode` · `orderItemIds` · `splits`,
-  /// FEATURE_2610_17 / D64). Single-box shipment (or invoice edit) result (JSON envelope) → data unwrapped.
+  /// FEATURE_2610_17 / D64; for a LotteON invoice update the picked
+  /// [lotteonRecords] as `records`, FEATURE_2611_23 / D19 ⑥-5).
+  /// Single-box shipment (or invoice edit) result (JSON envelope) → data
+  /// unwrapped.
   Future<ManualShipmentResult> confirmManualShipment({
     required int orderItemId,
     required String deliveryCompanyCode,
     required String invoiceNumber,
     Map<String, dynamic>? elevenst,
+    List<Map<String, dynamic>>? lotteonRecords,
   });
 
   /// GET /api/admin/shipping-labels/v2/preview/internal?sellerId={sellerId}
@@ -195,6 +199,7 @@ class ShippingLabelRemoteDataSourceImpl implements ShippingLabelRemoteDataSource
     required String deliveryCompanyCode,
     required String invoiceNumber,
     Map<String, dynamic>? elevenst,
+    List<Map<String, dynamic>>? lotteonRecords,
   }) async {
     final response = await dio.post(
       '/api/admin/shipping-labels/confirm/manual',
@@ -203,6 +208,7 @@ class ShippingLabelRemoteDataSourceImpl implements ShippingLabelRemoteDataSource
         'deliveryCompanyCode': deliveryCompanyCode,
         'invoiceNumber': invoiceNumber,
         ...?elevenst,
+        if (lotteonRecords != null) 'records': lotteonRecords,
       },
       options: Options(
         // The server calls the marketplace invoice API live (Coupang upload ·

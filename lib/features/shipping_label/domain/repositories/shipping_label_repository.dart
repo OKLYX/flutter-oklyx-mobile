@@ -40,12 +40,14 @@ abstract class ShippingLabelRepository {
 
   /// Single-box shipment (or invoice edit) — the server decides the mode (PLAN
   /// 2609_11 D3); [elevenst] = 11st partial / split lines (FEATURE_2610_17 /
-  /// D64).
+  /// D64); [lotteonRecords] = the picked LotteON invoice records
+  /// (FEATURE_2611_23 / D19 ⑥-5).
   Future<Either<Failure, ManualShipmentResult>> confirmManualShipment({
     required int orderItemId,
     required String deliveryCompanyCode,
     required String invoiceNumber,
     Map<String, dynamic>? elevenst,
+    List<Map<String, dynamic>>? lotteonRecords,
   });
 
   /// 「내부 상품준비중」 접수시트 미리보기(FEATURE_2609_75 / D26).

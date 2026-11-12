@@ -151,9 +151,10 @@ class ClaimAction {
   /// 서버가 준 표시명(D18). 앱이 코드→라벨 상수를 만들지 말 것.
   final String label;
 
-  /// Extra input kind: `NONE` | `INVOICE` | `REJECT_CODE` | `REASON`
-  /// (FEATURE_2610_17 / D34). **An unknown value draws no button** — no form
-  /// can be built for it (PLAN §8).
+  /// Extra input kind: `NONE` | `INVOICE` | `REJECT_CODE` | `REASON` |
+  /// `REASON_TEXT` (FEATURE_2610_17 / D34 · FEATURE_2611_23 / D78).
+  /// **An unknown value draws no button** — no form can be built for it
+  /// (PLAN §8).
   final String requires;
 
   /// 값 선택이 필요한 액션의 선택지(D19). 반품 3액션은 항상 빈 목록이다.
@@ -190,14 +191,17 @@ class ActionChoice {
 /// value not listed (one the server adds later) draws no button — no form can
 /// be built for it (PLAN §8).
 /// `REJECT_CODE` came in with the reject reason sheet of 07; `REASON` with the
-/// 11st reason sheet (FEATURE_2610_17 / D34).
+/// 11st reason sheet (FEATURE_2610_17 / D34); `REASON_TEXT` with the LotteON
+/// text-only sheet (FEATURE_2611_23 / D78).
 abstract final class ClaimActionRequires {
   static const none = 'NONE';
   static const invoice = 'INVOICE';
   static const rejectCode = 'REJECT_CODE';
   static const reason = 'REASON';
+  static const reasonText = 'REASON_TEXT';
 
-  static const supported = <String>{none, invoice, rejectCode, reason};
+  // ignore: lines_longer_than_80_chars
+  static const supported = <String>{none, invoice, rejectCode, reason, reasonText};
 }
 
 /// 회수송장 출처(서버 `collectInvoiceSource` 원문, FEATURE_2609_70 / D12).
@@ -227,7 +231,8 @@ class ClaimActionRequest {
   final String? regNumber;
   final String? rejectCode;
 
-  /// `REASON` actions only — 1~200 characters (FEATURE_2610_17 / D39 ①).
+  /// `REASON` · `REASON_TEXT` actions only — 1~200 characters
+  /// (FEATURE_2610_17 / D39 ① · FEATURE_2611_23 / D78).
   final String? reasonText;
 
   const ClaimActionRequest({
@@ -343,6 +348,10 @@ class Claim {
   /// 비어 있으면 액션 영역 자체를 만들지 않는다. 비-ADMIN 사용자에게는 서버가 빈 목록을 준다.
   final List<ClaimAction> availableActions;
 
+  /// Marketplace-neutral status side note — LotteON 「보류 중」, else null
+  /// (FEATURE_2611_23 / D79). Shown as given, never derived here.
+  final String? statusNote;
+
   const Claim({
     required this.id,
     required this.platform,
@@ -372,6 +381,7 @@ class Claim {
     this.orderItemId,
     required this.linked,
     this.availableActions = const [],
+    this.statusNote,
   });
 
   /// 회수송장을 **우리 장부에만** 갖고 있는가 — 「우리 기록」 뱃지의 유일한 조건(D6).
