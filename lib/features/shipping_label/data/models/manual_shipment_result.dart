@@ -18,6 +18,10 @@ class ManualShipmentResult extends Equatable {
   final List<FailedBox> failed;
   final OrderStatus? resultStatus;
 
+  /// LotteON invoice update only — one outcome per picked record, in request
+  /// order (FEATURE_2611_23 / D19 ⑥-7). Empty on every other path.
+  final List<ManualShipmentRecordOutcome> records;
+
   const ManualShipmentResult({
     required this.orderId,
     required this.shipmentBoxId,
@@ -26,6 +30,7 @@ class ManualShipmentResult extends Equatable {
     required this.succeeded,
     required this.failed,
     this.resultStatus,
+    this.records = const [],
   });
 
   factory ManualShipmentResult.fromJson(Map<String, dynamic> json) =>
@@ -41,12 +46,58 @@ class ManualShipmentResult extends Equatable {
         resultStatus: json['resultStatus'] == null
             ? null
             : orderStatusFrom(json['resultStatus']?.toString()),
+        records: (json['records'] as List? ?? [])
+            .map((e) => ManualShipmentRecordOutcome.fromJson(
+                e as Map<String, dynamic>))
+            .toList(),
       );
 
   /// 송장 수정 모드 여부 — 성공 배너 문구를 가른다.
   bool get isUpdateMode => mode == 'UPDATE';
 
   @override
+  List<Object?> get props => [
+        orderId,
+        shipmentBoxId,
+        mode,
+        sentLines,
+        succeeded,
+        failed,
+        resultStatus,
+        records,
+      ];
+}
+
+/// The result of one picked LotteON invoice record
+/// (`ManualShipmentResult.records[]`, FEATURE_2611_23 / D19 ⑥-7).
+///
+/// Matched to the sheet row by [orderItemId] + [procSeq]. [message] = the
+/// LotteON wording as given on a failure, null on a success.
+class ManualShipmentRecordOutcome extends Equatable {
+  final int orderItemId;
+  final String procSeq;
+  final String? oldInvoiceNumber;
+  final bool succeeded;
+  final String? message;
+
+  const ManualShipmentRecordOutcome({
+    required this.orderItemId,
+    required this.procSeq,
+    required this.succeeded,
+    this.oldInvoiceNumber,
+    this.message,
+  });
+
+  factory ManualShipmentRecordOutcome.fromJson(Map<String, dynamic> json) =>
+      ManualShipmentRecordOutcome(
+        orderItemId: (json['orderItemId'] as num?)?.toInt() ?? 0,
+        procSeq: json['procSeq']?.toString() ?? '',
+        oldInvoiceNumber: json['oldInvoiceNumber']?.toString(),
+        succeeded: json['succeeded'] as bool? ?? false,
+        message: json['message']?.toString(),
+      );
+
+  @override
   List<Object?> get props =>
-      [orderId, shipmentBoxId, mode, sentLines, succeeded, failed, resultStatus];
+      [orderItemId, procSeq, oldInvoiceNumber, succeeded, message];
 }

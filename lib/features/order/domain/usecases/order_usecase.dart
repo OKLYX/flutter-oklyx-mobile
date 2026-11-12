@@ -5,6 +5,9 @@ import '../../data/models/elevenst_cancel_request.dart';
 import '../../data/models/elevenst_choices.dart';
 import '../../data/models/elevenst_delivery_line.dart';
 import '../../data/models/internal_stage_result.dart';
+import '../../data/models/lotteon_cancel_request.dart';
+import '../../data/models/lotteon_choices.dart';
+import '../../data/models/lotteon_invoice_records.dart';
 import '../../data/models/order_acknowledge_result.dart';
 import '../../data/models/order_cancel_result.dart';
 import '../../data/models/order_refresh_result.dart';
@@ -190,6 +193,41 @@ class OrderUseCase {
   /// [입고완료 처리] (D67) — cannot be undone.
   Future<Either<Failure, Unit>> confirmElevenstStock(int orderItemId) =>
       repository.confirmElevenstStock(orderItemId);
+
+  /// LotteON reason lists of the order detail (FEATURE_2611_23 / D58).
+  Future<Either<Failure, LotteonChoices>> getLotteonChoices() =>
+      repository.getLotteonChoices();
+
+  /// Open LotteON cancel requests of one order line (D24).
+  Future<Either<Failure, List<LotteonCancelRequest>>> getLotteonCancelRequests(
+          int orderItemId) =>
+      repository.getLotteonCancelRequests(orderItemId);
+
+  /// [취소 승인] (D24) — cannot be undone.
+  Future<Either<Failure, Unit>> approveLotteonCancel(int requestId) =>
+      repository.approveLotteonCancel(requestId);
+
+  /// [취소 거부] (D24).
+  Future<Either<Failure, Unit>> rejectLotteonCancel(int requestId,
+          {required String reasonCode, required String reasonText}) =>
+      repository.rejectLotteonCancel(requestId,
+          reasonCode: reasonCode, reasonText: reasonText);
+
+  /// [발송 약정일 안내] (D26).
+  Future<Either<Failure, Unit>> sendLotteonDeliveryAppointment(
+          int orderItemId, Map<String, dynamic> body) =>
+      repository.sendLotteonDeliveryAppointment(orderItemId, body);
+
+  /// [주문 취소] of a LotteON line (D25) — cannot be undone.
+  Future<Either<Failure, OrderCancelResult>> cancelLotteonLine(int orderItemId,
+          int quantity, String reasonCode, String reasonText) =>
+      repository.cancelLotteonLine(
+          orderItemId, quantity, reasonCode, reasonText);
+
+  /// LotteON shipping records of the delivery of one line (D19 ⑥-5).
+  Future<Either<Failure, List<LotteonInvoiceRecords>>> getLotteonInvoiceRecords(
+          int orderItemId) =>
+      repository.getLotteonInvoiceRecords(orderItemId);
 
   /// Shared order detail by the tapped order line (FEATURE_2611_07 / D30).
   Future<Either<Failure, OrderDetail>> getOrderDetail(int orderLineId) =>

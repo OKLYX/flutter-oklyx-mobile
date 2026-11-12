@@ -52,8 +52,9 @@ import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 ///   [OrderStatusFilterBar]).
 ///
 /// - There are two decisions (no copied literal conditions) — whether to draw
-///   the checkbox is [_isSelectable] (a Coupang or 11st order, whatever its
-///   status — FEATURE_2610_17 / D28), and whether to confirm is
+///   the checkbox is [_isSelectable] (a Coupang, 11st or LotteON order,
+///   whatever its status — FEATURE_2610_17 / D28 · FEATURE_2611_23 / D17),
+///   and whether to confirm is
 ///   [_isAcknowledgeTarget] (paid only). Do not merge them: merged, a stuck
 ///   preparing order cannot be selected and [주문 상태 갱신] stays disabled
 ///   forever.
@@ -100,41 +101,49 @@ class ShipmentManagementPage extends StatelessWidget {
 
 /// Order-confirmation target (PLAN 2609_17 D2·D10 · FEATURE_2610_17 / D20).
 ///
-/// Paid ([OrderStatus.paid]) · Coupang or 11st · has a box id (11st: the
-/// delivery number) · not an 11st reserved sale still waiting for
+/// Paid ([OrderStatus.paid]) · Coupang, 11st or LotteON (FEATURE_2611_23 /
+/// D17) · has a box id (11st: the delivery number) · not an 11st reserved
+/// sale still waiting for
 /// [입고완료 처리] (FEATURE_2610_17 / D67) — all four. It is a **whitelist**,
 /// the opposite of the shipment blacklist (2609_07 D1), because confirmation
 /// cannot be undone: "unknown status → do not send" is right (for shipment,
 /// not sending means a missed shipment, hence the opposite).
 bool _isAcknowledgeTarget(OrderItem order) =>
     order.status == OrderStatus.paid &&
-    (order.platform == 'COUPANG' || order.platform == 'ELEVENST') &&
+    (order.platform == 'COUPANG' ||
+        order.platform == 'ELEVENST' ||
+        order.platform == 'LOTTEON') &&
     (order.externalBoxId?.isNotEmpty ?? false) &&
     !order.reservedSale;
 
-/// Whether to draw the checkbox = **a Coupang or 11st order, whatever its
-/// status** (FEATURE_2610_17 / D28 — same rule as web `ShipmentContainer`).
+/// Whether to draw the checkbox = **a Coupang, 11st or LotteON order,
+/// whatever its status** (FEATURE_2610_17 / D28 · FEATURE_2611_23 / D17 —
+/// same rule as web `ShipmentContainer`).
 ///
 /// 🔴 Do not use the confirmation whitelist ([_isAcknowledgeTarget]) for the
 /// checkbox — then an order stuck in preparing has no checkbox and
 /// [주문 상태 갱신] stays disabled forever. Unsticking those is why 2609_50
 /// exists, so the decision is split per action. [주문 상태 갱신] stays
-/// Coupang only (D12) and the internal stage covers Coupang · 11st
-/// (FEATURE_2611_23 / D51) — their id lists narrow the selection again in
+/// Coupang only (D12) and the internal stage covers Coupang · 11st · LotteON
+/// (FEATURE_2611_23 / D51 · R50) — their id lists narrow the selection again in
 /// `_LoadedBody`.
 ///
 /// Confirmation is the narrow one (an irreversible write) — only the targets
 /// are picked out of the wider selection (`_LoadedBody`'s `ackTargetIds`), so
 /// no non-target gets into the request.
 bool _isSelectable(OrderItem order) =>
-    order.platform == 'COUPANG' || order.platform == 'ELEVENST';
+    order.platform == 'COUPANG' ||
+        order.platform == 'ELEVENST' ||
+        order.platform == 'LOTTEON';
 
-/// Internal-acknowledge target = a Coupang or 11st (not visit pickup,
-/// FEATURE_2611_23 / D53) confirmation target without an internal stage yet
+/// Internal-acknowledge target = a Coupang, LotteON or 11st (not visit
+/// pickup, FEATURE_2611_23 / D53 · R50) confirmation target without an
+/// internal stage yet
 /// (FEATURE_2609_75 / D1 · FEATURE_2610_17 / D12). The server judges again.
 bool _isInternalTarget(OrderItem order) =>
     _isAcknowledgeTarget(order) &&
     (order.platform == 'COUPANG' ||
+        order.platform == 'LOTTEON' ||
         (order.platform == 'ELEVENST' && !order.visitPickup)) &&
     order.internalStage == null;
 
@@ -142,10 +151,12 @@ bool _isInternalTarget(OrderItem order) =>
 bool _isRefreshTarget(OrderItem order) => order.platform == 'COUPANG';
 
 /// What [발주처리] covers, per marketplace — key order = line order (Coupang →
-/// 11st). Same text as web `AcknowledgeBar` (FEATURE_2610_17 / D56).
+/// 11st → LotteON). Same text as web `AcknowledgeBar` (FEATURE_2610_17 / D56 ·
+/// FEATURE_2611_23 / D17).
 const Map<String, String> _ackNoticeByPlatform = {
   'COUPANG': '쿠팡: 선택한 옵션이 속한 배송건(박스) 전체가 함께 발주처리됩니다.',
   'ELEVENST': '11번가: 선택한 상품(같은 배송건의 같은 상품 옵션 포함)만 발주확인됩니다.',
+  'LOTTEON': '롯데ON: 선택한 상품만 발주확인됩니다.',
 };
 
 /// 내부 발주 해제 대상 = 「내부 상품준비중」만(D18 행1). 발송대기중은 먼저 [예약 취소] 한다.
@@ -660,8 +671,8 @@ class _LoadedBody extends StatelessWidget {
         .where((o) => selectedIds.contains(o.id) && _isAcknowledgeTarget(o))
         .map((o) => o.id)
         .toList();
-    // Marketplaces among the confirmation targets, Coupang → 11st
-    // (FEATURE_2610_17 / D56).
+    // Marketplaces among the confirmation targets, Coupang → 11st → LotteON
+    // (FEATURE_2610_17 / D56 · FEATURE_2611_23 / D17).
     final ackPlatforms = _ackNoticeByPlatform.keys
         .where((platform) => scoped.any((o) =>
             selectedIds.contains(o.id) &&
@@ -898,8 +909,8 @@ class _LoadedBody extends StatelessWidget {
                         ),
                         const SizedBox(width: 6),
                         // Shipment (label upload): carrier result xlsx → the
-                        // marketplace invoice upload batch (Coupang · 11st,
-                        // FEATURE_2610_17 / D2).
+                        // marketplace invoice upload batch (Coupang · 11st ·
+                        // LotteON, FEATURE_2610_17 / D2).
                         Expanded(
                           child: _ShipmentActionTile(
                             icon: Icons.upload_file,

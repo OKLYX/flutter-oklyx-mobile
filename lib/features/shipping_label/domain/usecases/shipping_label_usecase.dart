@@ -49,12 +49,14 @@ class ShippingLabelUseCase {
     required String deliveryCompanyCode,
     required String invoiceNumber,
     Map<String, dynamic>? elevenst,
+    List<Map<String, dynamic>>? lotteonRecords,
   }) =>
       repository.confirmManualShipment(
         orderItemId: orderItemId,
         deliveryCompanyCode: deliveryCompanyCode,
         invoiceNumber: invoiceNumber,
         elevenst: elevenst,
+        lotteonRecords: lotteonRecords,
       );
 
   /// 「내부 상품준비중」 접수시트(FEATURE_2609_75 / D26).

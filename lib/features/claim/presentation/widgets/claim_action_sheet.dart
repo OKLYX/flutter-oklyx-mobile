@@ -12,6 +12,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import '../../domain/entities/claim.dart';
 import '../../domain/usecases/claim_usecase.dart';
 import 'claim_reason_sheet.dart';
+import 'claim_reason_text_sheet.dart';
 import 'claim_reject_sheet.dart';
 
 /// Action area of the claim detail (FEATURE_2609_21 / 04).
@@ -34,6 +35,9 @@ import 'claim_reject_sheet.dart';
 /// actions arrive, and the web (03) would show other buttons for the same
 /// claim. Coupang and 11st claims go through the same rule
 /// (FEATURE_2610_17 / D15).
+/// Exception (FEATURE_2611_23 / R56): the irreversible confirm wording reads
+/// `claimType` — an exchange gets the D47 text; LotteON claims follow the
+/// same rule.
 ///
 /// ⚠️ **No BLoC** (D9 / 04 Step 5). The list `ClaimListBloc` is made by the
 /// list screen's `BlocProvider(create:)` and cannot be reached from the detail
@@ -268,6 +272,10 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
       await _openReasonSheet(action);
       return;
     }
+    if (action.requires == ClaimActionRequires.reasonText) {
+      await _openReasonTextSheet(action);
+      return;
+    }
     if (action.irreversible && !await _confirm(action)) return;
     await _execute(ClaimActionRequest(action: action.action));
   }
@@ -314,6 +322,27 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
     );
   }
 
+  /// Text-only sheet (`REASON_TEXT`, FEATURE_2611_23 / D78 · R56) — no
+  /// confirm, nothing to pick; sends `reasonText` only.
+  Future<void> _openReasonTextSheet(ClaimAction action) async {
+    String? text;
+    await showAppSheet<void>(
+      context,
+      builder: (ctx) => ClaimReasonTextSheet(
+        claim: widget.claim,
+        action: action,
+        onSubmit: (value) => text = value,
+      ),
+    );
+    final chosen = text;
+    if (chosen == null || !mounted) {
+      return;
+    }
+    await _execute(
+      ClaimActionRequest(action: action.action, reasonText: chosen),
+    );
+  }
+
   /// 2단 확인 (D10). 문구에 **무엇을 확정하는지 실명으로** 박는다 —
   /// "정말 하시겠습니까?" 만으로는 아무것도 막지 못한다.
   Future<bool> _confirm(ClaimAction action) async {
@@ -332,8 +361,11 @@ class _ClaimActionSheetState extends State<ClaimActionSheet> {
         // 03 wording table; the exchange reject (07) wording goes through
         // `ClaimRejectSheet` into the same function. INVOICE = the 11st
         // exchange approve with the re-shipping invoice (FEATURE_2610_17 / D24).
+        // Any other exchange = the D47 wording (FEATURE_2611_23 / R56).
         action.requires == ClaimActionRequires.invoice
             ? '이 교환을 승인하면 재발송 송장이 등록되며 되돌릴 수 없습니다.'
+            : widget.claim.claimType == ClaimType.exchange
+            ? '이 교환의 회수 물건을 확정합니다. 롯데ON 에서 교환이 다음 단계로 넘어가며 되돌릴 수 없습니다.'
             : '이 반품을 승인하면 환불이 확정되며 되돌릴 수 없습니다.',
       ],
       confirmLabel: action.label.isEmpty ? action.action : action.label,

@@ -123,6 +123,8 @@ import 'package:flutter_oklyn_mobile/features/order/data/repositories/order_repo
 import 'package:flutter_oklyn_mobile/features/order/domain/repositories/order_repository.dart';
 import 'package:flutter_oklyn_mobile/features/order/domain/usecases/order_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/elevenst_order_action_bloc.dart';
+import '../../features/order/presentation/bloc/lotteon_order_action_bloc.dart';
+import '../../features/order/presentation/bloc/lotteon_invoice_edit_cubit.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_acknowledge_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_cancel_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/order/presentation/bloc/order_detail_cubit.dart';
@@ -963,6 +965,17 @@ void _registerOrderServices() {
   // a new instance per order detail, so one order's list never shows on the next.
   getIt.registerFactory<ElevenstOrderActionBloc>(
     () => ElevenstOrderActionBloc(useCase: getIt<OrderUseCase>()),
+  );
+  // FEATURE_2611_23 — the LotteON order-detail writes and the 「송장 수정」
+  // sheet: a new instance per order detail / per sheet (R57).
+  getIt.registerFactory<LotteonOrderActionBloc>(
+    () => LotteonOrderActionBloc(useCase: getIt<OrderUseCase>()),
+  );
+  getIt.registerFactory<LotteonInvoiceEditCubit>(
+    () => LotteonInvoiceEditCubit(
+      orderUseCase: getIt<OrderUseCase>(),
+      shippingLabelUseCase: getIt<ShippingLabelUseCase>(),
+    ),
   );
 
   // BLoC (내부 발주처리·해제, FEATURE_2609_75) as factory — 화면·주문마다 새 인스턴스.
