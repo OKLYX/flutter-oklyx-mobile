@@ -116,6 +116,15 @@ class _StockDailyViewState extends State<_StockDailyView> {
         .add(LoadStockDaily(DateFormat('yyyy-MM-dd').format(picked)));
   }
 
+  // Move the shown day by [delta] calendar days (< / > buttons beside the date).
+  void _shiftDay(int delta) {
+    final current = DateTime.parse(_day);
+    final next = DateTime(current.year, current.month, current.day + delta);
+    context
+        .read<StockDailyBloc>()
+        .add(LoadStockDaily(DateFormat('yyyy-MM-dd').format(next)));
+  }
+
   Future<void> _openAssign(
     List<UnregisteredProduct> products, {
     required bool withoutReceipt,
@@ -337,10 +346,24 @@ class _StockDailyViewState extends State<_StockDailyView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      OutlinedButton.icon(
-                        onPressed: _pickDate,
-                        icon: const Icon(Icons.calendar_today, size: 16),
-                        label: Text(_day),
+                      Row(
+                        children: [
+                          IconButton(
+                            tooltip: '이전 날짜',
+                            onPressed: () => _shiftDay(-1),
+                            icon: const Icon(Icons.chevron_left),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: _pickDate,
+                            icon: const Icon(Icons.calendar_today, size: 16),
+                            label: Text(_day),
+                          ),
+                          IconButton(
+                            tooltip: '다음 날짜',
+                            onPressed: () => _shiftDay(1),
+                            icon: const Icon(Icons.chevron_right),
+                          ),
+                        ],
                       ),
                       if (daily.unregisteredProductCount > 0) ...[
                         const SizedBox(height: 8),
