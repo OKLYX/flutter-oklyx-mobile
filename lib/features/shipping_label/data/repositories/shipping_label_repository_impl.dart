@@ -127,6 +127,7 @@ class ShippingLabelRepositoryImpl implements ShippingLabelRepository {
     required String deliveryCompanyCode,
     required String invoiceNumber,
     Map<String, dynamic>? elevenst,
+    List<Map<String, dynamic>>? lotteonRecords,
   }) async {
     try {
       final result = await remoteDataSource.confirmManualShipment(
@@ -134,6 +135,7 @@ class ShippingLabelRepositoryImpl implements ShippingLabelRepository {
         deliveryCompanyCode: deliveryCompanyCode,
         invoiceNumber: invoiceNumber,
         elevenst: elevenst,
+        lotteonRecords: lotteonRecords,
       );
       return Right(result);
     } on DioException catch (e) {
