@@ -15,6 +15,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_search_field.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_filter_chip.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/name_text.dart';
 
 /// Master product list (FEATURE_2609_80 / 04 — web `master-products/components/MasterProductList.tsx`
 /// + `MasterProductSearchCard.tsx` + `masterListQuery.ts` @09208a0).
@@ -265,8 +266,9 @@ class _MasterProductListPageState extends State<MasterProductListPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        m.name,
+                      NameText(
+                        name: m.name,
+                        kind: NameKind.product,
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 4),

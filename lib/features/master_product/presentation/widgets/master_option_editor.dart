@@ -21,6 +21,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/quantity_stepper.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/info_bubble_icon.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/name_text.dart';
 
 String _formatWon(num v) => '${koNumber(v)}원';
 
@@ -336,6 +337,8 @@ class MasterOptionEditor extends StatefulWidget {
   final ValueChanged<bool>? onFormOpenChange;
   final FocusOptionSignal? focusOption;
   final bool marketLocked;
+  /// False on the master detail: the full product name (D32).
+  final bool truncateNames;
 
   const MasterOptionEditor({
     required this.carrierRates,
@@ -357,6 +360,7 @@ class MasterOptionEditor extends StatefulWidget {
     this.onFormOpenChange,
     this.focusOption,
     this.marketLocked = false,
+    this.truncateNames = true,
   });
 
   @override
@@ -1079,11 +1083,14 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
                         color: scheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: Text(
-                        '${_itemName(it.productId, it.productName)} '
-                        '${it.quantity}',
+                      child: NameText(
+                        name: '${_itemName(it.productId, it.productName)} '
+                            '${it.quantity}',
+                        kind: NameKind.product,
+                        expandable: true,
                         style: TextStyle(
                             fontSize: 12, color: scheme.onSurfaceVariant),
+                        noTruncate: !widget.truncateNames,
                       ),
                     )
                 else
@@ -1385,10 +1392,13 @@ class _MasterOptionEditorState extends State<MasterOptionEditor> {
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    _components[i].productName,
+                  child: NameText(
+                    name: _components[i].productName,
+                    kind: NameKind.product,
+                    expandable: true,
                     style:
                         TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
+                    noTruncate: !widget.truncateNames,
                   ),
                 ),
                 const SizedBox(width: 8),

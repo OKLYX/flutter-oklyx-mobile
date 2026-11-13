@@ -42,6 +42,7 @@ import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/name_text.dart';
 
 /// Web local `formatWon`.
 String _formatWon(num? v) => v == null ? '—' : '${koNumber(v)}원';
@@ -1453,8 +1454,9 @@ class _MasterCreateFormState extends State<MasterCreateForm> {
                     children: [
                       InkWell(
                         onTap: () => _openProductDetail(p),
-                        child: Text(
-                          p.productName,
+                        child: NameText(
+                          name: p.productName,
+                          kind: NameKind.product,
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,

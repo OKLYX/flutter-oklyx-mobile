@@ -4,6 +4,7 @@ import '../../domain/entities/outbound_order.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/product_thumbnail.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/name_text.dart';
 
 /// 출고 확인 카드 — 주문 라인 1건 + 소진할 물품 줄.
 ///
@@ -82,11 +83,11 @@ class _OutboundOrderCardState extends State<OutboundOrderCard> {
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 2),
-            Text(
-              '${order.itemName} · ${order.orderQty}개',
+            NameText(
+              name: '${order.itemName} · ${order.orderQty}개',
+              kind: NameKind.product,
+              expandable: true,
               style: const TextStyle(fontSize: 12),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
             ),
             if (order.sellerName.isNotEmpty)
               Padding(
@@ -121,11 +122,11 @@ class _OutboundOrderCardState extends State<OutboundOrderCard> {
               ProductThumbnail(productId: line.productId, size: 40),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  line.productName,
+                child: NameText(
+                  name: line.productName,
+                  kind: NameKind.product,
+                  expandable: true,
                   style: const TextStyle(fontSize: 13),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               Text(

@@ -4,6 +4,7 @@ import '../../domain/entities/purchase_list_item.dart';
 import 'product_thumbnail.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/name_text.dart';
 
 /// Purchase list product card.
 ///
@@ -18,6 +19,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 ///   (`PurchaseProductDetailPage`). In the seller view the list passes the
 ///   share buttons as [footer] (D83).
 /// - Detail header: the same card without [onTap] as a summary (no `›`).
+///   It passes [truncateNames] false — the full name, no truncation.
 /// Intake · recent purchases · channel chips + lines live **on the detail only**.
 /// ❌ Do not copy the card for the completed tab — both tabs use the same card
 /// and the same detail (D21).
@@ -30,10 +32,14 @@ class PurchaseProductCard extends StatelessWidget {
   /// Drawn under the card's row — the share tag and buttons in the seller view.
   final Widget? footer;
 
+  /// False on the detail page: the full product name (D32).
+  final bool truncateNames;
+
   const PurchaseProductCard({
     required this.item,
     this.onTap,
     this.footer,
+    this.truncateNames = true,
     super.key,
   });
 
@@ -79,12 +85,14 @@ class PurchaseProductCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    item.productName,
+                  NameText(
+                    name: item.productName,
+                    kind: NameKind.product,
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
+                    noTruncate: !truncateNames,
                   ),
                   const SizedBox(height: 6),
                   // One metric per line: full-word labels read

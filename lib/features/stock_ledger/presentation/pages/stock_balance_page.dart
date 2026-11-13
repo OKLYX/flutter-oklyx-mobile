@@ -367,7 +367,10 @@ class _HistorySheet extends StatelessWidget {
                     child: ListView(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       children: loaded.movements
-                          .map((m) => MovementTile(movement: m))
+                          .map((m) => MovementTile(
+                                movement: m,
+                                truncateNames: false,
+                              ))
                           .toList(),
                     ),
                   ),

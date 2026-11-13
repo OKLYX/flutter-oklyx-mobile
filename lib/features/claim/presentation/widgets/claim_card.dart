@@ -7,6 +7,7 @@ import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 import '../../domain/entities/claim.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/name_text.dart';
 
 /// Card for one claim (one row of the return / exchange list).
 ///
@@ -113,10 +114,9 @@ class ClaimCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 6),
-              Text(
-                claim.itemName ?? '-',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              NameText(
+                name: claim.itemName,
+                kind: NameKind.product,
                 style: const TextStyle(fontSize: 13),
               ),
               const SizedBox(height: 6),

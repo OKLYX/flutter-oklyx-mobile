@@ -18,6 +18,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/name_text.dart';
 
 // Status enum → screen text. ⚠️ Never show the raw enum.
 const Map<String, String> _statusLabel = {
@@ -541,8 +542,10 @@ class _MarketProductAddPageState extends State<MarketProductAddPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Text(
-                  o.itemName,
+                child: NameText(
+                  name: o.itemName,
+                  kind: NameKind.product,
+                  expandable: true,
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
