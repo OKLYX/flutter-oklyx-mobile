@@ -468,6 +468,9 @@ class _ListingRowState extends State<ListingRow> {
                       onShippingSaved: (updated) =>
                           widget.onShippingSaved(listingId, updated),
                       usesOwnCategory: categoryMismatch,
+                      usesMarketAttributes: cell.usesMarketAttributes == true,
+                      usesMarketTags: cell.usesMarketTags == true,
+                      usesMarketShipping: cell.usesMarketShipping == true,
                       channelCategoryLabel: categoryLabel,
                       masterCategoryName: widget.masterCategoryName,
                       // ⚠️ Own cell only — all cells would multiply the

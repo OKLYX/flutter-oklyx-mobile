@@ -276,6 +276,11 @@ class MatrixCell {
   /// market (`SINGLE` · `AB`); null = not known yet.
   final String? marketBundleType;
 
+  /// FEATURE_2611_27 / D20 — true = this group uses the market values.
+  final bool? usesMarketAttributes;
+  final bool? usesMarketTags;
+  final bool? usesMarketShipping;
+
   const MatrixCell({
     required this.productListingId,
     required this.name,
@@ -290,6 +295,9 @@ class MatrixCell {
     this.usesOwnCategory,
     this.needsMarketSync,
     this.marketBundleType,
+    this.usesMarketAttributes,
+    this.usesMarketTags,
+    this.usesMarketShipping,
   });
 }
 

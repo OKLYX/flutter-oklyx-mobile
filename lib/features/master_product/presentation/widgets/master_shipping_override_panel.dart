@@ -31,11 +31,16 @@ class ForceApplyChannel {
   /// excluded from the "이 저장이 닿지 않는 채널" hint so it never over-reports.
   final bool overrideLoaded;
 
+  /// FEATURE_2611_27 / D37 — true = this channel's shipping uses the market
+  /// values: listed apart, starts unchecked.
+  final bool usesMarketShipping;
+
   const ForceApplyChannel({
     required this.listingId,
     required this.label,
     this.override,
     this.overrideLoaded = false,
+    this.usesMarketShipping = false,
   });
 }
 
@@ -105,8 +110,14 @@ class _MasterShippingOverridePanelState
   String _applyBanner = '';
   // Channels picked in the sheet (seeded each time it opens).
   Set<int> _selectedIds = {};
-  // Channels that hold their own settings and did NOT receive the last save.
+  // Own-settings channels (not using the market values) the last save
+  // did NOT reach (D38).
   List<int> _staleIds = [];
+  // FEATURE_2611_27 / D38 — channels using the market shipping values, not
+  // reached by the last save.
+  int _marketStaleCount = 0;
+  // FEATURE_2611_27 / D38 — channels the last save reached.
+  int _reflectedCount = 0;
 
   bool get _busy => _isSaving || _isApplying;
 
@@ -119,6 +130,26 @@ class _MasterShippingOverridePanelState
 
   // Empty master override = force-apply ERASES the channels' own settings.
   bool get _masterIsEmpty => masterShippingMapOf(_override, _elevenst).isEmpty;
+
+  // First line after a save (FEATURE_2611_27 / D38).
+  String get _savedLine {
+    if (widget.channels.isEmpty) {
+      return '배송 설정을 저장했습니다.';
+    }
+    return _reflectedCount > 0
+        ? '배송 설정을 저장했습니다. $_reflectedCount개 채널에 반영되었습니다.'
+        : '배송 설정을 저장했습니다. 반영된 채널이 없습니다.';
+  }
+
+  // Second line after a save — the channels the save did not reach (D38).
+  String get _staleLine {
+    final reasons = [
+      if (_staleIds.isNotEmpty) '따로 정한 값 ${_staleIds.length}개',
+      if (_marketStaleCount > 0) '마켓 값 사용 $_marketStaleCount개',
+    ];
+    return '${_staleIds.length + _marketStaleCount}개 채널은 반영되지 않았습니다 — '
+        '${reasons.join(' · ')}';
+  }
 
   @override
   void initState() {
@@ -210,14 +241,24 @@ class _MasterShippingOverridePanelState
     final savedMap = masterShippingMapOf(_override, _elevenst);
     setState(() {
       _saved = true;
-      _staleIds = widget.channels
+      // Channels whose override was not read are counted on neither side.
+      final counted = widget.channels.where((c) => c.overrideLoaded);
+      _staleIds = counted
           .where(
             (c) =>
-                c.overrideLoaded &&
+                !c.usesMarketShipping &&
                 channelDivergesFromMaster(c.override, savedMap),
           )
           .map((c) => c.listingId)
           .toList();
+      _marketStaleCount = counted.where((c) => c.usesMarketShipping).length;
+      _reflectedCount = counted
+          .where(
+            (c) =>
+                !c.usesMarketShipping &&
+                !channelDivergesFromMaster(c.override, savedMap),
+          )
+          .length;
       _isSaving = false;
     });
     // Transient confirmation — auto-dismiss.
@@ -231,13 +272,20 @@ class _MasterShippingOverridePanelState
   }
 
   Future<void> _openPicker({List<int>? preselect}) async {
-    // Default to every channel; opened from the hint = only those channels.
+    // Default to every channel not using the market values; from the hint,
+    // only the 「따로 정한 값」 ones. Market-value channels never start checked
+    // (FEATURE_2611_27 / D37).
     setState(() {
       _applyBanner = '';
       _error = '';
     });
+    final marketIds = {
+      for (final c in widget.channels)
+        if (c.usesMarketShipping) c.listingId,
+    };
     final picked = <int>{
-      ...preselect ?? widget.channels.map((c) => c.listingId),
+      ...(preselect ?? widget.channels.map((c) => c.listingId))
+          .where((id) => !marketIds.contains(id)),
     };
     final confirmed = await showAppSheet<bool>(
       context,
@@ -314,6 +362,7 @@ class _MasterShippingOverridePanelState
         recalcFailed,
       );
       _staleIds = [];
+      _marketStaleCount = 0;
       _isApplying = false;
     });
     widget.onSaved();
@@ -390,7 +439,7 @@ class _MasterShippingOverridePanelState
         if (_saved && _error.isEmpty) ...[
           const SizedBox(height: 16),
           Text(
-            withRecalcNote('배송 설정을 저장했습니다.', _recalcFailed),
+            withRecalcNote(_savedLine, _recalcFailed),
             style: green,
           ),
         ],
@@ -398,7 +447,7 @@ class _MasterShippingOverridePanelState
           const SizedBox(height: 16),
           Text(_applyBanner, style: green),
         ],
-        if (_staleIds.isNotEmpty) ...[
+        if (_staleIds.isNotEmpty || _marketStaleCount > 0) ...[
           const SizedBox(height: 16),
           Container(
             width: double.infinity,
@@ -412,7 +461,7 @@ class _MasterShippingOverridePanelState
               children: [
                 Expanded(
                   child: Text(
-                    '${_staleIds.length}개 채널이 개별 배송 설정을 갖고 있어 이 변경이 반영되지 않습니다.',
+                    _staleLine,
                     style: const TextStyle(
                       fontSize: 14,
                       color: AppColors.infoForeground,
@@ -506,8 +555,20 @@ class _ForceApplySheetState extends State<_ForceApplySheet> {
   Set<int> _selected = {};
   String _pickerError = '';
 
+  List<ForceApplyChannel> get _ownChannels =>
+      widget.channels.where((c) => !c.usesMarketShipping).toList();
+
+  List<ForceApplyChannel> get _marketChannels =>
+      widget.channels.where((c) => c.usesMarketShipping).toList();
+
+  int get _ownSelectedCount =>
+      _ownChannels.where((c) => _selected.contains(c.listingId)).length;
+
+  int get _marketSelectedCount =>
+      _marketChannels.where((c) => _selected.contains(c.listingId)).length;
+
   bool get _allSelected =>
-      widget.channels.isNotEmpty && _selected.length == widget.channels.length;
+      _ownChannels.isNotEmpty && _ownSelectedCount == _ownChannels.length;
 
   @override
   void initState() {
@@ -528,9 +589,11 @@ class _ForceApplySheetState extends State<_ForceApplySheet> {
 
   void _toggleAll() {
     setState(() {
+      // Market-value channels keep their check state (D37).
+      final ownIds = _ownChannels.map((c) => c.listingId).toSet();
       _selected = _allSelected
-          ? <int>{}
-          : widget.channels.map((c) => c.listingId).toSet();
+          ? _selected.difference(ownIds)
+          : {..._selected, ...ownIds};
       _pickerError = '';
     });
   }
@@ -600,28 +663,40 @@ class _ForceApplySheetState extends State<_ForceApplySheet> {
                         foreground: AppColors.infoForeground,
                       ),
                     ],
-                    const SizedBox(height: 12),
-                    CheckboxListTile(
-                      value: _allSelected,
-                      onChanged: (_) => _toggleAll(),
-                      title: Text(
-                        '전체 선택 (${_selected.length}/${widget.channels.length})',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
+                    if (_marketSelectedCount > 0) ...[
+                      const SizedBox(height: 12),
+                      _Notice(
+                        text:
+                            '마켓 값을 쓰던 $_marketSelectedCount개 채널도 이 마스터 설정으로 '
+                            '덮어쓰고, 마켓 값 사용을 끕니다.',
+                        background: AppColors.warningSurface,
+                        foreground: AppColors.warningForeground,
                       ),
-                      controlAffinity: ListTileControlAffinity.leading,
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    const Divider(height: 1),
+                    ],
+                    const SizedBox(height: 12),
+                    if (_ownChannels.isNotEmpty) ...[
+                      CheckboxListTile(
+                        value: _allSelected,
+                        onChanged: (_) => _toggleAll(),
+                        title: Text(
+                          '전체 선택 ($_ownSelectedCount/${_ownChannels.length})',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      const Divider(height: 1),
+                    ],
                     ConstrainedBox(
                       constraints: const BoxConstraints(maxHeight: 256),
                       child: ListView(
                         shrinkWrap: true,
                         children: [
-                          for (final c in widget.channels)
+                          for (final c in _ownChannels)
                             CheckboxListTile(
                               value: _selected.contains(c.listingId),
                               onChanged: (_) => _toggleChannel(c.listingId),
@@ -633,6 +708,31 @@ class _ForceApplySheetState extends State<_ForceApplySheet> {
                               dense: true,
                               contentPadding: EdgeInsets.zero,
                             ),
+                          if (_marketChannels.isNotEmpty) ...[
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8, bottom: 4),
+                              child: Text(
+                                '마켓 값 사용 중 — 직접 체크하면 마스터 설정으로 덮어씁니다',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                            for (final c in _marketChannels)
+                              CheckboxListTile(
+                                value: _selected.contains(c.listingId),
+                                onChanged: (_) => _toggleChannel(c.listingId),
+                                title: Text(
+                                  '${c.label} · 마켓 값 사용 중',
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                                controlAffinity:
+                                    ListTileControlAffinity.leading,
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                          ],
                         ],
                       ),
                     ),
