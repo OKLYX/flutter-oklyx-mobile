@@ -716,8 +716,10 @@ const Map<OrderStatus, (String, String)> _kNextStepByStatus = {
 const _kTabLockCanceled = '취소된 주문';
 const _kTabLockShippedCancel = '발송 후에는 취소할 수 없습니다(반품으로 처리)';
 
-/// 이 화면에서 방금 낸 취소가 **전량취소**였는지 — 정보 카드 상태 행과 발주/발송 섹션 숨김이
-/// 같은 판정을 쓰도록 한 곳에 둔다. 서버가 전량취소 라인에만 `CANCELLED` 를 내려준다(D14).
+/// Whether the cancel just sent from this screen was a **full cancel** — kept
+/// in one place so the header status (`_LiveOrderStatus`) and the hiding of
+/// the ack/shipment sections use the same check.
+/// 서버가 전량취소 라인에만 `CANCELLED` 를 내려준다(D14).
 ///
 /// ⚠️ 목록의 `order.cancelled`(서버 판정, D26)와 근거가 다르다 — 이쪽은 **방금 낸 취소 결과**
 /// 기준의 낙관적 갱신이라 아직 재조회하지 않은 시점을 메운다. 둘을 합치지 말 것.
@@ -2344,7 +2346,7 @@ class _CancelSectionState extends State<_CancelSection> {
 
         final result = state.result;
         final succeeded = result != null && result.cancelled.isNotEmpty;
-        // 취소 후 남은 수량은 서버가 라인별로 내려준다(D14). 정보 카드에는 넣지 않는다.
+        // The server returns the remaining qty per line after cancel (D14).
         final remainingQty = succeeded
             ? result.cancelled.first.resultPurchasableQty
             : order.purchasableQty;
