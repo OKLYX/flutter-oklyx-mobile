@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/entities/unmapped_order.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/name_text.dart';
 
 /// 미매핑주문 섹션 (프론트 UnmappedOrdersSection와 동일).
 ///
@@ -59,8 +60,11 @@ class UnmappedOrdersSection extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          o.itemName.isEmpty ? '(이름 없음)' : o.itemName,
+                        NameText(
+                          name: o.itemName,
+                          kind: NameKind.product,
+                          emptyText: '(이름 없음)',
+                          expandable: true,
                           style: const TextStyle(
                               fontSize: 13, fontWeight: FontWeight.w500),
                         ),

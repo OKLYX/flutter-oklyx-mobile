@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_oklyn_mobile/features/sales/domain/entities/sales.dart';
 import 'package:flutter_oklyn_mobile/features/sales/presentation/utils/sales_format.dart';
 import 'package:flutter_oklyn_mobile/features/settlement/presentation/utils/settlement_format.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/name_text.dart';
 
 /// Products sold in the chosen channel (FEATURE_2610_20 / D26) — the web
 /// `ChannelSalesLines`. An unlinked order shows 「(상품 미연결)」 and is never hidden.
@@ -37,19 +38,23 @@ class ChannelProductList extends StatelessWidget {
       children: [
         for (var i = 0; i < rows.length; i++) ...[
           if (i > 0) const Divider(height: 12),
-          Text.rich(
-            TextSpan(
-              text: rows[i].masterProductName,
-              children: [
-                if (rows[i].uncategorized)
-                  TextSpan(
-                      text: ' (상품 미연결)',
-                      style: TextStyle(color: scheme.outline)),
-              ],
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Flexible(
+                child: NameText(
+                  name: rows[i].masterProductName,
+                  kind: NameKind.product,
+                  expandable: true,
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+              if (rows[i].uncategorized)
+                Text(
+                  ' (상품 미연결)',
+                  style: TextStyle(fontSize: 13, color: scheme.outline),
+                ),
+            ],
           ),
           Tooltip(
             message: rows[i].costBasisReady ? '순이익(추정)' : kProfitPendingHint,

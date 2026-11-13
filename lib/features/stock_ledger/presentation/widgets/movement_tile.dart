@@ -3,6 +3,7 @@ import '../../domain/entities/stock_enums.dart';
 import '../../domain/entities/stock_movement.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/product_thumbnail.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/name_text.dart';
 
 /// One ledger history line.
 ///
@@ -11,13 +12,20 @@ import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 /// The product photo sits left of the name (`ProductThumbnail` 40, no
 /// zoom — FEATURE_2611_02 D13 · D14 · D21) in both places that use this
 /// tile: the 「재고 조회」 history sheet and the 「입고·조정」 recent history.
+/// The history sheet passes [truncateNames] false — the full name.
 ///
 /// ⚠️ The quantity sign is shown as the server stored it — the screen never
 /// flips it (PLAN 2609_28 D6).
 class MovementTile extends StatelessWidget {
   final StockMovement movement;
+  /// False in the history sheet: the full product name (D32).
+  final bool truncateNames;
 
-  const MovementTile({required this.movement, super.key});
+  const MovementTile({
+    required this.movement,
+    super.key,
+    this.truncateNames = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -50,11 +58,12 @@ class MovementTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  movement.productName,
+                NameText(
+                  name: movement.productName,
+                  kind: NameKind.product,
+                  expandable: true,
                   style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  noTruncate: !truncateNames,
                 ),
                 const SizedBox(height: 2),
                 Text(

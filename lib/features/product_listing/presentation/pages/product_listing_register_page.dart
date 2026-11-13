@@ -13,6 +13,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/name_text.dart';
 
 const List<String> PLATFORMS = kPlatforms;
 
@@ -1220,8 +1221,10 @@ class _OptionProductsView extends StatelessWidget {
             .map(
               (pq) => Padding(
                 padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Text(
-                  '${pq.productName} × ${pq.quantity}개',
+                child: NameText(
+                  name: '${pq.productName} × ${pq.quantity}개',
+                  kind: NameKind.product,
+                  expandable: true,
                   style: TextStyle(
                     fontSize: 13,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,

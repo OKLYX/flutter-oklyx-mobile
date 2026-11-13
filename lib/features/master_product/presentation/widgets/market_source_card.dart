@@ -5,6 +5,7 @@ import 'package:flutter_oklyn_mobile/features/master_product/presentation/logic/
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/name_text.dart';
 
 // Status enum → display text (enum names are never shown to users). Kept
 // local on purpose, same as the web — importing the import sheet's map would
@@ -99,8 +100,10 @@ class MarketSourceCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        preview.options[i].itemName,
+                      NameText(
+                        name: preview.options[i].itemName,
+                        kind: NameKind.product,
+                        expandable: true,
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
