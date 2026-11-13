@@ -20,6 +20,25 @@ String formatOrderDateTime(String? value) {
       '${two(date.hour)}:${two(date.minute)}';
 }
 
+/// Order detail header paid time (FEATURE_2611_29 / R4) — 「MM.DD 오전 h:mm」
+/// (e.g. 「11.12 오후 7:05」), same rules as the web `formatPaidAt`. null /
+/// empty / unparsable = '-'. Read as the KST wall clock like
+/// [formatOrderDateTime] (no UTC reinterpretation).
+String formatPaidShort(String? value) {
+  if (value == null || value.isEmpty) {
+    return '-';
+  }
+  final date = DateTime.tryParse(value);
+  if (date == null) {
+    return '-';
+  }
+  String two(int n) => n.toString().padLeft(2, '0');
+  final ampm = date.hour < 12 ? '오전' : '오후';
+  final hour12 = date.hour % 12 == 0 ? 12 : date.hour % 12;
+  return '${two(date.month)}.${two(date.day)} '
+      '$ampm $hour12:${two(date.minute)}';
+}
+
 /// 서버의 ISO LocalDateTime(오프셋 없는 UTC) → '3분 전' / '2시간 전' / '4일 전'.
 /// null·파싱 실패 시 '기록 없음'.
 ///

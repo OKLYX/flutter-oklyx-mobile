@@ -44,6 +44,16 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_drawer.dart';
 ///   showDrawer: false,
 ///   body: SettingsView(),
 /// )
+///
+/// // 4. 아래 메뉴 막대 없이 위쪽 막대 오른쪽 버튼(주문 상세)
+/// ScaffoldWithNavBar(
+///   title: '주문 상세',
+///   navBarIndex: 2,
+///   onBackPressed: () => context.go(Routes.orderHistoryPath),
+///   // 아래 메뉴 막대 숨김 = showBottomNavBar 에 false 를 넘긴다
+///   appBarActions: [IconButton(icon: Icon(Icons.refresh), onPressed: …)],
+///   body: AppPageBody.scroll(...),
+/// )
 /// ```
 ///
 /// **Parameters**:
@@ -52,6 +62,11 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_drawer.dart';
 /// - `navBarIndex`: 현재 선택된 bottom nav 인덱스 (0=menu, 1=home, 2=list, 3=notification)
 /// - `showDrawer`: Drawer 표시 여부 (기본값: true)
 /// - `onBackPressed`: 뒤로가기 버튼 클릭 시 동작 (null이면 back button 표시 안함)
+/// - `appBarActions`: AppBar 오른쪽 버튼 목록 (기본값: null = 버튼 없음)
+/// - `showBottomNavBar`: 아래 메뉴 막대 표시 여부 (기본값: true)
+///
+/// ⚠️ 메뉴 막대를 숨긴 화면은 아래 메뉴의 Drawer 입구가 없다 — 주문 상세 밖에서
+///    쓰지 않는다 (FEATURE_2611_29 / D11).
 ///
 /// **바텀네비 index 3(알림) 배지** (FEATURE_2609_51 / D3·D7):
 /// - 숫자는 `AlertSummaryState.todoCount` = **처리해야 할 일 건수**(알림 목록의 행 수)다.
@@ -78,6 +93,14 @@ class ScaffoldWithNavBar extends StatefulWidget {
   /// card-colored background. ❌ Never pass a `Colors.*` literal.
   final Color? backgroundColor;
 
+  /// AppBar right-side buttons; null = none (order detail refresh —
+  /// FEATURE_2611_29 / D11).
+  final List<Widget>? appBarActions;
+
+  /// false = the bottom navigation bar is not drawn (order detail only —
+  /// FEATURE_2611_29 / D11).
+  final bool showBottomNavBar;
+
   const ScaffoldWithNavBar({
     required this.title,
     required this.body,
@@ -86,6 +109,8 @@ class ScaffoldWithNavBar extends StatefulWidget {
     this.showAppBarDrawerButton = true,
     this.onBackPressed,
     this.backgroundColor,
+    this.appBarActions,
+    this.showBottomNavBar = true,
   });
 
   @override
@@ -140,6 +165,7 @@ class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
                       )
                     : null),
             title: Text(widget.title),
+            actions: widget.appBarActions,
             elevation: 0,
           ),
           backgroundColor: widget.backgroundColor,
@@ -147,7 +173,8 @@ class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
           bottomNavigationBar: SizedBox.shrink(),
           drawer: widget.showDrawer ? const AppDrawer() : null,
         ),
-        Positioned(
+        if (widget.showBottomNavBar)
+          Positioned(
           bottom: 0,
           left: 0,
           right: 0,

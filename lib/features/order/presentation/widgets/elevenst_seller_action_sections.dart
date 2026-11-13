@@ -14,6 +14,7 @@ import '../../domain/entities/order_item.dart';
 import '../bloc/elevenst_order_action_bloc.dart';
 import '../bloc/elevenst_order_action_event.dart';
 import '../bloc/elevenst_order_action_state.dart';
+import 'order_next_step_card.dart';
 
 /// Today + [days] as 'yyyy-MM-dd' in KST — 11st reads every date in KST (D32).
 String _kstDatePlus(int days) {
@@ -781,15 +782,9 @@ class ElevenstStockConfirmSection extends StatelessWidget {
           return const SizedBox.shrink();
         }
         final sent = state.stockSent || order.stockConfirmSent;
-        return AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                '입고완료 처리',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
+        return OrderNextStepCard(
+          title: '다음 단계 · 발주 확인',
+          children: [
               if (sent)
                 const Text(
                   '입고완료 보냄',
@@ -805,8 +800,7 @@ class ElevenstStockConfirmSection extends StatelessWidget {
                       ? const AppBusyLabel('입고완료 처리')
                       : const Text('입고완료 처리'),
                 ),
-            ],
-          ),
+          ],
         );
       },
     );
