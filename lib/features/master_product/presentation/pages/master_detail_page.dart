@@ -2135,6 +2135,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
                 masterNoticeGroup: _masterNoticeGroup,
                 onChanged: _load,
                 focusOption: _focusOption,
+                truncateNames: false,
               ),
             ],
           ),

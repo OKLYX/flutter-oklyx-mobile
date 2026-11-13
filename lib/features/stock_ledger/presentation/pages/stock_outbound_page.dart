@@ -15,6 +15,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_filter_chip.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/name_text.dart';
 
 /// 출고 확인 페이지 (`/stock/outbound`, PLAN 2609_28 D11·D12·D13).
 ///
@@ -198,8 +199,11 @@ class _UnexpandedSection extends StatelessWidget {
                     item.externalOrderId,
                     style: const TextStyle(fontSize: 12),
                   ),
-                  Text(
-                    '${item.itemName} — ${unexpandedReasonLabel(item.reason)}',
+                  NameText(
+                    name: '${item.itemName} — '
+                        '${unexpandedReasonLabel(item.reason)}',
+                    kind: NameKind.product,
+                    expandable: true,
                     style: TextStyle(
                       fontSize: 11,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,

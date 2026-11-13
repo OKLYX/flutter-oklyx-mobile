@@ -3,6 +3,7 @@ import 'package:flutter_oklyn_mobile/features/sales/domain/entities/sales.dart';
 import 'package:flutter_oklyn_mobile/features/settlement/presentation/utils/settlement_format.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/name_text.dart';
 
 /// Order lines of the chosen channel (FEATURE_2610_20 / D26) — the web
 /// `ChannelSaleRecords`.
@@ -97,18 +98,23 @@ class ChannelSaleRecords extends StatelessWidget {
           children: [
             Text('${_soldAt(row.orderedAt)} · ${row.externalOrderId}',
                 style: muted),
-            Text.rich(
-              TextSpan(
-                text: row.itemName ?? '—',
-                children: [
-                  if (row.masterProductName == null)
-                    TextSpan(
-                        text: ' (상품 미연결)',
-                        style: TextStyle(color: scheme.outline)),
-                ],
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Flexible(
+                  child: NameText(
+                    name: row.itemName,
+                    kind: NameKind.product,
+                    emptyText: '—',
+                    expandable: true,
+                  ),
+                ),
+                if (row.masterProductName == null)
+                  Text(
+                    ' (상품 미연결)',
+                    style: TextStyle(color: scheme.outline),
+                  ),
+              ],
             ),
             const SizedBox(height: 4),
             Text.rich(
