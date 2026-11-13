@@ -35,6 +35,27 @@ const String _busyCategorySource = 'category-source';
 const String _busyApplyNames = 'apply-names';
 const String _busyUnlink = 'unlink';
 const String _busyDeleteCell = 'delete-cell';
+const String _busyMasterValues = 'master-values';
+
+// FEATURE_2611_27 / D20: [마스터 값으로 바꾸기] menu labels per group.
+const Map<String, String> _kMasterValuesLabel = {
+  kMarketValueGroupAttributes: '마스터 값으로 바꾸기: 속성·고시',
+  kMarketValueGroupTags: '마스터 값으로 바꾸기: 검색어',
+  kMarketValueGroupShipping: '마스터 값으로 바꾸기: 배송',
+};
+
+// FEATURE_2611_27 / D20: the first paragraph of the confirmation per group.
+const Map<String, String> _kMasterValuesMessage = {
+  kMarketValueGroupAttributes:
+      '이 채널의 속성·고시를 마켓에서 가져온 값 대신 마스터 값으로 바꿉니다. '
+      '마켓에서 가져온 속성·고시 값은 지워집니다.',
+  kMarketValueGroupTags:
+      '이 채널의 검색어를 마켓에서 가져온 값 대신 마스터 검색어로 바꿉니다. '
+      '마켓에서 가져온 검색어는 지워집니다.',
+  kMarketValueGroupShipping:
+      '이 채널의 배송 설정을 마켓에서 가져온 값 대신 마스터 · 계정 기본값으로 바꿉니다. '
+      '이 채널에 넣어 둔 배송 값은 모두 지워지고, 출고지·반품지는 계정 기본값으로 돌아갑니다.',
+};
 
 // Primary button kinds.
 const String _primaryUpload = 'upload';
@@ -45,8 +66,14 @@ class _MenuItem {
   final String key;
   final String label;
   final VoidCallback onTap;
+  final String? disabledReason;
 
-  const _MenuItem({required this.key, required this.label, required this.onTap});
+  const _MenuItem({
+    required this.key,
+    required this.label,
+    required this.onTap,
+    this.disabledReason,
+  });
 }
 
 class _MenuGroup {
@@ -81,7 +108,7 @@ class _MenuGroup {
 ///    only place that imports `url_launcher`.
 /// ⚠️ [cells] = this row's own cell only — passing every cell multiplies the
 ///    unlink/delete items.
-/// ❌ Do not add confirmations beyond the five here (D23).
+/// ❌ Do not add confirmations beyond the six here (D23).
 class CellActions extends StatefulWidget {
   final int masterId;
   final int listingId;
@@ -99,6 +126,11 @@ class CellActions extends StatefulWidget {
 
   /// Server judgement — `false` hides [마스터 카테고리로 변경].
   final bool usesOwnCategory;
+
+  /// Server judgement — false hides that [마스터 값으로 바꾸기] item.
+  final bool usesMarketAttributes;
+  final bool usesMarketTags;
+  final bool usesMarketShipping;
   final String? channelCategoryLabel;
   final String? masterCategoryName;
 
@@ -132,6 +164,9 @@ class CellActions extends StatefulWidget {
     required this.shippingReady,
     required this.onShippingSaved,
     required this.usesOwnCategory,
+    required this.usesMarketAttributes,
+    required this.usesMarketTags,
+    required this.usesMarketShipping,
     required this.channelCategoryLabel,
     required this.masterCategoryName,
     required this.cells,
@@ -250,6 +285,24 @@ class _CellActionsState extends State<CellActions> {
       (_) {
         setState(() => _pushedBanner =
             '마스터 카테고리로 변경했습니다. 다음 수정 요청 때 마켓에 반영됩니다.');
+        widget.onReload();
+      },
+    );
+    _end();
+  }
+
+  // Market values → master values for one group (FEATURE_2611_27 / D20).
+  Future<void> _handleMasterValues(String group) async {
+    _begin(_busyMasterValues);
+    final res = await _useCase.useMasterValues(_listingId, group);
+    if (!mounted) {
+      return;
+    }
+    res.fold(
+      (f) => _fail(f, '마스터 값으로 바꾸지 못했습니다.'),
+      (_) {
+        setState(() => _pushedBanner =
+            '마스터 값으로 바꿨습니다. 다음 수정 요청 때 마켓에 반영됩니다.');
         widget.onReload();
       },
     );
@@ -382,6 +435,19 @@ class _CellActionsState extends State<CellActions> {
     );
     if (ok && mounted) {
       await _handleCategorySource();
+    }
+  }
+
+  Future<void> _confirmMasterValues(String group) async {
+    final ok = await showAppConfirmDialog(
+      context,
+      title: '마스터 값으로 바꾸기',
+      message: '${_kMasterValuesMessage[group] ?? ''}\n'
+          '지금 마켓에 반영되지는 않습니다. 다음 [수정 요청] 때 함께 전송됩니다.',
+      confirmText: '바꾸기',
+    );
+    if (ok && mounted) {
+      await _handleMasterValues(group);
     }
   }
 
@@ -605,6 +671,27 @@ class _CellActionsState extends State<CellActions> {
               label: '마스터 카테고리로 변경',
               onTap: _confirmCategorySource,
             ),
+          if (widget.usesMarketAttributes)
+            _MenuItem(
+              key: 'master-values-attributes',
+              label: _kMasterValuesLabel[kMarketValueGroupAttributes]!,
+              disabledReason: widget.usesOwnCategory
+                  ? '[마스터 카테고리로 변경]을 쓰면 속성·고시도 함께 바뀝니다'
+                  : null,
+              onTap: () => _confirmMasterValues(kMarketValueGroupAttributes),
+            ),
+          if (widget.usesMarketTags)
+            _MenuItem(
+              key: 'master-values-tags',
+              label: _kMasterValuesLabel[kMarketValueGroupTags]!,
+              onTap: () => _confirmMasterValues(kMarketValueGroupTags),
+            ),
+          if (widget.usesMarketShipping)
+            _MenuItem(
+              key: 'master-values-shipping',
+              label: _kMasterValuesLabel[kMarketValueGroupShipping]!,
+              onTap: () => _confirmMasterValues(kMarketValueGroupShipping),
+            ),
         ],
       ),
     ];
@@ -668,7 +755,23 @@ class _CellActionsState extends State<CellActions> {
           for (final item in g.items)
             PopupMenuItem<String>(
               value: item.key,
-              child: Text(item.label, style: const TextStyle(fontSize: 12)),
+              enabled: item.disabledReason == null,
+              child: item.disabledReason == null
+                  ? Text(item.label, style: const TextStyle(fontSize: 12))
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(item.label, style: const TextStyle(fontSize: 12)),
+                        Text(
+                          item.disabledReason!,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
             ),
         ],
         if (danger.isNotEmpty) ...[

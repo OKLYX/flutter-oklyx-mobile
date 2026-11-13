@@ -880,3 +880,8 @@ class ListingMargins {
     required this.options,
   });
 }
+
+/// FEATURE_2611_27 / D27 — the `group` values of `POST …/use-master-values`.
+const String kMarketValueGroupAttributes = 'ATTRIBUTES';
+const String kMarketValueGroupTags = 'TAGS';
+const String kMarketValueGroupShipping = 'SHIPPING';

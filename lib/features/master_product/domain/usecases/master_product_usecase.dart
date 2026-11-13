@@ -526,6 +526,10 @@ class MasterProductUseCase {
           int masterId, List<int> listingIds) =>
       repository.fetchMasterStatus(masterId, listingIds);
 
+  /// L43
+  Future<Either<Failure, Unit>> useMasterValues(int listingId, String group) =>
+      repository.useMasterValues(listingId, group);
+
   /// S28 — FEATURE_2610_34 / D20.
   Future<Either<Failure, Unit>> clearGrandTotalOmitted(String code) =>
       repository.clearGrandTotalOmitted(code);

@@ -432,4 +432,10 @@ class ListingRegistrationRemoteDataSource {
         body: {'productListingIds': listingIds});
     return masterApprovalRefreshResultFromJson(data as Json);
   }
+
+  /// L43
+  Future<void> useMasterValues(int listingId, String group) async {
+    await api.post('/api/admin/product-listings/$listingId/use-master-values',
+        body: {'group': group});
+  }
 }

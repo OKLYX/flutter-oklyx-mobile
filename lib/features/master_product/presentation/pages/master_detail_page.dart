@@ -672,6 +672,7 @@ class _MasterDetailPageState extends State<MasterDetailPage> {
                 '${r.sellerName} · ${platformDisplayName(r.platform)}${cells.length > 1 ? ' · ${_cellTag(c)}' : ''}',
             override: gen?.shippingOverride,
             overrideLoaded: gen != null,
+            usesMarketShipping: c.usesMarketShipping == true,
           );
         });
       }).toList();

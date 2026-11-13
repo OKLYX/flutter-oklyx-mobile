@@ -403,6 +403,9 @@ abstract class MasterProductRepository {
   Future<Either<Failure, MasterApprovalRefreshResult>> fetchMasterStatus(
       int masterId, List<int> listingIds);
 
+  /// L43
+  Future<Either<Failure, Unit>> useMasterValues(int listingId, String group);
+
   /// S28 — FEATURE_2610_34 / D20.
   Future<Either<Failure, Unit>> clearGrandTotalOmitted(String code);
 }
