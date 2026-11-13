@@ -41,6 +41,7 @@ import '../widgets/elevenst_seller_action_sections.dart';
 import '../widgets/lotteon_invoice_edit_sheet.dart';
 import '../widgets/lotteon_order_sections.dart';
 import '../widgets/internal_stage_badge.dart';
+import '../widgets/order_next_step_card.dart';
 import '../bloc/order_refresh_bloc.dart';
 import '../bloc/order_refresh_event.dart';
 import '../bloc/order_refresh_state.dart';
@@ -59,6 +60,7 @@ import 'package:flutter_oklyn_mobile/features/packing/domain/entities/packing.da
 import 'package:flutter_oklyn_mobile/features/packing/presentation/widgets/box_change_sheet.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/product_thumbnail.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_route_args.dart';
+import '../../../master_product/presentation/widgets/copy_id_button.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/entities/stock_enums.dart'
     show unexpandedReasonLabel;
 import '../../domain/entities/order_detail.dart';
@@ -76,11 +78,13 @@ import '../bloc/order_detail_cubit.dart';
 /// D18 — replaces the old "no detail API, draw the list row as is"). A
 /// missing `extra` (deep link / restart) shows a way back.
 ///
-/// **Content**: cards 「주문 정보」 · 「기본 정보」 · 「수량 정보」 (D34), then
-/// 「상품 목록」 (every line of the order) and 「송장 목록」 (parcel chips, D29).
-/// The packing entry draws only 「주문 정보」 + 「상품 목록」 + 「송장 목록」 and
-/// adds [상자 변경] to packed parcels (D14 · D27).
-/// Each 「상품 목록」 line also shows, under its quantity, the master product ·
+/// **Content** (FEATURE_2611_29 / D2 · D10 · D16): header → progress steps →
+/// the next-step card → marketplace requests → tabs → 「상품 N건」 ·
+/// 「결제 금액」 (with the four quantity cells) · 「주문자 · 수취인」 ·
+/// 「주문 정보」 · 「송장」 (parcel chips, D29). The packing entry draws only
+/// the header (no status) and the body cards, and adds [상자 변경] to packed
+/// parcels (D19 ① · R17 · 2611_07 D27).
+/// Each 「상품 N건」 line also shows, under its quantity, the master product ·
 /// master option and the component products (photo · name · count), or only
 /// the broken link's reason; the master name links to the master detail for
 /// an ADMIN only (server `admin`), every component name to the product detail
@@ -112,6 +116,7 @@ class OrderDetailPage extends StatelessWidget {
       return ScaffoldWithNavBar(
         title: '주문 상세',
         navBarIndex: 2,
+        showBottomNavBar: false,
         // Back to the packing screen (D19).
         onBackPressed: () => context.canPop()
             ? context.pop()
@@ -123,17 +128,19 @@ class OrderDetailPage extends StatelessWidget {
             : _PackingOrderDetail(parcelId: id),
       );
     }
-    return ScaffoldWithNavBar(
-      title: '주문 상세',
-      navBarIndex: 2,
-      showDrawer: true,
-      onBackPressed: () => context.go(Routes.orderHistoryPath),
-      body: order == null
-          ? _buildMissing(context,
-              label: '주문내역으로',
-              onPressed: () => context.go(Routes.orderHistoryPath))
-          : _buildContent(context, order!),
-    );
+    if (order == null) {
+      return ScaffoldWithNavBar(
+        title: '주문 상세',
+        navBarIndex: 2,
+        showDrawer: true,
+        showBottomNavBar: false,
+        onBackPressed: () => context.go(Routes.orderHistoryPath),
+        body: _buildMissing(context,
+            label: '주문내역으로',
+            onPressed: () => context.go(Routes.orderHistoryPath)),
+      );
+    }
+    return _buildContent(context, order!);
   }
 
   // No order passed as extra (deep link / restart) — offer the way back.
@@ -247,218 +254,467 @@ class OrderDetailPage extends StatelessWidget {
                   externalOrderId: o.externalOrderId, platform: o.platform)),
           ),
       ],
-      child: AppPageBody.scroll(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // 상태 갱신 버튼 줄. 🔴 AppBar 가 아니라 본문 최상단이다(2609_50 D23) —
-            // ScaffoldWithNavBar 에 actions 슬롯이 없고, 모든 페이지가 쓰는 공용 위젯에
-            // 슬롯을 새로 뚫지 않는다. 🔴 발주·발송이 있는 하단 액션 영역에도 두지 않는다 —
-            // 그쪽은 마켓에 쓰는 작업 자리이고 상태 갱신은 읽기다.
-            if (isCoupang) _RefreshRow(order: o),
-            // ⚠️ These BlocBuilders wrap only the cards and the two lists —
-            // wrapping the Column or AppPageBody.scroll would rebuild even the
-            // shipping-label sheet section on every send and the edited parcel
-            // count would jump. While reading / failed, one text takes the
-            // place of all of them (D18).
-            BlocBuilder<OrderDetailCubit, OrderDetailState>(
-              builder: (context, detailState) {
-                final detail = detailState.detail;
-                if (detail == null) {
-                  return _DetailStatusText(state: detailState);
-                }
-                // The tapped line as the server returned it (fallback = the
-                // list row).
-                final line = _lineOf(detail, o);
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildInfoCard(line, detail,
-                        isCoupang: isCoupang, isMarketOrder: isMarketOrder),
-                    const SizedBox(height: 12),
-                    _InfoCard(
-                      title: '수량 정보',
-                      rows: [
-                        _InfoRow('주문수량', '${line.orderCount}'),
-                        _InfoRow('취소수량', '${line.cancelCount}'),
-                        _InfoRow('보류수량', '${line.holdCount}'),
-                        _InfoRow('구매가능수량', '${line.purchasableQty}'),
+      child: ScaffoldWithNavBar(
+        title: '주문 상세',
+        navBarIndex: 2,
+        showDrawer: true,
+        showBottomNavBar: false,
+        onBackPressed: () => context.go(Routes.orderHistoryPath),
+        // Refresh = top bar icon, whatever the detail read state is
+        // (FEATURE_2611_29 / D11 · D4).
+        appBarActions: isCoupang ? [_RefreshAction(order: o)] : null,
+        body: AppPageBody.scroll(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ⚠️ The detail BlocBuilders wrap only the header and the body
+              // cards — wrapping the Column would rebuild even the sheet
+              // section on every send and the edited parcel count would
+              // jump. While reading / failed, one text takes the header's
+              // place (D18).
+              BlocBuilder<OrderDetailCubit, OrderDetailState>(
+                builder: (context, detailState) {
+                  final detail = detailState.detail;
+                  if (detail == null) {
+                    return _DetailStatusText(state: detailState);
+                  }
+                  // The tapped line as the server returned it (fallback =
+                  // the list row).
+                  final line = _lineOf(detail, o);
+                  return _LiveOrderStatus(
+                    order: line,
+                    isCoupang: isCoupang,
+                    isMarketOrder: isMarketOrder,
+                    builder: (context, status, stage, qty) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _DetailHeader(
+                          detail: detail,
+                          line: line,
+                          status: status,
+                          stage: stage,
+                        ),
+                        const SizedBox(height: 12),
+                        _OrderProgress(status: status),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    _ProductListCard(detail: detail, highlightLineId: o.id),
-                    const SizedBox(height: 12),
-                    // No [상자 변경] from the order history (D27).
-                    _ParcelListCard(state: detailState),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 12),
-            // 11st only — cancel requests and the seller return (D19 · D35).
-            if (isElevenst) ElevenstOrderSections(order: o),
-            if (isLotteon) LotteonOrderSections(order: o),
-            // 송장(D18 🔁) — 내부 단계(결제완료) 배송건이 없으면(대부분의 주문) 아무것도 그리지 않는다.
-            // 이 화면에서 [내부 발주처리]·[발주처리]가 성공하면 그 주문의 송장·기록을 다시 읽는다 —
-            // 다시 들어오지 않아도 「송장」이 바로 나타나고/사라진다(웹 05 의 `shownStage` 재렌더와 같은 동작, D9).
-            if (isCoupang || isElevenst || isLotteon)
-              MultiBlocListener(
-                listeners: [
-                  BlocListener<OrderInternalStageBloc, OrderInternalStageState>(
-                    listenWhen: (p, c) => c.result != null && p.result != c.result,
-                    listener: (context, _) => context
-                        .read<ReservedShipmentBloc>()
-                        .add(ReservedShipmentsRequested(
-                            externalOrderId: o.externalOrderId)),
-                  ),
-                  BlocListener<OrderAcknowledgeBloc, OrderAcknowledgeState>(
-                    listenWhen: (p, c) => c.result != null && p.result != c.result,
-                    listener: (context, _) => context
-                        .read<ReservedShipmentBloc>()
-                        .add(ReservedShipmentsRequested(
-                            externalOrderId: o.externalOrderId)),
-                  ),
-                ],
-                child: const StoredInvoiceSection(),
+                  );
+                },
               ),
-            // 예약 발송 기록(D30) — 기록이 없으면(대부분의 주문) 아무것도 그리지 않는다.
-            if (isCoupang || isElevenst || isLotteon)
-              const ReservedShipmentHistorySection(),
-            // Sheet · shipment · cancel are used one at a time, so they share
-            // side-by-side tabs.
-            // ⚠️ A full cancel keeps the local status (D7), so the section
-            // stays open — it is hidden from outside (tab gate · wrapper)
-            // **without editing the widget**. A partial cancel is not hidden
-            // (D19).
-            // ⚠️ Orders other than Coupang · 11st · LotteON get no shipment /
-            // cancel BLoC at all (provider guard above), so they skip the tabs
-            // and keep only the sheet section — a tab reading a missing BLoC
-            // crashes. 11st has no Coupang cancel BLoC (D12); its cancel tab
-            // is the 11st sale refusal on `ElevenstOrderActionBloc`
-            // (FEATURE_2610_17 / D61).
-            // LotteON neither — its cancel tab is the LotteON seller cancel
-            // on `LotteonOrderActionBloc` (FEATURE_2611_23 / D57).
-            if (isMarketOrder)
-              _ActionTabs(order: o, withCancel: isCoupang)
-            else
-              _OrderSheetSection(order: o),
-            // 발주(결제완료→상품준비중)는 발송·취소의 앞 단계라 탭에 섞지 않고 화면 하단에 따로 둔다.
-            if (isMarketOrder) ...[
+              // Next step (FEATURE_2611_29 / D7 · D15 · R8) — drawn from the
+              // list row outside the detail read, so the confirmation
+              // buttons stay even when the read fails.
+              _LiveOrderStatus(
+                order: o,
+                isCoupang: isCoupang,
+                isMarketOrder: isMarketOrder,
+                builder: (context, status, stage, qty) {
+                  final Widget? card;
+                  if (status == OrderStatus.cancelled) {
+                    card = OrderNextStepCard(
+                      title: '주문이 취소되었습니다',
+                      body: _cancelQtyText(qty.cancel, qty.hold),
+                    );
+                  } else if (isMarketOrder && o.status == OrderStatus.paid) {
+                    // The full-cancel gate reads the Coupang-only cancel
+                    // BLoC. An 11st reserved sale takes [입고완료 처리]
+                    // instead (FEATURE_2610_17 / D67).
+                    card = isCoupang
+                        ? _HideWhenFullyCancelled(
+                            child: _AcknowledgeSection(order: o))
+                        : o.reservedSale && !o.cancelled
+                            ? ElevenstStockConfirmSection(order: o)
+                            : _AcknowledgeSection(order: o);
+                  } else {
+                    final next = _kNextStepByStatus[status];
+                    card = next == null
+                        ? null
+                        : OrderNextStepCard(title: next.$1, body: next.$2);
+                  }
+                  if (card == null) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: card,
+                  );
+                },
+              ),
               const SizedBox(height: 12),
-              // The full-cancel gate reads the Coupang-only cancel BLoC. An 11st
-              // reserved sale takes [입고완료 처리] instead (FEATURE_2610_17 /
-              // D67).
-              if (isCoupang)
-                _HideWhenFullyCancelled(child: _AcknowledgeSection(order: o))
-              else if (o.reservedSale && !o.cancelled)
-                ElevenstStockConfirmSection(order: o)
+              // Marketplace requests (FEATURE_2611_29 / D16 · R11) — 11st ·
+              // LotteON cancel requests and the 11st seller return; each
+              // hides itself when empty.
+              if (isElevenst) ElevenstOrderSections(order: o),
+              if (isLotteon) LotteonOrderSections(order: o),
+              // Sheet · shipment · cancel are used one at a time, so they
+              // share side-by-side tabs.
+              // ⚠️ A full cancel keeps the local status (D7) — the tabs lock
+              // it from outside **without editing the section widgets**. A
+              // partial cancel is not locked (D19).
+              // ⚠️ Orders other than Coupang · 11st · LotteON get no
+              // shipment / cancel BLoC at all (provider guard above), so
+              // they skip the tabs and keep only the sheet section — a tab
+              // reading a missing BLoC crashes. 11st and LotteON have no
+              // Coupang cancel BLoC (D12); their cancel tab is the 11st
+              // sale refusal (FEATURE_2610_17 / D61) or the LotteON seller
+              // cancel (FEATURE_2611_23 / D57).
+              if (isMarketOrder)
+                _ActionTabs(order: o, withCancel: isCoupang)
               else
-                _AcknowledgeSection(order: o),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 「주문 정보」 + 「기본 정보」 cards in one [Column] (FEATURE_2611_07 / D34).
-/// For a Coupang · 11st · LotteON order only the 「상태」 row and the badge
-/// follow the sends made on this screen — shipment gets
-/// `resultStatus: SHIPPED` from the server (2609_11 D4), and a successful
-/// order confirmation reads as [OrderStatus.preparing]. Both show without a
-/// refetch.
-Widget _buildInfoCard(
-  OrderItem o,
-  OrderDetail detail, {
-  required bool isCoupang,
-  required bool isMarketOrder,
-}) {
-  // [stage] = internal stage badge next to 「주문번호」 (FEATURE_2609_75 / D9).
-  // null = no badge. Never a text-only row of its own (D9).
-  Widget rows(OrderStatus status, InternalStage? stage) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _orderInfoCard(detail, stage: stage),
-          const SizedBox(height: 12),
-          _InfoCard(
-            title: '기본 정보',
-            rows: [
-              _InfoRow('아이템 ID', o.externalItemId),
-              // Same Korean label SSOT as the list (no copied label table).
-              _InfoRow('상태', _statusText(o, status)),
-              // Amount snapshot at order time — '—' for old orders not
-              // backfilled (never 0, D9 · D10).
-              _InfoRow('단가', _amountText(o.unitPrice)),
-              _InfoRow('상품금액', _amountText(o.lineAmount)),
-              _InfoRow('할인금액', _amountText(o.discountAmount)),
-              _InfoRow('플랫폼 부담 할인', _amountText(o.platformDiscountAmount)),
+                _OrderSheetSection(order: o),
+              BlocBuilder<OrderDetailCubit, OrderDetailState>(
+                builder: (context, detailState) {
+                  final detail = detailState.detail;
+                  if (detail == null) {
+                    return const SizedBox.shrink();
+                  }
+                  final line = _lineOf(detail, o);
+                  return _LiveOrderStatus(
+                    order: line,
+                    isCoupang: isCoupang,
+                    isMarketOrder: isMarketOrder,
+                    builder: (context, status, stage, qty) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 12),
+                        _ProductListCard(detail: detail, highlightLineId: o.id),
+                        const SizedBox(height: 12),
+                        _PaymentCard(line: line, qty: qty),
+                        const SizedBox(height: 12),
+                        _CustomerCard(detail: detail),
+                        const SizedBox(height: 12),
+                        _orderInfoCard(detail, line: line),
+                        const SizedBox(height: 12),
+                        // No [상자 변경] from the order history (D27).
+                        _ParcelListCard(
+                          state: detailState,
+                          cancelled: status == OrderStatus.cancelled,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ],
           ),
-        ],
-      );
-
-  if (!isMarketOrder) {
-    return rows(o.status, o.internalStage);
-  }
-  if (!isCoupang) {
-    // 11st · LotteON have no cancel BLoC (FEATURE_2610_17 / D12 ·
-    // FEATURE_2611_23 / D57) — only the shipment and confirmation results
-    // move the status row. The badge follows the
-    // internal-stage BLoC like Coupang (FEATURE_2611_23 / D51).
-    return BlocBuilder<ManualShipmentBloc, ManualShipmentState>(
-      builder: (context, manual) =>
-          BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
-        builder: (context, ack) =>
-            BlocBuilder<OrderInternalStageBloc, OrderInternalStageState>(
-          builder: (context, internal) {
-            final acknowledged =
-                ack.result != null && ack.result!.succeeded > 0;
-            final status = manual.result?.resultStatus ??
-                (acknowledged ? OrderStatus.preparing : o.status);
-            final shownStage = acknowledged
-                ? null
-                : _AcknowledgeSection._internalMarked(internal)
-                    ? InternalStage.internalPreparing
-                    : o.internalStage;
-            return rows(status, shownStage);
-          },
         ),
       ),
     );
   }
-  // 발송(SHIPPED)이 발주(PREPARING)보다 뒤 단계 — 나중 단계가 이긴다.
-  // 취소는 그보다 더 뒤 단계라 가장 바깥에서 이긴다(2609_25 D14).
-  // ⚠️ 발주 성공 판정은 `succeeded > 0` 이다. 쿠팡 거절도 200 + failed 라 `result != null`
-  // 만으로 판정하면 실패한 주문이 상품준비중으로 보인다(D15).
-  return BlocBuilder<OrderCancelBloc, OrderCancelState>(
-    builder: (context, cancel) => BlocBuilder<ManualShipmentBloc,
-        ManualShipmentState>(
-      builder: (context, manual) =>
-          BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
-        builder: (context, ack) =>
-            BlocBuilder<OrderInternalStageBloc, OrderInternalStageState>(
-          builder: (context, internal) {
-            final acknowledged =
-                ack.result != null && ack.result!.succeeded > 0;
-            final status = _isFullyCancelledByResult(cancel.result)
-                ? OrderStatus.cancelled
-                : (manual.result?.resultStatus ??
-                    (acknowledged ? OrderStatus.preparing : o.status));
-            // 배지 = 방금 이 화면에서 한 동작의 결과가 우선 — 웹 `shownStage` 와 같은 식(D9).
-            // 발주처리 성공이면 서버가 내부 단계를 지웠다(D14) → 배지 없음.
-            final shownStage = acknowledged
-                ? null
-                : _AcknowledgeSection._internalMarked(internal)
-                    ? InternalStage.internalPreparing
-                    : o.internalStage;
-            return rows(status, shownStage);
-          },
+}
+
+/// Live status of one order line (FEATURE_2611_29 / R7) — draws nothing
+/// itself: it hands the shown status, the internal stage badge and the four
+/// quantities to [builder], so the header, the progress steps, the next-step
+/// card and the payment card read the same values.
+/// For a Coupang · 11st · LotteON order the sends made on this screen move
+/// them without a refetch — shipment gets `resultStatus: SHIPPED` from the
+/// server (2609_11 D4), a successful order confirmation reads as
+/// [OrderStatus.preparing], and a Coupang cancel result overrides the status
+/// and the quantities (D15).
+class _LiveOrderStatus extends StatelessWidget {
+  final OrderItem order;
+  final Widget Function(
+    BuildContext context,
+    OrderStatus status,
+    InternalStage? stage,
+    ({int cancel, int hold, int purchasable}) qty,
+  ) builder;
+  final bool isCoupang;
+  final bool isMarketOrder;
+
+  const _LiveOrderStatus({
+    required this.order,
+    required this.builder,
+    required this.isCoupang,
+    required this.isMarketOrder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final listQty = (
+      cancel: order.cancelCount,
+      hold: order.holdCount,
+      purchasable: order.purchasableQty,
+    );
+    if (!isMarketOrder) {
+      return builder(context, order.status, order.internalStage, listQty);
+    }
+    if (!isCoupang) {
+      // 11st · LotteON have no cancel BLoC (FEATURE_2610_17 / D12 ·
+      // FEATURE_2611_23 / D57) — only the shipment and confirmation results
+      // move the status. The badge follows the internal-stage BLoC like
+      // Coupang (FEATURE_2611_23 / D51).
+      return BlocBuilder<ManualShipmentBloc, ManualShipmentState>(
+        builder: (context, manual) =>
+            BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
+          builder: (context, ack) =>
+              BlocBuilder<OrderInternalStageBloc, OrderInternalStageState>(
+            builder: (context, internal) {
+              final acknowledged =
+                  ack.result != null && ack.result!.succeeded > 0;
+              final status = manual.result?.resultStatus ??
+                  (acknowledged ? OrderStatus.preparing : order.status);
+              final shownStage = acknowledged
+                  ? null
+                  : _AcknowledgeSection._internalMarked(internal)
+                      ? InternalStage.internalPreparing
+                      : order.internalStage;
+              return builder(context, status, shownStage, listQty);
+            },
+          ),
+        ),
+      );
+    }
+    // Shipment (SHIPPED) is a later step than confirmation (PREPARING) — the
+    // later step wins. A cancel is later still, so it wins from the
+    // outermost (2609_25 D14).
+    // ⚠️ Confirmation success = `succeeded > 0`. A Coupang rejection is also
+    // 200 + failed, so judging by `result != null` alone shows a failed
+    // order as preparing (D15).
+    return BlocBuilder<OrderCancelBloc, OrderCancelState>(
+      builder: (context, cancel) =>
+          BlocBuilder<ManualShipmentBloc, ManualShipmentState>(
+        builder: (context, manual) =>
+            BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
+          builder: (context, ack) =>
+              BlocBuilder<OrderInternalStageBloc, OrderInternalStageState>(
+            builder: (context, internal) {
+              final acknowledged =
+                  ack.result != null && ack.result!.succeeded > 0;
+              final status = _isFullyCancelledByResult(cancel.result)
+                  ? OrderStatus.cancelled
+                  : (manual.result?.resultStatus ??
+                      (acknowledged ? OrderStatus.preparing : order.status));
+              // Badge = the result of what was just done on this screen
+              // wins — same as the web `shownStage` (D9). A successful
+              // confirmation cleared the internal stage on the server
+              // (D14) → no badge.
+              final shownStage = acknowledged
+                  ? null
+                  : _AcknowledgeSection._internalMarked(internal)
+                      ? InternalStage.internalPreparing
+                      : order.internalStage;
+              // Quantities = the line values overridden by the cancel just
+              // made here — same rule as the web `quantities`.
+              final cancelledLine = cancel.result?.cancelled.firstOrNull;
+              final qty = (
+                cancel: cancelledLine?.resultCancelCount
+                    ?? order.cancelCount,
+                hold: cancelledLine?.resultHoldCount ?? order.holdCount,
+                purchasable: cancelledLine?.resultPurchasableQty
+                    ?? order.purchasableQty,
+              );
+              return builder(context, status, shownStage, qty);
+            },
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
+
+/// Order detail header in three lines (FEATURE_2611_29 / D4 · R4 · R19):
+/// marketplace badge · alias + status badge · internal stage badge / order
+/// number + copy / paid time + relative time (paid · preparing only, R6) +
+/// order amount (R15, left out when unknown). [line] null = packing entry
+/// (no amount); [status] null = no status badge and no relative time.
+class _DetailHeader extends StatelessWidget {
+  final OrderDetail detail;
+  final OrderItem? line;
+  final OrderStatus? status;
+  final InternalStage? stage;
+
+  const _DetailHeader({
+    required this.detail,
+    required this.line,
+    required this.status,
+    required this.stage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    Widget pill(String text, Color background, Color foreground) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: foreground,
+            ),
+          ),
+        );
+    final shownStatus = status;
+    final tapped = line;
+    final alias = detail.accountAlias?.trim() ?? '';
+    final market =
+        detail.platform == null ? '-' : platformName(detail.platform!);
+    final recent = (shownStatus == OrderStatus.paid ||
+            shownStatus == OrderStatus.preparing) &&
+        detail.paidAt != null;
+    final net = tapped == null ? null : _orderNetAmount(tapped);
+    final paidText = '결제 ${formatPaidShort(detail.paidAt)}'
+        '${recent ? ' · ${formatMarketRelativeTime(detail.paidAt)}' : ''}'
+        '${net == null ? '' : ' · ${_amountText(net)}'}';
+    final cancelled = shownStatus == OrderStatus.cancelled;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              pill(market, scheme.surfaceContainerHighest, scheme.onSurface),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  alias,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              if (shownStatus != null && tapped != null) ...[
+                const SizedBox(width: 6),
+                pill(
+                  _statusText(tapped, shownStatus),
+                  cancelled ? scheme.errorContainer : AppColors.infoSurface,
+                  cancelled
+                      ? scheme.onErrorContainer
+                      : AppColors.infoForeground,
+                ),
+              ],
+              if (stage != null) ...[
+                const SizedBox(width: 4),
+                InternalStageBadge(stage: stage),
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  detail.externalOrderId,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              CopyIdButton(value: detail.externalOrderId),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            paidText,
+            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Five progress steps (FEATURE_2611_29 / R5 · D19 ⑩): the current step =
+/// filled dot + bold text, a passed step = filled dot, a later step = empty
+/// dot. A fully cancelled order shows 「취소됨」 on the second step; an
+/// unknown status shows every step as later. No times.
+class _OrderProgress extends StatelessWidget {
+  final OrderStatus status;
+
+  const _OrderProgress({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    const steps = [
+      OrderStatus.paid,
+      OrderStatus.preparing,
+      OrderStatus.shipped,
+      OrderStatus.delivering,
+      OrderStatus.delivered,
+    ];
+    final cancelled = status == OrderStatus.cancelled;
+    // A cancelled order counts the paid step as passed.
+    final current = cancelled ? 1 : steps.indexOf(status);
+    return AppCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < steps.length; i++)
+            Expanded(
+              child: Builder(
+                builder: (context) {
+                  final isCancelStep = cancelled && i == 1;
+                  final isCurrent = !cancelled && i == current;
+                  final filled = current >= 0 && i <= current;
+                  final textColor = isCancelStep
+                      ? scheme.error
+                      : isCurrent
+                          ? scheme.onSurface
+                          : scheme.onSurfaceVariant;
+                  return Column(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isCancelStep
+                              ? scheme.error
+                              : filled
+                                  ? AppColors.brandMain
+                                  : null,
+                          border: filled
+                              ? null
+                              : Border.all(color: scheme.outline),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        isCancelStep ? '취소됨' : getOrderStatusLabel(steps[i]),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isCurrent ? FontWeight.bold : null,
+                          color: textColor,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Next-step card texts by the shown status (FEATURE_2611_29 / D15 · PLAN
+/// §3-2); a status not listed gets no card.
+const Map<OrderStatus, (String, String)> _kNextStepByStatus = {
+  OrderStatus.shipped: (
+    '택배 집하 대기',
+    '택배사가 집하하면 배송중으로 바뀝니다. '
+        '송장 수정 탭에서 송장을 고칠 수 있습니다.',
+  ),
+  OrderStatus.delivering: ('배송 중', '고객에게 가는 중입니다.'),
+  OrderStatus.delivered: ('배송 완료', '처리할 작업이 없습니다.'),
+};
+
+/// Tab lock reasons (FEATURE_2611_29 / R9).
+const _kTabLockCanceled = '취소된 주문';
+const _kTabLockShippedCancel = '발송 후에는 취소할 수 없습니다(반품으로 처리)';
 
 /// 이 화면에서 방금 낸 취소가 **전량취소**였는지 — 정보 카드 상태 행과 발주/발송 섹션 숨김이
 /// 같은 판정을 쓰도록 한 곳에 둔다. 서버가 전량취소 라인에만 `CANCELLED` 를 내려준다(D14).
@@ -488,6 +744,21 @@ String _statusText(OrderItem o, OrderStatus status) {
 /// 금액 행 문구. null 은 **'—'** 다 — 0 으로 표시하면 "할인 없음"과 "모름"이 같아 보인다(D9).
 String _amountText(int? amount) =>
     amount == null ? '—' : '${_amountFormat.format(amount)}원';
+
+/// Order amount (R15) — null = unknown, never 0 (2609_26 D9 · D10).
+int? _orderNetAmount(OrderItem line) {
+  final amount = line.lineAmount;
+  final discount = line.discountAmount;
+  if (amount == null || discount == null) {
+    return null;
+  }
+  return amount - discount;
+}
+
+/// Cancel quantity text of the cancelled card and the cancel tab
+/// (FEATURE_2611_29 / D15) — the hold count only when above 0.
+String _cancelQtyText(int cancel, int hold) =>
+    hold > 0 ? '취소 수량 $cancel개 · 보류 $hold개' : '취소 수량 $cancel개';
 
 final _amountFormat = NumberFormat('###,##0', 'ko_KR');
 
@@ -538,7 +809,8 @@ class _InfoRow extends StatelessWidget {
   final String label;
   final String value;
 
-  /// 값 오른쪽에 붙는 위젯 — 주문번호 옆 내부 단계 배지(FEATURE_2609_75 / D9). null 이면 값만 그린다.
+  /// Widget right of the value — the copy button of an ID (FEATURE_2611_29
+  /// / R18). null = the value only.
   final Widget? trailing;
 
   const _InfoRow(this.label, this.value, {this.trailing});
@@ -578,24 +850,174 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-/// 「주문 정보」 card (FEATURE_2611_07 / R17 · D34 · D35) — [stage] = the
-/// internal stage badge next to 「주문번호」, null = no badge (packing entry).
-_InfoCard _orderInfoCard(OrderDetail detail, {InternalStage? stage}) =>
-    _InfoCard(
-      title: '주문 정보',
-      rows: [
+/// 「주문 정보」 card (FEATURE_2611_29 / D8 · R18): seller · item ID · box ID
+/// (each with a copy button when it has a value, 「-」 otherwise) · paid
+/// date. [line] = the tapped line; null = packing entry (no ID rows).
+_InfoCard _orderInfoCard(OrderDetail detail, {OrderItem? line}) {
+  final itemId = line?.externalItemId ?? '';
+  final boxId = line?.externalBoxId ?? '';
+  return _InfoCard(
+    title: '주문 정보',
+    rows: [
+      _InfoRow('판매자', detail.sellerName ?? '-'),
+      if (line != null) ...[
         _InfoRow(
-          '주문번호',
-          detail.externalOrderId,
-          trailing: stage == null ? null : InternalStageBadge(stage: stage),
+          '아이템 ID',
+          itemId.isEmpty ? '-' : itemId,
+          trailing: itemId.isEmpty ? null : CopyIdButton(value: itemId),
         ),
-        _InfoRow('판매자', detail.sellerName ?? '-'),
-        _InfoRow('판매처', detail.salesChannel),
-        _InfoRow('주문자', detail.ordererName ?? '-'),
-        _InfoRow('수취인', detail.receiverName ?? '-'),
-        _InfoRow('결제일', formatOrderDateTime(detail.paidAt)),
+        _InfoRow(
+          '박스 ID',
+          boxId.isEmpty ? '-' : boxId,
+          trailing: boxId.isEmpty ? null : CopyIdButton(value: boxId),
+        ),
       ],
+      _InfoRow('결제일', formatOrderDateTime(detail.paidAt)),
+    ],
+  );
+}
+
+/// 「결제 금액」 card with the four quantity cells (FEATURE_2611_29 / D8 ·
+/// R15 · D19 ④). [qty] = the cancel · hold · purchasable values from
+/// [_LiveOrderStatus] (same as the web `quantities`).
+class _PaymentCard extends StatelessWidget {
+  final OrderItem line;
+  final ({int cancel, int hold, int purchasable}) qty;
+
+  const _PaymentCard({required this.line, required this.qty});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final discount = line.discountAmount;
+    final platformDiscount = line.platformDiscountAmount;
+    final net = _orderNetAmount(line);
+    final applied = discount != null && discount > 0 && net != null
+        ? ' · 할인 적용'
+        : '';
+    Widget cell(String label, int value, {bool highlight = false}) =>
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: highlight
+                  ? AppColors.successSurface
+                  : scheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: highlight
+                        ? AppColors.successForeground
+                        : scheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$value',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: highlight ? AppColors.successForeground : null,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '결제 금액',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          _InfoRow(
+            '단가 × 수량',
+            line.unitPrice == null
+                ? '—'
+                : '${_amountText(line.unitPrice)} × ${line.orderCount}',
+          ),
+          _InfoRow(
+            '할인',
+            discount == null
+                ? '—'
+                : discount == 0
+                    ? '없음'
+                    : _amountText(discount),
+          ),
+          if (platformDiscount != null && platformDiscount > 0)
+            _InfoRow('플랫폼 부담 할인', _amountText(platformDiscount)),
+          _InfoRow('주문금액', '${_amountText(net)}$applied'),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              cell('주문', line.orderCount),
+              const SizedBox(width: 8),
+              cell('취소', qty.cancel),
+              const SizedBox(width: 8),
+              cell('보류', qty.hold),
+              const SizedBox(width: 8),
+              cell('구매가능', qty.purchasable, highlight: true),
+            ],
+          ),
+        ],
+      ),
     );
+  }
+}
+
+/// 「주문자 · 수취인」 card (FEATURE_2611_29 / D8 · R15): one name + a
+/// same-person note when both trimmed names are non-empty and equal,
+/// otherwise two rows (empty name = 「-」).
+class _CustomerCard extends StatelessWidget {
+  final OrderDetail detail;
+
+  const _CustomerCard({required this.detail});
+
+  @override
+  Widget build(BuildContext context) {
+    final orderer = detail.ordererName?.trim() ?? '';
+    final receiver = detail.receiverName?.trim() ?? '';
+    final same =
+        orderer.isNotEmpty && receiver.isNotEmpty && orderer == receiver;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '주문자 · 수취인',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          if (same) ...[
+            Text(
+              orderer,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '수취인 = 주문자와 동일',
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ] else ...[
+            _InfoRow('주문자', orderer.isEmpty ? '-' : orderer),
+            _InfoRow('수취인', receiver.isEmpty ? '-' : receiver),
+          ],
+        ],
+      ),
+    );
+  }
+}
 
 /// The tapped line inside the server answer, or the list row when missing.
 OrderItem _lineOf(OrderDetail detail, OrderItem order) {
@@ -653,7 +1075,7 @@ class _Thumb extends StatelessWidget {
   }
 }
 
-/// 「상품 목록」 card — every line of the order (D13 · R10). Only the line
+/// 「상품 N건」 card — every line of the order (D13 · R10 · R16). Only the line
 /// with [highlightLineId] gets the highlight background (D33 · R9); null = no
 /// highlighted line (packing entry).
 class _ProductListCard extends StatelessWidget {
@@ -669,9 +1091,9 @@ class _ProductListCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            '상품 목록',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          Text(
+            '상품 ${detail.lines.length}건',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           for (final line in detail.lines)
@@ -727,7 +1149,7 @@ class _ProductListCard extends StatelessWidget {
   }
 }
 
-/// Where one 「상품 목록」 line comes from (FEATURE_2611_15 / D3 · D5 · D8 ·
+/// Where one 「상품 N건」 line comes from (FEATURE_2611_15 / D3 · D5 · D8 ·
 /// D19 · D20): linked = 「판매상품 마스터 {master} · {option}」 + 「구성상품」 +
 /// one row per component (photo · name · 「× {count}」); broken = the reason
 /// text only. The master name is a link only when [admin]; component names
@@ -845,14 +1267,20 @@ class _LinkText extends StatelessWidget {
       );
 }
 
-/// 「송장 목록」 card — parcel chips, the shown chip's content below (D23 ·
-/// D25 · D28 · D29 · D36 · R10). [onChangeBox] set = packing entry: a
-/// 「포장 완료」 parcel gets [상자 변경] (D27).
+/// 「송장」 card — parcel chips, the shown chip's content below (D23 · D25 ·
+/// D28 · D29 · D36 · 2611_29 R16). [cancelled] = the empty text says the
+/// order was cancelled. [onChangeBox] set = packing entry: a 「포장 완료」
+/// parcel gets [상자 변경] (D27).
 class _ParcelListCard extends StatelessWidget {
   final OrderDetailState state;
   final void Function(OrderDetailParcel parcel)? onChangeBox;
+  final bool cancelled;
 
-  const _ParcelListCard({required this.state, this.onChangeBox});
+  const _ParcelListCard({
+    required this.state,
+    this.onChangeBox,
+    this.cancelled = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -864,12 +1292,14 @@ class _ParcelListCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const Text(
-            '송장 목록',
+            '송장',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           if (parcels.isEmpty || shown == null)
-            const Text('송장이 없습니다')
+            Text(
+              cancelled ? '취소된 주문이라 송장이 없습니다.' : '아직 송장이 없습니다.',
+            )
           else ...[
             Wrap(
               spacing: 8,
@@ -886,8 +1316,8 @@ class _ParcelListCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            _InfoRow('송장번호', shown.invoiceNumber),
             _InfoRow('택배사', shown.carrierName ?? '-'),
+            _InfoRow('송장번호', shown.invoiceNumber),
             _InfoRow('상태', shown.statusLabel),
             _InfoRow(
               '처리 시각',
@@ -964,8 +1394,9 @@ class _ParcelItems extends StatelessWidget {
   }
 }
 
-/// Packing entry body (FEATURE_2611_07 / D14 · R16): 「주문 정보」 (no badge)
-/// + 「상품 목록」 (no highlighted line) + 「송장 목록」 opened on [parcelId]
+/// Packing entry body (FEATURE_2611_29 / R17): header (no status) →
+/// 「상품 N건」 (no highlighted line) → 「주문자 · 수취인」 → 「주문 정보」 →
+/// 「송장」 opened on [parcelId]
 /// (D28). None of the order history action BLoCs are made here.
 class _PackingOrderDetail extends StatelessWidget {
   final int parcelId;
@@ -985,9 +1416,18 @@ class _PackingOrderDetail extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _orderInfoCard(detail),
+                  _DetailHeader(
+                    detail: detail,
+                    line: null,
+                    status: null,
+                    stage: null,
+                  ),
                   const SizedBox(height: 12),
                   _ProductListCard(detail: detail),
+                  const SizedBox(height: 12),
+                  _CustomerCard(detail: detail),
+                  const SizedBox(height: 12),
+                  _orderInfoCard(detail),
                   const SizedBox(height: 12),
                   _ParcelListCard(
                     state: state,
@@ -1017,13 +1457,13 @@ class _PackingOrderDetail extends StatelessWidget {
   }
 }
 
-/// Label sheet / shipment / order cancel switch tabs — the same idiom
-/// (`SegmentedButton`) as the list screen's `ClaimTypeTabs`.
+/// Label sheet / shipment / order cancel switch tabs — three equal-width
+/// tabs ([_DetailTabBar], FEATURE_2611_29 / D5 · R9).
 ///
 /// **Purpose**: splits the actions used one at a time on an order into tabs.
-/// From the left: sheet · shipment · cancel, and **shipment is selected by
-/// default** — most orders end in a shipment, and a cancel cannot be undone,
-/// so it is safer to need one more tap.
+/// From the left: sheet · shipment · cancel. The first tab is shipment —
+/// most orders end in a shipment, and a cancel cannot be undone — except a
+/// cancelled order, which opens on the cancel tab (R10).
 /// An 11st order ([withCancel] false) gets its cancel tab from the 11st sale
 /// refusal (FEATURE_2610_17 / D61) instead of the Coupang cancel section; a
 /// LotteON order ([withCancel] false too) from the LotteON seller cancel
@@ -1056,7 +1496,15 @@ class _ActionTabs extends StatefulWidget {
 enum _ActionTab { sheet, shipment, cancel }
 
 class _ActionTabsState extends State<_ActionTabs> {
-  _ActionTab _selected = _ActionTab.shipment; // 기본 = 왼쪽(발송처리)
+  _ActionTab _selected = _ActionTab.shipment; // first tab, see initState
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.order.cancelled) {
+      _selected = _ActionTab.cancel;
+    }
+  }
 
   bool get _isLotteon => widget.order.platform == 'LOTTEON';
 
@@ -1107,47 +1555,69 @@ class _ActionTabsState extends State<_ActionTabs> {
               : !cancel.forbidden &&
                   (order.status == OrderStatus.paid ||
                       order.status == OrderStatus.preparing);
-          // 시트 탭은 늘 열려 있다 — 권한(403)·플랫폼 안내는 섹션이 자기 안에서 처리한다.
-          // 여기서 막으면 비-ADMIN 에게 아무 탭도 안 보인다.
+          // A fully cancelled order (on open or by the cancel just made)
+          // locks the sheet and shipment tabs (FEATURE_2611_29 / R10); the
+          // cancel tab of an order cancelled on open shows the cancel text.
+          // Permission (403) and platform notices stay inside the sections.
+          final fully = widget.order.cancelled ||
+              (cancel != null && _isFullyCancelledByResult(cancel.result));
           final available = {
-            _ActionTab.sheet: true,
-            _ActionTab.shipment: canShip,
-            _ActionTab.cancel: canCancel,
+            _ActionTab.sheet: !fully,
+            _ActionTab.shipment: canShip && !widget.order.cancelled,
+            _ActionTab.cancel: widget.order.cancelled || canCancel,
+          };
+          final labels = {
+            _ActionTab.sheet: '송장시트',
+            _ActionTab.shipment:
+                isAlreadyShipped(order.status) ? '송장 수정' : '발송처리',
+            _ActionTab.cancel:
+                widget.withCancel && order.status == OrderStatus.preparing
+                    ? '출고중지'
+                    : '취소',
+          };
+          final lockReasons = {
+            _ActionTab.sheet:
+                !available[_ActionTab.sheet]! && fully ? _kTabLockCanceled : '',
+            _ActionTab.shipment: !available[_ActionTab.shipment]! && fully
+                ? _kTabLockCanceled
+                : '',
+            _ActionTab.cancel: !available[_ActionTab.cancel]! &&
+                    isAlreadyShipped(order.status)
+                ? _kTabLockShippedCancel
+                : '',
           };
 
           // 고른 탭을 쓸 수 없으면 왼쪽부터 첫 번째로 쓸 수 있는 탭을 보여준다 —
           // 파생값이라 setState 로 되돌리지 않는다.
           final selected = available[_selected]!
               ? _selected
-              : _ActionTab.values.firstWhere((t) => available[t]!);
+              : _ActionTab.values.firstWhere((t) => available[t]!,
+                  orElse: () => _selected);
+
+          final Widget cancelPanel;
+          if (widget.order.cancelled) {
+            final qtyText =
+                _cancelQtyText(order.cancelCount, order.holdCount);
+            cancelPanel = AppCard(
+              child: Text('이미 취소된 주문입니다 · $qtyText'),
+            );
+          } else {
+            cancelPanel = cancel == null
+                ? (_isLotteon
+                    ? LotteonSellerCancelSection(order: order)
+                    : ElevenstSaleRefusalSection(order: order))
+                : _CancelSection(order: order);
+          }
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(
-                width: double.infinity,
-                child: SegmentedButton<_ActionTab>(
-                  segments: [
-                    const ButtonSegment<_ActionTab>(
-                      value: _ActionTab.sheet,
-                      label: Text('송장시트'),
-                    ),
-                    ButtonSegment<_ActionTab>(
-                      value: _ActionTab.shipment,
-                      label: const Text('발송처리'),
-                      enabled: canShip,
-                    ),
-                    ButtonSegment<_ActionTab>(
-                      value: _ActionTab.cancel,
-                      label: const Text('주문 취소'),
-                      enabled: canCancel,
-                    ),
-                  ],
-                  selected: {selected},
-                  showSelectedIcon: false,
-                  onSelectionChanged: (set) =>
-                      setState(() => _selected = set.first),
-                ),
+              _DetailTabBar(
+                selected: selected,
+                labels: labels,
+                available: available,
+                lockReasons: lockReasons,
+                onSelect: (tab) => setState(() => _selected = tab),
               ),
               const SizedBox(height: 12),
               Offstage(
@@ -1157,8 +1627,12 @@ class _ActionTabsState extends State<_ActionTabs> {
               Offstage(
                 offstage: selected != _ActionTab.shipment,
                 // 내부 단계 주문(FEATURE_2609_75 / D27)은 입력 대신 안내 — 「송장」 + [저장된 송장으로 발송].
-                // 판정 = 주문번호 옆 배지와 같은 식(`_buildInfoCard` 의 shownStage). 서버도 같은 문구로 거절한다(400).
-                child: cancel == null
+                // Same rule as the header badge ([_LiveOrderStatus] shown
+                // stage); the server rejects with the same text (400).
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                cancel == null
                     ? (_isLotteon
                         ? _LotteonShipmentGate(order: order)
                         : _ElevenstShipmentGate(order: order))
@@ -1186,18 +1660,121 @@ class _ActionTabsState extends State<_ActionTabs> {
                     },
                   ),
                 ),
+                    // 「송장」 (D18) — draws nothing when the order has no
+                    // internal-stage (paid) shipment, i.e. most orders. When
+                    // [내부 발주처리] · [발주처리] succeed here, the order's
+                    // invoices and history are read again, so 「송장」 shows /
+                    // hides without reopening (same as the web 05 `shownStage`
+                    // re-render, D9). In this tab since FEATURE_2611_29 / D16.
+                    MultiBlocListener(
+                      listeners: [
+                        BlocListener<OrderInternalStageBloc,
+                            OrderInternalStageState>(
+                          listenWhen: (p, c) =>
+                              c.result != null && p.result != c.result,
+                          listener: (context, _) => context
+                              .read<ReservedShipmentBloc>()
+                              .add(ReservedShipmentsRequested(
+                                  externalOrderId: order.externalOrderId)),
+                        ),
+                        BlocListener<OrderAcknowledgeBloc,
+                            OrderAcknowledgeState>(
+                          listenWhen: (p, c) =>
+                              c.result != null && p.result != c.result,
+                          listener: (context, _) => context
+                              .read<ReservedShipmentBloc>()
+                              .add(ReservedShipmentsRequested(
+                                  externalOrderId: order.externalOrderId)),
+                        ),
+                      ],
+                      child: const StoredInvoiceSection(),
+                    ),
+                    // Reserved shipment history (D30) — draws nothing when
+                    // there is none (most orders).
+                    const ReservedShipmentHistorySection(),
+                  ],
+                ),
               ),
               Offstage(
                 offstage: selected != _ActionTab.cancel,
-                child: cancel == null
-                    ? (_isLotteon
-                        ? LotteonSellerCancelSection(order: order)
-                        : ElevenstSaleRefusalSection(order: order))
-                    : _CancelSection(order: order),
+                child: cancelPanel,
               ),
             ],
           );
         },
+    );
+  }
+}
+
+/// Three equal-width order detail tabs (FEATURE_2611_29 / D5 · R9 · R19).
+/// A locked tab keeps its place with gray text — the cancel tab stays red
+/// even when locked (D1) — and has no lock icon; tapping it shows its
+/// [lockReasons] text (when not empty) as a notice toast and does not
+/// switch. The selected tab gets a 3px line below.
+class _DetailTabBar extends StatelessWidget {
+  final _ActionTab selected;
+  final Map<_ActionTab, String> labels;
+  final Map<_ActionTab, bool> available;
+  final Map<_ActionTab, String> lockReasons;
+  final ValueChanged<_ActionTab> onSelect;
+
+  const _DetailTabBar({
+    required this.selected,
+    required this.labels,
+    required this.available,
+    required this.lockReasons,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        for (final tab in _ActionTab.values)
+          Expanded(
+            child: InkWell(
+              onTap: () {
+                if (available[tab]!) {
+                  onSelect(tab);
+                  return;
+                }
+                final reason = lockReasons[tab] ?? '';
+                if (reason.isNotEmpty) {
+                  showNoticeToast(context, reason);
+                }
+              },
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                      labels[tab]!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: tab == selected ? FontWeight.bold : null,
+                        color: tab == _ActionTab.cancel
+                            ? scheme.error
+                            : available[tab]!
+                                ? scheme.onSurface
+                                : scheme.outline,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    height: 3,
+                    color: tab != selected
+                        ? null
+                        : tab == _ActionTab.cancel
+                            ? scheme.error
+                            : AppColors.brandMain,
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -1240,7 +1817,7 @@ class _InternalStageShipmentNotice extends StatelessWidget {
 /// Shipment tab of an 11st order (FEATURE_2610_17 / D20 · D21): a paid order
 /// needs [발주처리] first, and 11st has no invoice-update API — both show a
 /// notice instead of the form. A confirmation made on this screen opens the
-/// form without a refetch (same `succeeded > 0` rule as the info card).
+/// form without a refetch (same `succeeded > 0` rule as [_LiveOrderStatus]).
 /// A visit-pickup order shows [방문수령 완료] instead, from paid on (D66); the
 /// form picks one of three ways to send (D64); a paid / preparing order also
 /// gets [발송지연 안내] below (D63).
@@ -1433,22 +2010,24 @@ class _ElevenstShipmentModesState extends State<_ElevenstShipmentModes> {
 /// ⚠️ No permission gate in the client. A 403 hides the section — that
 /// reflects the server's decision, not a second one (same rule as the single
 /// shipment).
-/// Order-status refresh row (FEATURE_2609_50).
+/// Order-status refresh icon on the top bar (FEATURE_2609_50 ·
+/// FEATURE_2611_29 / D11).
 ///
 /// Reads this order from Coupang again now to align the local status — the
 /// manual way out for an order stuck outside the regular / nightly sync
 /// windows.
 ///
-/// 🔴 Drawn for Coupang orders only (D24 · FEATURE_2610_17 / D12). For other
-/// orders the caller (`_buildContent`) does not build the row at all.
+/// 🔴 Drawn for Coupang orders only (D24 · FEATURE_2610_17 / D12) — for
+/// other orders `_buildContent` passes `appBarActions: null`. For Coupang it
+/// shows whatever the detail read state is (FEATURE_2611_29 / D4).
 /// 🔴 When something changed it **goes back to the list** (D22) — this page is
 /// a StatelessWidget using the [OrderItem] from the route `extra`, so it has no
 /// way to refresh the status badge in place. Do not solve it with a new
 /// `OrderDetailBloc` (having none is intended).
-class _RefreshRow extends StatelessWidget {
+class _RefreshAction extends StatelessWidget {
   final OrderItem order;
 
-  const _RefreshRow({required this.order});
+  const _RefreshAction({required this.order});
 
   @override
   Widget build(BuildContext context) {
@@ -1490,23 +2069,20 @@ class _RefreshRow extends StatelessWidget {
         showErrorToast(context, error);
         context.read<OrderRefreshBloc>().add(const RefreshResultCleared());
       },
-      builder: (context, state) => Align(
-        alignment: Alignment.centerRight,
-        child: TextButton.icon(
-          onPressed: state.submitting
-              ? null
-              : () => context
-                  .read<OrderRefreshBloc>()
-                  .add(RefreshRequested([order.id])),
-          icon: state.submitting
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.refresh, size: 18),
-          label: Text(state.submitting ? '확인 중…' : '주문 상태 갱신'),
-        ),
+      builder: (context, state) => IconButton(
+        tooltip: '주문 상태 갱신',
+        onPressed: state.submitting
+            ? null
+            : () => context
+                .read<OrderRefreshBloc>()
+                .add(RefreshRequested([order.id])),
+        icon: state.submitting
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.refresh),
       ),
     );
   }
@@ -1579,107 +2155,97 @@ class _AcknowledgeSection extends StatelessWidget {
               !internal.forbidden;
           final busy = state.submitting || internal?.submitting != null;
 
-          return AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text(
-                    '발주처리',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          return OrderNextStepCard(
+            title: '다음 단계 · 발주 확인',
+            // FEATURE_2610_17 / D52 · FEATURE_2611_23 / D17:
+            // 11st and LotteON confirm this product only — their notice
+            // has no box number.
+            body: acknowledged
+                ? null
+                : order.platform == 'ELEVENST'
+                    ? '이 상품(주문 줄)이 발주확인 처리되어 배송준비중으로 '
+                        '바뀝니다. 되돌릴 수 없습니다.'
+                    : order.platform == 'LOTTEON'
+                    ? '이 상품(주문 줄)이 발주확인 처리되어 상품준비중으로 '
+                        '바뀝니다. 되돌릴 수 없습니다.'
+                    : '이 주문의 배송건(박스 ${order.externalBoxId ?? '-'}) '
+                        '전체가 상품준비중으로 전환됩니다. 되돌릴 수 없습니다.',
+            children: [
+              if (acknowledged)
+                const Text(
+                  '발주처리 완료',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.successForeground,
                   ),
-                  const SizedBox(height: 4),
-                  if (acknowledged)
-                    const Text(
-                      '발주처리 완료',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.successForeground,
-                      ),
-                    )
-                  else ...[
-                    // FEATURE_2610_17 / D52 · FEATURE_2611_23 / D17:
-                    // 11st and LotteON confirm this product only — their notice
-                    // has no box number.
-                    Text(
-                      order.platform == 'ELEVENST'
-                          ? '이 상품(주문 줄)이 발주확인 처리되어 배송준비중으로 바뀝니다. 되돌릴 수 없습니다.'
-                          : order.platform == 'LOTTEON'
-                          ? '이 상품(주문 줄)이 발주확인 처리되어 상품준비중으로 바뀝니다. 되돌릴 수 없습니다.'
-                          : '이 주문의 배송건(박스 ${order.externalBoxId ?? '-'}) 전체가 '
-                              '상품준비중으로 전환됩니다. 되돌릴 수 없습니다.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    // [내부 발주처리] sits right next to [발주처리] and stays green — written here, not in the theme (D13 · D101).
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        FilledButton(
-                          onPressed:
-                              busy ? null : () => _confirmAndSubmit(context),
-                          child: state.submitting
-                              ? const AppBusyLabel('발주처리')
-                              : const Text('발주처리'),
-                        ),
-                        if (canMarkInternal)
-                          internalMarked
-                              ? const Text(
-                                  '내부 발주 완료',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.successForeground,
-                                  ),
-                                )
-                              : FilledButton(
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: AppColors.brandGreen,
-                                    foregroundColor: Theme.of(context)
-                                        .colorScheme
-                                        .onSecondary,
-                                  ),
-                                  onPressed: busy
-                                      ? null
-                                      : () => context
-                                          .read<OrderInternalStageBloc>()
-                                          .add(InternalStageRequested(
-                                            InternalStageAction.mark,
-                                            [order.id],
-                                          )),
-                                  child: internal.submitting ==
-                                          InternalStageAction.mark
-                                      ? const AppBusyLabel('내부 발주처리')
-                                      : const Text('내부 발주처리'),
-                                ),
-                      ],
+                )
+              else
+                // [내부 발주처리] comes first and stays green — written
+                // here, not in the theme (D13 · D101 · 2611_29 R8).
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if (canMarkInternal)
+                      internalMarked
+                          ? const Text(
+                              '내부 발주 완료',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.successForeground,
+                              ),
+                            )
+                          : FilledButton(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.brandGreen,
+                                foregroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .onSecondary,
+                              ),
+                              onPressed: busy
+                                  ? null
+                                  : () => context
+                                      .read<OrderInternalStageBloc>()
+                                      .add(InternalStageRequested(
+                                        InternalStageAction.mark,
+                                        [order.id],
+                                      )),
+                              child: internal.submitting ==
+                                      InternalStageAction.mark
+                                  ? const AppBusyLabel('내부 발주처리')
+                                  : const Text('내부 발주처리'),
+                            ),
+                    FilledButton(
+                      onPressed:
+                          busy ? null : () => _confirmAndSubmit(context),
+                      child: state.submitting
+                          ? const AppBusyLabel('발주처리')
+                          : const Text('발주처리'),
                     ),
                   ],
-                  if (failureText != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      failureText,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ],
-                  if (internal?.errorMessage != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      internal!.errorMessage!,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+                ),
+              if (failureText != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  failureText,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ],
+              if (internal?.errorMessage != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  internal!.errorMessage!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ],
+            ],
           );
         },
     );
@@ -2063,10 +2629,6 @@ class _ManualShipmentSection extends StatefulWidget {
 class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
   final TextEditingController _invoiceController = TextEditingController();
 
-  /// 이미 발송처리된 주문은 입력칸을 감춰 둔다 — [송장 수정하기] 를 눌러야 열린다.
-  /// 실수로 정상 송장을 덮어쓰는 경로를 한 번 막는 것이라 미발송 주문에는 영향이 없다.
-  bool _editing = false;
-
   @override
   void dispose() {
     _invoiceController.dispose(); // 누락 시 leak — 상세는 주문마다 새로 만들어진다.
@@ -2094,16 +2656,21 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
             state.carrierCode != null &&
             _invoiceController.text.trim().isNotEmpty &&
             state.options.isNotEmpty;
-        // 미발송이면 늘 열려 있고, 발송된 건은 [송장 수정하기] 를 누른 뒤에만 열린다.
-        final formOpen = !shipped || _editing;
+        // The form is open right away, shipped orders included
+        // (FEATURE_2611_29 / D19 ⑥); only a shipped LotteON order keeps
+        // [송장 수정하기], which opens its own sheet (R14).
+        final formOpen = !shipped || widget.onEditShippedInvoice == null;
 
         return AppCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  '발송처리',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                Text(
+                  shipped ? '송장 수정' : '발송처리',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 if (widget.modePicker != null) ...[
@@ -2118,24 +2685,15 @@ class _ManualShipmentSectionState extends State<_ManualShipmentSection> {
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
-                if (shipped) ...[
+                if (shipped && formOpen) ...[
                   const SizedBox(height: 8),
-                  Text(
-                    formOpen
-                        ? '이미 발송처리된 주문입니다. 입력한 운송장으로 송장 수정을 요청합니다.'
-                        : '이미 발송처리된 주문입니다. 운송장을 고치려면 [송장 수정하기] 를 누르세요.',
-                    style: const TextStyle(
+                  const Text(
+                    '이미 발송처리된 주문입니다. '
+                    '입력한 운송장으로 송장 수정을 요청합니다.',
+                    style: TextStyle(
                       fontSize: 12,
                       color: AppColors.warningForeground,
                     ),
-                  ),
-                ],
-                if (!formOpen && widget.onEditShippedInvoice == null) ...[
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                    onPressed:
-                        locked ? null : () => setState(() => _editing = true),
-                    child: const Text('송장 수정하기'),
                   ),
                 ],
                 if (!formOpen && widget.onEditShippedInvoice != null) ...[
@@ -2385,14 +2943,22 @@ class _OrderSheetSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            FilledButton.icon(
+            Text(
+              '송장시트에서 여러 주문의 송장을 '
+              '한 번에 등록·조회할 수 있습니다.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            FilledButton(
               onPressed: _isMarketOrder
                   ? () => context
                       .read<OrderSheetBloc>()
                       .add(LoadOrderSheet(order.id))
                   : null,
-              icon: const Icon(Icons.download, size: 18),
-              label: const Text('엑셀 다운로드'),
+              child: const Text('송장시트 조회'),
             ),
             if (!_isMarketOrder) ...[
               const SizedBox(height: 8),
