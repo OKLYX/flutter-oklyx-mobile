@@ -17,8 +17,8 @@ import 'package:flutter/material.dart';
 ///    icon never replaces it (D36).
 /// ❌ Not for the name of an icon-only button (web `title="복사"`) — use
 ///    `IconButton.tooltip`.
-/// ❌ Not for the full text of a truncated label (web `title={name}`) — mobile
-///    renders the full text without truncation.
+/// ❌ Not for the full text of a truncated product or customer name —
+///    the NameText widget owns it (tap to expand, or the detail screen).
 class InfoBubbleIcon extends StatelessWidget {
   final String message;
   final double size;
