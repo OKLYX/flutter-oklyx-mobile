@@ -84,7 +84,7 @@ import '../bloc/order_detail_cubit.dart';
 /// 「주문 정보」 · 「송장」 (parcel chips, D29). The packing entry draws only
 /// the header (no status) and the body cards, and adds [상자 변경] to packed
 /// parcels (D19 ① · R17 · 2611_07 D27).
-/// Each 「상품 목록」 line also shows, under its quantity, the master product ·
+/// Each 「상품 N건」 line also shows, under its quantity, the master product ·
 /// master option and the component products (photo · name · count), or only
 /// the broken link's reason; the master name links to the master detail for
 /// an ADMIN only (server `admin`), every component name to the product detail
