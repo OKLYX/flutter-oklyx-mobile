@@ -387,6 +387,13 @@ class MasterProductRepositoryImpl implements MasterProductRepository {
       });
 
   @override
+  Future<Either<Failure, Unit>> useMasterValues(int listingId, String group) =>
+      _guard(() async {
+        await listingDataSource.useMasterValues(listingId, group);
+        return unit;
+      });
+
+  @override
   Future<Either<Failure, MasterFromChannelPreview>> masterFromChannelPreview(
           {required int sellerId,
           required String platform,
