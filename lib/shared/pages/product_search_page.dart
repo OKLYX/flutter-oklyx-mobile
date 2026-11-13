@@ -19,6 +19,7 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/zoomable_image_viewer.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_search_field.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/name_text.dart';
 
 class ProductSearchPage extends StatelessWidget {
   const ProductSearchPage({super.key});
@@ -246,14 +247,13 @@ class _ProductCardState extends State<_ProductCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      widget.product.productName,
+                    NameText(
+                      name: widget.product.productName,
+                      kind: NameKind.product,
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     if (widget.product.brand != null &&

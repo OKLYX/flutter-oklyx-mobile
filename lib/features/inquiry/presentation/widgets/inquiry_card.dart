@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/name_text.dart';
 import '../../domain/entities/inquiry.dart';
 
 /// 문의 1건 카드 (고객문의 목록의 행 하나).
@@ -71,10 +72,9 @@ class InquiryCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 6),
-              Text(
-                inquiry.itemName ?? '-',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              NameText(
+                name: inquiry.itemName,
+                kind: NameKind.product,
                 style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
               ),
               const SizedBox(height: 6),

@@ -8,6 +8,7 @@ import '../../domain/entities/order_item.dart';
 import 'elevenst_reserved_badge.dart';
 import 'internal_stage_badge.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/name_text.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/product_thumbnail.dart';
 
 /// Card for one order — shared by the two screens, order history and shipment
@@ -142,18 +143,20 @@ class OrderCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  '고객 ${getCustomerName(order)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                NameText(
+                  name: '고객 ${getCustomerName(order)}',
+                  kind: NameKind.customer,
                   style: TextStyle(
                     fontSize: 13,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text(order.itemName ?? '-',
-                    style: const TextStyle(fontSize: 13)),
+                NameText(
+                  name: order.itemName,
+                  kind: NameKind.product,
+                  style: const TextStyle(fontSize: 13),
+                ),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 12,

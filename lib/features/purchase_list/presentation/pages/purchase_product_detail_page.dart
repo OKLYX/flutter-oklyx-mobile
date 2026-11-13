@@ -161,7 +161,7 @@ class _PurchaseProductDetailPageState extends State<PurchaseProductDetailPage> {
         ),
         const SizedBox(height: 12),
       ],
-      PurchaseProductCard(item: item),
+      PurchaseProductCard(item: item, truncateNames: false),
       const SizedBox(height: 12),
       if (state != null && state.filterSellerId == null) ...[
         _sharesCard(context, item, busy),
