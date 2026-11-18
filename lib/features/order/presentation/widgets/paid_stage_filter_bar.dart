@@ -38,7 +38,8 @@ bool matchesPaidStage(OrderItem order, PaidStage stage) => switch (stage) {
 /// lib/features/order/presentation/widgets/paid_stage_filter_bar.dart
 ///
 /// ⚠️ [orders] = PAID orders after the channel and search filters, before
-/// any chip — every chip count comes from it (D13).
+/// any chip — every chip count comes from it (D13), counted as orders
+/// (FEATURE_2611_30 / D17).
 /// ⚠️ Same pill as `OrderStatusFilterBar` — the chip is copied, not shared
 /// (that file is also used by the order history page).
 /// ❌ Tapping the active chip does nothing — no clear-by-retap here (D10).
@@ -64,7 +65,8 @@ class PaidStageFilterBar extends StatelessWidget {
               padding: const EdgeInsets.only(right: 8),
               child: _StatusChip(
                 label: paidStageLabel(stage),
-                count: orders.where((o) => matchesPaidStage(o, stage)).length,
+                count: countOrders(
+                    orders.where((o) => matchesPaidStage(o, stage))),
                 isActive: isActive,
                 onTap: () {
                   if (!isActive) {

@@ -6,9 +6,10 @@ import '../../domain/entities/order_item.dart';
 /// Internal stage badge — 「내부 상품준비중」 · 「발송대기중」 (FEATURE_2609_75 /
 /// D9 · D10 · D11).
 ///
-/// **Purpose**: placed next to the order number on the order card (the
-/// [OrderCard] shared by order history and outbound) and on the order detail
-/// (「주문 정보」 card 「주문번호」 row, FEATURE_2611_07 / D34).
+/// **Purpose**: placed at the end of each option line on the order card (the
+/// [OrderCard] shared by order history and outbound, FEATURE_2611_30 / D23)
+/// and on the order detail (「주문 정보」 card 「주문번호」 row,
+/// FEATURE_2611_07 / D34).
 /// **File**: lib/features/order/presentation/widgets/internal_stage_badge.dart
 ///
 /// **Example**:

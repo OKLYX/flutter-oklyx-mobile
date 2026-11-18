@@ -39,8 +39,8 @@ import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 ///   is shown, picking it again shows all
 /// - Channel (account) filter: narrows the list and the sync range together
 ///   (PLAN 2609_15 D7)
-/// - Card items (same as the frontend OrderTable): order number / product
-///   name / quantity / cancel / paid date
+/// - One card = one order; the items are in the `OrderCard` header comment
+///   (FEATURE_2611_30 / D10)
 ///
 /// ⚠️ This page is **lookup only**. The order list download and the shipment
 /// confirm moved to 「출고관리」 ([ShipmentManagementPage]) (PLAN 2609_15 D4) —
@@ -228,21 +228,41 @@ class _LoadedBody extends StatelessWidget {
     final canSyncSelected =
         accountValue == null || syncableIds.contains(accountValue);
 
-    // searchedOrders(검색까지 반영된 목록) 위에 채널만 얹고, 배지·목록·건수를 전부 여기서
-    // 파생한다. s.filteredOrders·s.statusCounts 를 그대로 쓰면 목록만 줄고 배지·건수는 안 줄어
-    // 화면이 어긋난다.
+    // Filter by line (search, then channel) and show the orders that keep a
+    // line; chips and the total count are order counts. The 「취소」 chip =
+    // orders whose every line is fully cancelled (same as the web 「취소항목」);
+    // no chip = every order, fully cancelled ones included
+    // (FEATURE_2611_30 / D17).
     final chScoped = accountValue == null
         ? s.searchedOrders
         : s.searchedOrders
             .where((o) => o.marketplaceAccountId == accountValue)
             .toList();
-    final counts = <OrderStatus, int>{};
-    for (final order in chScoped) {
-      counts[order.status] = (counts[order.status] ?? 0) + 1;
+    final scopedOrderKeys = chScoped.map(orderKey).toSet();
+    final scopedOrders = groupOrders(s.orders)
+        .where((order) => scopedOrderKeys.contains(order.key))
+        .toList();
+    final cancelledOrders = scopedOrders.where(isOrderCancelled).toList();
+    final counts = <OrderStatus, int>{
+      for (final status in kOrderStatuses)
+        status: status == OrderStatus.cancelled
+            ? cancelledOrders.length
+            : countOrders(chScoped.where((o) => o.status == status)),
+    };
+    final List<OrderGroup> orders;
+    if (s.selectedStatus == null) {
+      orders = scopedOrders;
+    } else if (s.selectedStatus == OrderStatus.cancelled) {
+      orders = cancelledOrders;
+    } else {
+      final shownOrderKeys = chScoped
+          .where((o) => o.status == s.selectedStatus)
+          .map(orderKey)
+          .toSet();
+      orders = scopedOrders
+          .where((order) => shownOrderKeys.contains(order.key))
+          .toList();
     }
-    final orders = s.selectedStatus == null
-        ? chScoped
-        : chScoped.where((o) => o.status == s.selectedStatus).toList();
     // ⚠️ Build the period options here in build, not cached outside State —
     // monthsWithData can arrive late and the labels would not update.
     final periodOptions = buildPeriodOptions(monthsWithData: s.monthsWithData);
@@ -490,7 +510,12 @@ class _LoadedBody extends StatelessWidget {
           SliverList.separated(
             itemCount: orders.length,
             separatorBuilder: (_, __) => const AppRowGap(),
-            itemBuilder: (context, index) => OrderCard(order: orders[index]),
+            itemBuilder: (context, index) => OrderCard(
+              order: orders[index],
+              collapsed: s.collapsedOrderKeys.contains(orders[index].key),
+              onToggleCollapsed: () => bloc.add(
+                  ToggleOrderCollapsed(orderKey: orders[index].key)),
+            ),
           ),
       ],
     );

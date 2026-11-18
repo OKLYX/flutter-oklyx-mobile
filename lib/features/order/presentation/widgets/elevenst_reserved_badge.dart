@@ -7,8 +7,8 @@ import '../../domain/entities/order_item.dart';
 /// (FEATURE_2610_17 / D67).
 ///
 /// **Purpose**: the order card (order history · shipment, shared [OrderCard])
-/// draws it beside the order number, in the same slot and shape as
-/// `InternalStageBadge`.
+/// draws it at the end of each option line (FEATURE_2611_30 / D23), in the
+/// same shape as `InternalStageBadge`.
 /// **File**: lib/features/order/presentation/widgets/elevenst_reserved_badge.dart
 ///
 /// **Usage**:
