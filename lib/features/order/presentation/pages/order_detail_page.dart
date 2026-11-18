@@ -60,6 +60,7 @@ import 'package:flutter_oklyn_mobile/features/packing/domain/entities/packing.da
 import 'package:flutter_oklyn_mobile/features/packing/presentation/widgets/box_change_sheet.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/product_thumbnail.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/master_route_args.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_network_image.dart';
 import '../../../master_product/presentation/widgets/copy_id_button.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/entities/stock_enums.dart'
     show unexpandedReasonLabel;
@@ -1077,6 +1078,33 @@ class _Thumb extends StatelessWidget {
   }
 }
 
+/// 「상품 N건」 row master cover photo 40×40; [_Thumb] grey box when there is
+/// none; no zoom (FEATURE_2611_31 / D4 · D6).
+class _MasterCoverThumb extends StatelessWidget {
+  final String? url;
+
+  const _MasterCoverThumb({required this.url});
+
+  static const double _size = 40;
+
+  @override
+  Widget build(BuildContext context) {
+    final src = url;
+    if (src == null) {
+      return const _Thumb(productId: null);
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: MasterNetworkImage(
+        url: src,
+        width: _size,
+        height: _size,
+        fit: BoxFit.cover,
+      ),
+    );
+  }
+}
+
 /// 「상품 N건」 card — every line of the order (D13 · R10 · R16). Only the line
 /// with [highlightLineId] gets the highlight background (D33 · R9); null = no
 /// highlighted line (packing entry).
@@ -1112,7 +1140,7 @@ class _ProductListCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _Thumb(productId: line.thumbnailProductId),
+                  _MasterCoverThumb(url: line.masterCoverImageUrl),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
