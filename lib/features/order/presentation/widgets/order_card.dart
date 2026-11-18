@@ -11,7 +11,8 @@ import 'elevenst_reserved_badge.dart';
 import 'internal_stage_badge.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/name_text.dart';
-import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/product_thumbnail.dart';
+import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_network_image.dart';
+import 'package:flutter_oklyn_mobile/shared/widgets/zoomable_image_viewer.dart';
 
 /// Card for one order — shared by the two screens, order history and shipment
 /// management.
@@ -52,9 +53,10 @@ import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets
 /// ⚠️ The selection checkbox is **optional** ([onToggleSelect] not passed =
 /// exactly the card as it is now). Only order acknowledgement (shipment
 /// management) passes it — order history does not.
-/// ⚠️ The thumbnail (left) is the server-picked first component product; a
-/// line without one shows a grey box of the same size. Tapping a loaded image
-/// opens the zoom viewer instead of the detail page.
+/// ⚠️ The thumbnail (left) is the cover photo of the first option line's
+/// master (`masterCoverImageUrl`, FEATURE_2611_31 / D1 · D6); without one it
+/// is a grey box of the same size — never a product photo instead (D2).
+/// Tapping an `http` photo opens the zoom viewer instead of the detail page.
 /// ❌ Do not make a `_OrderCard` copy per screen (the cards of the two screens
 /// silently drift apart).
 class OrderCard extends StatelessWidget {
@@ -196,11 +198,10 @@ class OrderCard extends StatelessWidget {
 
   /// Thumbnail on the left, the text column on the right.
   Widget _withThumbnail(BuildContext context, Widget content) {
-    final productId = order.lines.first.thumbnailProductId;
-    final thumb = productId != null
-        ? ProductThumbnail(
-            productId: productId, size: _thumbSize, zoomable: true)
-        : ClipRRect(
+    final coverUrl = order.lines.first.masterCoverImageUrl;
+    final Widget thumb;
+    if (coverUrl == null) {
+      thumb = ClipRRect(
             borderRadius: BorderRadius.circular(6),
             child: Container(
               width: _thumbSize,
@@ -213,6 +214,24 @@ class OrderCard extends StatelessWidget {
               ),
             ),
           );
+    } else {
+      final cover = ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: MasterNetworkImage(
+          url: coverUrl,
+          width: _thumbSize,
+          height: _thumbSize,
+          fit: BoxFit.cover,
+        ),
+      );
+      thumb = coverUrl.startsWith('http')
+          ? ImageWithZoomButton(
+              image: NetworkImage(coverUrl),
+              iconSize: 14,
+              child: cover,
+            )
+          : cover;
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

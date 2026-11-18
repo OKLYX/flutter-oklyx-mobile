@@ -36,6 +36,7 @@ class OrderModel extends OrderItem {
     super.masterProductName,
     super.masterOptionName,
     super.unexpandedReason,
+    super.masterCoverImageUrl,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
@@ -72,7 +73,7 @@ class OrderModel extends OrderItem {
       visitPickup: json['visitPickup'] as bool? ?? false,
       reservedSale: json['reservedSale'] as bool? ?? false,
       stockConfirmSent: json['stockConfirmSent'] as bool? ?? false,
-      // Missing on an older server = null (empty box).
+      // Missing on an older server = null. Not drawn (FEATURE_2611_31 / D6).
       thumbnailProductId: (json['thumbnailProductId'] as num?)?.toInt(),
       // FEATURE_2611_15 / D16 — missing on an older server = empty (「-」).
       components: _components(json['components']),
@@ -80,6 +81,8 @@ class OrderModel extends OrderItem {
       masterProductName: json['masterProductName'] as String?,
       masterOptionName: json['masterOptionName'] as String?,
       unexpandedReason: json['unexpandedReason'] as String?,
+      // Missing on an older server = null, empty box (FEATURE_2611_31 / D5).
+      masterCoverImageUrl: json['masterCoverImageUrl'] as String?,
     );
   }
 

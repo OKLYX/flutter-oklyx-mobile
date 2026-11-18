@@ -64,9 +64,9 @@ class OrderItem {
   final bool reservedSale;
   final bool stockConfirmSent;
 
-  /// Row thumbnail = first component product of the line's master option
-  /// (server-picked). null when the line could not be expanded (unmapped
-  /// option etc.) — the card draws an empty box.
+  /// First component product id (server-picked). The screens no longer draw
+  /// it (FEATURE_2611_31 / D6) — the server keeps it for installed apps
+  /// (D11).
   final int? thumbnailProductId;
 
   /// Real products of the line (FEATURE_2611_15 / D16 · D18): every
@@ -83,6 +83,12 @@ class OrderItem {
   /// null = linked; otherwise the reason code the line is broken — the screen
   /// text is `unexpandedReasonLabel` (FEATURE_2611_30 / D28).
   final String? unexpandedReason;
+
+  /// Stored URL of the line master's cover photo (picked photo ?? legacy
+  /// column). null = no cover photo or a broken line — the card and the
+  /// detail row draw an empty box, never a product photo instead
+  /// (FEATURE_2611_31 / D1 · D2 · D3 · D6).
+  final String? masterCoverImageUrl;
 
   const OrderItem({
     required this.id,
@@ -117,6 +123,7 @@ class OrderItem {
     this.masterProductName,
     this.masterOptionName,
     this.unexpandedReason,
+    this.masterCoverImageUrl,
   });
 }
 
