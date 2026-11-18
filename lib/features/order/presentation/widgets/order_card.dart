@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
 import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
 import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
+import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/entities/stock_enums.dart'
+    show unexpandedReasonLabel;
 import '../../domain/entities/order_item.dart';
 import 'elevenst_reserved_badge.dart';
 import 'internal_stage_badge.dart';
@@ -14,14 +16,16 @@ import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets
 /// Card for one order — shared by the two screens, order history and shipment
 /// management.
 ///
-/// **Purpose**: one row of the order list. The shown items are the same as the
-/// columns of the front-end `OrderTable`
-/// (order number / seller · sales channel / customer name / product name /
-/// ordered quantity / cancelled / real product quantity / paid date). The
-/// 「판매처」 text comes from `salesChannelLabel` only (FEATURE_2611_24 / D15 ·
-/// D17). The real product quantity
-/// (「실제 상품 수량」) is `componentQuantitiesLabel(order.components)` — text
-/// only, no link (FEATURE_2611_15 / D15 · D16 · D17).
+/// **Purpose**: one card = one order ([OrderGroup]: the lines of the same
+/// account and the same order number). The shown items are the photo (first
+/// option line) / order number + 「취소」 badge + [송장 수정] /
+/// 「판매자 … 판매처 …」 / 「고객 …」 / ordered products (per option line: name ·
+/// quantity tail · badges → component products) / 「결제일 …」
+/// (FEATURE_2611_30 / D1 · D5 · D10). The 「판매처」 text comes from
+/// `salesChannelLabel` only (FEATURE_2611_24 / D15 · D17).
+/// Tapping the card opens the first line's detail; tapping an option text
+/// opens that line's detail (D18). Collapsing is [collapsed] ·
+/// [onToggleCollapsed], held by the screen BLoC (D26).
 /// **Required rule**: a new screen that draws an order list uses this widget.
 /// Do not build the card again per screen.
 /// **File**: lib/features/order/presentation/widgets/order_card.dart
@@ -31,7 +35,12 @@ import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets
 /// SliverList.separated(
 ///   itemCount: orders.length,
 ///   separatorBuilder: (_, __) => const AppRowGap(),
-///   itemBuilder: (context, index) => OrderCard(order: orders[index]),
+///   itemBuilder: (context, index) => OrderCard(
+///     order: orders[index],
+///     collapsed: s.collapsedOrderKeys.contains(orders[index].key),
+///     onToggleCollapsed: () =>
+///         bloc.add(ToggleOrderCollapsed(orderKey: orders[index].key)),
+///   ),
 /// )
 /// ```
 ///
@@ -49,26 +58,38 @@ import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets
 /// ❌ Do not make a `_OrderCard` copy per screen (the cards of the two screens
 /// silently drift apart).
 class OrderCard extends StatelessWidget {
-  final OrderItem order;
+  final OrderGroup order;
 
-  /// 선택 체크박스(발주처리 전용, PLAN 2609_17 D7). 셋 다 기본값이면 지금과 같은 카드다.
+  /// Components collapsed — the screen BLoC's `collapsedOrderKeys` (D24 · D26).
+  final bool collapsed;
+
+  /// Collapse / expand tap — the screen adds `ToggleOrderCollapsed`
+  /// (D24 · D26).
+  final VoidCallback onToggleCollapsed;
+
+  /// Selection checkbox (acknowledgement only, PLAN 2609_17 D7). With all
+  /// three at their defaults the card is the same as without selection.
   final bool? selected;
 
-  /// 체크 토글 콜백 — `order.id` 를 넘긴다. null 이면 체크박스를 아예 그리지 않는다
-  /// (렌더 트리까지 주문내역과 동일해야 한다).
-  final ValueChanged<int>? onToggleSelect;
+  /// Check toggle callback — passes the order ([OrderGroup]). null = no
+  /// checkbox at all (the render tree must equal order history's).
+  final ValueChanged<OrderGroup>? onToggleSelect;
 
   /// false = a disabled (grey) checkbox — a row the screen does not let you
   /// pick (shipment management: neither Coupang nor 11st, FEATURE_2610_17 /
   /// D28).
   final bool selectable;
 
-  /// 내부 단계 주문의 [송장 수정](FEATURE_2609_75 / D18). null 이면 버튼을 그리지 않는다 — 출고관리만 넘긴다.
+  /// [송장 수정] of an order with any line at an internal stage
+  /// (FEATURE_2609_75 / D18 · FEATURE_2611_30 / D16). null = no button —
+  /// only shipment management passes it.
   final VoidCallback? onEditInvoice;
 
   const OrderCard({
-    super.key,
     required this.order,
+    required this.collapsed,
+    required this.onToggleCollapsed,
+    super.key,
     this.selected,
     this.onToggleSelect,
     this.selectable = true,
@@ -77,13 +98,12 @@ class OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final salesChannel = salesChannelLabel(order.platform, order.accountAlias);
+    final first = order.lines.first;
+    final salesChannel = salesChannelLabel(first.platform, first.accountAlias);
     return AppCard.row(
-      // 항목 탭 → 주문 상세 페이지로 이동 (선택한 OrderItem 을 extra 로 전달).
-      onTap: () => context.push(Routes.orderHistoryDetailPath, extra: order),
-      // Card items match the front-end OrderTable columns:
-      // order number / seller · sales channel / customer name / product name /
-      // ordered quantity / cancelled / real product quantity / paid date.
+      // Card tap → order detail page, the first line passed as `extra`.
+      onTap: () => context.push(Routes.orderHistoryDetailPath, extra: first),
+      // Card items follow the column order of the web OrderTable.
       child: _withCheckbox(_withThumbnail(
             context,
             Column(
@@ -95,19 +115,17 @@ class OrderCard extends StatelessWidget {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
-                      order.externalOrderId,
+                      first.externalOrderId,
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    // 내부 단계 배지(FEATURE_2609_75 / D9) — null 이면 아무것도 그리지 않는다.
-                    InternalStageBadge(stage: order.internalStage),
-                    // 11st reserved sale (FEATURE_2610_17 / D67) — the server's flag.
-                    if (order.reservedSale)
-                      const ElevenstReservedBadge(),
-                    // [송장 수정](D18) — 버튼 탭은 카드 탭(주문 상세)으로 새지 않는다(버튼이 먼저 받는다).
-                    if (onEditInvoice != null && order.internalStage != null)
+                    if (isOrderCancelled(order)) const _CancelledBadge(),
+                    // [송장 수정](D18) — the button takes its own tap, so it
+                    // does not leak to the card tap (order detail).
+                    if (onEditInvoice != null &&
+                        order.lines.any((line) => line.internalStage != null))
                       TextButton(
                         onPressed: onEditInvoice,
                         style: TextButton.styleFrom(
@@ -127,7 +145,7 @@ class OrderCard extends StatelessWidget {
                   runSpacing: 4,
                   children: [
                     Text(
-                      '판매자 ${order.sellerName ?? '-'}',
+                      '판매자 ${first.sellerName ?? '-'}',
                       style: TextStyle(
                         fontSize: 12,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -144,7 +162,7 @@ class OrderCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 NameText(
-                  name: '고객 ${getCustomerName(order)}',
+                  name: '고객 ${getCustomerName(first)}',
                   kind: NameKind.customer,
                   style: TextStyle(
                     fontSize: 13,
@@ -152,31 +170,17 @@ class OrderCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                NameText(
-                  name: order.itemName,
-                  kind: NameKind.product,
-                  style: const TextStyle(fontSize: 13),
-                ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 4,
-                  children: [
-                    _metric(context, '주문수량', order.orderCount),
-                    _metric(context, '취소', order.cancelCount),
-                  ],
+                _OrderProducts(
+                  order: order,
+                  collapsed: collapsed,
+                  onToggleCollapsed: onToggleCollapsed,
+                  onOpenLine: (line) => context.push(
+                      Routes.orderHistoryDetailPath,
+                      extra: line),
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '실제 상품 수량 ${componentQuantitiesLabel(order.components)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '결제일 ${formatOrderDateTime(order.paidAt)}',
+                  '결제일 ${formatOrderDateTime(first.paidAt)}',
                   style: TextStyle(
                     fontSize: 12,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -192,7 +196,7 @@ class OrderCard extends StatelessWidget {
 
   /// Thumbnail on the left, the text column on the right.
   Widget _withThumbnail(BuildContext context, Widget content) {
-    final productId = order.thumbnailProductId;
+    final productId = order.lines.first.thumbnailProductId;
     final thumb = productId != null
         ? ProductThumbnail(
             productId: productId, size: _thumbSize, zoomable: true)
@@ -231,19 +235,168 @@ class OrderCard extends StatelessWidget {
       children: [
         Checkbox(
           value: selected ?? false,
-          onChanged: selectable ? (_) => onToggle(order.id) : null,
+          onChanged: selectable ? (_) => onToggle(order) : null,
         ),
         const SizedBox(width: 4),
         Expanded(child: content),
       ],
     );
   }
+}
 
-  Widget _metric(BuildContext context, String label, int value) => Text(
-        '$label $value',
+/// 「취소」 badge beside the order number when every option line of the order
+/// is fully cancelled (FEATURE_2611_30 / D6 · R9) — same shape as
+/// `InternalStageBadge` without border and icon.
+class _CancelledBadge extends StatelessWidget {
+  const _CancelledBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: colors.errorContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        getOrderStatusLabel(OrderStatus.cancelled),
         style: TextStyle(
-          fontSize: 12,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: colors.onErrorContainer,
         ),
-      );
+      ),
+    );
+  }
+}
+
+/// Ordered products of one order card (FEATURE_2611_30 / D5 · D18 · D21 ·
+/// D23 ~ D25 · D27 · D28 · D32): per option line, the master label (or the
+/// grey market name + broken reason), the quantity tail and the badges, then
+/// 「→」 and the component products. One collapse button per order folds the
+/// components into 「구성상품 N개」. Tapping an option text opens that line.
+class _OrderProducts extends StatelessWidget {
+  final OrderGroup order;
+  final bool collapsed;
+  final VoidCallback onToggleCollapsed;
+  final ValueChanged<OrderItem> onOpenLine;
+
+  const _OrderProducts({
+    required this.order,
+    required this.collapsed,
+    required this.onToggleCollapsed,
+    required this.onOpenLine,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final grey = Theme.of(context).colorScheme.onSurfaceVariant;
+    final hasComponents =
+        order.lines.any((line) => line.components.isNotEmpty);
+    final lines = <Widget>[
+      for (final line in order.lines) ...[
+        if (line != order.lines.first) const SizedBox(height: 6),
+        _line(line, grey),
+      ],
+    ];
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (hasComponents)
+          IconButton(
+            icon: Icon(collapsed ? Icons.chevron_right : Icons.expand_more),
+            tooltip: collapsed ? '구성상품 펼치기' : '구성상품 접기',
+            onPressed: onToggleCollapsed,
+            visualDensity: VisualDensity.compact,
+            iconSize: 20,
+          ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: lines,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _line(OrderItem line, Color grey) {
+    final masterLabel = orderLineMasterLabel(line);
+    final reason = line.unexpandedReason;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Wrap(
+            spacing: 4,
+            runSpacing: 2,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              InkWell(
+                onTap: () => onOpenLine(line),
+                child: NameText(
+                  name: masterLabel ?? line.itemName,
+                  kind: NameKind.product,
+                  style: masterLabel == null
+                      ? TextStyle(fontSize: 13, color: grey)
+                      : const TextStyle(fontSize: 13),
+                ),
+              ),
+              Text(
+                orderLineQuantityLabel(line),
+                style: const TextStyle(fontSize: 13),
+              ),
+              if (masterLabel == null && reason != null)
+                Text(
+                  unexpandedReasonLabel(reason),
+                  style: TextStyle(fontSize: 12, color: grey),
+                ),
+              // Internal stage badge (FEATURE_2609_75 / D9) — draws nothing
+              // when null.
+              InternalStageBadge(stage: line.internalStage),
+              // 11st reserved sale (FEATURE_2610_17 / D67) — the server's
+              // flag.
+              if (line.reservedSale) const ElevenstReservedBadge(),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text('→', style: TextStyle(fontSize: 12, color: grey)),
+        ),
+        Expanded(child: _components(line)),
+      ],
+    );
+  }
+
+  Widget _components(OrderItem line) {
+    const style = TextStyle(fontSize: 12);
+    if (line.components.isEmpty) {
+      return const Text('-', style: style);
+    }
+    if (collapsed) {
+      return Text('구성상품 ${line.components.length}개', style: style);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final component in line.components)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Flexible(
+                child: NameText(
+                  name: component.productName,
+                  kind: NameKind.product,
+                  style: style,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text('× ${component.quantity}', style: style),
+            ],
+          ),
+      ],
+    );
+  }
 }

@@ -33,6 +33,9 @@ class OrderModel extends OrderItem {
     super.stockConfirmSent,
     super.thumbnailProductId,
     super.components,
+    super.masterProductName,
+    super.masterOptionName,
+    super.unexpandedReason,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
@@ -73,6 +76,10 @@ class OrderModel extends OrderItem {
       thumbnailProductId: (json['thumbnailProductId'] as num?)?.toInt(),
       // FEATURE_2611_15 / D16 — missing on an older server = empty (「-」).
       components: _components(json['components']),
+      // Missing on an older server = null (FEATURE_2611_30 / D30).
+      masterProductName: json['masterProductName'] as String?,
+      masterOptionName: json['masterOptionName'] as String?,
+      unexpandedReason: json['unexpandedReason'] as String?,
     );
   }
 
