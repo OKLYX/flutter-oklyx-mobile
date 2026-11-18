@@ -40,6 +40,7 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
     on<ChangeSearchTerm>(_onChangeSearchTerm);
     on<BackfillPeriod>(_onBackfillPeriod);
     on<DismissBackfillPrompt>(_onDismissBackfillPrompt);
+    on<ToggleOrderCollapsed>(_onToggleOrderCollapsed);
   }
 
   // Cancellation is cooperative: the in-flight account request is NOT aborted (the server keeps
@@ -339,6 +340,19 @@ class OrderListBloc extends Bloc<OrderListEvent, OrderListState> {
     final current = state;
     if (current is! OrderListLoaded) return;
     emit(current.copyWith(clearBackfillPrompt: true));
+  }
+
+  void _onToggleOrderCollapsed(
+    ToggleOrderCollapsed event,
+    Emitter<OrderListState> emit,
+  ) {
+    final current = state;
+    if (current is! OrderListLoaded) return;
+    final keys = Set.of(current.collapsedOrderKeys);
+    if (!keys.remove(event.orderKey)) {
+      keys.add(event.orderKey);
+    }
+    emit(current.copyWith(collapsedOrderKeys: keys));
   }
 
   /// 기간 백필 — 계정 단위로 [period] 를 순차 호출하고, 끝나면 그 기간으로 목록을 재조회한다.

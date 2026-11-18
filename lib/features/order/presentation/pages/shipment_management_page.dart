@@ -366,20 +366,24 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
     context.read<OrderRefreshBloc>().add(const RefreshResultCleared());
   }
 
-  /// 발주처리 버튼 — **되돌릴 수 없으므로 확인 다이얼로그를 반드시 거친다**
-  /// (PLAN 2609_17 "남는 위험").
-  /// [ids] = 선택 중 **발주처리 대상만** 추린 것(`_LoadedBody` 가 추려 넘긴다). 체크박스가
-  /// 상태 무관으로 넓어졌으므로 `_selectedIds` 를 그대로 보내면 비대상이 섞인다.
-  /// [includesInternal] = 그중 내부 단계 주문이 있다 → D14 안내 문구로 1회 묻는다(FEATURE_2609_75).
-  Future<void> _onAcknowledgePressed(List<int> ids, bool includesInternal) async {
-    final count = ids.length;
-    if (count == 0) return;
+  /// The acknowledge button — **it cannot be undone, so it always goes
+  /// through the confirm dialog** (PLAN 2609_17 remaining risk).
+  /// [ids] = only the acknowledge targets among the selection (`_LoadedBody`
+  /// narrows them). The checkbox ignores the status, so sending `_selectedIds`
+  /// as is would mix in non-targets.
+  /// [orderCount] = the order count written in the confirm text
+  /// (FEATURE_2611_30 / D16 · R3).
+  /// [includesInternal] = some of them are at an internal stage → ask once
+  /// with the D14 notice (FEATURE_2609_75).
+  Future<void> _onAcknowledgePressed(
+      List<int> ids, int orderCount, bool includesInternal) async {
+    if (ids.isEmpty) return;
     final ok = await showAppConfirmDialog(
       context,
       title: includesInternal ? '예약된 주문 포함' : '발주처리',
       message: includesInternal
           ? '예약된 주문입니다. 마켓에 지금 발주처리하면 해당 주문의 내부 발주·예약 발송이 해제됩니다. 계속할까요?'
-          : '$count건을 발주처리합니다. 되돌릴 수 없습니다.',
+          : '$orderCount건을 발주처리합니다. 되돌릴 수 없습니다.',
       confirmText: '발주처리',
     );
     if (!ok || !mounted) return;
@@ -584,10 +588,14 @@ class _LoadedBody extends StatelessWidget {
   /// 목록이 바뀌는 이벤트(`bloc.add`) **직전**에 함께 부른다 — 선택이 무효가 된다.
   final VoidCallback onClearSelection;
 
-  /// 확인 다이얼로그와 `AcknowledgeRequested` 발행은 부모가 한다.
-  /// 🔴 발주처리 대상만 추려서 넘긴다 — 체크박스는 상태 무관이라 선택 전체와 다르다.
-  /// [includesInternal] = 그중 내부 단계 주문이 있다(D14 안내 문구).
-  final void Function(List<int> ids, bool includesInternal) onAcknowledge;
+  /// The parent shows the confirm dialog and dispatches `AcknowledgeRequested`.
+  /// 🔴 Only the acknowledge targets are passed — the checkbox ignores the
+  /// status, so they differ from the whole selection.
+  /// `orderCount` = the order count for the confirm text (FEATURE_2611_30 /
+  /// R3). [includesInternal] = some of them are at an internal stage (the
+  /// D14 notice).
+  final void Function(List<int> ids, int orderCount, bool includesInternal)
+      onAcknowledge;
 
   /// [내부 발주처리] — 결제완료·내부 단계 없음만 추려 넘긴다(FEATURE_2609_75 / D1).
   final void Function(List<int> ids) onInternal;
@@ -641,7 +649,8 @@ class _LoadedBody extends StatelessWidget {
     // first and count the chips from this list — s.statusCounts would also
     // count cancelled and shipped orders, and the chips would drift from it.
     // Order: channel → search → status → paid stage (FEATURE_2610_07 / D16).
-    // Chip counts also count the search result.
+    // Chip counts also count the search result. The list and the chip counts
+    // are per order (FEATURE_2611_30 / D17).
     final scoped = s.orders
         .where((o) => kShipmentStatuses.contains(o.status))
         .where((o) => !o.cancelled) // 전량취소는 발송 대상 아님 (서버 판정, D26)
@@ -651,7 +660,7 @@ class _LoadedBody extends StatelessWidget {
         .toList();
     final counts = <OrderStatus, int>{
       for (final status in kShipmentStatuses)
-        status: scoped.where((o) => o.status == status).length,
+        status: countOrders(scoped.where((o) => o.status == status)),
     };
     // 2nd-row chip counts: the same list as the 1st-row counts, narrowed to
     // PAID (FEATURE_2610_07 / D13).
@@ -665,6 +674,10 @@ class _LoadedBody extends StatelessWidget {
                 s.selectedStatus != OrderStatus.paid ||
                 matchesPaidStage(o, paidStage))
             .toList();
+    final visibleOrderKeys = visible.map(orderKey).toSet();
+    final visibleOrders = groupOrders(s.orders)
+        .where((order) => visibleOrderKeys.contains(order.key))
+        .toList();
     // 선택 중 실제로 발주처리되는 라인 id. 상태 탭은 선택을 비우지 않으므로 `visible` 이 아니라
     // 채널 필터까지만 적용한 `scoped` 에서 찾는다 — 탭에 가려진 선택도 세어야 한다.
     final ackTargetIds = scoped
@@ -703,8 +716,12 @@ class _LoadedBody extends StatelessWidget {
     // D14 — 발주처리로 보낼 주문 중 내부 단계가 있는 것이 하나라도 있는가.
     final includesInternal = scoped
         .any((o) => ackTargetIds.contains(o.id) && o.internalStage != null);
+    final selectedOrderCount =
+        countOrders(s.orders.where((o) => selectedIds.contains(o.id)));
+    final ackOrderCount = countOrders(scoped.where(
+        (o) => selectedIds.contains(o.id) && _isAcknowledgeTarget(o)));
     final isAckOverLimit = ackTargetIds.length > _kMaxAcknowledgeSelection;
-    final notAcknowledgeable = selectedIds.length - ackTargetIds.length;
+    final notAcknowledgeable = selectedOrderCount - ackOrderCount;
     final hintStyle = TextStyle(
       fontSize: 12,
       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -987,7 +1004,7 @@ class _LoadedBody extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        '총 ${visible.length}건',
+                        '총 ${visibleOrders.length}건',
                         style: TextStyle(
                           fontSize: 12,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -997,7 +1014,7 @@ class _LoadedBody extends StatelessWidget {
                       // 선택 건수를 말하는 자리는 여기 한 곳뿐이다 — 버튼 글자에 건수를 넣지 않는다.
                       if (selectedIds.isNotEmpty)
                         Text(
-                          '선택 ${selectedIds.length}건',
+                          '선택 $selectedOrderCount건',
                           style: TextStyle(
                             fontSize: 12,
                             color:
@@ -1033,7 +1050,10 @@ class _LoadedBody extends StatelessWidget {
                           onPressed: ackState.submitting || isAckOverLimit
                               ? null
                               : () =>
-                                  onAcknowledge(ackTargetIds, includesInternal),
+                                  onAcknowledge(
+                                      ackTargetIds,
+                                      ackOrderCount,
+                                      includesInternal),
                           child: ackState.submitting
                               ? const AppBusyLabel('발주처리')
                               : const Text('발주처리'),
@@ -1104,7 +1124,7 @@ class _LoadedBody extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
-                        '선택한 ${selectedIds.length}건 중 '
+                        '선택한 $selectedOrderCount건 중 '
                         '$notAcknowledgeable건은 결제완료가 아니거나 입고완료 전 11번가 예약판매라서 '
                         '발주처리 대상이 아닙니다. '
                         '주문 상태 갱신은 그대로 됩니다.',
@@ -1141,23 +1161,35 @@ class _LoadedBody extends StatelessWidget {
         ],
           ),
         ),
-        if (visible.isEmpty)
+        if (visibleOrders.isEmpty)
           const SliverToBoxAdapter(child: AppEmpty('발송할 주문이 없습니다.'))
         else
           SliverList.separated(
-            itemCount: visible.length,
+            itemCount: visibleOrders.length,
             separatorBuilder: (_, __) => const AppRowGap(),
             itemBuilder: (context, index) {
-              final o = visible[index];
+              final o = visibleOrders[index];
               return OrderCard(
                 order: o,
-                selected: selectedIds.contains(o.id),
-                selectable: _isSelectable(o),
-                onToggleSelect: onToggleSelect,
+                collapsed: s.collapsedOrderKeys.contains(o.key),
+                onToggleCollapsed: () =>
+                    bloc.add(ToggleOrderCollapsed(orderKey: o.key)),
+                selected:
+                    o.lines.every((line) => selectedIds.contains(line.id)),
+                selectable: o.lines.any(_isSelectable),
+                onToggleSelect: (order) {
+                  final target = !order.lines
+                      .every((line) => selectedIds.contains(line.id));
+                  for (final line in order.lines) {
+                    if (selectedIds.contains(line.id) != target) {
+                      onToggleSelect(line.id);
+                    }
+                  }
+                },
                 // 카드가 내부 단계 주문일 때만 버튼을 그린다(D18). 시트 안에서 저장·조회한다.
                 onEditInvoice: () =>
-                    showStoredInvoiceSheet(
-                        context, o.externalOrderId, o.platform),
+                    showStoredInvoiceSheet(context,
+                        o.lines.first.externalOrderId, o.lines.first.platform),
               );
             },
           ),

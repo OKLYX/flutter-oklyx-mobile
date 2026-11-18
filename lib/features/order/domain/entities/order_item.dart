@@ -75,6 +75,15 @@ class OrderItem {
   /// expand the line.
   final List<OrderComponentQuantity> components;
 
+  /// Master product and master option names the server puts on each line;
+  /// null on a broken line (FEATURE_2611_30 / D21 · D27 · D30).
+  final String? masterProductName;
+  final String? masterOptionName;
+
+  /// null = linked; otherwise the reason code the line is broken — the screen
+  /// text is `unexpandedReasonLabel` (FEATURE_2611_30 / D28).
+  final String? unexpandedReason;
+
   const OrderItem({
     required this.id,
     required this.marketplaceAccountId,
@@ -105,6 +114,9 @@ class OrderItem {
     this.stockConfirmSent = false,
     this.thumbnailProductId,
     this.components = const [],
+    this.masterProductName,
+    this.masterOptionName,
+    this.unexpandedReason,
   });
 }
 
@@ -120,16 +132,63 @@ class OrderComponentQuantity {
   });
 }
 
-/// The order list's real product quantity text (FEATURE_2611_15 / D16):
-/// 「{name} × {quantity}」 joined by 「 · 」, e.g.
-/// 「노란 수세미 × 3 · 초록 수세미 × 6」; 「-」 when the line has no components
-/// (a broken link).
-String componentQuantitiesLabel(List<OrderComponentQuantity> components) =>
-    components.isEmpty
-        ? '-'
-        : components
-            .map((c) => '${c.productName} × ${c.quantity}')
-            .join(' · ');
+/// The order card key (FEATURE_2611_30 / R1): one order = the same account
+/// and the same order number.
+String orderKey(OrderItem line) =>
+    '${line.marketplaceAccountId}:${line.externalOrderId}';
+
+/// One card = the lines of the same account and the same order number;
+/// order-level values come from `lines.first` (FEATURE_2611_30 / D1 · D13).
+class OrderGroup {
+  /// [orderKey] value of the lines.
+  final String key;
+
+  /// The order's lines, ascending by line `id`.
+  final List<OrderItem> lines;
+
+  const OrderGroup({required this.key, required this.lines});
+}
+
+/// Groups lines into orders (FEATURE_2611_30 / R2): orders in the order their
+/// key first appears in [lines], lines inside an order ascending by `id`.
+List<OrderGroup> groupOrders(List<OrderItem> lines) {
+  final byKey = <String, List<OrderItem>>{};
+  for (final line in lines) {
+    byKey.putIfAbsent(orderKey(line), () => []).add(line);
+  }
+  return [
+    for (final entry in byKey.entries)
+      OrderGroup(
+        key: entry.key,
+        lines: List.of(entry.value)..sort((a, b) => a.id.compareTo(b.id)),
+      ),
+  ];
+}
+
+/// Number of distinct orders among [lines] (FEATURE_2611_30 / R3).
+int countOrders(Iterable<OrderItem> lines) =>
+    lines.map(orderKey).toSet().length;
+
+/// True when every line of the order is fully cancelled (FEATURE_2611_30 / D6).
+bool isOrderCancelled(OrderGroup order) =>
+    order.lines.every((line) => line.cancelled);
+
+/// 「{master product} · {master option}」 for a linked line, else null
+/// (FEATURE_2611_30 / R8).
+String? orderLineMasterLabel(OrderItem line) {
+  final product = line.masterProductName;
+  final option = line.masterOptionName;
+  return product == null || option == null ? null : '$product · $option';
+}
+
+/// The quantity tail (FEATURE_2611_30 / R8), e.g. 「×3」 · 「×2 (취소 1)」 ·
+/// 「×3 (환불대기 1)」 · 「×5 (취소 1)(환불대기 1)」.
+String orderLineQuantityLabel(OrderItem line) {
+  final cancel = line.cancelCount > 0 ? '(취소 ${line.cancelCount})' : '';
+  final hold = line.holdCount > 0 ? '(환불대기 ${line.holdCount})' : '';
+  final tail = '$cancel$hold';
+  return tail.isEmpty ? '×${line.orderCount}' : '×${line.orderCount} $tail';
+}
 
 /// The reserved-sale label beside the status (FEATURE_2610_17 / D67) — one
 /// source for the order card and the order detail.
@@ -218,12 +277,12 @@ bool _matchesCustomer(OrderItem order, String needle) =>
 bool _matchesOrderNo(OrderItem order, String needle) =>
     _normalize(order.externalOrderId).contains(needle);
 
-/// itemName 은 채널 원문(상품명 + 옵션명 한 덩어리)이고 nullable 이다 —
-/// null 라인은 상품명으로는 절대 걸리지 않는다(PLAN 2609_27 D6).
-bool _matchesProduct(OrderItem order, String needle) {
-  final name = order.itemName;
-  return name != null && _normalize(name).contains(needle);
-}
+/// The product chip matches the market item name, the master product name
+/// and the master option name; a null value never matches through its field
+/// (FEATURE_2611_30 / D29).
+bool _matchesProduct(OrderItem order, String needle) =>
+    [order.itemName, order.masterProductName, order.masterOptionName]
+        .any((n) => n != null && _normalize(n).contains(needle));
 
 /// 빈 검색어는 전부 통과(기존 동작 유지).
 bool matchesOrderSearch(OrderItem order, OrderSearchField field, String term) {

@@ -72,3 +72,11 @@ class ChangeSearchTerm extends OrderListEvent {
 
   ChangeSearchTerm({required this.term});
 }
+
+/// Collapses or expands the components of an order card; does not open the
+/// detail (FEATURE_2611_30 / D24).
+class ToggleOrderCollapsed extends OrderListEvent {
+  final String orderKey;
+
+  ToggleOrderCollapsed({required this.orderKey});
+}

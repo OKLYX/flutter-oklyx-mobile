@@ -101,6 +101,10 @@ class OrderListLoaded extends OrderListState {
   /// 월 조회 결과가 0건일 때만 1회 채워진다(PLAN D1·D10).
   final String? backfillPrompt;
 
+  /// `orderKey` of the collapsed orders — not remembered: a new list clears
+  /// it (FEATURE_2611_30 / D26).
+  final Set<String> collapsedOrderKeys;
+
   OrderListLoaded({
     required this.sellers,
     this.selectedSellerId,
@@ -121,6 +125,7 @@ class OrderListLoaded extends OrderListState {
     this.searchTerm = '',
     this.monthsWithData = const {},
     this.backfillPrompt,
+    this.collapsedOrderKeys = const <String>{},
   });
 
   /// 검색어·칩으로 거른 목록. [statusCounts]·[filteredOrders] 의 **공통 소스**다.
@@ -186,6 +191,7 @@ class OrderListLoaded extends OrderListState {
     Set<String>? monthsWithData,
     String? backfillPrompt,
     bool clearBackfillPrompt = false,
+    Set<String>? collapsedOrderKeys,
   }) {
     return OrderListLoaded(
       sellers: sellers ?? this.sellers,
@@ -216,6 +222,9 @@ class OrderListLoaded extends OrderListState {
       backfillPrompt: clearBackfillPrompt
           ? null
           : (backfillPrompt ?? this.backfillPrompt),
+      // A new list = every order expanded (D26).
+      collapsedOrderKeys: collapsedOrderKeys ??
+          (orders != null ? const <String>{} : this.collapsedOrderKeys),
     );
   }
 }
