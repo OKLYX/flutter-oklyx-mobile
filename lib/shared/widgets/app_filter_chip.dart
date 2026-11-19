@@ -14,9 +14,9 @@ class AppFilterOption<T> {
 /// (FEATURE_2610_03 · D132 · D136).
 ///
 /// **Purpose**: one shape for the choice conditions (seller · channel ·
-/// period · sort · platform) of the list-page search areas — pill, height 32,
-/// border `outline`, ▾ after the text. A tap opens a menu right below the
-/// chip ([showAppFilterMenu]); the current value has a check mark.
+/// period · sort · platform) of the list-page search areas — pill, height 34,
+/// border `outline` (gray300), ▾ after the text. A tap opens a menu right
+/// below the chip ([showAppFilterMenu]); the current value has a check mark.
 /// **File**: lib/shared/widgets/app_filter_chip.dart
 ///
 /// **Usage**:
@@ -35,8 +35,9 @@ class AppFilterOption<T> {
 ///
 /// ⚠️ [label] = the label word while 「전체」 / 「선택하세요」 is picked,
 ///    otherwise the picked value (D132 ②). The page decides it.
-/// ⚠️ [highlighted] = a value other than the default is picked → yellow
-///    border, the same mark as the order status chips (D132 ③).
+/// ⚠️ [highlighted] = a value other than the default is picked → dark fill
+///    (`AppColors.textStrong`) with white text (FEATURE_2611_32 / D14;
+///    🔁 D132 ① ③).
 /// ⚠️ [onSelected] null = the chip does not open (while loading or syncing —
 ///    D132 ⑤). Picking the current value again also calls [onSelected], like
 ///    the dropdown it replaces.
@@ -61,20 +62,22 @@ class AppFilterChip<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final enabled = onSelected != null;
+    final baseForeground =
+        highlighted ? AppColors.backgroundLight : scheme.onSurface;
     final foreground =
-        enabled ? scheme.onSurface : scheme.onSurface.withValues(alpha: 0.38);
+        enabled ? baseForeground : baseForeground.withValues(alpha: 0.38);
     return Material(
-      color: scheme.surface,
+      color: highlighted ? AppColors.textStrong : scheme.surface,
       shape: StadiumBorder(
         side: BorderSide(
-          color: highlighted ? AppColors.brandMain : scheme.outline,
+          color: highlighted ? AppColors.textStrong : scheme.outline,
         ),
       ),
       child: InkWell(
         customBorder: const StadiumBorder(),
         onTap: enabled ? () => _open(context) : null,
         child: SizedBox(
-          height: 32,
+          height: 34,
           child: Padding(
             padding: const EdgeInsets.only(left: 12, right: 8),
             child: Row(

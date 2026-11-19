@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:flutter_oklyn_mobile/config/router/routes.dart';
-import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/dialogs/shipment_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/features/shipping_label/presentation/widgets/stored_invoice_section.dart';
@@ -24,6 +23,8 @@ import '../bloc/order_refresh_state.dart';
 import '../widgets/order_card.dart';
 import '../widgets/order_search_bar.dart';
 import '../widgets/order_status_filter_bar.dart';
+import '../widgets/order_sync_button.dart';
+import '../widgets/order_select_box.dart';
 import '../widgets/paid_stage_filter_bar.dart';
 import '../widgets/sync_progress_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
@@ -50,6 +51,9 @@ import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 ///   event, D6).
 /// - List cards and status chips use the shared widgets ([OrderCard] ·
 ///   [OrderStatusFilterBar]).
+/// - The sync pill ([OrderSyncButton]) sits in the title bar; selection actions
+///   sit in a bar pinned above the nav bar (FEATURE_2611_32 / D6 · D12);
+///   「전체 선택」 picks the visible orders (D13; 🔁 PLAN 2609_17 D17).
 ///
 /// - There are two decisions (no copied literal conditions) — whether to draw
 ///   the checkbox is [_isSelectable] (a Coupang, 11st or LotteON order,
@@ -174,6 +178,13 @@ bool _isStoredShipTarget(OrderItem order) => order.internalStage != null;
 /// 넘겨 보내면 400 이라 버튼에서 먼저 막는다(PLAN 2609_17 D12).
 const int _kMaxAcknowledgeSelection = 500;
 
+/// The picked channel when it is still a sync target, else null (= all
+/// channels) — the targets can arrive after the pick or change.
+int? _shipmentAccountValue(OrderListLoaded s, int? selectedAccountId) =>
+    s.syncTargets.any((t) => t.accountId == selectedAccountId)
+        ? selectedAccountId
+        : null;
+
 class _ShipmentManagementView extends StatefulWidget {
   const _ShipmentManagementView();
 
@@ -221,6 +232,18 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
       navBarIndex: 2,
       showDrawer: true,
       showAppBarDrawerButton: false,
+      appBarActions: [
+        BlocBuilder<OrderListBloc, OrderListState>(
+          builder: (context, state) => state is OrderListLoaded
+              ? OrderSyncButton(
+                  lastSyncedAt: state.lastSyncedFromServer,
+                  hasIncompleteChannel: state.nonSuccessTargets.isNotEmpty,
+                  syncing: state.isSyncing,
+                  onPressed: _syncAction(state),
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
       // 두 BLoC 을 한 Consumer 에 섞지 않는다 — 발주처리 결과는 별도 리스너가 듣는다.
       body: BlocListener<OrderAcknowledgeBloc, OrderAcknowledgeState>(
         // 같은 값이 다시 emit 될 때(권한 없음 재노출 등) SnackBar 가 겹치지 않도록 전이만 듣는다.
@@ -311,6 +334,28 @@ class _ShipmentManagementViewState extends State<_ShipmentManagementView> {
         ),
       ),
     );
+  }
+
+  /// Sync action of the title-bar pill — the same job as the old [동기화]:
+  /// no channel picked = every channel, a picked channel = that channel only;
+  /// the selection is cleared first. The server decides the fetch range
+  /// (FEATURE_2609_49).
+  VoidCallback? _syncAction(OrderListLoaded s) {
+    if (s.isSearching || s.isSyncing) {
+      return null;
+    }
+    final accountValue = _shipmentAccountValue(s, _selectedAccountId);
+    final bloc = context.read<OrderListBloc>();
+    return () {
+      _clearSelection();
+      accountValue == null
+          ? bloc.add(SyncOrders())
+          : bloc.add(SyncSelectedChannels(
+              targets: s.syncTargets
+                  .where((t) => t.accountId == accountValue)
+                  .toList(),
+            ));
+    };
   }
 
   /// 주문 상태 갱신 버튼 — 🔴 **확인 다이얼로그가 없다**(2609_50 D15 와 같은 판단).
@@ -641,9 +686,7 @@ class _LoadedBody extends StatelessWidget {
     final targets = s.syncTargets;
     // When the targets arrive late or change, the picked account can drop out
     // of the options — fall back to all channels.
-    final accountValue = targets.any((t) => t.accountId == selectedAccountId)
-        ? selectedAccountId
-        : null;
+    final accountValue = _shipmentAccountValue(s, selectedAccountId);
 
     // s.filteredOrders is not shipment-scoped. Narrow to the shipment scope
     // first and count the chips from this list — s.statusCounts would also
@@ -722,50 +765,40 @@ class _LoadedBody extends StatelessWidget {
         (o) => selectedIds.contains(o.id) && _isAcknowledgeTarget(o)));
     final isAckOverLimit = ackTargetIds.length > _kMaxAcknowledgeSelection;
     final notAcknowledgeable = selectedOrderCount - ackOrderCount;
+    final colorScheme = Theme.of(context).colorScheme;
     final hintStyle = TextStyle(
       fontSize: 12,
       color: Theme.of(context).colorScheme.onSurfaceVariant,
     );
 
-    return AppPageBody.slivers(
+    final selectableOrders =
+        visibleOrders.where((o) => o.lines.any(_isSelectable)).toList();
+    final allSelected = selectableOrders.isNotEmpty &&
+        selectableOrders
+            .every((o) => o.lines.every((l) => selectedIds.contains(l.id)));
+    // Same loop as the card's onToggleSelect — select every visible
+    // selectable order, or clear every visible order (FEATURE_2611_32 / D13).
+    void toggleAll() {
+      final target = !allSelected;
+      final orders = allSelected ? visibleOrders : selectableOrders;
+      for (final order in orders) {
+        for (final line in order.lines) {
+          if (selectedIds.contains(line.id) != target) {
+            onToggleSelect(line.id);
+          }
+        }
+      }
+    }
+
+    return Column(
+      children: [
+        Expanded(
+          child: AppPageBody.slivers(
       slivers: [
         SliverToBoxAdapter(
           child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 목록(클라이언트 필터)과 접수시트(서버 30일 창)의 범위가 다르다는 고지.
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.infoSurface,
-              border: Border.all(color: AppColors.infoSurface),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Text(
-              '목록은 최근 14일 기준입니다. 접수시트는 30일까지 포함합니다.',
-              style: TextStyle(fontSize: 13, color: AppColors.infoForeground),
-            ),
-          ),
-          // Web shows this in the page header. Source = server stamp:
-          // background sync keeps data fresh even without a manual
-          // [동기화], same as 주문내역.
-          if (s.lastSyncedFromServer != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  '마지막 동기화: ${formatRelativeTime(s.lastSyncedFromServer)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ),
-          const SizedBox(height: 8),
-
           AppCard(
               child: Column(
                 children: [
@@ -835,37 +868,19 @@ class _LoadedBody extends StatelessWidget {
                               },
                         child: Text(s.isSearching ? '조회 중...' : '조회'),
                       ),
-                      const SizedBox(width: 4),
-                      // Icon-only [동기화] — the name shows on long press.
-                      // 채널 미선택이면 전 채널, 선택돼 있으면 그 채널만(D7).
-                      IconButton.outlined(
-                        tooltip: '동기화',
-                        onPressed: busy
-                            ? null
-                            : () {
-                                // 조회 범위는 서버가 정한다(기본 preset = QUICK) — 화면이
-                                // 범위를 선언하지 않는다(FEATURE_2609_49).
-                                onClearSelection();
-                                if (accountValue == null) {
-                                  bloc.add(SyncOrders());
-                                  return;
-                                }
-                                bloc.add(SyncSelectedChannels(
-                                  targets: targets
-                                      .where((t) => t.accountId == accountValue)
-                                      .toList(),
-                                ));
-                              },
-                        icon: s.isSyncing
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.sync, size: 20),
-                      ),
                     ],
+                  ),
+                  // The list (client filter) and the label sheet (server, 30
+                  // days) cover different ranges (FEATURE_2611_32 / D4-16).
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      '목록은 최근 14일 기준입니다. 접수시트는 30일까지 포함합니다.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   ),
                   // The server processes sheet/confirm by sellerId, so the channel
                   // filter does not narrow them (same notice as web).
@@ -896,91 +911,93 @@ class _LoadedBody extends StatelessWidget {
                     },
                   ),
                   const SizedBox(height: 8),
-                  // Four actions in one row (2026-10-30). None of them is
-                  // gated by OrderListBloc.busy — each opens its own page/dialog.
-                  // IntrinsicHeight bounds the row so `stretch` can give all
-                  // four the same height — inside the scroll view a bare
-                  // stretched Row gets infinite height and the page fails.
-                  IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // 발주 목록: preview 페이지에서 택배수량 편집 후 다운로드.
-                        Expanded(
-                          child: _ShipmentActionTile(
-                            icon: Icons.download,
-                            label: '발주 목록',
-                            onPressed: () =>
-                                context.push(Routes.shippingLabelPreviewPath),
-                          ),
+                  // Four actions as a 4-column grid (FEATURE_2611_32 / D10);
+                  // none is gated by OrderListBloc.busy.
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 「발주 목록」: edit parcel counts on the preview page,
+                      // then download.
+                      Expanded(
+                        child: _ShipmentActionTile(
+                          icon: Icons.download,
+                          label: '발주 목록',
+                          onPressed: () =>
+                              context.push(Routes.shippingLabelPreviewPath),
                         ),
-                        const SizedBox(width: 6),
-                        // 「내부 상품준비중」 접수시트(FEATURE_2609_75 / D25·D26).
-                        Expanded(
-                          child: _ShipmentActionTile(
-                            icon: Icons.download,
-                            label: '내부 발주 목록',
-                            onPressed: () => context
-                                .push(Routes.shippingLabelPreviewInternalPath),
-                          ),
+                      ),
+                      const SizedBox(width: 4),
+                      // The 「내부 상품준비중」 label sheet (FEATURE_2609_75 /
+                      // D25·D26).
+                      Expanded(
+                        child: _ShipmentActionTile(
+                          icon: Icons.download,
+                          label: '내부 발주 목록',
+                          onPressed: () => context
+                              .push(Routes.shippingLabelPreviewInternalPath),
                         ),
-                        const SizedBox(width: 6),
-                        // Shipment (label upload): carrier result xlsx → the
-                        // marketplace invoice upload batch (Coupang · 11st ·
-                        // LotteON, FEATURE_2610_17 / D2).
-                        Expanded(
-                          child: _ShipmentActionTile(
-                            icon: Icons.upload_file,
-                            label: '발송처리',
-                            onPressed: () async {
-                              final uploaded =
-                                  await showShipmentConfirmDialog(context);
-                              // Guard isClosed: the page can be popped while
-                              // the dialog is open.
-                              if (uploaded == true && !bloc.isClosed) {
-                                // 백엔드가 배송지시로 바꾼 상태를 즉시 반영 —
-                                // 판매자 필터를 유지하는 SearchOrders 를 쓴다.
-                                onClearSelection();
-                                bloc.add(SearchOrders());
-                              }
-                            },
-                          ),
+                      ),
+                      const SizedBox(width: 4),
+                      // Shipment (label upload): carrier result xlsx → the
+                      // marketplace invoice upload batch (Coupang · 11st ·
+                      // LotteON, FEATURE_2610_17 / D2).
+                      Expanded(
+                        child: _ShipmentActionTile(
+                          icon: Icons.upload_file,
+                          label: '발송처리',
+                          highlighted: true,
+                          onPressed: () async {
+                            final uploaded =
+                                await showShipmentConfirmDialog(context);
+                            // Guard isClosed: the page can be popped while
+                            // the dialog is open.
+                            if (uploaded == true && !bloc.isClosed) {
+                              // Show the status the backend moved at once —
+                              // SearchOrders keeps the seller filter.
+                              onClearSelection();
+                              bloc.add(SearchOrders());
+                            }
+                          },
                         ),
-                        const SizedBox(width: 6),
-                        // 예약 발송 현황(D15·D16·D21) — 돌아오면 배지·목록이
-                        // 바뀌었을 수 있어 늘 다시 조회한다.
-                        Expanded(
-                          child: _ShipmentActionTile(
-                            icon: Icons.schedule,
-                            label: '예약 발송 현황',
-                            onPressed: () async {
-                              await context.push(Routes.reservedShipmentPath);
-                              if (!bloc.isClosed) {
-                                onClearSelection();
-                                bloc.add(SearchOrders());
-                              }
-                            },
-                          ),
+                      ),
+                      const SizedBox(width: 4),
+                      // 「예약 발송 현황」 (D15·D16·D21) — the badges and the
+                      // list may have changed on return, so search again.
+                      Expanded(
+                        child: _ShipmentActionTile(
+                          icon: Icons.schedule,
+                          label: '예약 발송 현황',
+                          onPressed: () async {
+                            await context.push(Routes.reservedShipmentPath);
+                            if (!bloc.isClosed) {
+                              onClearSelection();
+                              bloc.add(SearchOrders());
+                            }
+                          },
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ],
               ),
           ),
           const SizedBox(height: 8),
 
-          OrderStatusFilterBar(
-            selectedStatus: s.selectedStatus,
-            counts: counts,
-            onSelect: (status) {
-              onClearSelection();
-              // Every 1st-row tap puts the 2nd row back to 'all'
-              // (FEATURE_2610_07 / D14).
-              onSelectPaidStage(PaidStage.all);
-              bloc.add(SelectStatus(status: status));
-            },
-            statuses: kShipmentStatuses,
+          AppCard.flush(
+            child: OrderStatusFilterBar(
+              selectedStatus: s.selectedStatus,
+              counts: counts,
+              allCount: countOrders(scoped),
+              onSelect: (status) {
+                onClearSelection();
+                // Every 1st-row tap puts the 2nd row back to 'all'
+                // (FEATURE_2610_07 / D14).
+                onSelectPaidStage(PaidStage.all);
+                bloc.add(SelectStatus(status: status));
+              },
+              statuses: kShipmentStatuses,
+              equalWidth: true,
+            ),
           ),
           if (s.selectedStatus == OrderStatus.paid) ...[
             const SizedBox(height: 8),
@@ -992,170 +1009,32 @@ class _LoadedBody extends StatelessWidget {
           ],
           const SizedBox(height: 8),
 
-          // ⚠️ BlocBuilder wraps only this group — wrapping the Column or
-          // SliverList would rebuild the whole list on every send (same
-          // caution as in the order detail).
-          BlocBuilder<OrderInternalStageBloc, OrderInternalStageState>(
-            builder: (context, internalState) =>
-                BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
-              builder: (context, ackState) => Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        '총 ${visibleOrders.length}건',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const Spacer(),
-                      // 선택 건수를 말하는 자리는 여기 한 곳뿐이다 — 버튼 글자에 건수를 넣지 않는다.
-                      if (selectedIds.isNotEmpty)
-                        Text(
-                          '선택 $selectedOrderCount건',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  // More buttons than one line holds — Wrap breaks the line.
-                  // [내부 발주처리] sits right next to [발주처리] and stays green — written here, not in the theme (FEATURE_2609_75 / D13 · FEATURE_2610_02 / D101).
-                  Wrap(
-                    alignment: WrapAlignment.end,
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      // 주문 상태 갱신 — 발주처리와 달리 권한 게이트가 없고(2609_50 D18),
-                      // 선택이 없어도 버튼은 보이되 비활성이다.
-                      BlocBuilder<OrderRefreshBloc, OrderRefreshState>(
-                        builder: (context, refreshState) => OutlinedButton(
-                          onPressed: refreshTargetIds.isEmpty ||
-                                  refreshState.submitting
-                              ? null
-                              : () => onRefresh(refreshTargetIds),
-                          child: refreshState.submitting
-                              ? const AppBusyLabel('주문 상태 갱신')
-                              : const Text('주문 상태 갱신'),
-                        ),
-                      ),
-                      // 전체선택은 두지 않는다(D17) — 화면 밖 일괄 선택이 되어 D7 과 어긋난다.
-                      if (ackTargetIds.isNotEmpty && !ackState.forbidden)
-                        FilledButton(
-                          onPressed: ackState.submitting || isAckOverLimit
-                              ? null
-                              : () =>
-                                  onAcknowledge(
-                                      ackTargetIds,
-                                      ackOrderCount,
-                                      includesInternal),
-                          child: ackState.submitting
-                              ? const AppBusyLabel('발주처리')
-                              : const Text('발주처리'),
-                        ),
-                      if (internalTargetIds.isNotEmpty &&
-                          !internalState.forbidden)
-                        FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.brandGreen,
-                            foregroundColor:
-                                Theme.of(context).colorScheme.onSecondary,
-                          ),
-                          onPressed: internalState.submitting != null
-                              ? null
-                              : () => onInternal(internalTargetIds),
-                          child: internalState.submitting ==
-                                  InternalStageAction.mark
-                              ? const AppBusyLabel('내부 발주처리')
-                              : const Text('내부 발주처리'),
-                        ),
-                      if (releaseTargetIds.isNotEmpty &&
-                          !internalState.forbidden)
-                        OutlinedButton(
-                          onPressed: internalState.submitting != null
-                              ? null
-                              : () => onRelease(releaseTargetIds),
-                          child: internalState.submitting ==
-                                  InternalStageAction.release
-                              ? const AppBusyLabel('내부 발주 해제')
-                              : const Text('내부 발주 해제'),
-                        ),
-                      if (cancelTargetIds.isNotEmpty &&
-                          !internalState.forbidden)
-                        OutlinedButton(
-                          onPressed: internalState.submitting != null
-                              ? null
-                              : () => onCancelReservation(cancelTargetIds),
-                          child: internalState.submitting ==
-                                  InternalStageAction.cancel
-                              ? const AppBusyLabel('예약 취소')
-                              : const Text('예약 취소'),
-                        ),
-                      // D18 🔁 — 파일 없이 저장된 송장으로 [예약 발송]/[지금 발송](발송처리 다이얼로그의 저장된 송장 모드).
-                      if (storedTargetIds.isNotEmpty &&
-                          !internalState.forbidden)
-                        OutlinedButton(
-                          onPressed: internalState.submitting != null
-                              ? null
-                              : () => onShipStored(storedTargetIds),
-                          child: const Text('저장된 송장으로 발송'),
-                        ),
-                    ],
-                  ),
-                  // Same guidance lines as web `AcknowledgeBar`: what
-                  // [발주처리] covers, one line per marketplace in the targets
-                  // (PLAN 2609_17 D1 · FEATURE_2610_17 / D56).
-                  if (ackTargetIds.isNotEmpty && !ackState.forbidden)
-                    for (final platform in ackPlatforms)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          _ackNoticeByPlatform[platform]!,
-                          style: hintStyle,
-                        ),
-                      ),
-                  // 발주처리 버튼이 왜 안 보이는지 말해 준다 — 상태 갱신만 하려고 고른 경우가 흔하다.
-                  if (notAcknowledgeable > 0)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        '선택한 $selectedOrderCount건 중 '
-                        '$notAcknowledgeable건은 결제완료가 아니거나 입고완료 전 11번가 예약판매라서 '
-                        '발주처리 대상이 아닙니다. '
-                        '주문 상태 갱신은 그대로 됩니다.',
-                        style: hintStyle,
-                      ),
-                    ),
-                  // The internal acknowledge sends nothing to the marketplace —
-                  // it stays paid there (D1).
-                  if (internalTargetIds.isNotEmpty && !internalState.forbidden)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        '내부 발주처리는 마켓에 보내지 않습니다. 마켓에는 결제완료로 남고 '
-                        '오클릭스에만 「내부 상품준비중」으로 표시됩니다.',
-                        style: hintStyle,
-                      ),
-                    ),
-                  if (isAckOverLimit)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        '한 번에 $_kMaxAcknowledgeSelection건까지 '
-                        '발주처리할 수 있습니다. 선택을 줄여주세요.',
-                        style: hintStyle.copyWith(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
-                    ),
-                ],
+          Row(
+            children: [
+              OrderSelectBox(
+                selected: allSelected,
+                onTap: selectableOrders.isEmpty ? null : toggleAll,
               ),
-            ),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: selectableOrders.isEmpty ? null : toggleAll,
+                child: const Text(
+                  '전체 선택',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '총 ${visibleOrders.length}건',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
         ],
@@ -1194,42 +1073,262 @@ class _LoadedBody extends StatelessWidget {
             },
           ),
       ],
+          ),
+        ),
+        if (visibleOrders.isNotEmpty)
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              border: Border(
+                top: BorderSide(color: colorScheme.outlineVariant),
+              ),
+            ),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                12,
+                16,
+                12 + AppPageBody.navBarInset(context),
+              ),
+              // ⚠️ BlocBuilder wraps only this group — wrapping the Column or
+              // SliverList would rebuild the whole list on every send (same
+              // caution as in the order detail).
+              child:
+                  BlocBuilder<OrderInternalStageBloc, OrderInternalStageState>(
+                builder: (context, internalState) =>
+                    BlocBuilder<OrderAcknowledgeBloc, OrderAcknowledgeState>(
+                  builder: (context, ackState) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Same guidance lines as web `AcknowledgeBar`: what
+                      // [발주처리] covers, one line per marketplace in the
+                      // targets (PLAN 2609_17 D1 · FEATURE_2610_17 / D56).
+                      if (ackTargetIds.isNotEmpty && !ackState.forbidden)
+                        for (final platform in ackPlatforms)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text(
+                              _ackNoticeByPlatform[platform]!,
+                              style: hintStyle,
+                            ),
+                          ),
+                      // Tells why [발주처리] is missing — picking orders only
+                      // to refresh their status is common.
+                      if (notAcknowledgeable > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            '선택한 $selectedOrderCount건 중 '
+                            '$notAcknowledgeable건은 결제완료가 아니거나 '
+                            '입고완료 전 11번가 예약판매라서 '
+                            '발주처리 대상이 아닙니다. '
+                            '주문 상태 갱신은 그대로 됩니다.',
+                            style: hintStyle,
+                          ),
+                        ),
+                      // The internal acknowledge sends nothing to the
+                      // marketplace — it stays paid there (D1).
+                      if (internalTargetIds.isNotEmpty &&
+                          !internalState.forbidden)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            '내부 발주처리는 마켓에 보내지 않습니다. '
+                            '마켓에는 결제완료로 남고 '
+                            '오클릭스에만 「내부 상품준비중」으로 표시됩니다.',
+                            style: hintStyle,
+                          ),
+                        ),
+                      if (isAckOverLimit)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            '한 번에 $_kMaxAcknowledgeSelection건까지 '
+                            '발주처리할 수 있습니다. 선택을 줄여주세요.',
+                            style: hintStyle.copyWith(
+                              color: colorScheme.error,
+                            ),
+                          ),
+                        ),
+                      Row(
+                        children: [
+                          // The only place that states the selected count —
+                          // never in a button label.
+                          Text(
+                            selectedIds.isEmpty
+                                ? '주문을 선택하세요'
+                                : '$selectedOrderCount건 선택됨',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            // More buttons than one line holds — Wrap breaks
+                            // the line. [내부 발주처리] sits right next to
+                            // [발주처리] and stays green — written here, not
+                            // in the theme (FEATURE_2609_75 / D13 ·
+                            // FEATURE_2610_02 / D101).
+                            child: Wrap(
+                              alignment: WrapAlignment.end,
+                              spacing: 8,
+                              runSpacing: 4,
+                              children: [
+                                // [주문 상태 갱신] — unlike [발주처리] there is
+                                // no permission gate (2609_50 D18); with no
+                                // selection it shows but is disabled.
+                                BlocBuilder<OrderRefreshBloc,
+                                    OrderRefreshState>(
+                                  builder: (context, refreshState) =>
+                                      OutlinedButton(
+                                    onPressed: refreshTargetIds.isEmpty ||
+                                            refreshState.submitting
+                                        ? null
+                                        : () => onRefresh(refreshTargetIds),
+                                    child: refreshState.submitting
+                                        ? const AppBusyLabel('주문 상태 갱신')
+                                        : const Text('주문 상태 갱신'),
+                                  ),
+                                ),
+                                if (ackTargetIds.isNotEmpty &&
+                                    !ackState.forbidden)
+                                  FilledButton(
+                                    onPressed: ackState.submitting ||
+                                            isAckOverLimit
+                                        ? null
+                                        : () => onAcknowledge(
+                                            ackTargetIds,
+                                            ackOrderCount,
+                                            includesInternal),
+                                    child: ackState.submitting
+                                        ? const AppBusyLabel('발주처리')
+                                        : const Text('발주처리'),
+                                  ),
+                                if (internalTargetIds.isNotEmpty &&
+                                    !internalState.forbidden)
+                                  FilledButton(
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: AppColors.brandGreen,
+                                      foregroundColor:
+                                          colorScheme.onSecondary,
+                                    ),
+                                    onPressed: internalState.submitting !=
+                                            null
+                                        ? null
+                                        : () => onInternal(internalTargetIds),
+                                    child: internalState.submitting ==
+                                            InternalStageAction.mark
+                                        ? const AppBusyLabel('내부 발주처리')
+                                        : const Text('내부 발주처리'),
+                                  ),
+                                if (releaseTargetIds.isNotEmpty &&
+                                    !internalState.forbidden)
+                                  OutlinedButton(
+                                    onPressed: internalState.submitting !=
+                                            null
+                                        ? null
+                                        : () => onRelease(releaseTargetIds),
+                                    child: internalState.submitting ==
+                                            InternalStageAction.release
+                                        ? const AppBusyLabel('내부 발주 해제')
+                                        : const Text('내부 발주 해제'),
+                                  ),
+                                if (cancelTargetIds.isNotEmpty &&
+                                    !internalState.forbidden)
+                                  OutlinedButton(
+                                    onPressed: internalState.submitting !=
+                                            null
+                                        ? null
+                                        : () => onCancelReservation(
+                                            cancelTargetIds),
+                                    child: internalState.submitting ==
+                                            InternalStageAction.cancel
+                                        ? const AppBusyLabel('예약 취소')
+                                        : const Text('예약 취소'),
+                                  ),
+                                // D18 🔁 — [예약 발송]/[지금 발송] with the
+                                // stored invoice, no file (the stored-invoice
+                                // mode of the [발송처리] dialog).
+                                if (storedTargetIds.isNotEmpty &&
+                                    !internalState.forbidden)
+                                  OutlinedButton(
+                                    onPressed: internalState.submitting !=
+                                            null
+                                        ? null
+                                        : () => onShipStored(storedTargetIds),
+                                    child: const Text('저장된 송장으로 발송'),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
 
-/// Icon-over-label button for the 출고관리 action row — four share one line,
-/// so the label wraps to two lines instead of being cut off.
+/// 4-column grid cell for the 「출고관리」 action row: a 44 icon box (soft
+/// yellow, [발송처리] yellow) with the label below, up to two lines
+/// (FEATURE_2611_32 / D10 · D4-15).
 class _ShipmentActionTile extends StatelessWidget {
   const _ShipmentActionTile({
     required this.icon,
     required this.label,
     required this.onPressed,
+    this.highlighted = false,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onPressed;
+  final bool highlighted;
 
   @override
-  Widget build(BuildContext context) => OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-          minimumSize: const Size(0, 64),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 20),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              style: const TextStyle(fontSize: 12, height: 1.2),
-            ),
-          ],
+  Widget build(BuildContext context) => InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: highlighted
+                      ? AppColors.brandMain
+                      : AppColors.brandMainSoft,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  icon,
+                  size: 20,
+                  color: AppColors.foregroundLight,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                style: const TextStyle(
+                  fontSize: 12,
+                  height: 1.3,
+                  color: AppColors.textStrong,
+                ),
+              ),
+            ],
+          ),
         ),
       );
 }
