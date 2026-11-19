@@ -1108,10 +1108,11 @@ class _LoadedBody extends StatelessWidget {
                               color: AppColors.textSecondary,
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 4),
                           Expanded(
-                            // One row, icons only — the label is the tooltip
-                            // (long press). [내부 발주처리] sits right next to
+                            // One row of equal cells: icon + short name below
+                            // (icons alone were not recognizable); the full
+                            // name is the tooltip (long press). [내부 발주처리] sits right next to
                             // [발주처리] and stays green — written here, not
                             // in the theme (FEATURE_2609_75 / D13 ·
                             // FEATURE_2610_02 / D101).
@@ -1127,6 +1128,7 @@ class _LoadedBody extends StatelessWidget {
                                       _BarIconButton(
                                     icon: Icons.refresh,
                                     label: '주문 상태 갱신',
+                                    shortLabel: '상태 갱신',
                                     busy: refreshState.submitting,
                                     onPressed: refreshTargetIds.isEmpty ||
                                             refreshState.submitting
@@ -1139,6 +1141,7 @@ class _LoadedBody extends StatelessWidget {
                                   _BarIconButton(
                                     icon: Icons.assignment_turned_in_outlined,
                                     label: '발주처리',
+                                    shortLabel: '발주처리',
                                     filled: true,
                                     busy: ackState.submitting,
                                     onPressed: ackState.submitting ||
@@ -1154,6 +1157,7 @@ class _LoadedBody extends StatelessWidget {
                                   _BarIconButton(
                                     icon: Icons.inventory_2_outlined,
                                     label: '내부 발주처리',
+                                    shortLabel: '내부 발주',
                                     filled: true,
                                     background: AppColors.brandGreen,
                                     foreground: colorScheme.onSecondary,
@@ -1169,6 +1173,7 @@ class _LoadedBody extends StatelessWidget {
                                   _BarIconButton(
                                     icon: Icons.undo,
                                     label: '내부 발주 해제',
+                                    shortLabel: '발주 해제',
                                     busy: internalState.submitting ==
                                         InternalStageAction.release,
                                     onPressed: internalState.submitting !=
@@ -1181,6 +1186,7 @@ class _LoadedBody extends StatelessWidget {
                                   _BarIconButton(
                                     icon: Icons.event_busy_outlined,
                                     label: '예약 취소',
+                                    shortLabel: '예약 취소',
                                     busy: internalState.submitting ==
                                         InternalStageAction.cancel,
                                     onPressed: internalState.submitting !=
@@ -1197,6 +1203,7 @@ class _LoadedBody extends StatelessWidget {
                                   _BarIconButton(
                                     icon: Icons.local_shipping_outlined,
                                     label: '저장된 송장으로 발송',
+                                    shortLabel: '송장 발송',
                                     onPressed: internalState.submitting !=
                                             null
                                         ? null
@@ -1218,13 +1225,15 @@ class _LoadedBody extends StatelessWidget {
   }
 }
 
-/// Icon-only button of the 「출고관리」 bottom selection bar — 40×40, label in
-/// the tooltip (long press) and semantics. Outlined by default; `filled` for
-/// [발주처리] (theme yellow) and [내부 발주처리] (`background` green).
+/// Cell of the 「출고관리」 bottom selection bar — a 36×36 icon box with a short
+/// name below (44 wide, so six cells fit a 360dp screen). The full name is the
+/// tooltip and semantics label. Outlined by default; `filled` for [발주처리]
+/// (theme yellow) and [내부 발주처리] (`background` green).
 class _BarIconButton extends StatelessWidget {
   const _BarIconButton({
     required this.icon,
     required this.label,
+    required this.shortLabel,
     required this.onPressed,
     this.filled = false,
     this.busy = false,
@@ -1234,6 +1243,9 @@ class _BarIconButton extends StatelessWidget {
 
   final IconData icon;
   final String label;
+
+  /// Name under the icon — at most 4 Korean letters.
+  final String shortLabel;
   final VoidCallback? onPressed;
   final bool filled;
   final bool busy;
@@ -1242,6 +1254,8 @@ class _BarIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final enabled = onPressed != null;
     final child = busy
         ? const SizedBox(
             width: 18,
@@ -1249,34 +1263,63 @@ class _BarIconButton extends StatelessWidget {
             child: CircularProgressIndicator(strokeWidth: 2),
           )
         : Icon(icon, size: 20);
-    const constraints = BoxConstraints.tightFor(width: 40, height: 40);
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: filled
-          ? IconButton.filled(
-              tooltip: label,
-              constraints: constraints,
-              padding: EdgeInsets.zero,
-              style: background == null
-                  ? null
-                  : IconButton.styleFrom(
-                      backgroundColor: background,
-                      foregroundColor: foreground,
-                    ),
-              onPressed: onPressed,
-              icon: child,
-            )
-          : IconButton.outlined(
-              tooltip: label,
-              constraints: constraints,
-              padding: EdgeInsets.zero,
-              onPressed: onPressed,
-              icon: child,
+    const constraints = BoxConstraints.tightFor(width: 36, height: 36);
+    final button = filled
+        ? IconButton.filled(
+            constraints: constraints,
+            padding: EdgeInsets.zero,
+            style: background == null
+                ? null
+                : IconButton.styleFrom(
+                    backgroundColor: background,
+                    foregroundColor: foreground,
+                  ),
+            onPressed: onPressed,
+            icon: child,
+          )
+        : IconButton.outlined(
+            constraints: constraints,
+            padding: EdgeInsets.zero,
+            onPressed: onPressed,
+            icon: child,
+          );
+    return Tooltip(
+      message: label,
+      child: Semantics(
+        label: label,
+        button: true,
+        excludeSemantics: true,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(8),
+          child: SizedBox(
+            width: 44,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                button,
+                const SizedBox(height: 2),
+                Text(
+                  shortLabel,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.visible,
+                  style: TextStyle(
+                    fontSize: 10,
+                    height: 1.2,
+                    color: enabled
+                        ? AppColors.textStrong
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
+          ),
+        ),
+      ),
     );
   }
 }
-
 
 /// 4-column grid cell for the 「출고관리」 action row: a 44 icon box (soft
 /// yellow, [발송처리] yellow) with the label below, up to two lines
