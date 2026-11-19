@@ -28,7 +28,6 @@ import '../widgets/order_select_box.dart';
 import '../widgets/paid_stage_filter_bar.dart';
 import '../widgets/sync_progress_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
-import 'package:flutter_oklyn_mobile/shared/widgets/app_busy_label.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_confirm_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_page_body.dart';
@@ -153,15 +152,6 @@ bool _isInternalTarget(OrderItem order) =>
 
 /// [주문 상태 갱신] target = a Coupang order (FEATURE_2610_17 / D12).
 bool _isRefreshTarget(OrderItem order) => order.platform == 'COUPANG';
-
-/// What [발주처리] covers, per marketplace — key order = line order (Coupang →
-/// 11st → LotteON). Same text as web `AcknowledgeBar` (FEATURE_2610_17 / D56 ·
-/// FEATURE_2611_23 / D17).
-const Map<String, String> _ackNoticeByPlatform = {
-  'COUPANG': '쿠팡: 선택한 옵션이 속한 배송건(박스) 전체가 함께 발주처리됩니다.',
-  'ELEVENST': '11번가: 선택한 상품(같은 배송건의 같은 상품 옵션 포함)만 발주확인됩니다.',
-  'LOTTEON': '롯데ON: 선택한 상품만 발주확인됩니다.',
-};
 
 /// 내부 발주 해제 대상 = 「내부 상품준비중」만(D18 행1). 발송대기중은 먼저 [예약 취소] 한다.
 bool _isReleaseTarget(OrderItem order) =>
@@ -727,14 +717,6 @@ class _LoadedBody extends StatelessWidget {
         .where((o) => selectedIds.contains(o.id) && _isAcknowledgeTarget(o))
         .map((o) => o.id)
         .toList();
-    // Marketplaces among the confirmation targets, Coupang → 11st → LotteON
-    // (FEATURE_2610_17 / D56 · FEATURE_2611_23 / D17).
-    final ackPlatforms = _ackNoticeByPlatform.keys
-        .where((platform) => scoped.any((o) =>
-            selectedIds.contains(o.id) &&
-            _isAcknowledgeTarget(o) &&
-            o.platform == platform))
-        .toList();
     final internalTargetIds = scoped
         .where((o) => selectedIds.contains(o.id) && _isInternalTarget(o))
         .map((o) => o.id)
@@ -764,7 +746,6 @@ class _LoadedBody extends StatelessWidget {
     final ackOrderCount = countOrders(scoped.where(
         (o) => selectedIds.contains(o.id) && _isAcknowledgeTarget(o)));
     final isAckOverLimit = ackTargetIds.length > _kMaxAcknowledgeSelection;
-    final notAcknowledgeable = selectedOrderCount - ackOrderCount;
     final colorScheme = Theme.of(context).colorScheme;
     final hintStyle = TextStyle(
       fontSize: 12,
@@ -1101,45 +1082,8 @@ class _LoadedBody extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Same guidance lines as web `AcknowledgeBar`: what
-                      // [발주처리] covers, one line per marketplace in the
-                      // targets (PLAN 2609_17 D1 · FEATURE_2610_17 / D56).
-                      if (ackTargetIds.isNotEmpty && !ackState.forbidden)
-                        for (final platform in ackPlatforms)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Text(
-                              _ackNoticeByPlatform[platform]!,
-                              style: hintStyle,
-                            ),
-                          ),
-                      // Tells why [발주처리] is missing — picking orders only
-                      // to refresh their status is common.
-                      if (notAcknowledgeable > 0)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Text(
-                            '선택한 $selectedOrderCount건 중 '
-                            '$notAcknowledgeable건은 결제완료가 아니거나 '
-                            '입고완료 전 11번가 예약판매라서 '
-                            '발주처리 대상이 아닙니다. '
-                            '주문 상태 갱신은 그대로 됩니다.',
-                            style: hintStyle,
-                          ),
-                        ),
-                      // The internal acknowledge sends nothing to the
-                      // marketplace — it stays paid there (D1).
-                      if (internalTargetIds.isNotEmpty &&
-                          !internalState.forbidden)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Text(
-                            '내부 발주처리는 마켓에 보내지 않습니다. '
-                            '마켓에는 결제완료로 남고 '
-                            '오클릭스에만 「내부 상품준비중」으로 표시됩니다.',
-                            style: hintStyle,
-                          ),
-                        ),
+                      // Only the over-limit warning stays — the guidance
+                      // lines took half the screen (same as web docked bar).
                       if (isAckOverLimit)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 4),
@@ -1158,7 +1102,7 @@ class _LoadedBody extends StatelessWidget {
                           Text(
                             selectedIds.isEmpty
                                 ? '주문을 선택하세요'
-                                : '$selectedOrderCount건 선택됨',
+                                : '$selectedOrderCount건 선택',
                             style: const TextStyle(
                               fontSize: 13,
                               color: AppColors.textSecondary,
@@ -1166,15 +1110,13 @@ class _LoadedBody extends StatelessWidget {
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            // More buttons than one line holds — Wrap breaks
-                            // the line. [내부 발주처리] sits right next to
+                            // One row, icons only — the label is the tooltip
+                            // (long press). [내부 발주처리] sits right next to
                             // [발주처리] and stays green — written here, not
                             // in the theme (FEATURE_2609_75 / D13 ·
                             // FEATURE_2610_02 / D101).
-                            child: Wrap(
-                              alignment: WrapAlignment.end,
-                              spacing: 8,
-                              runSpacing: 4,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
                               children: [
                                 // [주문 상태 갱신] — unlike [발주처리] there is
                                 // no permission gate (2609_50 D18); with no
@@ -1182,19 +1124,23 @@ class _LoadedBody extends StatelessWidget {
                                 BlocBuilder<OrderRefreshBloc,
                                     OrderRefreshState>(
                                   builder: (context, refreshState) =>
-                                      OutlinedButton(
+                                      _BarIconButton(
+                                    icon: Icons.refresh,
+                                    label: '주문 상태 갱신',
+                                    busy: refreshState.submitting,
                                     onPressed: refreshTargetIds.isEmpty ||
                                             refreshState.submitting
                                         ? null
                                         : () => onRefresh(refreshTargetIds),
-                                    child: refreshState.submitting
-                                        ? const AppBusyLabel('주문 상태 갱신')
-                                        : const Text('주문 상태 갱신'),
                                   ),
                                 ),
                                 if (ackTargetIds.isNotEmpty &&
                                     !ackState.forbidden)
-                                  FilledButton(
+                                  _BarIconButton(
+                                    icon: Icons.assignment_turned_in_outlined,
+                                    label: '발주처리',
+                                    filled: true,
+                                    busy: ackState.submitting,
                                     onPressed: ackState.submitting ||
                                             isAckOverLimit
                                         ? null
@@ -1202,63 +1148,59 @@ class _LoadedBody extends StatelessWidget {
                                             ackTargetIds,
                                             ackOrderCount,
                                             includesInternal),
-                                    child: ackState.submitting
-                                        ? const AppBusyLabel('발주처리')
-                                        : const Text('발주처리'),
                                   ),
                                 if (internalTargetIds.isNotEmpty &&
                                     !internalState.forbidden)
-                                  FilledButton(
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: AppColors.brandGreen,
-                                      foregroundColor:
-                                          colorScheme.onSecondary,
-                                    ),
+                                  _BarIconButton(
+                                    icon: Icons.inventory_2_outlined,
+                                    label: '내부 발주처리',
+                                    filled: true,
+                                    background: AppColors.brandGreen,
+                                    foreground: colorScheme.onSecondary,
+                                    busy: internalState.submitting ==
+                                        InternalStageAction.mark,
                                     onPressed: internalState.submitting !=
                                             null
                                         ? null
                                         : () => onInternal(internalTargetIds),
-                                    child: internalState.submitting ==
-                                            InternalStageAction.mark
-                                        ? const AppBusyLabel('내부 발주처리')
-                                        : const Text('내부 발주처리'),
                                   ),
                                 if (releaseTargetIds.isNotEmpty &&
                                     !internalState.forbidden)
-                                  OutlinedButton(
+                                  _BarIconButton(
+                                    icon: Icons.undo,
+                                    label: '내부 발주 해제',
+                                    busy: internalState.submitting ==
+                                        InternalStageAction.release,
                                     onPressed: internalState.submitting !=
                                             null
                                         ? null
                                         : () => onRelease(releaseTargetIds),
-                                    child: internalState.submitting ==
-                                            InternalStageAction.release
-                                        ? const AppBusyLabel('내부 발주 해제')
-                                        : const Text('내부 발주 해제'),
                                   ),
                                 if (cancelTargetIds.isNotEmpty &&
                                     !internalState.forbidden)
-                                  OutlinedButton(
+                                  _BarIconButton(
+                                    icon: Icons.event_busy_outlined,
+                                    label: '예약 취소',
+                                    busy: internalState.submitting ==
+                                        InternalStageAction.cancel,
                                     onPressed: internalState.submitting !=
                                             null
                                         ? null
                                         : () => onCancelReservation(
                                             cancelTargetIds),
-                                    child: internalState.submitting ==
-                                            InternalStageAction.cancel
-                                        ? const AppBusyLabel('예약 취소')
-                                        : const Text('예약 취소'),
                                   ),
                                 // D18 🔁 — [예약 발송]/[지금 발송] with the
                                 // stored invoice, no file (the stored-invoice
                                 // mode of the [발송처리] dialog).
                                 if (storedTargetIds.isNotEmpty &&
                                     !internalState.forbidden)
-                                  OutlinedButton(
+                                  _BarIconButton(
+                                    icon: Icons.local_shipping_outlined,
+                                    label: '저장된 송장으로 발송',
                                     onPressed: internalState.submitting !=
                                             null
                                         ? null
                                         : () => onShipStored(storedTargetIds),
-                                    child: const Text('저장된 송장으로 발송'),
                                   ),
                               ],
                             ),
@@ -1275,6 +1217,66 @@ class _LoadedBody extends StatelessWidget {
     );
   }
 }
+
+/// Icon-only button of the 「출고관리」 bottom selection bar — 40×40, label in
+/// the tooltip (long press) and semantics. Outlined by default; `filled` for
+/// [발주처리] (theme yellow) and [내부 발주처리] (`background` green).
+class _BarIconButton extends StatelessWidget {
+  const _BarIconButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.filled = false,
+    this.busy = false,
+    this.background,
+    this.foreground,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+  final bool filled;
+  final bool busy;
+  final Color? background;
+  final Color? foreground;
+
+  @override
+  Widget build(BuildContext context) {
+    final child = busy
+        ? const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        : Icon(icon, size: 20);
+    const constraints = BoxConstraints.tightFor(width: 40, height: 40);
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: filled
+          ? IconButton.filled(
+              tooltip: label,
+              constraints: constraints,
+              padding: EdgeInsets.zero,
+              style: background == null
+                  ? null
+                  : IconButton.styleFrom(
+                      backgroundColor: background,
+                      foregroundColor: foreground,
+                    ),
+              onPressed: onPressed,
+              icon: child,
+            )
+          : IconButton.outlined(
+              tooltip: label,
+              constraints: constraints,
+              padding: EdgeInsets.zero,
+              onPressed: onPressed,
+              icon: child,
+            ),
+    );
+  }
+}
+
 
 /// 4-column grid cell for the 「출고관리」 action row: a 44 icon box (soft
 /// yellow, [발송처리] yellow) with the label below, up to two lines
