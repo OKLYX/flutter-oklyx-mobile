@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
-import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/order_item.dart';
 import '../../domain/entities/order_period.dart';
@@ -13,6 +12,7 @@ import '../bloc/order_list_state.dart';
 import '../widgets/order_card.dart';
 import '../widgets/order_search_bar.dart';
 import '../widgets/order_status_filter_bar.dart';
+import '../widgets/order_sync_button.dart';
 import '../widgets/sync_progress_dialog.dart';
 import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
@@ -32,11 +32,12 @@ import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 /// **Features (same as the frontend OrderContainer)**:
 /// - Seller filter chip (reuses the seller feature)
 /// - Lookup: GET /api/orders?sellerId=
-/// - Sync: target channels → one call per account in turn, blocked behind
-///   the progress dialog ([SyncProgressDialog]); when done, a banner with the
+/// - Sync: the title-bar pill ([OrderSyncButton]) → one call per account in
+///   turn, blocked behind the progress dialog ([SyncProgressDialog]); when
+///   done, a banner with the
 ///   new / updated / cancelled counts + the channel status banner
-/// - Status filter: 6 status buttons (count badges) — only the picked status
-///   is shown, picking it again shows all
+/// - Status tabs: 「전체」 + 6 statuses (count badges), re-tapping the picked
+///   tab does nothing (FEATURE_2611_32 / D7 · D4-14)
 /// - Channel (account) filter: narrows the list and the sync range together
 ///   (PLAN 2609_15 D7)
 /// - One card = one order; the items are in the `OrderCard` header comment
@@ -94,6 +95,22 @@ class _OrderHistoryViewState extends State<_OrderHistoryView> {
       navBarIndex: 2,
       showDrawer: true,
       showAppBarDrawerButton: false,
+      appBarActions: [
+        // 🔴 The source is the server stamp (lastSyncedFromServer) — the
+        // 15-minute schedule keeps it fresh even if [동기화] was never pressed,
+        // so guarding on this run's response time (lastSyncedAt) would never
+        // show it (FEATURE_2609_49).
+        BlocBuilder<OrderListBloc, OrderListState>(
+          builder: (context, state) => state is OrderListLoaded
+              ? OrderSyncButton(
+                  lastSyncedAt: state.lastSyncedFromServer,
+                  hasIncompleteChannel: state.nonSuccessTargets.isNotEmpty,
+                  syncing: state.isSyncing,
+                  onPressed: _syncAction(state),
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
       body: BlocConsumer<OrderListBloc, OrderListState>(
         // 동기화 시작(다이얼로그) + 일시적 오류/다운로드 완료(SnackBar) 알림.
         listenWhen: (prev, curr) =>
@@ -146,6 +163,30 @@ class _OrderHistoryViewState extends State<_OrderHistoryView> {
         },
       ),
     );
+  }
+
+  /// Sync action of the title-bar pill. No channel picked = every channel;
+  /// a picked channel = that channel only (D7). An inactive channel (not in
+  /// the sync targets) cannot be synced — null, the pill is dimmed.
+  VoidCallback? _syncAction(OrderListLoaded s) {
+    final accountValue = _historyAccountValue(s, _selectedAccountId);
+    if (s.isSearching || s.isSyncing) {
+      return null;
+    }
+    if (accountValue != null &&
+        !s.syncTargets.any((t) => t.accountId == accountValue)) {
+      return null;
+    }
+    final bloc = context.read<OrderListBloc>();
+    return () {
+      accountValue == null
+          ? bloc.add(SyncOrders())
+          : bloc.add(SyncSelectedChannels(
+              targets: s.syncTargets
+                  .where((t) => t.accountId == accountValue)
+                  .toList(),
+            ));
+    };
   }
 
   /// 빈 달 백필 확인 다이얼로그. 승낙하면 [BackfillPeriod] 로 그 기간을 불러온다(PLAN D2).
@@ -222,11 +263,7 @@ class _LoadedBody extends StatelessWidget {
       for (final id in extraIds) id: '채널 #$id',
     };
     // When the picked account is no longer an option, fall back to all channels.
-    final accountValue =
-        accountOptions.containsKey(selectedAccountId) ? selectedAccountId : null;
-    // 비활성 계정은 조회만 되고 동기화는 불가하다(서버 대상 목록에 없다).
-    final canSyncSelected =
-        accountValue == null || syncableIds.contains(accountValue);
+    final accountValue = _historyAccountValue(s, selectedAccountId);
 
     // Filter by line (search, then channel) and show the orders that keep a
     // line; chips and the total count are order counts. The 「취소」 chip =
@@ -273,7 +310,7 @@ class _LoadedBody extends StatelessWidget {
           child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 판매자 필터 + 조회/동기화 컨트롤 (프론트 OrderSearchCard)
+          // Seller · period · channel chips + [조회], then the search box.
           AppCard(
               child: Column(
                 children: [
@@ -343,7 +380,9 @@ class _LoadedBody extends StatelessWidget {
                                     ? null
                                     : (value) {
                                         onSelectAccount(value);
-                                        // 비활성 채널은 조회만 된다 — 동기화 버튼이 왜 꺼지는지 알린다.
+                                        // An inactive channel is lookup
+                                        // only — tells why the sync pill is
+                                        // dimmed.
                                         if (value == null ||
                                             syncableIds.contains(value)) {
                                           return;
@@ -371,40 +410,6 @@ class _LoadedBody extends StatelessWidget {
                     onFieldChanged: (f) =>
                         bloc.add(ChangeSearchField(field: f)),
                     onTermChanged: (t) => bloc.add(ChangeSearchTerm(term: t)),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          // 채널 미선택이면 전 채널, 선택돼 있으면 그 채널만(D7).
-                          // 비활성 채널(대상 목록에 없음)은 동기화 자체가 불가하다.
-                          onPressed: busy || !canSyncSelected
-                              ? null
-                              : () {
-                                  if (accountValue == null) {
-                                    bloc.add(SyncOrders());
-                                    return;
-                                  }
-                                  bloc.add(SyncSelectedChannels(
-                                    targets: s.syncTargets
-                                        .where(
-                                            (t) => t.accountId == accountValue)
-                                        .toList(),
-                                  ));
-                                },
-                          icon: s.isSyncing
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Icon(Icons.sync, size: 18),
-                          label: Text(s.isSyncing ? '동기화 중...' : '동기화'),
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),
@@ -469,11 +474,14 @@ class _LoadedBody extends StatelessWidget {
             const SizedBox(height: 8),
           ],
 
-          // 상태 필터 버튼 (프론트 OrderStatusFilter). 같은 버튼 재선택 시 전체 해제.
-          OrderStatusFilterBar(
-            selectedStatus: s.selectedStatus,
-            counts: counts,
-            onSelect: (status) => bloc.add(SelectStatus(status: status)),
+          // Status tabs (FEATURE_2611_32 / D7) — 「전체」 = no status picked.
+          AppCard.flush(
+            child: OrderStatusFilterBar(
+              selectedStatus: s.selectedStatus,
+              counts: counts,
+              allCount: scopedOrders.length,
+              onSelect: (status) => bloc.add(SelectStatus(status: status)),
+            ),
           ),
           const SizedBox(height: 8),
 
@@ -487,17 +495,13 @@ class _LoadedBody extends StatelessWidget {
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
-              // 🔴 원천은 서버 낙인(lastSyncedFromServer)이다 — 내가 [동기화] 를 누른 적이 없어도
-              // 15분 스케줄이 최신으로 만들어 두므로, 이번 회차 응답 시각(lastSyncedAt)으로
-              // 가드하면 배너가 영원히 안 뜬다(FEATURE_2609_49).
-              if (s.lastSyncedFromServer != null)
-                Text(
-                  '마지막 동기화: ${formatRelativeTime(s.lastSyncedFromServer)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+              Text(
+                '결제일 최신순',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -520,6 +524,19 @@ class _LoadedBody extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Accounts that can be picked = the sync targets ∪ the accounts of the
+/// listed orders; a picked account outside them falls back to null (all).
+int? _historyAccountValue(OrderListLoaded s, int? selectedAccountId) {
+  if (selectedAccountId == null) {
+    return null;
+  }
+  final pickable = {
+    for (final target in s.syncTargets) target.accountId,
+    for (final order in s.orders) order.marketplaceAccountId,
+  };
+  return pickable.contains(selectedAccountId) ? selectedAccountId : null;
 }
 
 /// 마지막 동기화가 완료되지 않은 채널 배너 (PLAN D6·D14).

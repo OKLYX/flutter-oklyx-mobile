@@ -970,17 +970,21 @@ class _LoadedBody extends StatelessWidget {
           ),
           const SizedBox(height: 8),
 
-          OrderStatusFilterBar(
-            selectedStatus: s.selectedStatus,
-            counts: counts,
-            onSelect: (status) {
-              onClearSelection();
-              // Every 1st-row tap puts the 2nd row back to 'all'
-              // (FEATURE_2610_07 / D14).
-              onSelectPaidStage(PaidStage.all);
-              bloc.add(SelectStatus(status: status));
-            },
-            statuses: kShipmentStatuses,
+          AppCard.flush(
+            child: OrderStatusFilterBar(
+              selectedStatus: s.selectedStatus,
+              counts: counts,
+              allCount: countOrders(scoped),
+              onSelect: (status) {
+                onClearSelection();
+                // Every 1st-row tap puts the 2nd row back to 'all'
+                // (FEATURE_2610_07 / D14).
+                onSelectPaidStage(PaidStage.all);
+                bloc.add(SelectStatus(status: status));
+              },
+              statuses: kShipmentStatuses,
+              equalWidth: true,
+            ),
           ),
           if (s.selectedStatus == OrderStatus.paid) ...[
             const SizedBox(height: 8),

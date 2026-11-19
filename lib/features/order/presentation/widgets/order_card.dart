@@ -6,9 +6,11 @@ import 'package:flutter_oklyn_mobile/core/utils/date_format.dart';
 import 'package:flutter_oklyn_mobile/core/utils/platform_display.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/entities/stock_enums.dart'
     show unexpandedReasonLabel;
+import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import '../../domain/entities/order_item.dart';
 import 'elevenst_reserved_badge.dart';
 import 'internal_stage_badge.dart';
+import 'order_select_box.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/name_text.dart';
 import 'package:flutter_oklyn_mobile/features/master_product/presentation/widgets/master_network_image.dart';
@@ -18,11 +20,10 @@ import 'package:flutter_oklyn_mobile/shared/widgets/zoomable_image_viewer.dart';
 /// management.
 ///
 /// **Purpose**: one card = one order ([OrderGroup]: the lines of the same
-/// account and the same order number). The shown items are the photo (first
-/// option line) / order number + 「취소」 badge + [송장 수정] /
-/// 「판매자 … 판매처 …」 / 「고객 …」 / ordered products (per option line: name ·
-/// quantity tail · badges → component products) / 「결제일 …」
-/// (FEATURE_2611_30 / D1 · D5 · D10). The 「판매처」 text comes from
+/// account and the same order number). Next to the photo (first option
+/// line): row ① channel badge (+ 「취소」 · [송장 수정]) · seller name ···
+/// order number / ② option lines with the components below / ③ customer ···
+/// paid time (FEATURE_2611_32 / D8 · D9 · D21). The 「판매처」 text comes from
 /// `salesChannelLabel` only (FEATURE_2611_24 / D15 · D17).
 /// Tapping the card opens the first line's detail; tapping an option text
 /// opens that line's detail (D18). Collapsing is [collapsed] ·
@@ -50,9 +51,10 @@ import 'package:flutter_oklyn_mobile/shared/widgets/zoomable_image_viewer.dart';
 /// out as a parameter or switching to `context.go` changes the back navigation.
 /// ⚠️ The widget does not build the status label or the date format itself —
 /// it uses `getOrderStatusLabel` · `formatOrderDateTime`.
-/// ⚠️ The selection checkbox is **optional** ([onToggleSelect] not passed =
+/// ⚠️ The selection box is **optional** ([onToggleSelect] not passed =
 /// exactly the card as it is now). Only order acknowledgement (shipment
-/// management) passes it — order history does not.
+/// management) passes it — order history does not. It is the 22
+/// [OrderSelectBox] (D11); a selected row is `AppColors.warningSurface`.
 /// ⚠️ The thumbnail (left) is the cover photo of the first option line's
 /// master (`masterCoverImageUrl`, FEATURE_2611_31 / D1 · D6); without one it
 /// is a grey box of the same size — never a product photo instead (D2).
@@ -102,128 +104,154 @@ class OrderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final first = order.lines.first;
     final salesChannel = salesChannelLabel(first.platform, first.accountAlias);
-    return AppCard.row(
-      // Card tap → order detail page, the first line passed as `extra`.
-      onTap: () => context.push(Routes.orderHistoryDetailPath, extra: first),
-      // Card items follow the column order of the web OrderTable.
-      child: _withCheckbox(_withThumbnail(
-            context,
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(
-                      first.externalOrderId,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (isOrderCancelled(order)) const _CancelledBadge(),
-                    // [송장 수정](D18) — the button takes its own tap, so it
-                    // does not leak to the card tap (order detail).
-                    if (onEditInvoice != null &&
-                        order.lines.any((line) => line.internalStage != null))
-                      TextButton(
-                        onPressed: onEditInvoice,
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 4),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    final colorScheme = Theme.of(context).colorScheme;
+    return AppCard.flush(
+      child: Ink(
+        color: (selected ?? false) ? AppColors.warningSurface : null,
+        child: InkWell(
+          // Card tap → order detail page, the first line passed as `extra`.
+          onTap: () =>
+              context.push(Routes.orderHistoryDetailPath, extra: first),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+            // Row layout = FEATURE_2611_32 / D9; the web narrow card draws
+            // the same (D19).
+            child: _withCheckbox(_withThumbnail(
+              context,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(child: _SalesChannelBadge(label: salesChannel)),
+                      if (isOrderCancelled(order)) ...[
+                        const SizedBox(width: 6),
+                        const _CancelledBadge(),
+                      ],
+                      // [송장 수정](D18) — the button takes its own tap, so it
+                      // does not leak to the card tap (order detail).
+                      if (onEditInvoice != null &&
+                          order.lines
+                              .any((line) => line.internalStage != null)) ...[
+                        const SizedBox(width: 6),
+                        TextButton(
+                          onPressed: onEditInvoice,
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text(
+                            '송장 수정',
+                            style: TextStyle(fontSize: 12),
+                          ),
                         ),
-                        child:
-                            const Text('송장 수정', style: TextStyle(fontSize: 12)),
+                      ],
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          first.sellerName ?? '-',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                       ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 4,
-                  children: [
-                    Text(
-                      '판매자 ${first.sellerName ?? '-'}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      const SizedBox(width: 8),
+                      Text(
+                        first.externalOrderId,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.onSurfaceVariant,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
                       ),
-                    ),
-                    Text(
-                      '판매처 $salesChannel',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                NameText(
-                  name: '고객 ${getCustomerName(first)}',
-                  kind: NameKind.customer,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ],
                   ),
-                ),
-                const SizedBox(height: 6),
-                _OrderProducts(
-                  order: order,
-                  collapsed: collapsed,
-                  onToggleCollapsed: onToggleCollapsed,
-                  onOpenLine: (line) => context.push(
-                      Routes.orderHistoryDetailPath,
-                      extra: line),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '결제일 ${formatOrderDateTime(first.paidAt)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  const SizedBox(height: 4),
+                  _OrderProducts(
+                    order: order,
+                    collapsed: collapsed,
+                    onToggleCollapsed: onToggleCollapsed,
+                    onOpenLine: (line) => context.push(
+                        Routes.orderHistoryDetailPath,
+                        extra: line),
                   ),
-                ),
-              ],
-            ),
-          )),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: NameText(
+                          name: getCustomerName(first),
+                          kind: NameKind.customer,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        formatOrderDateTime(first.paidAt),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.onSurfaceVariant,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            )),
+          ),
+        ),
+      ),
     );
   }
 
-  static const double _thumbSize = 56;
+  static const double _thumbSize = 64;
 
   /// Thumbnail on the left, the text column on the right.
   Widget _withThumbnail(BuildContext context, Widget content) {
+    final colorScheme = Theme.of(context).colorScheme;
     final coverUrl = order.lines.first.masterCoverImageUrl;
+    Widget framed(Widget clipped) => DecoratedBox(
+          position: DecorationPosition.foreground,
+          decoration: BoxDecoration(
+            border: Border.all(color: colorScheme.outlineVariant),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: clipped,
+        );
     final Widget thumb;
     if (coverUrl == null) {
-      thumb = ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: Container(
-              width: _thumbSize,
-              height: _thumbSize,
-              color: Theme.of(context).colorScheme.outlineVariant,
-              child: Icon(
-                Icons.image,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                size: _thumbSize * 0.5,
-              ),
-            ),
-          );
+      thumb = framed(ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          width: _thumbSize,
+          height: _thumbSize,
+          color: colorScheme.surfaceContainerHighest,
+          child: Icon(
+            Icons.inventory_2_outlined,
+            size: 26,
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ));
     } else {
-      final cover = ClipRRect(
-        borderRadius: BorderRadius.circular(6),
+      final cover = framed(ClipRRect(
+        borderRadius: BorderRadius.circular(8),
         child: MasterNetworkImage(
           url: coverUrl,
           width: _thumbSize,
           height: _thumbSize,
           fit: BoxFit.cover,
         ),
-      );
+      ));
       thumb = coverUrl.startsWith('http')
           ? ImageWithZoomButton(
               image: NetworkImage(coverUrl),
@@ -242,25 +270,50 @@ class OrderCard extends StatelessWidget {
     );
   }
 
-  /// [onToggleSelect] 가 없으면 **Row 로 감싸지도 않는다** — 주문내역의 렌더 결과가
-  /// 지금과 완전히 같아야 한다.
+  /// No Row at all without [onToggleSelect] — order history renders exactly
+  /// as before.
   ///
-  /// ⚠️ `Checkbox.onChanged` 는 카드 `onTap`(상세 이동)과 독립이다 — 체크박스는 자체
-  /// 히트영역이 있으므로 별도 `GestureDetector` 로 감싸지 말 것(탭이 상세로 새어 나간다).
+  /// ⚠️ [OrderSelectBox] takes its own tap — do not wrap it in another
+  /// GestureDetector (the tap would leak to the detail).
   Widget _withCheckbox(Widget content) {
     final onToggle = onToggleSelect;
     if (onToggle == null) return content;
     return Row(
       children: [
-        Checkbox(
-          value: selected ?? false,
-          onChanged: selectable ? (_) => onToggle(order) : null,
+        OrderSelectBox(
+          selected: selected ?? false,
+          onTap: selectable ? () => onToggle(order) : null,
         ),
-        const SizedBox(width: 4),
         Expanded(child: content),
       ],
     );
   }
+}
+
+/// Sales channel badge at the start of row ① (FEATURE_2611_32 / D9 ①).
+class _SalesChannelBadge extends StatelessWidget {
+  final String label;
+
+  const _SalesChannelBadge({required this.label});
+
+  @override
+  Widget build(BuildContext context) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.channelBadgeSurface,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          color: AppColors.channelBadgeForeground,
+        ),
+      ),
+    );
 }
 
 /// 「취소」 badge beside the order number when every option line of the order
@@ -270,31 +323,29 @@ class _CancelledBadge extends StatelessWidget {
   const _CancelledBadge();
 
   @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+  Widget build(BuildContext context) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: colors.errorContainer,
-        borderRadius: BorderRadius.circular(12),
+        color: AppColors.cancelBadgeSurface,
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         getOrderStatusLabel(OrderStatus.cancelled),
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,
-          color: colors.onErrorContainer,
+          color: AppColors.cancelBadgeForeground,
         ),
       ),
     );
-  }
 }
 
 /// Ordered products of one order card (FEATURE_2611_30 / D5 · D18 · D21 ·
 /// D23 ~ D25 · D27 · D28 · D32): per option line, the master label (or the
 /// grey market name + broken reason), the quantity tail and the badges, then
-/// 「→」 and the component products. One collapse button per order folds the
-/// components into 「구성상품 N개」. Tapping an option text opens that line.
+/// the component products below it (left rule). One collapse button per
+/// order folds the components into 「구성상품 N개」. Tapping an option text
+/// opens that line.
 class _OrderProducts extends StatelessWidget {
   final OrderGroup order;
   final bool collapsed;
@@ -311,12 +362,13 @@ class _OrderProducts extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final grey = Theme.of(context).colorScheme.onSurfaceVariant;
+    final rule = Theme.of(context).colorScheme.outlineVariant;
     final hasComponents =
         order.lines.any((line) => line.components.isNotEmpty);
     final lines = <Widget>[
       for (final line in order.lines) ...[
         if (line != order.lines.first) const SizedBox(height: 6),
-        _line(line, grey),
+        _line(line, grey, rule),
       ],
     ];
     return Row(
@@ -340,82 +392,97 @@ class _OrderProducts extends StatelessWidget {
     );
   }
 
-  Widget _line(OrderItem line, Color grey) {
+  Widget _line(OrderItem line, Color grey, Color rule) {
     final masterLabel = orderLineMasterLabel(line);
     final reason = line.unexpandedReason;
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Wrap(
-            spacing: 4,
-            runSpacing: 2,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              InkWell(
-                onTap: () => onOpenLine(line),
-                child: NameText(
-                  name: masterLabel ?? line.itemName,
-                  kind: NameKind.product,
-                  style: masterLabel == null
-                      ? TextStyle(fontSize: 13, color: grey)
-                      : const TextStyle(fontSize: 13),
-                ),
+        Wrap(
+          spacing: 4,
+          runSpacing: 2,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            InkWell(
+              onTap: () => onOpenLine(line),
+              child: NameText(
+                name: masterLabel ?? line.itemName,
+                kind: NameKind.product,
+                style: masterLabel == null
+                    ? TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: grey,
+                      )
+                    : const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
               ),
+            ),
+            Text(
+              orderLineQuantityLabel(line),
+              style: const TextStyle(fontSize: 13),
+            ),
+            if (masterLabel == null && reason != null)
               Text(
-                orderLineQuantityLabel(line),
-                style: const TextStyle(fontSize: 13),
+                unexpandedReasonLabel(reason),
+                style: TextStyle(fontSize: 12, color: grey),
               ),
-              if (masterLabel == null && reason != null)
-                Text(
-                  unexpandedReasonLabel(reason),
-                  style: TextStyle(fontSize: 12, color: grey),
-                ),
-              // Internal stage badge (FEATURE_2609_75 / D9) — draws nothing
-              // when null.
-              InternalStageBadge(stage: line.internalStage),
-              // 11st reserved sale (FEATURE_2610_17 / D67) — the server's
-              // flag.
-              if (line.reservedSale) const ElevenstReservedBadge(),
-            ],
-          ),
+            // Internal stage badge (FEATURE_2609_75 / D9) — draws nothing
+            // when null.
+            InternalStageBadge(stage: line.internalStage),
+            // 11st reserved sale (FEATURE_2610_17 / D67) — the server's
+            // flag.
+            if (line.reservedSale) const ElevenstReservedBadge(),
+          ],
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Text('→', style: TextStyle(fontSize: 12, color: grey)),
-        ),
-        Expanded(child: _components(line)),
+        const SizedBox(height: 2),
+        _components(line, rule),
       ],
     );
   }
 
-  Widget _components(OrderItem line) {
-    const style = TextStyle(fontSize: 12);
+  Widget _components(OrderItem line, Color rule) {
+    const style = TextStyle(fontSize: 13, color: AppColors.textSecondary);
     if (line.components.isEmpty) {
       return const Text('-', style: style);
     }
     if (collapsed) {
       return Text('구성상품 ${line.components.length}개', style: style);
     }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final component in line.components)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Flexible(
-                child: NameText(
-                  name: component.productName,
-                  kind: NameKind.product,
-                  style: style,
+    return Container(
+      padding: const EdgeInsets.only(left: 8),
+      decoration: BoxDecoration(
+        border: Border(left: BorderSide(color: rule, width: 2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final component in line.components)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Flexible(
+                  child: NameText(
+                    name: component.productName,
+                    kind: NameKind.product,
+                    style: style,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 4),
-              Text('× ${component.quantity}', style: style),
-            ],
-          ),
-      ],
+                const SizedBox(width: 4),
+                Text(
+                  '× ${component.quantity}',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textStrong,
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
     );
   }
 }
