@@ -128,6 +128,13 @@ class AppTheme {
           foregroundColor: onSurface,
         ),
       ),
+      // Outlined buttons keep the default border but use a dark label — no
+      // yellow text on white (FEATURE_2611_32 / D14 · D17).
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: onSurface,
+        ),
+      ),
       // Every input: outline border on all sides + dense height
       // (FEATURE_2610_02 · N12). Pages do not write a border or `isDense`.
       inputDecorationTheme: const InputDecorationTheme(

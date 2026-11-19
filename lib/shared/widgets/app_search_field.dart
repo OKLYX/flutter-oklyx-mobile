@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 /// Search field of the list-page search areas (FEATURE_2610_03 · D136).
 ///
 /// **Purpose**: one shape for the text search field at the top of a list
-/// page — height 40, 🔍 in front (no tap action), no label, the hint always
-/// visible, ✕ to clear while there is text. An optional [leading] (the search
-/// target box of the order pages — D131 ①) sits inside the same border, left
-/// of the 🔍, with a thin line between them.
+/// page — height 44, no border, `surfaceContainerHighest` (gray100) fill,
+/// radius 12 (FEATURE_2611_32 / D14; 🔁 D136 was 40 high), 🔍 in front (no tap
+/// action), no label, the hint always visible, ✕ to clear while there is
+/// text. An optional [leading] (the search target box of the order pages —
+/// D131 ①) sits inside the same gray box, left of the 🔍, with a thin line
+/// between them.
 /// **File**: lib/shared/widgets/app_search_field.dart
 ///
 /// **Usage**:
@@ -58,50 +60,65 @@ class AppSearchField extends StatelessWidget {
     final leading = this.leading;
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: controller,
-      builder: (context, value, _) => TextField(
-        controller: controller,
-        enabled: enabled,
-        textInputAction: textInputAction,
-        textAlignVertical: TextAlignVertical.center,
-        onChanged: onChanged,
-        onSubmitted: onSubmitted,
-        decoration: InputDecoration(
-          constraints: const BoxConstraints.tightFor(height: 40),
-          contentPadding: const EdgeInsets.only(right: 12),
-          hintText: hintText,
-          prefixIcon: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (leading != null) ...[
-                leading,
-                Container(
-                  width: 1,
-                  height: 24,
-                  color: Theme.of(context).colorScheme.outline,
+      builder: (context, value, _) => Container(
+        height: 44,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: TextField(
+          controller: controller,
+          enabled: enabled,
+          textInputAction: textInputAction,
+          textAlignVertical: TextAlignVertical.center,
+          onChanged: onChanged,
+          onSubmitted: onSubmitted,
+          decoration: InputDecoration(
+            constraints: const BoxConstraints.tightFor(height: 44),
+            contentPadding: const EdgeInsets.only(right: 12),
+            hintText: hintText,
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            prefixIcon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (leading != null) ...[
+                  leading,
+                  Container(
+                    width: 1,
+                    height: 24,
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                ],
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Icon(
+                    Icons.search,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Icon(Icons.search, size: 18),
-              ),
-            ],
-          ),
-          prefixIconConstraints: const BoxConstraints(minHeight: 40),
-          suffixIcon: value.text.isEmpty
-              ? null
-              : IconButton(
-                  tooltip: '검색어 지우기',
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 40,
-                    height: 40,
+            ),
+            prefixIconConstraints: const BoxConstraints(minHeight: 44),
+            suffixIcon: value.text.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: '검색어 지우기',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 40,
+                      height: 40,
+                    ),
+                    icon: const Icon(Icons.close, size: 16),
+                    onPressed: enabled ? _clear : null,
                   ),
-                  icon: const Icon(Icons.close, size: 16),
-                  onPressed: enabled ? _clear : null,
-                ),
-          suffixIconConstraints: const BoxConstraints(
-            minWidth: 40,
-            minHeight: 40,
+            suffixIconConstraints: const BoxConstraints(
+              minWidth: 40,
+              minHeight: 40,
+            ),
           ),
         ),
       ),

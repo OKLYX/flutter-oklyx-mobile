@@ -24,6 +24,9 @@ import 'package:flutter/material.dart';
 /// - *Border variants                   blue-200 / green-200 / amber-200
 /// - coupangTagSurface/Foreground       red-100 / red-700 (「쿠팡」 tag)
 /// - overlayScrim/onOverlayScrim        full-screen image viewer chrome
+/// - brandMainSoft                      shipment action icon box (2611_32)
+/// - textStrong/textSecondary           order screen text (FEATURE_2611_32)
+/// - channelBadge*/cancelBadge*/syncOkDot  order screen badges (2611_32)
 ///
 /// ⚠️ Yellow is a light color: text/icons placed on `brandMain` must use a
 /// dark foreground (`foregroundLight` / `brandSlate`), not white.
@@ -44,6 +47,8 @@ class AppColors {
   static const Color brandGreenHover = Color(0xFF0F804A);
   static const Color brandTeal = Color(0xFF0A7E7D);
   static const Color brandSlate = Color(0xFF263238);
+  // Soft yellow icon box of the shipment actions (FEATURE_2611_32 / D10 · D18).
+  static const Color brandMainSoft = Color(0xFFFEF6DC);
 
   // --- Surfaces (Light) ---
   static const Color backgroundLight = Color(0xFFFFFFFF);
@@ -61,6 +66,10 @@ class AppColors {
   static const Color gray200 = Color(0xFFE5E7EB);
   static const Color gray300 = Color(0xFFD1D5DB);
   static const Color gray500 = Color(0xFF6B7280);
+  // Strong / secondary text of the order screens on white; text on
+  // yellow stays foregroundLight (FEATURE_2611_32 / D18 · D30).
+  static const Color textStrong = Color(0xFF1F2328);
+  static const Color textSecondary = Color(0xFF4B5563);
 
   // --- Semantic status tints (badges / soft alert surfaces) ---
   // Fixed-meaning colors that no ColorScheme slot covers. Values mirror the
@@ -80,6 +89,12 @@ class AppColors {
   // 「쿠팡」 tag next to a Coupang-only setting (FEATURE_2610_16 / D25).
   static const Color coupangTagSurface = Color(0xFFFEE2E2); // red-100
   static const Color coupangTagForeground = Color(0xFFB91C1C); // red-700
+  // Order row badges and the sync dot (FEATURE_2611_32 / D9 · D6 · D18).
+  static const Color channelBadgeSurface = Color(0xFFEEF2FF);
+  static const Color channelBadgeForeground = Color(0xFF3730A3);
+  static const Color cancelBadgeSurface = Color(0xFFFDECEC);
+  static const Color cancelBadgeForeground = Color(0xFFB42318);
+  static const Color syncOkDot = Color(0xFF16A34A);
 
   // --- Media overlay (full-screen image viewer) ---
   // Photo chrome stays dark in both themes, like the web lightbox.
