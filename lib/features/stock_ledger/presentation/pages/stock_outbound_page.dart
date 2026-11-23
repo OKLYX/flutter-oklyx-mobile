@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:flutter_oklyn_mobile/core/di/service_locator.dart';
+import 'package:flutter_oklyn_mobile/features/order/domain/entities/order_item.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/outbound_order.dart';
 import '../../domain/entities/stock_enums.dart';
@@ -16,6 +17,9 @@ import 'package:flutter_oklyn_mobile/shared/themes/app_colors.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_filter_chip.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/name_text.dart';
+
+const String _unexpandedGuide =
+    '구성 물품을 알 수 없어 출고를 기록할 수 없습니다. 옵션 연결을 고친 뒤 다시 조회하세요.';
 
 /// 출고 확인 페이지 (`/stock/outbound`, PLAN 2609_28 D11·D12·D13).
 ///
@@ -85,28 +89,61 @@ class _StockOutboundView extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  AppFilterChip<int?>(
-                    label: loaded.sellers
-                            .where((s) => s.id == loaded.sellerId)
-                            .firstOrNull
-                            ?.sellerName ??
-                        '판매자',
-                    value: loaded.sellerId,
-                    options: [
-                      const AppFilterOption(null, '전체'),
-                      for (final s in loaded.sellers)
-                        AppFilterOption(s.id, s.sellerName),
-                    ],
-                    highlighted: loaded.sellerId != null,
-                    onSelected: busy
-                        ? null
-                        : (value) => bloc.add(LoadOutbound(sellerId: value)),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          AppFilterChip<int?>(
+                            label: loaded.sellers
+                                    .where((s) => s.id == loaded.sellerId)
+                                    .firstOrNull
+                                    ?.sellerName ??
+                                '판매자',
+                            value: loaded.sellerId,
+                            options: [
+                              const AppFilterOption(null, '전체'),
+                              for (final s in loaded.sellers)
+                                AppFilterOption(s.id, s.sellerName),
+                            ],
+                            highlighted: loaded.sellerId != null,
+                            onSelected: busy
+                                ? null
+                                : (value) => bloc.add(LoadOutbound(
+                                      sellerId: value,
+                                      status: loaded.outboundStatus,
+                                    )),
+                          ),
+                          const SizedBox(width: 8),
+                          AppFilterChip<OrderStatus?>(
+                            label: loaded.outboundStatus == null
+                                ? '상태'
+                                : getOrderStatusLabel(loaded.outboundStatus!),
+                            value: loaded.outboundStatus,
+                            options: [
+                              const AppFilterOption(null, '전체'),
+                              for (final s in kShipmentStatuses)
+                                AppFilterOption(s, getOrderStatusLabel(s)),
+                            ],
+                            highlighted: loaded.outboundStatus != null,
+                            onSelected: busy
+                                ? null
+                                : (value) => bloc.add(LoadOutbound(
+                                      sellerId: loaded.sellerId,
+                                      status: value,
+                                    )),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  const Spacer(),
                   OutlinedButton.icon(
                     onPressed: busy
                         ? null
-                        : () => bloc.add(LoadOutbound(sellerId: loaded.sellerId)),
+                        : () => bloc.add(LoadOutbound(
+                              sellerId: loaded.sellerId,
+                              status: loaded.outboundStatus,
+                            )),
                     icon: const Icon(Icons.refresh, size: 18),
                     label: const Text('새로고침'),
                   ),
@@ -114,7 +151,7 @@ class _StockOutboundView extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               if (loaded.outbound.isEmpty)
-                const AppEmpty('출고할 주문이 없습니다.')
+                const AppEmpty('출고를 기다리는 주문이 없습니다.')
               else
                 for (var i = 0; i < loaded.outbound.length; i++) ...[
                   if (i > 0) const AppRowGap(),
@@ -188,6 +225,14 @@ class _UnexpandedSection extends StatelessWidget {
             '⚠ 전개 불가 ${items.length}건',
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
           ),
+          const SizedBox(height: 4),
+          const Text(
+            _unexpandedGuide,
+            style: TextStyle(
+              fontSize: 12,
+              color: AppColors.warningForeground,
+            ),
+          ),
           const SizedBox(height: 8),
           ...items.map(
             (item) => Padding(
@@ -201,7 +246,8 @@ class _UnexpandedSection extends StatelessWidget {
                   ),
                   NameText(
                     name: '${item.itemName} — '
-                        '${unexpandedReasonLabel(item.reason)}',
+                        '${unexpandedReasonLabel(item.reason)} '
+                        '(${item.reason})',
                     kind: NameKind.product,
                     expandable: true,
                     style: TextStyle(

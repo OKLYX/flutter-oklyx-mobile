@@ -1,4 +1,6 @@
+import 'package:flutter_oklyn_mobile/features/order/domain/entities/order_item.dart';
 import '../../domain/entities/stock_enums.dart';
+import 'stock_ledger_state.dart';
 
 /// 재고 원장 이벤트 (PLAN 2609_28).
 ///
@@ -27,6 +29,14 @@ class LoadMovements extends StockLedgerEvent {
   final String? to;
 
   LoadMovements({this.productId, this.sellerId, this.from, this.to});
+}
+
+/// Only changes the 「최근 이력」 filter values; does not fetch
+/// (FEATURE_2611_33 D10).
+class ChangeMovementFilter extends StockLedgerEvent {
+  final MovementFilter filter;
+
+  ChangeMovementFilter(this.filter);
 }
 
 /// 입고·반품입고·폐기·조정 1건 기록.
@@ -58,11 +68,13 @@ class RecordMovement extends StockLedgerEvent {
   });
 }
 
-/// 출고 확인 화면: 나갈 주문 + 전개 실패 목록. [sellerId] null = 전 판매자.
+/// 「출고 확인」: orders to ship + the unexpanded list. [sellerId] null = all
+/// sellers · [status] null = both PAID and PREPARING (FEATURE_2611_33 D12).
 class LoadOutbound extends StockLedgerEvent {
   final int? sellerId;
+  final OrderStatus? status;
 
-  LoadOutbound({this.sellerId});
+  LoadOutbound({this.sellerId, this.status});
 }
 
 /// 출고 확인 1건 (물품 1줄 = 요청 1회, D12).
