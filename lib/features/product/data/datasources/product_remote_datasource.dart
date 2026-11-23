@@ -51,4 +51,21 @@ abstract class ProductRemoteDataSource {
 
   /// 구매처 목록 — `GET /api/admin/purchase-places`(모든 로그인 사용자, FEATURE_2609_76).
   Future<List<PurchasePlaceModel>> getPurchasePlaces();
+
+  /// 「입고 작업」 (FEATURE_2611_33 D6): `PATCH /api/products/{productId}`
+  /// with only `barcodeId` · `productName` · `price`.
+  Future<ProductModel> saveProductBarcode({
+    required int productId,
+    required String barcodeId,
+    String? productName,
+    int? price,
+  });
+
+  /// 「입고 작업」 (FEATURE_2611_33 D5 ③): `POST /api/products` with only
+  /// `productName` · `barcodeId` · `price`.
+  Future<ProductModel> createProductWithBarcode({
+    required String productName,
+    required String barcodeId,
+    int? price,
+  });
 }

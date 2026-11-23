@@ -1,4 +1,7 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
+import '../../domain/entities/stock_intake.dart';
+import '../models/intake_barcode_result_model.dart';
 import '../models/outbound_order_model.dart';
 import '../models/purchase_candidate_model.dart';
 import '../models/return_candidate_model.dart';
@@ -119,5 +122,57 @@ class StockLedgerRemoteDataSourceImpl implements StockLedgerRemoteDataSource {
     return _list(response)
         .map((e) => StockMovementModel.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  @override
+  Future<IntakeBarcodeResultModel> intakeBarcode(String value) async {
+    final response = _ensureOk(await dio.get(
+      '$_base/intake/barcode',
+      queryParameters: {'value': value},
+    ));
+    return IntakeBarcodeResultModel.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+    );
+  }
+
+  @override
+  Future<List<int>> intake(
+    String movedOn,
+    List<StockIntakeLine> lines,
+  ) async {
+    final response = _ensureOk(await dio.post(
+      '$_base/intake',
+      data: {
+        'movedOn': movedOn,
+        'lines': [
+          for (final line in lines)
+            {
+              'productId': line.productId,
+              'quantity': line.quantity,
+              if (line.sellerId != null) 'sellerId': line.sellerId,
+              'reason': line.reason.code,
+            },
+        ],
+      },
+    ));
+    final data = response.data['data'];
+    final lotIds = data is Map ? data['lotIds'] as List<dynamic>? : null;
+    return (lotIds ?? const [])
+        .map((e) => (e as num).toInt())
+        .toList();
+  }
+
+  /// Outside 2xx throws [ServerException] with the server message (empty
+  /// when the body has none) — FEATURE_2611_33 calls only.
+  Response<dynamic> _ensureOk(Response<dynamic> response) {
+    final code = response.statusCode ?? 0;
+    if (code >= 200 && code < 300) {
+      return response;
+    }
+    final body = response.data;
+    final message = body is Map && body['message'] is String
+        ? body['message'] as String
+        : '';
+    throw ServerException(message, statusCode: code);
   }
 }

@@ -7,6 +7,7 @@ import 'package:flutter_oklyn_mobile/features/product/domain/entities/product.da
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_setting_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/bloc/purchase_setting_event.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/seller_filter_dropdown.dart';
+import 'package:flutter_oklyn_mobile/features/settlement/presentation/utils/settlement_format.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/presentation/widgets/fill_flow_sheet.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/purchase_candidate.dart';
@@ -163,12 +164,14 @@ class _StockEntryViewState extends State<_StockEntryView> {
                   '최근 이력',
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
+                const SizedBox(height: 8),
+                _buildHistoryFilter(context, loaded),
                 const Divider(),
                 if (loaded.movements.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     child: Text(
-                      '최근 30일 이력이 없습니다.',
+                      '이력이 없습니다.',
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
@@ -181,6 +184,111 @@ class _StockEntryViewState extends State<_StockEntryView> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  void _changeFilter(BuildContext context, MovementFilter filter) {
+    context.read<StockLedgerBloc>().add(ChangeMovementFilter(filter));
+  }
+
+  /// The 「최근 이력」 filter: seller · from · to, then [조회] fetches with
+  /// these values (FEATURE_2611_33 D10).
+  Widget _buildHistoryFilter(BuildContext context, StockLedgerLoaded state) {
+    final filter = state.movementFilter;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SellerFilterDropdown(
+          sellers: state.sellers,
+          selectedSellerId: filter.sellerId,
+          enabled: !state.isLoadingMovements,
+          onChanged: (value) =>
+              _changeFilter(context, filter.withSeller(value)),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _historyDateField(
+                context,
+                label: '시작',
+                value: filter.from,
+                onChanged: (v) => _changeFilter(context, filter.withFrom(v)),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _historyDateField(
+                context,
+                label: '종료',
+                value: filter.to,
+                onChanged: (v) => _changeFilter(context, filter.withTo(v)),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: state.isLoadingMovements
+                ? null
+                : () => context.read<StockLedgerBloc>().add(LoadMovements(
+                      sellerId: filter.sellerId,
+                      from: filter.from,
+                      to: filter.to,
+                    )),
+            child: state.isLoadingMovements
+                ? const AppBusyLabel('조회')
+                : const Text('조회'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _historyDateField(
+    BuildContext context, {
+    required String label,
+    required String? value,
+    required ValueChanged<String?> onChanged,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: () async {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: DateTime.tryParse(value ?? '') ?? DateTime.now(),
+          firstDate: DateTime(2020),
+          lastDate: DateTime.now().add(const Duration(days: 1)),
+        );
+        if (picked == null || !context.mounted) {
+          return;
+        }
+        onChanged(toDateText(picked));
+      },
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          suffixIcon: value == null
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  tooltip: '지우기',
+                  onPressed: () => onChanged(null),
+                ),
+        ),
+        child: Text(
+          value ?? '선택',
+          style: TextStyle(
+            color: value == null
+                ? colorScheme.onSurfaceVariant
+                : colorScheme.onSurface,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
     );
   }
@@ -461,7 +569,14 @@ class _StockEntryViewState extends State<_StockEntryView> {
       _purchase = picked;
       // 구매기록의 물품·수량을 그대로 승계한다 — 서버는 판매자 불일치를 400 으로 막는다.
       _product = null;
-      _qtyController.text = '${picked.remainingQty > 0 ? picked.remainingQty : 0}';
+      // Seller matched by name; none = empty (FEATURE_2611_33 D17).
+      _sellerId = state.sellers
+          .where((s) => s.sellerName == picked.sellerName)
+          .firstOrNull
+          ?.id;
+      // Remaining quantity; 1 when it is 0 or less (FEATURE_2611_33 D18).
+      _qtyController.text =
+          '${picked.remainingQty > 0 ? picked.remainingQty : 1}';
     });
   }
 
@@ -499,7 +614,9 @@ class _StockEntryViewState extends State<_StockEntryView> {
     if (picked == null || !mounted) return;
     setState(() {
       _returnClaim = picked;
-      _qtyController.text = '${picked.remainingQty > 0 ? picked.remainingQty : 0}';
+      // Remaining quantity; 1 when it is 0 or less (FEATURE_2611_33 D19).
+      _qtyController.text =
+          '${picked.remainingQty > 0 ? picked.remainingQty : 1}';
     });
   }
 
