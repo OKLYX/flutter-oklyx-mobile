@@ -348,4 +348,58 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
       throw ServerException(e.toString());
     }
   }
+
+  @override
+  Future<ProductModel> saveProductBarcode({
+    required int productId,
+    required String barcodeId,
+    String? productName,
+    int? price,
+  }) =>
+      _imageCall(() async {
+        final response = await dioClient.patch(
+          '/api/products/$productId',
+          data: {
+            'barcodeId': barcodeId,
+            if (productName != null) 'productName': productName,
+            if (price != null) 'price': price,
+          },
+        );
+        return ProductModel.fromJson(
+          _envelopeData(response) as Map<String, dynamic>,
+        );
+      });
+
+  @override
+  Future<ProductModel> createProductWithBarcode({
+    required String productName,
+    required String barcodeId,
+    int? price,
+  }) =>
+      _imageCall(() async {
+        final response = await dioClient.post(
+          '/api/products',
+          data: {
+            'productName': productName,
+            'barcodeId': barcodeId,
+            if (price != null) 'price': price,
+          },
+        );
+        return ProductModel.fromJson(
+          _envelopeData(response) as Map<String, dynamic>,
+        );
+      });
+
+  /// 2xx (201 too) = `data`, else [ServerException] with the server message.
+  dynamic _envelopeData(Response<dynamic> response) {
+    final body = response.data;
+    final code = response.statusCode ?? 0;
+    if (code < 200 || code > 299) {
+      final message = body is Map && body['message'] is String
+          ? body['message'] as String
+          : '';
+      throw ServerException(message, statusCode: response.statusCode);
+    }
+    return body is Map ? body['data'] : null;
+  }
 }

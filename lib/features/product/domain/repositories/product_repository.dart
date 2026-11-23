@@ -51,4 +51,19 @@ abstract class ProductRepository {
   Future<Either<Failure, void>> removeProductImage(int productId, int imageId);
 
   Future<Either<Failure, List<PurchasePlace>>> getPurchasePlaces();
+
+  /// 「입고 작업」: puts the barcode on an existing product (FEATURE_2611_33).
+  Future<Either<Failure, Product>> saveProductBarcode({
+    required int productId,
+    required String barcodeId,
+    String? productName,
+    int? price,
+  });
+
+  /// 「입고 작업」: a new product with only name · barcode · price.
+  Future<Either<Failure, Product>> createProductWithBarcode({
+    required String productName,
+    required String barcodeId,
+    int? price,
+  });
 }

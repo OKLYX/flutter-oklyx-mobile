@@ -5,6 +5,7 @@ import '../entities/purchase_candidate.dart';
 import '../entities/return_candidate.dart';
 import '../entities/stock_balance.dart';
 import '../entities/stock_enums.dart';
+import '../entities/stock_intake.dart';
 import '../entities/stock_movement.dart';
 
 /// 실물 재고 원장 API (`/api/admin/stock/**`, PLAN 2609_28).
@@ -57,5 +58,14 @@ abstract class StockLedgerRepository {
     required int productId,
     required int quantity,
     required String movedOn,
+  });
+
+  /// 「입고 작업」 barcode lookup (FEATURE_2611_33 D5).
+  Future<Either<Failure, IntakeBarcodeResult>> intakeBarcode(String value);
+
+  /// 「입고 작업」 one-shot save — the new lot ids in line order (D4 ⑧).
+  Future<Either<Failure, List<int>>> intake({
+    required String movedOn,
+    required List<StockIntakeLine> lines,
   });
 }

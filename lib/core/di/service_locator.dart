@@ -28,6 +28,7 @@ import 'package:flutter_oklyn_mobile/features/product/domain/usecases/update_pro
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/delete_product_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/product_image_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/domain/usecases/get_purchase_places_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/product/domain/usecases/product_barcode_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_detail_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/product/presentation/bloc/product_image_gallery_bloc.dart';
@@ -194,6 +195,8 @@ import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/usecases/get_m
 import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/usecases/get_outbound_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/usecases/get_stock_candidates_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/usecases/record_movement_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/usecases/stock_intake_usecase.dart';
+import 'package:flutter_oklyn_mobile/features/stock_ledger/presentation/bloc/stock_intake_cubit.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/presentation/bloc/stock_ledger_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/data/datasources/stock_daily_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/data/repositories/stock_daily_repository_impl.dart';
@@ -389,6 +392,9 @@ void _registerProductServices() {
   );
   getIt.registerSingleton<GetPurchasePlacesUseCase>(
     GetPurchasePlacesUseCase(getIt<ProductRepository>()),
+  );
+  getIt.registerSingleton<ProductBarcodeUseCase>(
+    ProductBarcodeUseCase(getIt<ProductRepository>()),
   );
 
   // ProductBloc as factory to allow fresh state per page
@@ -1210,6 +1216,9 @@ void _registerStockLedgerServices() {
   getIt.registerSingleton<ConfirmOutboundUseCase>(
     ConfirmOutboundUseCase(repository: getIt<StockLedgerRepository>()),
   );
+  getIt.registerSingleton<StockIntakeUseCase>(
+    StockIntakeUseCase(repository: getIt<StockLedgerRepository>()),
+  );
 
   // BLoC as factory — 재고 화면 3종이 각각 새 인스턴스를 받는다.
   // 판매자 드롭다운은 기존 seller 기능의 GetSellersUseCase 를 재사용한다.
@@ -1221,6 +1230,15 @@ void _registerStockLedgerServices() {
       getStockCandidatesUseCase: getIt<GetStockCandidatesUseCase>(),
       getOutboundUseCase: getIt<GetOutboundUseCase>(),
       confirmOutboundUseCase: getIt<ConfirmOutboundUseCase>(),
+      getSellersUseCase: getIt<GetSellersUseCase>(),
+    ),
+  );
+
+  // 「입고 작업」 Cubit as factory — a new one for every screen visit.
+  getIt.registerFactory<StockIntakeCubit>(
+    () => StockIntakeCubit(
+      stockIntakeUseCase: getIt<StockIntakeUseCase>(),
+      productBarcodeUseCase: getIt<ProductBarcodeUseCase>(),
       getSellersUseCase: getIt<GetSellersUseCase>(),
     ),
   );

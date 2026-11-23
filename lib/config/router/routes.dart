@@ -11,6 +11,7 @@ class Routes {
   static const String stockInOut = 'stockInOut';
   static const String stockSearch = 'stockSearch';
   static const String stockOutbound = 'stockOutbound';
+  static const String stockIntake = 'stockIntake';
   static const String stockDaily = 'stockDaily';
   static const String stockPacking = 'stockPacking';
   static const String stockPackingHistory = 'stockPackingHistory';
@@ -80,6 +81,8 @@ class Routes {
   static const String stockInOutPath = '/stock/in-out';
   static const String stockSearchPath = '/stock/search';
   static const String stockOutboundPath = '/stock/outbound';
+  // FEATURE_2611_33 D2 · D3: 「입고 작업」.
+  static const String stockIntakePath = '/stock/intake';
   // FEATURE_2610_19 D119 · D148 ①: 「일별 입출고 내역」.
   static const String stockDailyPath = '/stock/daily';
   // FEATURE_2611_03 D25 · D31: 「포장 작업」 · 「포장 이력」.

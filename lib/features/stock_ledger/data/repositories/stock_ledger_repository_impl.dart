@@ -1,11 +1,13 @@
 import 'package:dio/dio.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
 import 'package:flutter_oklyn_mobile/core/error/failure.dart';
 import '../../domain/entities/outbound_order.dart';
 import '../../domain/entities/purchase_candidate.dart';
 import '../../domain/entities/return_candidate.dart';
 import '../../domain/entities/stock_balance.dart';
 import '../../domain/entities/stock_enums.dart';
+import '../../domain/entities/stock_intake.dart';
 import '../../domain/entities/stock_movement.dart';
 import '../../domain/repositories/stock_ledger_repository.dart';
 import '../datasources/stock_ledger_remote_datasource.dart';
@@ -143,6 +145,42 @@ class StockLedgerRepositoryImpl implements StockLedgerRepository {
       return Left(_failure(e, 'Failed to confirm outbound'));
     } catch (e) {
       return Left(ServerFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, IntakeBarcodeResult>> intakeBarcode(String value) =>
+      _guard(
+        () => remoteDataSource.intakeBarcode(value),
+        '바코드를 찾지 못했습니다.',
+      );
+
+  @override
+  Future<Either<Failure, List<int>>> intake({
+    required String movedOn,
+    required List<StockIntakeLine> lines,
+  }) =>
+      _guard(
+        () => remoteDataSource.intake(movedOn, lines),
+        '입고를 저장하지 못했습니다.',
+      );
+
+  /// Server text first, [fallback] when it is blank (FEATURE_2611_33 R4).
+  Future<Either<Failure, T>> _guard<T>(
+    Future<T> Function() call,
+    String fallback,
+  ) async {
+    try {
+      return Right(await call());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        e.message.isEmpty ? fallback : e.message,
+        statusCode: e.statusCode,
+      ));
+    } on DioException catch (e) {
+      return Left(ServerFailure(fallback, statusCode: e.response?.statusCode));
+    } on Object {
+      return Left(ServerFailure(fallback));
     }
   }
 
