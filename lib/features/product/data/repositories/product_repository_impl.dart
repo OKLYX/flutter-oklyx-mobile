@@ -186,4 +186,55 @@ class ProductRepositoryImpl implements ProductRepository {
       return Left(UnknownFailure(e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, Product>> saveProductBarcode({
+    required int productId,
+    required String barcodeId,
+    String? productName,
+    int? price,
+  }) =>
+      _guardBarcode(
+        () async => (await remoteDataSource.saveProductBarcode(
+          productId: productId,
+          barcodeId: barcodeId,
+          productName: productName,
+          price: price,
+        ))
+            .toDomain(),
+        '상품에 바코드를 저장하지 못했습니다.',
+      );
+
+  @override
+  Future<Either<Failure, Product>> createProductWithBarcode({
+    required String productName,
+    required String barcodeId,
+    int? price,
+  }) =>
+      _guardBarcode(
+        () async => (await remoteDataSource.createProductWithBarcode(
+          productName: productName,
+          barcodeId: barcodeId,
+          price: price,
+        ))
+            .toDomain(),
+        '새 상품을 등록하지 못했습니다.',
+      );
+
+  /// Server text first, [fallback] when it is blank (FEATURE_2611_33 R4).
+  Future<Either<Failure, T>> _guardBarcode<T>(
+    Future<T> Function() call,
+    String fallback,
+  ) async {
+    try {
+      return Right(await call());
+    } on ServerException catch (e) {
+      return Left(ServerFailure(
+        e.message.isEmpty ? fallback : e.message,
+        statusCode: e.statusCode,
+      ));
+    } on Object {
+      return Left(ServerFailure(fallback));
+    }
+  }
 }

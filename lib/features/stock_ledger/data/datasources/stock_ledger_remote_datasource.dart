@@ -5,6 +5,8 @@ import '../models/stock_balance_model.dart';
 import '../models/stock_movement_model.dart';
 import '../models/confirm_outbound_params.dart';
 import '../models/record_movement_params.dart';
+import '../../domain/entities/stock_intake.dart';
+import '../models/intake_barcode_result_model.dart';
 
 /// 실물 재고 원장 API (`/api/admin/stock/**`, PLAN 2609_28 D19 — ADMIN 전용).
 ///
@@ -28,4 +30,10 @@ abstract class StockLedgerRemoteDataSource {
   Future<OutboundResultModel> outbound(int? sellerId, String? status);
 
   Future<List<StockMovementModel>> confirmOutbound(ConfirmOutboundParams params);
+
+  /// `GET /api/admin/stock/intake/barcode` (FEATURE_2611_33 D5).
+  Future<IntakeBarcodeResultModel> intakeBarcode(String value);
+
+  /// `POST /api/admin/stock/intake` — returns the lot ids (D4 ⑧ · ⑨).
+  Future<List<int>> intake(String movedOn, List<StockIntakeLine> lines);
 }
