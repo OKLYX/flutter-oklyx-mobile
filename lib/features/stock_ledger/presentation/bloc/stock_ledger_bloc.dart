@@ -44,6 +44,7 @@ class StockLedgerBloc extends Bloc<StockLedgerEvent, StockLedgerState> {
     on<LoadEntryData>(_onLoadEntryData);
     on<LoadBalances>(_onLoadBalances);
     on<LoadMovements>(_onLoadMovements);
+    on<ChangeMovementFilter>(_onChangeMovementFilter);
     on<RecordMovement>(_onRecordMovement);
     on<LoadOutbound>(_onLoadOutbound);
     on<ConfirmOutbound>(_onConfirmOutbound);
@@ -163,8 +164,20 @@ class StockLedgerBloc extends Bloc<StockLedgerEvent, StockLedgerState> {
     );
   }
 
-  /// 기록 성공 → 최근 이력과 선택지를 다시 받는다.
-  /// (입고 화면은 목록 스크롤이 얕아 재조회로 흐름이 끊기지 않는다 — 출고와 다르다.)
+  void _onChangeMovementFilter(
+    ChangeMovementFilter event,
+    Emitter<StockLedgerState> emit,
+  ) {
+    final current = _loaded();
+    if (current == null) {
+      return;
+    }
+    emit(current.copyWith(movementFilter: event.filter));
+  }
+
+  /// On success, fetches the history and candidates again with the current
+  /// 「최근 이력」 filter values (FEATURE_2611_33 D10). The entry screen
+  /// scrolls shallow, so fetching again does not break the flow.
   Future<void> _onRecordMovement(
     RecordMovement event,
     Emitter<StockLedgerState> emit,
@@ -199,7 +212,11 @@ class StockLedgerBloc extends Bloc<StockLedgerEvent, StockLedgerState> {
         actionError: failure.message,
       )),
       (movement) async {
-        final movements = await getMovementsUseCase();
+        final movements = await getMovementsUseCase(
+          sellerId: current.movementFilter.sellerId,
+          from: current.movementFilter.from,
+          to: current.movementFilter.to,
+        );
         final purchases = await getStockCandidatesUseCase.purchases();
         final returns = await getStockCandidatesUseCase.returns();
         emit(current.copyWith(
@@ -223,7 +240,10 @@ class StockLedgerBloc extends Bloc<StockLedgerEvent, StockLedgerState> {
     if (current == null) emit(StockLedgerLoading());
 
     final sellers = await _sellers(current);
-    final result = await getOutboundUseCase(sellerId: event.sellerId);
+    final result = await getOutboundUseCase(
+      sellerId: event.sellerId,
+      status: event.status?.name.toUpperCase(),
+    );
     result.fold(
       (failure) {
         if (current == null) {
@@ -239,6 +259,8 @@ class StockLedgerBloc extends Bloc<StockLedgerEvent, StockLedgerState> {
         sellers: sellers,
         sellerId: event.sellerId,
         clearSellerId: event.sellerId == null,
+        outboundStatus: event.status,
+        clearOutboundStatus: event.status == null,
         outbound: outbound.orders,
         unexpanded: outbound.unexpanded,
         isRefreshing: false,

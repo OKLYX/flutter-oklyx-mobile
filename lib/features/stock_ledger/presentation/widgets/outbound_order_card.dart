@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../domain/entities/outbound_order.dart';
+import 'package:flutter_oklyn_mobile/features/order/domain/entities/order_item.dart';
 import 'package:flutter_oklyn_mobile/features/purchase_list/presentation/widgets/product_thumbnail.dart';
+import 'package:flutter_oklyn_mobile/features/settlement/presentation/utils/settlement_format.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/app_card.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/name_text.dart';
@@ -70,17 +72,58 @@ class _OutboundOrderCardState extends State<OutboundOrderCard> {
     }
   }
 
+  /// The order date as `yyyy-MM-dd`; null when [OutboundOrder.orderedAt]
+  /// does not parse (FEATURE_2611_33 D13).
+  String? _orderedOn(OutboundOrder order) {
+    final parsed = DateTime.tryParse(order.orderedAt ?? '');
+    if (parsed == null) {
+      return null;
+    }
+    return toDateText(parsed);
+  }
+
   @override
   Widget build(BuildContext context) {
     final order = widget.order;
+    final statusLabel = getOrderStatusLabel(orderStatusFrom(order.status));
+    final orderedOn = _orderedOn(order);
+    final subline = [
+      if (order.sellerName.isNotEmpty) order.sellerName,
+      if (orderedOn != null) orderedOn,
+    ].join(' · ');
 
     return AppCard.row(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              order.externalOrderId,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    order.externalOrderId,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    statusLabel,
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 2),
             NameText(
@@ -89,11 +132,11 @@ class _OutboundOrderCardState extends State<OutboundOrderCard> {
               expandable: true,
               style: const TextStyle(fontSize: 12),
             ),
-            if (order.sellerName.isNotEmpty)
+            if (subline.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(
-                  order.sellerName,
+                  subline,
                   style: TextStyle(
                     fontSize: 11,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,

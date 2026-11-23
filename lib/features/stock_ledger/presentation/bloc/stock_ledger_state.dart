@@ -1,3 +1,4 @@
+import 'package:flutter_oklyn_mobile/features/order/domain/entities/order_item.dart';
 import 'package:flutter_oklyn_mobile/features/seller/domain/entities/seller.dart';
 import '../../domain/entities/outbound_order.dart';
 import '../../domain/entities/purchase_candidate.dart';
@@ -18,6 +19,28 @@ class StockLedgerError extends StockLedgerState {
   final String message;
 
   StockLedgerError({required this.message});
+}
+
+/// The 「최근 이력」 filter values of 「입고·조정」. Dates are `yyyy-MM-dd`;
+/// null = not sent → the server's default 30 days (FEATURE_2611_33 D10).
+class MovementFilter {
+  final int? sellerId;
+  final String? from;
+  final String? to;
+
+  const MovementFilter({this.sellerId, this.from, this.to});
+
+  /// A copy with only [sellerId] changed (null = cleared).
+  MovementFilter withSeller(int? sellerId) =>
+      MovementFilter(sellerId: sellerId, from: from, to: to);
+
+  /// A copy with only [from] changed (null = cleared).
+  MovementFilter withFrom(String? from) =>
+      MovementFilter(sellerId: sellerId, from: from, to: to);
+
+  /// A copy with only [to] changed (null = cleared).
+  MovementFilter withTo(String? to) =>
+      MovementFilter(sellerId: sellerId, from: from, to: to);
 }
 
 /// 조회 성공 상태 — 세 화면이 이 상태 하나를 나눠 쓴다.
@@ -59,6 +82,12 @@ class StockLedgerLoaded extends StockLedgerState {
   /// list (FEATURE_2611_02 D35 · D37).
   final String? amountFilterKey;
 
+  /// The 「최근 이력」 filter of 「입고·조정」 (FEATURE_2611_33 D10).
+  final MovementFilter movementFilter;
+
+  /// The 「출고 확인」 status filter; null = both (FEATURE_2611_33 D12).
+  final OrderStatus? outboundStatus;
+
   StockLedgerLoaded({
     this.sellers = const [],
     this.sellerId,
@@ -76,6 +105,8 @@ class StockLedgerLoaded extends StockLedgerState {
     this.actionMessage,
     this.recordedLotId,
     this.amountFilterKey,
+    this.movementFilter = const MovementFilter(),
+    this.outboundStatus,
   });
 
   StockLedgerLoaded copyWith({
@@ -100,6 +131,9 @@ class StockLedgerLoaded extends StockLedgerState {
     int? recordedLotId,
     String? amountFilterKey,
     bool clearAmountFilter = false,
+    MovementFilter? movementFilter,
+    OrderStatus? outboundStatus,
+    bool clearOutboundStatus = false,
   }) {
     return StockLedgerLoaded(
       sellers: sellers ?? this.sellers,
@@ -124,6 +158,10 @@ class StockLedgerLoaded extends StockLedgerState {
       amountFilterKey: clearAmountFilter
           ? null
           : (amountFilterKey ?? this.amountFilterKey),
+      movementFilter: movementFilter ?? this.movementFilter,
+      outboundStatus: clearOutboundStatus
+          ? null
+          : (outboundStatus ?? this.outboundStatus),
     );
   }
 }
