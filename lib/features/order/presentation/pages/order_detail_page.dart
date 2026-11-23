@@ -260,7 +260,11 @@ class OrderDetailPage extends StatelessWidget {
         navBarIndex: 2,
         showDrawer: true,
         showBottomNavBar: false,
-        onBackPressed: () => context.go(Routes.orderHistoryPath),
+        // Back to whichever list pushed this page (shipment management or
+        // order history); order history only when opened without a stack.
+        onBackPressed: () => context.canPop()
+            ? context.pop()
+            : context.go(Routes.orderHistoryPath),
         // Refresh = top bar icon, whatever the detail read state is
         // (FEATURE_2611_29 / D11 · D4).
         appBarActions: isCoupang ? [_RefreshAction(order: o)] : null,
