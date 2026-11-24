@@ -200,21 +200,14 @@ class _StockIntakeViewState extends State<_StockIntakeView> {
                   children: [
                     _tabs(cubit, state),
                     const SizedBox(height: 12),
-                    _barcodeField(state, claimWork),
-                    const SizedBox(height: 12),
-                    if (!intake) const ClaimWorkSection(),
+                    // Date · seller · reason · save sit above the barcode
+                    // field — the seller is picked before any scan.
                     if (intake) ...[
                       _movedOnField(state),
                       const SizedBox(height: 12),
                       _sellerField(cubit, state),
                       const SizedBox(height: 12),
                       _reasonField(cubit, state),
-                      const SizedBox(height: 12),
-                      if (state.unknownBarcode != null) ...[
-                        _unknownBox(state),
-                        const SizedBox(height: 12),
-                      ],
-                      ..._lineList(cubit, state),
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
@@ -227,6 +220,17 @@ class _StockIntakeViewState extends State<_StockIntakeView> {
                               : const Text('입고 저장'),
                         ),
                       ),
+                      const SizedBox(height: 12),
+                    ],
+                    _barcodeField(state, claimWork),
+                    const SizedBox(height: 12),
+                    if (!intake) const ClaimWorkSection(),
+                    if (intake) ...[
+                      if (state.unknownBarcode != null) ...[
+                        _unknownBox(state),
+                        const SizedBox(height: 12),
+                      ],
+                      ..._lineList(cubit, state),
                     ],
                   ],
                 ),
