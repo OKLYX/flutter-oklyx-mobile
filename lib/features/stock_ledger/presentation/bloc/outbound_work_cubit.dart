@@ -168,7 +168,7 @@ class OutboundWorkState {
 ///
 /// - Every change touches only the current tab's basket (R12).
 /// - A scan adds 1 to the first line with the same product, screen seller
-///   and screen reason, else appends a new line (R24).
+///   and screen reason (moved to the top), else adds a new line at the top.
 /// - No scan before a screen seller is picked (D9).
 /// ⚠️ Registered by `getIt` as a factory — a new one for every visit.
 class OutboundWorkCubit extends Cubit<OutboundWorkState> {
@@ -272,7 +272,7 @@ class OutboundWorkCubit extends Cubit<OutboundWorkState> {
     emit(state.copyWith(busy: false));
   }
 
-  /// +1 on the matching line, else a new line at the end (R24).
+  /// +1 on the matching line, moved to the top, else a new line at the top.
   void _add(OutboundWorkTab tab, int productId, String productName) {
     final basket = state.basketOf(tab);
     final sellerId = basket.screenSellerId;
@@ -287,11 +287,13 @@ class OutboundWorkCubit extends Cubit<OutboundWorkState> {
           line.reason == basket.screenReason,
     );
     if (index >= 0) {
-      final line = lines[index];
+      // A re-scanned line moves to the top so it stays in view.
+      final line = lines.removeAt(index);
       final count = (int.tryParse(line.quantityText.trim()) ?? 0) + 1;
-      lines[index] = line.copyWith(quantityText: '$count');
+      lines.insert(0, line.copyWith(quantityText: '$count'));
     } else {
-      lines.add(OutboundWorkLine(
+      // Newest first — right under the barcode field, no scrolling.
+      lines.insert(0, OutboundWorkLine(
         key: _nextKey++,
         productId: productId,
         productName: productName,

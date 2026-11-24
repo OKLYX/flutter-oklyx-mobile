@@ -157,7 +157,7 @@ class StockIntakeState {
 /// **File**: stock_ledger/presentation/bloc/stock_intake_cubit.dart
 ///
 /// - A scan adds 1 to the first line with the same product, screen seller and
-///   screen reason, else appends a new line (D4 ④).
+///   screen reason (moved to the top), else adds a new line at the top.
 /// - Screen seller / reason follow into every line not set on its own (D4 ⑤).
 /// - Every check and failure is a toast (D9).
 /// ⚠️ Registered by `getIt` as a factory — a new one for every visit.
@@ -221,7 +221,7 @@ class StockIntakeCubit extends Cubit<StockIntakeState> {
     emit(state.copyWith(busy: false));
   }
 
-  /// +1 on the matching line, else a new line at the end (D4 ④).
+  /// +1 on the matching line, moved to the top, else a new line at the top.
   void _addProduct(int productId, String productName) {
     final lines = [...state.lines];
     final index = lines.indexWhere(
@@ -231,11 +231,13 @@ class StockIntakeCubit extends Cubit<StockIntakeState> {
           line.reason == state.screenReason,
     );
     if (index >= 0) {
-      final line = lines[index];
+      // A re-scanned line moves to the top so it stays in view.
+      final line = lines.removeAt(index);
       final count = (int.tryParse(line.quantityText.trim()) ?? 0) + 1;
-      lines[index] = line.copyWith(quantityText: '$count');
+      lines.insert(0, line.copyWith(quantityText: '$count'));
     } else {
-      lines.add(IntakeLine(
+      // Newest first — right under the barcode field, no scrolling.
+      lines.insert(0, IntakeLine(
         key: _nextKey++,
         productId: productId,
         productName: productName,
