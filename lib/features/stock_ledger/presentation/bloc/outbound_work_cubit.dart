@@ -194,9 +194,9 @@ class OutboundWorkCubit extends Cubit<OutboundWorkState> {
 
   OutboundBasket get _basket => state.basketOf(state.tab);
 
-  /// Replaces the current tab's basket only (R12).
-  void _emitBasket(OutboundBasket basket) {
-    emit(switch (state.tab) {
+  /// Replaces one tab's basket only (R12) — the current tab unless [tab].
+  void _emitBasket(OutboundBasket basket, {OutboundWorkTab? tab}) {
+    emit(switch (tab ?? state.tab) {
       OutboundWorkTab.disposal => state.copyWith(disposal: basket),
       OutboundWorkTab.supplierReturn =>
         state.copyWith(supplierReturn: basket),
@@ -228,7 +228,9 @@ class OutboundWorkCubit extends Cubit<OutboundWorkState> {
     if (barcode.isEmpty || state.busy) {
       return;
     }
-    if (_basket.screenSellerId == null) {
+    // The tab the scan was made on — the tab bar stays usable while busy.
+    final tab = state.tab;
+    if (state.basketOf(tab).screenSellerId == null) {
       emit(state.copyWith(
         notice: StockWorkNotice(
           StockWorkNoticeKind.input,
@@ -249,7 +251,7 @@ class OutboundWorkCubit extends Cubit<OutboundWorkState> {
       (found) {
         final productId = found.productId;
         if (found.found && productId != null) {
-          _add(productId, found.productName ?? '');
+          _add(tab, productId, found.productName ?? '');
           return;
         }
         emit(state.copyWith(
@@ -264,8 +266,8 @@ class OutboundWorkCubit extends Cubit<OutboundWorkState> {
   }
 
   /// +1 on the matching line, else a new line at the end (R24).
-  void _add(int productId, String productName) {
-    final basket = _basket;
+  void _add(OutboundWorkTab tab, int productId, String productName) {
+    final basket = state.basketOf(tab);
     final sellerId = basket.screenSellerId;
     if (sellerId == null) {
       return;
@@ -293,7 +295,7 @@ class OutboundWorkCubit extends Cubit<OutboundWorkState> {
         custom: false,
       ));
     }
-    _emitBasket(basket.copyWith(lines: lines));
+    _emitBasket(basket.copyWith(lines: lines), tab: tab);
   }
 
   void changeMovedOn(String movedOn) {
