@@ -44,7 +44,7 @@ class ClaimModel extends Claim {
     return ClaimModel(
       id: (json['id'] as num).toInt(),
       platform: json['platform'] as String? ?? '',
-      claimType: _parseType(json['claimType'] as String?),
+      claimType: parseClaimType(json['claimType'] as String?),
       status: parseClaimStatus(json['status'] as String?),
       platformStatus: json['platformStatus'] as String? ?? '',
       externalClaimId: json['externalClaimId'] as String? ?? '',
@@ -117,14 +117,6 @@ class ClaimModel extends Claim {
         )
         .where((c) => c.code.isNotEmpty)
         .toList();
-  }
-
-  /// 모르는 종류는 기본 탭인 반품으로 둔다 — 목록이 통째로 비는 것보다 낫다.
-  static ClaimType _parseType(String? v) {
-    for (final t in ClaimType.values) {
-      if (t.wire == v) return t;
-    }
-    return ClaimType.returnClaim;
   }
 }
 

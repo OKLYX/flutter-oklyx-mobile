@@ -177,6 +177,74 @@ class StockLedgerRepositoryImpl implements StockLedgerRepository {
         fallback,
       );
 
+  @override
+  Future<Either<Failure, List<ClaimWork>>> claimsByReturnInvoice(
+    String value,
+  ) =>
+      _guard(
+        () => remoteDataSource.claimsByReturnInvoice(value),
+        '송장을 찾지 못했습니다.',
+      );
+
+  @override
+  Future<Either<Failure, List<ClaimWork>>> claimsByParcelInvoice(
+    String value,
+  ) =>
+      _guard(
+        () => remoteDataSource.claimsByParcelInvoice(value),
+        '송장을 찾지 못했습니다.',
+      );
+
+  @override
+  Future<Either<Failure, List<ShippedOrder>>> shippedOrders() => _guard(
+        () => remoteDataSource.shippedOrders(),
+        '목록을 불러오지 못했습니다.',
+      );
+
+  @override
+  Future<Either<Failure, List<ClaimWork>>> claimsByOrder(int orderId) =>
+      _guard(
+        () => remoteDataSource.claimsByOrder(orderId),
+        '송장을 찾지 못했습니다.',
+      );
+
+  @override
+  Future<Either<Failure, void>> returnWork({
+    required String movedOn,
+    required List<ClaimWorkLineRequest> lines,
+    required String fallback,
+  }) =>
+      _guard(
+        () => remoteDataSource.returnWork(movedOn, lines),
+        fallback,
+      );
+
+  @override
+  Future<Either<Failure, List<ClaimWork>>> claimsByReshipInvoice(
+    String value,
+  ) =>
+      _guard(
+        () => remoteDataSource.claimsByReshipInvoice(value),
+        '송장을 찾지 못했습니다.',
+      );
+
+  @override
+  Future<Either<Failure, List<ClaimWork>>> openExchanges() => _guard(
+        () => remoteDataSource.openExchanges(),
+        '목록을 불러오지 못했습니다.',
+      );
+
+  @override
+  Future<Either<Failure, void>> exchangeWork({
+    required String movedOn,
+    required List<ClaimWorkLineRequest> lines,
+    required String fallback,
+  }) =>
+      _guard(
+        () => remoteDataSource.exchangeWork(movedOn, lines),
+        fallback,
+      );
+
   /// Server text first, [fallback] when it is blank (FEATURE_2611_33 R4).
   Future<Either<Failure, T>> _guard<T>(
     Future<T> Function() call,

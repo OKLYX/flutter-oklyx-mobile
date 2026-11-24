@@ -35,7 +35,7 @@ class StockWorkNotice {
 }
 
 /// Tabs of 「출고 작업」 (FEATURE_2611_34 D3).
-enum OutboundWorkTab { disposal, supplierReturn }
+enum OutboundWorkTab { disposal, supplierReturn, exchangeShip }
 
 /// One collected line of 「출고 작업」 (FEATURE_2611_34 D9 · D11 · D13).
 class OutboundWorkLine {
@@ -138,6 +138,8 @@ class OutboundWorkState {
   OutboundBasket basketOf(OutboundWorkTab tab) => switch (tab) {
         OutboundWorkTab.disposal => disposal,
         OutboundWorkTab.supplierReturn => supplierReturn,
+        OutboundWorkTab.exchangeShip =>
+          throw StateError('「교환 발송」 has no basket'),
       };
 
   OutboundWorkState copyWith({
@@ -200,6 +202,8 @@ class OutboundWorkCubit extends Cubit<OutboundWorkState> {
       OutboundWorkTab.disposal => state.copyWith(disposal: basket),
       OutboundWorkTab.supplierReturn =>
         state.copyWith(supplierReturn: basket),
+      OutboundWorkTab.exchangeShip =>
+        throw StateError('「교환 발송」 has no basket'),
     });
   }
 
@@ -224,6 +228,9 @@ class OutboundWorkCubit extends Cubit<OutboundWorkState> {
 
   /// One barcode from the input field.
   Future<void> scan(String value) async {
+    if (state.tab == OutboundWorkTab.exchangeShip) {
+      return;
+    }
     final barcode = value.trim();
     if (barcode.isEmpty || state.busy) {
       return;
@@ -359,6 +366,9 @@ class OutboundWorkCubit extends Cubit<OutboundWorkState> {
 
   /// [폐기 저장] · [매입처 반품 저장] — the tab's lines in one request.
   Future<void> save() async {
+    if (state.tab == OutboundWorkTab.exchangeShip) {
+      return;
+    }
     final tab = state.tab;
     final basket = state.basketOf(tab);
     if (basket.lines.isEmpty || state.busy) {

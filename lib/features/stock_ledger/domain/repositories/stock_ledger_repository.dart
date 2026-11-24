@@ -77,4 +77,44 @@ abstract class StockLedgerRepository {
     required List<OutboundWorkLineRequest> lines,
     required String fallback,
   });
+
+  /// Claims behind one return invoice (FEATURE_2611_34 D18).
+  Future<Either<Failure, List<ClaimWork>>> claimsByReturnInvoice(
+    String value,
+  );
+
+  /// Claims of the order behind one parcel invoice (D26).
+  Future<Either<Failure, List<ClaimWork>>> claimsByParcelInvoice(
+    String value,
+  );
+
+  /// Orders shipped in the recent 14 days (D29 · D39).
+  Future<Either<Failure, List<ShippedOrder>>> shippedOrders();
+
+  /// Claims of one picked order (D27 · D29).
+  Future<Either<Failure, List<ClaimWork>>> claimsByOrder(int orderId);
+
+  /// 「반품 재입고」 one-shot save (D34) — [fallback] when the server is
+  /// silent.
+  Future<Either<Failure, void>> returnWork({
+    required String movedOn,
+    required List<ClaimWorkLineRequest> lines,
+    required String fallback,
+  });
+
+  /// Exchange claims behind one reship invoice (D42).
+  Future<Either<Failure, List<ClaimWork>>> claimsByReshipInvoice(
+    String value,
+  );
+
+  /// Exchange claims still to send (D42 · R8).
+  Future<Either<Failure, List<ClaimWork>>> openExchanges();
+
+  /// 「교환 발송」 one-shot save (D34 · D40) — [fallback] when the server
+  /// is silent.
+  Future<Either<Failure, void>> exchangeWork({
+    required String movedOn,
+    required List<ClaimWorkLineRequest> lines,
+    required String fallback,
+  });
 }
