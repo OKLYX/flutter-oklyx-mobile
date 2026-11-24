@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
 import '../../domain/entities/stock_intake.dart';
+import '../../domain/entities/stock_work.dart';
 import '../models/intake_barcode_result_model.dart';
 import '../models/outbound_order_model.dart';
 import '../models/purchase_candidate_model.dart';
@@ -162,8 +163,31 @@ class StockLedgerRemoteDataSourceImpl implements StockLedgerRemoteDataSource {
         .toList();
   }
 
+  @override
+  Future<void> outboundWork(
+    String movedOn,
+    List<OutboundWorkLineRequest> lines,
+  ) async {
+    _ensureOk(await dio.post(
+      '$_base/outbound-work',
+      data: {
+        'movedOn': movedOn,
+        'lines': [
+          for (final line in lines)
+            {
+              'productId': line.productId,
+              'sellerId': line.sellerId,
+              'reason': line.reason.code,
+              if (line.reasonNote != null) 'reasonNote': line.reasonNote,
+              'quantity': line.quantity,
+            },
+        ],
+      },
+    ));
+  }
+
   /// Outside 2xx throws [ServerException] with the server message (empty
-  /// when the body has none) — FEATURE_2611_33 calls only.
+  /// when the body has none) — FEATURE_2611_33 · 2611_34 calls only.
   Response<dynamic> _ensureOk(Response<dynamic> response) {
     final code = response.statusCode ?? 0;
     if (code >= 200 && code < 300) {

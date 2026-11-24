@@ -71,6 +71,8 @@ enum StockReason {
   lost,
   sample,
   internalUse,
+  supplierReturn,
+  exchangeShip,
   countDiff,
   etc;
 
@@ -83,6 +85,8 @@ enum StockReason {
         StockReason.lost => 'LOST',
         StockReason.sample => 'SAMPLE',
         StockReason.internalUse => 'INTERNAL_USE',
+        StockReason.supplierReturn => 'SUPPLIER_RETURN',
+        StockReason.exchangeShip => 'EXCHANGE_SHIP',
         StockReason.countDiff => 'COUNT_DIFF',
         StockReason.etc => 'ETC',
       };
@@ -96,6 +100,8 @@ enum StockReason {
         StockReason.lost => '분실',
         StockReason.sample => '증정·샘플',
         StockReason.internalUse => '자가소비',
+        StockReason.supplierReturn => '매입처 반품',
+        StockReason.exchangeShip => '교환 발송',
         StockReason.countDiff => '실사 차이',
         StockReason.etc => '기타',
       };
@@ -107,7 +113,8 @@ enum StockReason {
     return null;
   }
 
-  /// 유형별 허용 사유 (서버 `StockReason.allowedFor` 와 같은 표).
+  /// Allowed reasons per type — the server `StockReason.allowedFor` table,
+  /// except `exchangeShip` (never picked in a form — FEATURE_2611_34 D40).
   ///
   /// ⚠️ `RETURN_IN` 은 사유를 받지 않는다 — 빈 목록이면 화면이 사유 칸을 비활성화한다.
   static List<StockReason> forType(StockMovementType type) => switch (type) {
@@ -123,6 +130,7 @@ enum StockReason {
             StockReason.lost,
             StockReason.sample,
             StockReason.internalUse,
+            StockReason.supplierReturn,
             StockReason.etc,
           ],
         StockMovementType.adjust => const [
@@ -132,6 +140,12 @@ enum StockReason {
         StockMovementType.returnIn => const [],
         StockMovementType.stockOut => const [],
       };
+
+  /// 「출고 작업」 「폐기」 tab reasons (FEATURE_2611_34 D11).
+  static List<StockReason> get outboundWorkDisposalReasons => [
+        for (final reason in forType(StockMovementType.disposal))
+          if (reason != StockReason.supplierReturn) reason,
+      ];
 }
 
 /// 전개 실패 사유 코드 → 문구. 모르는 코드는 원문을 그대로 보여준다(숨기지 않는다).

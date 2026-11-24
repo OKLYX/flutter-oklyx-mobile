@@ -196,7 +196,9 @@ import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/usecases/get_o
 import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/usecases/get_stock_candidates_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/usecases/record_movement_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/domain/usecases/stock_intake_usecase.dart';
+import '../../features/stock_ledger/domain/usecases/outbound_work_usecase.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/presentation/bloc/stock_intake_cubit.dart';
+import '../../features/stock_ledger/presentation/bloc/outbound_work_cubit.dart';
 import 'package:flutter_oklyn_mobile/features/stock_ledger/presentation/bloc/stock_ledger_bloc.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/data/datasources/stock_daily_remote_datasource.dart';
 import 'package:flutter_oklyn_mobile/features/stock_daily/data/repositories/stock_daily_repository_impl.dart';
@@ -1219,6 +1221,9 @@ void _registerStockLedgerServices() {
   getIt.registerSingleton<StockIntakeUseCase>(
     StockIntakeUseCase(repository: getIt<StockLedgerRepository>()),
   );
+  getIt.registerSingleton<OutboundWorkUseCase>(
+    OutboundWorkUseCase(repository: getIt<StockLedgerRepository>()),
+  );
 
   // BLoC as factory — 재고 화면 3종이 각각 새 인스턴스를 받는다.
   // 판매자 드롭다운은 기존 seller 기능의 GetSellersUseCase 를 재사용한다.
@@ -1239,6 +1244,13 @@ void _registerStockLedgerServices() {
     () => StockIntakeCubit(
       stockIntakeUseCase: getIt<StockIntakeUseCase>(),
       productBarcodeUseCase: getIt<ProductBarcodeUseCase>(),
+      getSellersUseCase: getIt<GetSellersUseCase>(),
+    ),
+  );
+  getIt.registerFactory<OutboundWorkCubit>(
+    () => OutboundWorkCubit(
+      outboundWorkUseCase: getIt<OutboundWorkUseCase>(),
+      stockIntakeUseCase: getIt<StockIntakeUseCase>(),
       getSellersUseCase: getIt<GetSellersUseCase>(),
     ),
   );
