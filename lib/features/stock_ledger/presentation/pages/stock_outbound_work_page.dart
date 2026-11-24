@@ -10,7 +10,10 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/stock_enums.dart';
+import '../../domain/entities/stock_work.dart';
+import '../bloc/claim_work_cubit.dart';
 import '../bloc/outbound_work_cubit.dart';
+import '../widgets/claim_work_section.dart';
 import '../widgets/outbound_work_line_tile.dart';
 
 /// App 「출고 작업」 screen (`/stock/outbound-work`, FEATURE_2611_34 D3 · D4 ·
@@ -20,12 +23,20 @@ import '../widgets/outbound_work_line_tile.dart';
 /// - One barcode input field, no camera (D36): sent, cleared and focused
 ///   again after every scan.
 /// - [폐기 저장] · [매입처 반품 저장] save the current tab's lines at once.
+/// - 「교환 발송」 tab = the shared `ClaimWorkSection` (FEATURE_2611_34 D38 ·
+///   D42); its list is loaded again every time the tab is picked.
 class StockOutboundWorkPage extends StatelessWidget {
   const StockOutboundWorkPage({super.key});
 
   @override
-  Widget build(BuildContext context) => BlocProvider(
-        create: (_) => getIt<OutboundWorkCubit>()..start(),
+  Widget build(BuildContext context) => MultiBlocProvider(
+        providers: [
+          BlocProvider(create: (_) => getIt<OutboundWorkCubit>()..start()),
+          BlocProvider(
+            create: (_) =>
+                getIt<ClaimWorkCubit>(param1: ClaimWorkKind.exchangeShip),
+          ),
+        ],
         child: const _OutboundWorkView(),
       );
 }
@@ -49,7 +60,12 @@ class _OutboundWorkViewState extends State<_OutboundWorkView> {
   }
 
   void _submitBarcode(String value) {
-    context.read<OutboundWorkCubit>().scan(value);
+    if (context.read<OutboundWorkCubit>().state.tab ==
+        OutboundWorkTab.exchangeShip) {
+      context.read<ClaimWorkCubit>().scan(value);
+    } else {
+      context.read<OutboundWorkCubit>().scan(value);
+    }
     _barcode.clear();
     // The default done action drops the focus — keep scanning (D36).
     _barcodeFocus.requestFocus();
@@ -84,7 +100,7 @@ class _OutboundWorkViewState extends State<_OutboundWorkView> {
         title: '출고 작업',
         navBarIndex: 2,
         showAppBarDrawerButton: false,
-        body: BlocConsumer<OutboundWorkCubit, OutboundWorkState>(
+        body: BlocListener<ClaimWorkCubit, ClaimWorkState>(
           listenWhen: (p, c) => p.notice != c.notice,
           listener: (context, state) {
             final notice = state.notice;
@@ -92,46 +108,71 @@ class _OutboundWorkViewState extends State<_OutboundWorkView> {
               _showNotice(context, notice);
             }
           },
-          builder: (context, state) {
-            final cubit = context.read<OutboundWorkCubit>();
-            final basket = state.basketOf(state.tab);
-            final disposal = state.tab == OutboundWorkTab.disposal;
-            final saveLabel = disposal ? '폐기 저장' : '매입처 반품 저장';
-            return AppPageBody.scroll(
-              child: Column(
-                // Tab values are drawn again on every tab change.
-                key: ValueKey(state.tab),
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _tabs(cubit, state),
-                  const SizedBox(height: 12),
-                  _barcodeField(state),
-                  const SizedBox(height: 12),
-                  _movedOnField(basket, disposal),
-                  const SizedBox(height: 12),
-                  _sellerField(cubit, state, basket),
-                  if (disposal) ...[
-                    const SizedBox(height: 12),
-                    _reasonField(cubit, basket),
-                  ],
-                  const SizedBox(height: 12),
-                  ..._lineList(cubit, state, basket, disposal),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: state.busy || basket.lines.isEmpty
-                          ? null
-                          : cubit.save,
-                      child: state.busy
-                          ? AppBusyLabel(saveLabel)
-                          : Text(saveLabel),
-                    ),
+          child: BlocConsumer<OutboundWorkCubit, OutboundWorkState>(
+            listenWhen: (p, c) => p.notice != c.notice,
+            listener: (context, state) {
+              final notice = state.notice;
+              if (notice != null) {
+                _showNotice(context, notice);
+              }
+            },
+            builder: (context, state) {
+              final cubit = context.read<OutboundWorkCubit>();
+              final claimWork = context.watch<ClaimWorkCubit>();
+              if (state.tab == OutboundWorkTab.exchangeShip) {
+                return AppPageBody.scroll(
+                  child: Column(
+                    key: ValueKey(state.tab),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _tabs(cubit, state),
+                      const SizedBox(height: 12),
+                      _barcodeField(state, claimWork),
+                      const SizedBox(height: 12),
+                      const ClaimWorkSection(),
+                    ],
                   ),
-                ],
-              ),
-            );
-          },
+                );
+              }
+              final basket = state.basketOf(state.tab);
+              final disposal = state.tab == OutboundWorkTab.disposal;
+              final saveLabel = disposal ? '폐기 저장' : '매입처 반품 저장';
+              return AppPageBody.scroll(
+                child: Column(
+                  // Tab values are drawn again on every tab change.
+                  key: ValueKey(state.tab),
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _tabs(cubit, state),
+                    const SizedBox(height: 12),
+                    _barcodeField(state, claimWork),
+                    const SizedBox(height: 12),
+                    _movedOnField(basket, disposal),
+                    const SizedBox(height: 12),
+                    _sellerField(cubit, state, basket),
+                    if (disposal) ...[
+                      const SizedBox(height: 12),
+                      _reasonField(cubit, basket),
+                    ],
+                    const SizedBox(height: 12),
+                    ..._lineList(cubit, state, basket, disposal),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: state.busy || basket.lines.isEmpty
+                            ? null
+                            : cubit.save,
+                        child: state.busy
+                            ? AppBusyLabel(saveLabel)
+                            : Text(saveLabel),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       );
 
@@ -148,25 +189,37 @@ class _OutboundWorkViewState extends State<_OutboundWorkView> {
               value: OutboundWorkTab.supplierReturn,
               label: Text('매입처 반품'),
             ),
+            ButtonSegment(
+              value: OutboundWorkTab.exchangeShip,
+              label: Text('교환 발송'),
+            ),
           ],
           selected: {state.tab},
           showSelectedIcon: false,
-          onSelectionChanged: (set) => cubit.changeTab(set.first),
+          onSelectionChanged: (set) {
+            cubit.changeTab(set.first);
+            if (set.first == OutboundWorkTab.exchangeShip) {
+              context.read<ClaimWorkCubit>().loadExchanges();
+            }
+          },
         ),
       );
 
-  Widget _barcodeField(OutboundWorkState state) => TextField(
-        controller: _barcode,
-        focusNode: _barcodeFocus,
-        autofocus: true,
-        // Not `enabled: false` — that drops the focus for good.
-        readOnly: state.busy,
-        textInputAction: TextInputAction.done,
-        decoration: const InputDecoration(
-          hintText: '상품 바코드를 스캔하거나 입력하세요',
-        ),
-        onSubmitted: _submitBarcode,
-      );
+  Widget _barcodeField(OutboundWorkState state, ClaimWorkCubit claimWork) {
+    final exchange = state.tab == OutboundWorkTab.exchangeShip;
+    return TextField(
+      controller: _barcode,
+      focusNode: _barcodeFocus,
+      autofocus: true,
+      // Not `enabled: false` — that drops the focus for good.
+      readOnly: exchange ? claimWork.state.busy : state.busy,
+      textInputAction: TextInputAction.done,
+      decoration: InputDecoration(
+        hintText: exchange ? claimWork.hint : '상품 바코드를 스캔하거나 입력하세요',
+      ),
+      onSubmitted: _submitBarcode,
+    );
+  }
 
   Widget _movedOnField(OutboundBasket basket, bool disposal) => InkWell(
         onTap: () => _pickDate(basket),

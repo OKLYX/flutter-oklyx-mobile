@@ -37,6 +37,16 @@ enum ClaimStatus {
   final String wire;
 }
 
+/// Wire text to [ClaimType]; an unknown value is [ClaimType.returnClaim].
+ClaimType parseClaimType(String? v) {
+  for (final t in ClaimType.values) {
+    if (t.wire == v) {
+      return t;
+    }
+  }
+  return ClaimType.returnClaim;
+}
+
 /// 와이어 문자열 → [ClaimStatus].
 ///
 /// 모르는 값(신규 코드·null) → [ClaimStatus.received](가장 안전한 미완결) + [debugPrint].
