@@ -145,8 +145,8 @@ class _OutboundWorkViewState extends State<_OutboundWorkView> {
                   children: [
                     _tabs(cubit, state),
                     const SizedBox(height: 12),
-                    _barcodeField(state, claimWork),
-                    const SizedBox(height: 12),
+                    // Date · seller · reason · save sit above the barcode
+                    // field — the seller is picked before any scan.
                     _movedOnField(basket, disposal),
                     const SizedBox(height: 12),
                     _sellerField(cubit, state, basket),
@@ -154,8 +154,6 @@ class _OutboundWorkViewState extends State<_OutboundWorkView> {
                       const SizedBox(height: 12),
                       _reasonField(cubit, basket),
                     ],
-                    const SizedBox(height: 12),
-                    ..._lineList(cubit, state, basket, disposal),
                     const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
@@ -168,6 +166,10 @@ class _OutboundWorkViewState extends State<_OutboundWorkView> {
                             : Text(saveLabel),
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    _barcodeField(state, claimWork),
+                    const SizedBox(height: 12),
+                    ..._lineList(cubit, state, basket, disposal),
                   ],
                 ),
               );
