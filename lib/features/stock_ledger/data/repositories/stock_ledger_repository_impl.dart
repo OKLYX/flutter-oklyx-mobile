@@ -9,6 +9,7 @@ import '../../domain/entities/stock_balance.dart';
 import '../../domain/entities/stock_enums.dart';
 import '../../domain/entities/stock_intake.dart';
 import '../../domain/entities/stock_movement.dart';
+import '../../domain/entities/stock_work.dart';
 import '../../domain/repositories/stock_ledger_repository.dart';
 import '../datasources/stock_ledger_remote_datasource.dart';
 import '../models/confirm_outbound_params.dart';
@@ -163,6 +164,85 @@ class StockLedgerRepositoryImpl implements StockLedgerRepository {
       _guard(
         () => remoteDataSource.intake(movedOn, lines),
         '입고를 저장하지 못했습니다.',
+      );
+
+  @override
+  Future<Either<Failure, void>> outboundWork({
+    required String movedOn,
+    required List<OutboundWorkLineRequest> lines,
+    required String fallback,
+  }) =>
+      _guard(
+        () => remoteDataSource.outboundWork(movedOn, lines),
+        fallback,
+      );
+
+  @override
+  Future<Either<Failure, List<ClaimWork>>> claimsByReturnInvoice(
+    String value,
+  ) =>
+      _guard(
+        () => remoteDataSource.claimsByReturnInvoice(value),
+        '송장을 찾지 못했습니다.',
+      );
+
+  @override
+  Future<Either<Failure, List<ClaimWork>>> claimsByParcelInvoice(
+    String value,
+  ) =>
+      _guard(
+        () => remoteDataSource.claimsByParcelInvoice(value),
+        '송장을 찾지 못했습니다.',
+      );
+
+  @override
+  Future<Either<Failure, List<ShippedOrder>>> shippedOrders() => _guard(
+        () => remoteDataSource.shippedOrders(),
+        '목록을 불러오지 못했습니다.',
+      );
+
+  @override
+  Future<Either<Failure, List<ClaimWork>>> claimsByOrder(int orderId) =>
+      _guard(
+        () => remoteDataSource.claimsByOrder(orderId),
+        '송장을 찾지 못했습니다.',
+      );
+
+  @override
+  Future<Either<Failure, void>> returnWork({
+    required String movedOn,
+    required List<ClaimWorkLineRequest> lines,
+    required String fallback,
+  }) =>
+      _guard(
+        () => remoteDataSource.returnWork(movedOn, lines),
+        fallback,
+      );
+
+  @override
+  Future<Either<Failure, List<ClaimWork>>> claimsByReshipInvoice(
+    String value,
+  ) =>
+      _guard(
+        () => remoteDataSource.claimsByReshipInvoice(value),
+        '송장을 찾지 못했습니다.',
+      );
+
+  @override
+  Future<Either<Failure, List<ClaimWork>>> openExchanges() => _guard(
+        () => remoteDataSource.openExchanges(),
+        '목록을 불러오지 못했습니다.',
+      );
+
+  @override
+  Future<Either<Failure, void>> exchangeWork({
+    required String movedOn,
+    required List<ClaimWorkLineRequest> lines,
+    required String fallback,
+  }) =>
+      _guard(
+        () => remoteDataSource.exchangeWork(movedOn, lines),
+        fallback,
       );
 
   /// Server text first, [fallback] when it is blank (FEATURE_2611_33 R4).

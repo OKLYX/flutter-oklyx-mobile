@@ -14,7 +14,11 @@ import 'package:flutter_oklyn_mobile/shared/widgets/app_state_views.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/result_toast.dart';
 import 'package:flutter_oklyn_mobile/shared/widgets/scaffold_with_nav_bar.dart';
 import '../../domain/entities/stock_enums.dart';
+import '../../domain/entities/stock_work.dart';
+import '../bloc/claim_work_cubit.dart';
+import '../bloc/outbound_work_cubit.dart';
 import '../bloc/stock_intake_cubit.dart';
+import '../widgets/claim_work_section.dart';
 import '../widgets/intake_line_tile.dart';
 import '../widgets/stock_product_picker_dialog.dart';
 
@@ -24,12 +28,20 @@ import '../widgets/stock_product_picker_dialog.dart';
 ///   again after every scan.
 /// - Scanned products collect into lines; [입고 저장] saves all at once.
 /// - The server decides — found or not, and every save rule (D5 · D16).
+/// - Tabs 「입고」 · 「반품 재입고」 keep their own lines; the one barcode
+///   field goes to the current tab (FEATURE_2611_34 D1 · D2 · D36).
 class StockIntakePage extends StatelessWidget {
   const StockIntakePage({super.key});
 
   @override
-  Widget build(BuildContext context) => BlocProvider(
-        create: (_) => getIt<StockIntakeCubit>()..start(),
+  Widget build(BuildContext context) => MultiBlocProvider(
+        providers: [
+          BlocProvider(create: (_) => getIt<StockIntakeCubit>()..start()),
+          BlocProvider(
+            create: (_) =>
+                getIt<ClaimWorkCubit>(param1: ClaimWorkKind.returnIntake),
+          ),
+        ],
         child: const _StockIntakeView(),
       );
 }
@@ -61,7 +73,12 @@ class _StockIntakeViewState extends State<_StockIntakeView> {
   }
 
   void _submitBarcode(String value) {
-    context.read<StockIntakeCubit>().lookup(value);
+    switch (context.read<StockIntakeCubit>().state.tab) {
+      case IntakeTab.intake:
+        context.read<StockIntakeCubit>().lookup(value);
+      case IntakeTab.returnIntake:
+        context.read<ClaimWorkCubit>().scan(value);
+    }
     _barcode.clear();
     // The default done action drops the focus — keep scanning (D7).
     _barcodeFocus.requestFocus();
@@ -126,20 +143,45 @@ class _StockIntakeViewState extends State<_StockIntakeView> {
     }
   }
 
+  void _showWorkNotice(BuildContext context, StockWorkNotice notice) {
+    switch (notice.kind) {
+      case StockWorkNoticeKind.success:
+        showSuccessToast(context, notice.message);
+      case StockWorkNoticeKind.error:
+        showErrorToast(context, notice.message);
+      case StockWorkNoticeKind.input:
+        showInputNoticeToast(context, notice.message);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => ScaffoldWithNavBar(
         title: '입고 작업',
         navBarIndex: 2,
         showAppBarDrawerButton: false,
-        body: BlocListener<StockIntakeCubit, StockIntakeState>(
-          // Every unknown barcode, the same value too, clears the box (R16).
-          listenWhen: (p, c) => p.unknownScan != c.unknownScan,
-          listener: (_, __) {
-            _editName.clear();
-            _editPrice.clear();
-            _newName.clear();
-            _newPrice.clear();
-          },
+        body: MultiBlocListener(
+          listeners: [
+            BlocListener<StockIntakeCubit, StockIntakeState>(
+              // Every unknown barcode, the same value too, clears the box
+              // (R16).
+              listenWhen: (p, c) => p.unknownScan != c.unknownScan,
+              listener: (_, __) {
+                _editName.clear();
+                _editPrice.clear();
+                _newName.clear();
+                _newPrice.clear();
+              },
+            ),
+            BlocListener<ClaimWorkCubit, ClaimWorkState>(
+              listenWhen: (p, c) => p.notice != c.notice,
+              listener: (context, state) {
+                final notice = state.notice;
+                if (notice != null) {
+                  _showWorkNotice(context, notice);
+                }
+              },
+            ),
+          ],
           child: BlocConsumer<StockIntakeCubit, StockIntakeState>(
             listenWhen: (p, c) => p.notice != c.notice,
             listener: (context, state) {
@@ -150,35 +192,42 @@ class _StockIntakeViewState extends State<_StockIntakeView> {
             },
             builder: (context, state) {
               final cubit = context.read<StockIntakeCubit>();
+              final claimWork = context.watch<ClaimWorkCubit>();
+              final intake = state.tab == IntakeTab.intake;
               return AppPageBody.scroll(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _barcodeField(state),
+                    _tabs(cubit, state),
                     const SizedBox(height: 12),
-                    _movedOnField(state),
+                    _barcodeField(state, claimWork),
                     const SizedBox(height: 12),
-                    _sellerField(cubit, state),
-                    const SizedBox(height: 12),
-                    _reasonField(cubit, state),
-                    const SizedBox(height: 12),
-                    if (state.unknownBarcode != null) ...[
-                      _unknownBox(state),
+                    if (!intake) const ClaimWorkSection(),
+                    if (intake) ...[
+                      _movedOnField(state),
                       const SizedBox(height: 12),
-                    ],
-                    ..._lineList(cubit, state),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: state.busy || state.lines.isEmpty
-                            ? null
-                            : cubit.save,
-                        child: state.busy
-                            ? const AppBusyLabel('입고 저장')
-                            : const Text('입고 저장'),
+                      _sellerField(cubit, state),
+                      const SizedBox(height: 12),
+                      _reasonField(cubit, state),
+                      const SizedBox(height: 12),
+                      if (state.unknownBarcode != null) ...[
+                        _unknownBox(state),
+                        const SizedBox(height: 12),
+                      ],
+                      ..._lineList(cubit, state),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: state.busy || state.lines.isEmpty
+                              ? null
+                              : cubit.save,
+                          child: state.busy
+                              ? const AppBusyLabel('입고 저장')
+                              : const Text('입고 저장'),
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               );
@@ -187,18 +236,37 @@ class _StockIntakeViewState extends State<_StockIntakeView> {
         ),
       );
 
-  Widget _barcodeField(StockIntakeState state) => TextField(
-        controller: _barcode,
-        focusNode: _barcodeFocus,
-        autofocus: true,
-        // Not `enabled: false` — that drops the focus for good.
-        readOnly: state.busy,
-        textInputAction: TextInputAction.done,
-        decoration: const InputDecoration(
-          hintText: '상품 바코드를 스캔하거나 입력하세요',
+  Widget _tabs(StockIntakeCubit cubit, StockIntakeState state) => SizedBox(
+        width: double.infinity,
+        child: SegmentedButton<IntakeTab>(
+          segments: const [
+            ButtonSegment(value: IntakeTab.intake, label: Text('입고')),
+            ButtonSegment(
+              value: IntakeTab.returnIntake,
+              label: Text('반품 재입고'),
+            ),
+          ],
+          selected: {state.tab},
+          showSelectedIcon: false,
+          onSelectionChanged: (set) => cubit.changeTab(set.first),
         ),
-        onSubmitted: _submitBarcode,
       );
+
+  Widget _barcodeField(StockIntakeState state, ClaimWorkCubit claimWork) {
+    final intake = state.tab == IntakeTab.intake;
+    return TextField(
+      controller: _barcode,
+      focusNode: _barcodeFocus,
+      autofocus: true,
+      // Not `enabled: false` — that drops the focus for good.
+      readOnly: intake ? state.busy : claimWork.state.busy,
+      textInputAction: TextInputAction.done,
+      decoration: InputDecoration(
+        hintText: intake ? '상품 바코드를 스캔하거나 입력하세요' : claimWork.hint,
+      ),
+      onSubmitted: _submitBarcode,
+    );
+  }
 
   Widget _movedOnField(StockIntakeState state) => InkWell(
         onTap: () => _pickDate(state),

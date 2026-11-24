@@ -246,6 +246,22 @@ class _AppDrawerState extends State<AppDrawer> {
                       )
                     : const SizedBox.shrink(),
               ),
+              // FEATURE_2611_34 D4: 「출고 작업」 right after 「입고 작업」,
+              // stock link on only.
+              BlocBuilder<PurchaseSettingBloc, PurchaseSettingState>(
+                builder: (context, setting) => setting.stockLinked == true
+                    ? Padding(
+                        padding: const EdgeInsets.only(left: 16),
+                        child: ListTile(
+                          title: const Text('출고 작업'),
+                          onTap: () {
+                            Navigator.pop(context);
+                            context.go(Routes.stockOutboundWorkPath);
+                          },
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
               // FEATURE_2611_03 D25 · D31: packing screens, no stock-link gate.
               Padding(
                 padding: const EdgeInsets.only(left: 16),

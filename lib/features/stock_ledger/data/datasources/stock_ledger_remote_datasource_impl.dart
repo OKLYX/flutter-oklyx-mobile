@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_oklyn_mobile/core/error/exceptions.dart';
 import '../../domain/entities/stock_intake.dart';
+import '../../domain/entities/stock_work.dart';
+import '../models/claim_work_model.dart';
 import '../models/intake_barcode_result_model.dart';
 import '../models/outbound_order_model.dart';
 import '../models/purchase_candidate_model.dart';
@@ -162,8 +164,111 @@ class StockLedgerRemoteDataSourceImpl implements StockLedgerRemoteDataSource {
         .toList();
   }
 
+  @override
+  Future<void> outboundWork(
+    String movedOn,
+    List<OutboundWorkLineRequest> lines,
+  ) async {
+    _ensureOk(await dio.post(
+      '$_base/outbound-work',
+      data: {
+        'movedOn': movedOn,
+        'lines': [
+          for (final line in lines)
+            {
+              'productId': line.productId,
+              'sellerId': line.sellerId,
+              'reason': line.reason.code,
+              if (line.reasonNote != null) 'reasonNote': line.reasonNote,
+              'quantity': line.quantity,
+            },
+        ],
+      },
+    ));
+  }
+
+  @override
+  Future<List<ClaimWorkModel>> claimsByReturnInvoice(String value) =>
+      _claims('$_base/return-work/by-return-invoice', {'value': value});
+
+  @override
+  Future<List<ClaimWorkModel>> claimsByParcelInvoice(String value) =>
+      _claims('$_base/return-work/by-parcel-invoice', {'value': value});
+
+  @override
+  Future<List<ShippedOrderModel>> shippedOrders() async {
+    final response = _ensureOk(
+      await dio.get('$_base/return-work/shipped-orders'),
+    );
+    return _list(response)
+        .map((e) => ShippedOrderModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<List<ClaimWorkModel>> claimsByOrder(int orderId) =>
+      _claims('$_base/return-work/orders/$orderId', null);
+
+  @override
+  Future<void> returnWork(
+    String movedOn,
+    List<ClaimWorkLineRequest> lines,
+  ) async {
+    _ensureOk(await dio.post(
+      '$_base/return-work',
+      data: _claimWorkBody(movedOn, lines),
+    ));
+  }
+
+  @override
+  Future<List<ClaimWorkModel>> claimsByReshipInvoice(String value) =>
+      _claims('$_base/exchange-work/by-reship-invoice', {'value': value});
+
+  @override
+  Future<List<ClaimWorkModel>> openExchanges() =>
+      _claims('$_base/exchange-work/open', null);
+
+  @override
+  Future<void> exchangeWork(
+    String movedOn,
+    List<ClaimWorkLineRequest> lines,
+  ) async {
+    _ensureOk(await dio.post(
+      '$_base/exchange-work',
+      data: _claimWorkBody(movedOn, lines),
+    ));
+  }
+
+  /// One claim work lookup (FEATURE_2611_34 D35 ① ② ③ ⑥).
+  Future<List<ClaimWorkModel>> _claims(
+    String path,
+    Map<String, dynamic>? query,
+  ) async {
+    final response = _ensureOk(await dio.get(path, queryParameters: query));
+    return _list(response)
+        .map((e) => ClaimWorkModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Body of the 「반품 재입고」 / 「교환 발송」 save (PLAN §3-3).
+  Map<String, dynamic> _claimWorkBody(
+    String movedOn,
+    List<ClaimWorkLineRequest> lines,
+  ) =>
+      {
+        'movedOn': movedOn,
+        'lines': [
+          for (final line in lines)
+            {
+              'orderClaimId': line.orderClaimId,
+              'productId': line.productId,
+              'quantity': line.quantity,
+            },
+        ],
+      };
+
   /// Outside 2xx throws [ServerException] with the server message (empty
-  /// when the body has none) — FEATURE_2611_33 calls only.
+  /// when the body has none) — FEATURE_2611_33 · 2611_34 calls only.
   Response<dynamic> _ensureOk(Response<dynamic> response) {
     final code = response.statusCode ?? 0;
     if (code >= 200 && code < 300) {
