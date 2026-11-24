@@ -9,6 +9,7 @@ import '../../domain/entities/stock_balance.dart';
 import '../../domain/entities/stock_enums.dart';
 import '../../domain/entities/stock_intake.dart';
 import '../../domain/entities/stock_movement.dart';
+import '../../domain/entities/stock_work.dart';
 import '../../domain/repositories/stock_ledger_repository.dart';
 import '../datasources/stock_ledger_remote_datasource.dart';
 import '../models/confirm_outbound_params.dart';
@@ -163,6 +164,17 @@ class StockLedgerRepositoryImpl implements StockLedgerRepository {
       _guard(
         () => remoteDataSource.intake(movedOn, lines),
         '입고를 저장하지 못했습니다.',
+      );
+
+  @override
+  Future<Either<Failure, void>> outboundWork({
+    required String movedOn,
+    required List<OutboundWorkLineRequest> lines,
+    required String fallback,
+  }) =>
+      _guard(
+        () => remoteDataSource.outboundWork(movedOn, lines),
+        fallback,
       );
 
   /// Server text first, [fallback] when it is blank (FEATURE_2611_33 R4).

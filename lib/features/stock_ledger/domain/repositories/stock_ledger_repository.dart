@@ -7,6 +7,7 @@ import '../entities/stock_balance.dart';
 import '../entities/stock_enums.dart';
 import '../entities/stock_intake.dart';
 import '../entities/stock_movement.dart';
+import '../entities/stock_work.dart';
 
 /// 실물 재고 원장 API (`/api/admin/stock/**`, PLAN 2609_28).
 ///
@@ -67,5 +68,13 @@ abstract class StockLedgerRepository {
   Future<Either<Failure, List<int>>> intake({
     required String movedOn,
     required List<StockIntakeLine> lines,
+  });
+
+  /// 「출고 작업」 one-shot save (FEATURE_2611_34 D34) — [fallback] shows
+  /// when the server sends no message.
+  Future<Either<Failure, void>> outboundWork({
+    required String movedOn,
+    required List<OutboundWorkLineRequest> lines,
+    required String fallback,
   });
 }
