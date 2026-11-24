@@ -73,10 +73,10 @@ class IntakeLine {
       );
 }
 
-/// State of the 「입고 작업」 screen (FEATURE_2611_33 D4 · D5).
 /// Tabs of 「입고 작업」 (FEATURE_2611_34 D2).
 enum IntakeTab { intake, returnIntake }
 
+/// State of the 「입고 작업」 screen (FEATURE_2611_33 D4 · D5).
 class StockIntakeState {
   final IntakeTab tab;
   final List<Seller> sellers;
